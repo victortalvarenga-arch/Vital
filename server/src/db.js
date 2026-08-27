@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { migrar } from './lib/migrate.js';
+import { contexto, conexaoAtual } from './lib/contexto.js';
 import { TENANT_PADRAO, comPadroes } from './lib/tenant.js';
 
 const { Pool, types } = pg;
@@ -53,22 +54,29 @@ function traduzirMarcadores(sql) {
   return saida;
 }
 
+/**
+ * Onde a consulta vai sair: a conexão da requisição, se houver uma, senão o
+ * pool. É isto que faz o RLS valer — a conexão da requisição é a única que tem
+ * `app.tenant_id` definido.
+ */
+const executor = () => conexaoAtual() || pool;
+
 export const db = {
   /** Uma linha só, ou undefined. */
   async get(sql, ...params) {
-    const { rows } = await pool.query(traduzirMarcadores(sql), params);
+    const { rows } = await executor().query(traduzirMarcadores(sql), params);
     return rows[0];
   },
 
   /** Todas as linhas. */
   async all(sql, ...params) {
-    const { rows } = await pool.query(traduzirMarcadores(sql), params);
+    const { rows } = await executor().query(traduzirMarcadores(sql), params);
     return rows;
   },
 
   /** Escrita. Devolve quantas linhas foram afetadas. */
   async run(sql, ...params) {
-    const r = await pool.query(traduzirMarcadores(sql), params);
+    const r = await executor().query(traduzirMarcadores(sql), params);
     return r.rowCount;
   },
 
@@ -78,7 +86,10 @@ export const db = {
    * transação e é justamente o que não pode acontecer.
    */
   async transacao(fn) {
-    const cliente = await pool.connect();
+    // Dentro de uma requisição, a transação PRECISA usar a conexão dela: uma
+    // conexão nova do pool viria sem `app.tenant_id` e o RLS esconderia tudo.
+    const daRequisicao = conexaoAtual();
+    const cliente = daRequisicao || await pool.connect();
     try {
       await cliente.query('BEGIN');
       const tx = {
@@ -93,19 +104,58 @@ export const db = {
       await cliente.query('ROLLBACK');
       throw erro;
     } finally {
+      if (!daRequisicao) cliente.release();
+    }
+  },
+
+  /**
+   * Roda `fn` com a conexão presa a uma empresa. Todas as consultas lá dentro
+   * enxergam só o que é dela.
+   *
+   * Fora de uma requisição HTTP — nos jobs de cron, no seed — é a única forma
+   * de escrever qualquer coisa: sem empresa definida, o default de `tenant_id`
+   * vira NULL e o NOT NULL derruba a gravação.
+   */
+  async comEmpresa(tenantId, fn) {
+    const cliente = await pool.connect();
+    try {
+      // set_config em vez de SET porque aceita parâmetro; concatenar o id na
+      // string seria injeção de SQL esperando acontecer.
+      await cliente.query('SELECT set_config($1, $2, false)', ['app.tenant_id', tenantId]);
+      return await contexto.run({ cliente, tenantId }, fn);
+    } finally {
+      // Sem isto, a conexão volta ao pool marcada com esta empresa e a próxima
+      // requisição herdaria o acesso.
+      try { await cliente.query('RESET app.tenant_id'); } catch { /* conexão já morta */ }
       cliente.release();
     }
   },
 };
 
-/** Roda as migrations pendentes. Chamado uma vez, no boot. */
+/**
+ * Roda as migrations pendentes. Chamado uma vez, no boot.
+ *
+ * Usa uma conexão à parte: a aplicação roda como `vital_app`, que de propósito
+ * não pode criar tabela nem ignorar RLS. Migration precisa dos dois, então sai
+ * por DATABASE_ADMIN_URL — em produção, credencial de deploy, não da aplicação.
+ */
 export async function iniciarBanco() {
   if (!process.env.DATABASE_URL) {
     throw new Error(
       'DATABASE_URL não definida. Copie server/.env.example para server/.env.'
     );
   }
-  await migrar(pool);
+
+  const urlAdmin = process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL;
+  const admin = new Pool({
+    connectionString: urlAdmin,
+    ssl: /localhost|127\.0\.0\.1/.test(urlAdmin) ? false : { rejectUnauthorized: false },
+  });
+  try {
+    await migrar(admin);
+  } finally {
+    await admin.end();
+  }
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -120,12 +170,12 @@ export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().to
  * sem migration.
  */
 export async function getConfig(tenantId = TENANT_PADRAO) {
-  const r = await db.get('SELECT config FROM tenants WHERE id = ?', tenantId);
+  const r = await db.get('SELECT config FROM plataforma.tenants WHERE id = ?', tenantId);
   return comPadroes(r?.config || {});
 }
 
 export async function setConfig(patch, tenantId = TENANT_PADRAO) {
-  const r = await db.get('SELECT config FROM tenants WHERE id = ?', tenantId);
+  const r = await db.get('SELECT config FROM plataforma.tenants WHERE id = ?', tenantId);
   const salvo = r?.config || {};
 
   // Mescla por seção: mudar uma cor não pode apagar o resto da marca.
@@ -136,13 +186,14 @@ export async function setConfig(patch, tenantId = TENANT_PADRAO) {
       : valor;
   }
 
-  await db.run('UPDATE tenants SET config = ? WHERE id = ?', JSON.stringify(novo), tenantId);
+  await db.run('UPDATE plataforma.tenants SET config = ? WHERE id = ?', JSON.stringify(novo), tenantId);
   return getConfig(tenantId);
 }
 
 export async function getTenant(tenantId = TENANT_PADRAO) {
-  const r = await db.get('SELECT id, slug, nome, dominio, ativo FROM tenants WHERE id = ?', tenantId);
-  return r && { id: r.id, slug: r.slug, nome: r.nome, dominio: r.dominio, ativo: !!r.ativo };
+  const r = await db.get('SELECT id, slug, nome, dominio, plano, status, ativo FROM plataforma.tenants WHERE id = ?', tenantId);
+  return r && { id: r.id, slug: r.slug, nome: r.nome, dominio: r.dominio,
+    plano: r.plano, status: r.status, ativo: !!r.ativo };
 }
 
 /* ------------------------------------------------------------------ *

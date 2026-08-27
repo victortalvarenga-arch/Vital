@@ -57,8 +57,10 @@ escrito, não aconteceu.
   como marcador; `db.js` traduz para `$1` do Postgres.
 - Todo handler de rota assíncrono vai embrulhado em `rota()`, senão erro nele
   pendura a requisição sem resposta.
-- Nunca escreva `'default'` como `tenant_id` na mão numa consulta; quem decide é
-  `lib/tenant.js`.
+- Nunca escreva `tenant_id` numa consulta — nem no `WHERE`, nem no `INSERT`. O
+  banco filtra e preenche sozinho (Row-Level Security). Ver `ARQUITETURA.md`.
+- Código que roda fora de uma requisição HTTP (cron, seed, script) precisa de
+  `db.comEmpresa(id, fn)`, senão o banco não devolve nem aceita nada.
 - Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê
   está em `ARQUITETURA.md`.
 - Telefone é guardado só com dígitos, sem `+55`.

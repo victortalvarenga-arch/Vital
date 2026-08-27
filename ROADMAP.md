@@ -192,22 +192,32 @@ Só troca de motor, ainda sem multiempresa. O que ficou implementado está em
 **Ainda em aberto deste bloco:** decidir onde `server/uploads/` vive quando
 escolhermos a hospedagem do Node. Não bloqueia nada até o Bloco 6.
 
-### Bloco 2 — Multiempresa dentro do Postgres
-Antigo "Bloco 1" de banco por empresa, redesenhado para o motor novo. Agora é
-mais barato: tudo num banco só, `tenant_id` mais política de segurança.
+### Bloco 2 — Multiempresa dentro do Postgres ✅ concluído
+O que ficou implementado está em `ARQUITETURA.md`, seção "Isolamento entre
+empresas".
 
-- [ ] `tenant_id` em toda tabela de negócio; índice composto com a chave
-      primária de cada uma
-- [ ] Row-Level Security: política por tabela que só libera linha da empresa da
-      conexão atual — o banco recusa mesmo se uma rota esquecer o filtro
-- [ ] Tabela `tenants` (id, slug, domínio, nome, plano, status, criado_em) —
-      pode viver num schema `plataforma` dentro do mesmo banco
-- [ ] Tabela `plataforma_usuarios` (login da nossa equipe, papel) e log de
-      auditoria das ações administrativas
-- [ ] `lib/tenant.js` passa a resolver a empresa por slug/subdomínio e a
-      configurar a sessão do Postgres para aquele `tenant_id`
-- [ ] `server/uploads/<slug>/` (ou equivalente no storage escolhido) — imagem de
-      uma empresa isolada da de outra
+- [x] `tenant_id` em toda tabela de negócio, com índice começando por ele —
+      sem isso o RLS fica lento, porque a política entra como filtro em tudo
+- [x] Row-Level Security com `USING` e `WITH CHECK` nas 10 tabelas de negócio
+- [x] Papel `vital_app`, sem `SUPERUSER` e sem `BYPASSRLS` — sem isso o RLS
+      seria decorativo, porque superusuário ignora política
+- [x] `FORCE ROW LEVEL SECURITY`: nem o dono da tabela escapa
+- [x] Schema `plataforma` com `tenants` (agora com plano e status),
+      `usuarios` (nossa equipe) e `auditoria`
+- [x] `lib/contexto.js` + middleware `comEmpresa()`: a empresa vive na conexão,
+      não na consulta — nenhuma das 122 consultas precisou mudar
+- [x] `tenant_id` com default `current_setting('app.tenant_id')`: preenche
+      sozinho, e sem empresa definida a gravação falha em vez de vazar
+- [x] Jobs de cron percorrem as empresas ativas uma a uma
+
+**Provado por teste, não por leitura:** empresa nova nasce vazia; `SELECT *
+FROM clients` sem filtro nenhum devolve 0 linhas para quem não tem dado;
+escrita de uma não aparece na outra; tentar gravar no nome de outra empresa é
+recusado pelo banco; conexão sem empresa não devolve nada; e a conexão não leva
+a empresa de volta ao pool. 11 casos, todos passando.
+
+**Ainda em aberto deste bloco:** `server/uploads/<slug>/` — depende de decidir
+a hospedagem, e só vira bloqueio no Bloco 6.
 
 ### Bloco 3 — Separação das áreas e autenticação
 - [ ] Duas entradas no Vite; `App.jsx` (1269 linhas) quebrado em `site/`, `painel/`, `shared/`

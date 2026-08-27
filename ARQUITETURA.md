@@ -18,6 +18,7 @@ flowchart TB
     end
 
     subgraph back["server/ · Express + pg"]
+        emp["comEmpresa()<br><b>prende a conexão a uma empresa</b>"]
         publico["/api/publico/*<br><i>aberto</i>"]
         privado["/api/*<br><i>exige ADMIN_TOKEN</i>"]
         motor["lib/availability.js<br><b>decide se o horário está livre</b>"]
@@ -25,14 +26,15 @@ flowchart TB
         prov["whatsapp/<br><i>manual | meta</i>"]
     end
 
-    db[("PostgreSQL<br><i>local · Neon/Supabase depois</i>")]
+    db[("PostgreSQL<br><b>Row-Level Security por empresa</b>")]
     wa["WhatsApp"]
 
     site --> app
     painel --> app
     app --> api
-    api --> publico
-    api --> privado
+    api --> emp
+    emp --> publico
+    emp --> privado
     publico --> motor
     privado --> motor
     motor --> db
@@ -55,9 +57,11 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   db/migrations/   Esquema em migrations numeradas, versionadas em tabela.
   src/db.js        Pool de conexões, migrations no boot, linha ↔ objeto da API.
   src/reset.js     Zera o banco em desenvolvimento. Recusa rodar fora de localhost.
+  src/senha-app.js Define a senha do papel vital_app a partir do .env (dev).
   src/lib/         availability.js (horários), templates.js (mensagens),
                    dates.js (datas como texto), migrate.js (migrations),
-                   rota.js (erro em handler async), tenant.js (empresa + config)
+                   rota.js (erro em handler async), contexto.js (conexão da
+                   requisição), tenant.js (resolve a empresa + config padrão)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens | relatorios
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
@@ -139,20 +143,47 @@ erDiagram
     tenants   ||--o{ users        : "tem"
 ```
 
-**Toda linha de negócio tem `tenant_id`.** Hoje é sempre `'default'` e é um
-deploy por empresa. A coluna existe assim mesmo porque acrescentá-la depois, com
-agenda cheia, é a migração cara. Quem decide de quem é o dado é `lib/tenant.js`
-— nunca escreva `'default'` na mão numa consulta.
+### Isolamento entre empresas
 
-**A config da empresa mora em `tenants.config`.** É JSON, e o banco guarda só o
+Um banco só, várias empresas, separadas por `tenant_id` **mais uma política que
+o próprio Postgres aplica** (Row-Level Security). A coluna sozinha dependeria de
+alguém lembrar do `WHERE` em toda consulta; a política fecha isso no banco.
+
+Três peças fazem funcionar:
+
+1. **A aplicação não conecta como superusuário.** O Postgres ignora RLS para
+   superusuário e para o dono da tabela — então existe o papel `vital_app`,
+   sem `SUPERUSER` e sem `BYPASSRLS`, e as tabelas usam `FORCE ROW LEVEL
+   SECURITY`. Migrations continuam saindo por uma conexão de administrador
+   (`DATABASE_ADMIN_URL`), que precisa criar tabela.
+2. **A empresa vive na conexão, não na consulta.** O middleware `comEmpresa()`
+   pega uma conexão, marca `app.tenant_id` nela e roda a requisição inteira ali
+   dentro, via `AsyncLocalStorage` (`lib/contexto.js`). Por isso `db.get/all/run`
+   acham a conexão certa sozinhos e nenhuma rota precisa saber que isso existe.
+   A conexão é devolvida ao pool **com `RESET`** — sem isso a próxima requisição
+   herdaria o acesso da anterior.
+3. **`tenant_id` se preenche sozinho.** O default da coluna é
+   `current_setting('app.tenant_id', true)`. Nenhum `INSERT` informa a empresa,
+   e não dá para informar a errada. Sem empresa na conexão o valor vira `NULL` e
+   o `NOT NULL` derruba a gravação: falha fechada, que é o lado certo para
+   errar.
+
+Consequência prática: **fora de uma requisição HTTP não existe empresa**. Os
+jobs de cron e o seed precisam de `db.comEmpresa(id, fn)` explícito — o cron
+percorre as empresas ativas uma a uma.
+
+O que **não** tem RLS: o schema `plataforma` (`tenants`, `usuarios`,
+`auditoria`), que é cadastro da Vital, não dado de negócio de ninguém.
+
+**A config da empresa mora em `plataforma.tenants.config`.** É JSON, e o banco guarda só o
 que foi alterado: `getConfig()` mescla por cima de `configPadrao`. Campo novo de
 personalização não precisa de migration. As chaves operacionais (`passoAgenda`,
 `horaLembreteVespera`...) são planas porque o código já as lê assim; o que é
 novo vem agrupado em `marca`, `textos`, `vocabulario` e `exibir`.
 
-`units` (unidades), `blocks` (bloqueio de horário) e `users` (login com papel)
-existem no esquema mas ainda não têm tela nem uso no código — foram criadas no
-Bloco 0 para não exigir migração depois.
+`units` (unidades), `blocks` (bloqueio de horário), `users` (equipe da empresa)
+e o schema `plataforma` inteiro existem no esquema mas ainda não têm tela — foram
+criados cedo para não exigir migração depois.
 
 ## Autenticação hoje
 

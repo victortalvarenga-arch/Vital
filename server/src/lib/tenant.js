@@ -8,17 +8,44 @@
  * Toda consulta que lê dado de negócio deve receber o id daqui, nunca escrever
  * 'default' na mão.
  */
-export const TENANT_PADRAO = 'default';
+export const TENANT_PADRAO = process.env.TENANT_PADRAO || 'default';
 
+/**
+ * Descobre de qual empresa é a requisição.
+ *
+ * Hoje devolve sempre a mesma, porque é um domínio só. A ordem de resolução já
+ * está montada para o dia do subdomínio (Bloco 9) — quando chegar lá, só a
+ * consulta ao banco entra no lugar do fallback.
+ */
 export function resolverTenant(req) {
-  // Bloco 7: ler o subdomínio de req.hostname e buscar em tenants.slug.
+  // Bloco 9: buscar em plataforma.tenants por slug (subdomínio) ou dominio.
+  const host = (req?.hostname || '').toLowerCase();
+  const sub = host.split('.')[0];
+  if (sub && !['localhost', 'www', '127'].includes(sub) && host.split('.').length > 2) {
+    return sub;
+  }
   return TENANT_PADRAO;
 }
 
-/** Põe req.tenantId em toda requisição. */
-export function comTenant(req, res, next) {
-  req.tenantId = resolverTenant(req);
-  next();
+/**
+ * Prende a requisição inteira a uma empresa: pega uma conexão, marca
+ * `app.tenant_id` nela e roda o resto do pedido lá dentro.
+ *
+ * A partir daqui o RLS faz o trabalho — nenhuma consulta consegue enxergar
+ * linha de outra empresa, mesmo que esqueça o filtro.
+ */
+export function comEmpresa(db) {
+  return (req, res, next) => {
+    req.tenantId = resolverTenant(req);
+    db.comEmpresa(req.tenantId, () => new Promise(resolve => {
+      // A conexão só volta ao pool quando a resposta termina; até lá, toda
+      // consulta da requisição sai dela. Vale para os dois desfechos: erro
+      // tratado também gera resposta, e 'close' cobre cliente que desistiu.
+      res.on('finish', resolve);
+      res.on('close', resolve);
+      next();
+    })).catch(next);
+  };
 }
 
 /**

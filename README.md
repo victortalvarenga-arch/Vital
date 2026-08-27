@@ -33,10 +33,17 @@ senha** — bom para desenvolver, nunca para publicar. A API avisa isso no boot.
 | `npm run dev` | Sobe API e front juntos |
 | `npm run dev:api` | Só o backend |
 | `npm run dev:web` | Só o front |
-| `cd server && npm run seed` | Popula um banco vazio |
+| `cd server && npm run seed` | Roda migrations e popula um banco vazio |
 | `cd server && npm run reset` | Apaga tudo e popula de novo (só em localhost) |
+| `cd server && npm run senha-app` | Redefine a senha do usuário da aplicação |
 
 As migrations rodam sozinhas quando a API sobe.
+
+**Dois usuários de banco, de propósito.** A aplicação conecta como `vital_app`,
+sem superusuário — é isso que faz o isolamento entre empresas valer, porque o
+Postgres ignora Row-Level Security para superusuário. As migrations usam
+`DATABASE_ADMIN_URL`, que pode criar tabela. O `npm run seed` cria o papel e
+define a senha dele a partir do `.env`; nada disso é manual.
 
 ## Se algo der errado
 
@@ -46,8 +53,16 @@ As migrations rodam sozinhas quando a API sobe.
 **`ECONNREFUSED` ao subir a API** — o Postgres não está rodando. No Windows:
 `Get-Service postgresql*` e, se preciso, `Start-Service postgresql-x64-17`.
 
-**`password authentication failed`** — a senha em `DATABASE_URL` não bate com a
-que você definiu ao instalar o Postgres. Corrija a linha no `server/.env`.
+**`password authentication failed` para `vital_app`** — o papel existe mas está
+sem a senha do seu `.env`. Rode `cd server && npm run senha-app`.
+
+**`password authentication failed` para `postgres`** — a senha em
+`DATABASE_ADMIN_URL` não bate com a que você definiu ao instalar o Postgres.
+Corrija a linha no `server/.env`.
+
+**Uma consulta volta vazia sem motivo** — provavelmente está rodando fora de uma
+requisição HTTP, onde não há empresa definida e o RLS esconde tudo. Envolva em
+`db.comEmpresa(id, fn)`.
 
 **`database "vital" does not exist`** — falta o passo 1:
 `psql -U postgres -c "CREATE DATABASE vital;"`.

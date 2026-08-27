@@ -12,6 +12,7 @@ import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
 import { iniciarJobs } from './jobs/mensagens.js';
 import { rota } from './lib/rota.js';
+import { comEmpresa } from './lib/tenant.js';
 
 const app = express();
 app.use(cors({ origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',') }));
@@ -31,6 +32,13 @@ function exigeToken(req, res, next) {
 }
 
 app.get('/api/saude', (req, res) => res.json({ ok: true, data: hoje() }));
+
+/**
+ * Toda rota de dado passa por aqui antes de qualquer outra coisa: descobre a
+ * empresa e prende a conexão do Postgres a ela. Do middleware para baixo, o
+ * banco recusa sozinho qualquer linha de outra empresa.
+ */
+app.use('/api', comEmpresa(db));
 
 /* Site: aberto. */
 app.use('/api/publico', publico);

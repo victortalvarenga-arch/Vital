@@ -10,7 +10,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node src/seed.js",
-    "reset": "node src/reset.js && npm run seed"
+    "reset": "node src/reset.js && npm run seed",
+    "senha-app": "node src/senha-app.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

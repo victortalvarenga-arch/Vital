@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import { db, pool, iniciarBanco, uid, setConfig, salvarVinculos } from './db.js';
+import { TENANT_PADRAO } from './lib/tenant.js';
+import { definirSenhaApp } from './senha-app.js';
 import { hoje, addDias } from './lib/dates.js';
 import { TEMPLATES_PADRAO } from './lib/templates.js';
 
@@ -10,11 +12,21 @@ import { TEMPLATES_PADRAO } from './lib/templates.js';
 
 await iniciarBanco();
 
+// As migrations acabaram de criar o papel `vital_app` sem senha; sem este passo
+// o próprio seed não conseguiria conectar como ele logo abaixo.
+await definirSenhaApp();
+
+// Fora de uma requisição HTTP não existe empresa definida na conexão, e o RLS
+// esconde tudo. O seed precisa dizer para quem está populando.
+await db.comEmpresa(TENANT_PADRAO, popular);
+await pool.end();
+
+async function popular() {
+
 const { n: jaTem } = await db.get('SELECT COUNT(*) n FROM services');
 if (jaTem > 0 && !process.argv.includes('--forcar')) {
   console.log('Banco já populado. Use `npm run reset` para recomeçar do zero.');
-  await pool.end();
-  process.exit(0);
+  return;
 }
 
 const h = hoje();
@@ -132,4 +144,5 @@ for (const t of TEMPLATES_PADRAO) {
 }
 
 console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
-await pool.end();
+
+}

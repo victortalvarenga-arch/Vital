@@ -3,6 +3,7 @@ import { db, uid, getConfig } from '../db.js';
 import { hoje, agora, addDias, toMin, toHora, diasEntre } from '../lib/dates.js';
 import { render, variaveis } from '../lib/templates.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
+import { TENANT_PADRAO } from '../lib/tenant.js';
 
 /**
  * Duas rotinas separadas, de propósito:
@@ -169,18 +170,38 @@ export async function despachar({ limite = 30 } = {}) {
   return { enviadas, erros };
 }
 
+/**
+ * Roda uma rotina para cada empresa ativa, uma de cada vez.
+ *
+ * Cron não tem requisição, logo não tem empresa definida — e sem isso o RLS
+ * não devolve nada. Cada empresa recebe a própria passada, com a conexão presa
+ * a ela: uma empresa com erro não impede as outras de rodar.
+ */
+async function paraCadaEmpresa(nome, fn) {
+  const empresas = await db.all(
+    `SELECT id FROM plataforma.tenants WHERE ativo = 1 AND status = 'ativa' ORDER BY id`
+  );
+  for (const { id } of empresas) {
+    try {
+      await db.comEmpresa(id, fn);
+    } catch (e) {
+      console.error(`[${nome}] empresa ${id}:`, e.message);
+    }
+  }
+}
+
 /** Agendadores. Roda ao subir o servidor. */
 export function iniciarJobs() {
   const tz = process.env.TZ_ESTUDIO || 'America/Sao_Paulo';
 
   cron.schedule('*/10 * * * *', () => {
-    gerarFila().catch(e => console.error('[fila]', e.message));
+    paraCadaEmpresa('fila', gerarFila).catch(e => console.error('[fila]', e.message));
   }, { timezone: tz });
 
   cron.schedule('*/5 * * * *', () => {
-    despachar().catch(e => console.error('[despacho]', e.message));
+    paraCadaEmpresa('despacho', despachar).catch(e => console.error('[despacho]', e.message));
   }, { timezone: tz });
 
-  gerarFila().catch(e => console.error('[fila inicial]', e.message));
+  paraCadaEmpresa('fila inicial', gerarFila).catch(e => console.error('[fila inicial]', e.message));
   console.log(`[jobs] ativos · fuso ${tz} · provider ${process.env.WHATSAPP_PROVIDER || 'manual'}`);
 }
