@@ -165,10 +165,12 @@ o servidor corta em 500 caracteres em vez de recusar, porque devolver erro por
 causa de um recado longo perderia o agendamento inteiro.
 
 **A cliente escolhe a categoria antes de ver a lista.** Um estúdio com quarenta
-serviços numa página só é uma parede de texto. O site mostra as categorias como
-cartões — com a foto de um dos serviços do grupo — e só abre a lista depois do
-toque. A empresa desliga isso em Configurações → Site da cliente, se tiver
-poucos serviços.
+serviços numa página só é uma parede de texto. A home mostra as categorias na
+**mesma grade redonda** dos serviços — com a foto de um dos serviços do grupo —
+e só abre a lista depois do toque. Usar a mesma grade nos dois níveis não é
+economia de código: é a home inteira falando a mesma língua visual. A empresa
+desliga o agrupamento em Configurações → Site da cliente, se tiver poucos
+serviços.
 
 **Imagens: reduzidas no navegador, servidas pelo Express.** A foto que sai da
 câmera tem 4000px e 8 MB, e vai aparecer num quadrado de 60px. `shared/imagem.js`

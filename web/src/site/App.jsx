@@ -164,23 +164,29 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
     );
   }
 
+  // Categoria usa a mesma grade redonda do serviço: a home inteira fala a mesma
+  // língua visual, e a foto de um dos serviços do grupo já diz o que é.
   return (
-    <div className="cats">
+    <div className="svc-grade">
       {categorias.map(({ nome, itens }, i) => {
         const capa = itens.find(s => s.foto)?.foto;
         return (
           <Revela key={nome} className={`atraso-${Math.min(i, 5)}`}>
-            <button className="cat-cartao" onClick={() => setAberta(nome)}>
-              <div className="cat-foto">
-                {capa ? <img src={capa} alt="" />
-                      : <span className="cat-inicial">{nome?.[0]?.toUpperCase()}</span>}
-              </div>
-              <div className="cat-txt">
-                <div className="cat-nome">{nome}</div>
-                <div className="cat-qtd">{itens.length} {itens.length === 1 ? 'opção' : 'opções'}</div>
-              </div>
-              <ChevronRight size={20} className="cat-seta" />
-            </button>
+            <article className="svc-item">
+              <button className="svc-circulo" onClick={() => setAberta(nome)}
+                      aria-label={`Ver ${itens.length} opções de ${nome}`}>
+                {capa
+                  ? <img src={capa} alt="" loading="lazy" />
+                  : <span className="svc-inicial">{nome?.[0]?.toUpperCase()}</span>}
+              </button>
+              <h4 className="svc-nome">{nome}</h4>
+              <p className="svc-meta">
+                <span className="svc-dur">{itens.length} {itens.length === 1 ? 'opção' : 'opções'}</span>
+              </p>
+              <button className="b b-p b-peq svc-btn" onClick={() => setAberta(nome)}>
+                Ver opções <ChevronRight size={15} />
+              </button>
+            </article>
           </Revela>
         );
       })}
