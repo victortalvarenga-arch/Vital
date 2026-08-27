@@ -87,12 +87,12 @@ hoje impede publicar na internet.
 tabela `users` (Bloco 0) já tem a coluna `papel`; falta o significado de cada
 um. Três papéis para começar, com regra concreta, não só nome:
 
-- **Dono** — vê e edita tudo, inclusive financeiro e Aparência (Bloco 6).
+- **Dono** — vê e edita tudo, inclusive financeiro e a configuração do site.
 - **Gerente** — opera o dia a dia: agenda de qualquer profissional, cadastros,
   financeiro. Não edita a aparência do site.
-- **Funcionário** — só a própria agenda. **Não edita o site nem a aparência
-  (Bloco 6)**, e **não bloqueia horário de outro profissional** (Bloco 0,
-  tabela `blocks`) — só o próprio.
+- **Funcionário** — só a própria agenda. **Não edita a configuração do site**,
+  e **não bloqueia horário de outro profissional** (tabela `blocks`) — só o
+  próprio.
 
 Cada regra dessas precisa existir tanto na tela (esconder o que não pode) quanto
 na rota (recusar mesmo se a chamada chegar direto) — esconder botão não é
@@ -281,6 +281,60 @@ para `server/uploads/<empresa>/`, servido pelo Express. Continua valendo o item
 de produção — se a hospedagem do Node apagar o disco entre deploys, isso vira
 storage de objeto.
 
+### Bloco 6b — Site: refinamento visual e agendamento em janela
+O site funciona; agora precisa ficar bonito e o agendamento precisa parar de
+ser uma tela cheia separada. Referência continua sendo
+`esteticalaurafaust.ageenda.com.br` — vale navegar nele antes de começar.
+
+**O agendamento vira uma janela sobre a home**, não uma troca de tela. A
+referência divide em três colunas:
+
+- **Esquerda** — em que passo está (bolinhas), ilustração e um texto curto de
+  ajuda ("Datas em verde possuem disponibilidade").
+- **Centro** — o passo atual.
+- **Direita** — resumo ao vivo do que já foi escolhido: profissional, serviço,
+  serviços adicionais e **total**. É o que dá segurança para confirmar.
+
+No celular isso não cabe em três colunas: vira uma só, com o resumo colapsado
+no rodapé mostrando o total, expansível ao toque.
+
+- [ ] Agendamento em janela (modal) sobre a home, com foco preso dentro dela e
+      fechamento por Esc — e por gesto/botão no celular
+- [ ] Coluna de resumo ao vivo, com total somando serviço + adicionais
+- [ ] **Calendário por mês**, não a faixa de dias de hoje. Dia com vaga sai
+      marcado (a referência usa um traço verde embaixo do número), dia cheio
+      ou fora da jornada sai apagado. Navegação mês anterior / próximo mês.
+      Isso muda a rota: `/publico/horarios` responde por dia; vai precisar de
+      algo como `/publico/dias-livres?mes=YYYY-MM`, senão o calendário faria 30
+      chamadas para pintar um mês.
+- [ ] Seção de serviços mais bonita — hoje é uma lista funcional e sem graça
+- [ ] Animações discretas ao rolar a página, com `prefers-reduced-motion`
+      respeitado. Cuidado para não virar enfeite: a página é para agendar
+      rápido, não para impressionar.
+- [ ] Escolher profissional: incluir a opção "qualquer profissional" (hoje ou
+      escolhe uma, ou o sistema decide sozinho quando só há uma)
+
+### Bloco 6c — Serviços adicionais
+Vender um extra junto do principal: limpeza de pele **+ depilação de nariz**.
+Sobe o ticket médio e é o tipo de coisa que a cliente aceita no momento da
+escolha, não depois.
+
+Mexe no modelo de dados, então precisa de migration — e é a primeira desde que
+o esquema existe, boa hora para conferir se o runner está confortável.
+
+- [ ] Tabela de vínculo `service_addons` (serviço principal → serviços que
+      podem ser oferecidos como extra). Um adicional é um `service` normal,
+      não uma entidade nova — assim ele já tem preço, duração e quem executa
+- [ ] Cadastro no painel: ao editar um serviço, marcar quais outros podem ser
+      oferecidos junto
+- [ ] No site, passo de adicionais depois da escolha do serviço, com preço de
+      cada um e o total atualizando
+- [ ] A duração do agendamento passa a somar principal + adicionais, senão o
+      motor de horários reserva tempo de menos e a agenda estoura
+- [ ] Decidir como o agendamento guarda os adicionais: hoje `appointments` tem
+      um `service_id` só. Provavelmente uma tabela de itens do agendamento —
+      cuidado, isso toca relatório e comissão
+
 ### Bloco 7 — Painel da equipe
 O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no
 celular). O que falta aqui são as telas em si e as capacidades novas.
@@ -325,12 +379,23 @@ cada empresa e do site — fala com o schema `plataforma` e, quando precisa dar
 suporte, consulta o `tenant_id` de uma empresa específica.
 
 - [ ] Login da nossa equipe, à parte de qualquer login de empresa
-- [ ] Lista de empresas: plano, status, criada em, uso no mês (agendamentos)
+- [ ] **Lista de empresas-cliente** com o que a gente precisa saber de relance:
+      nome, **qual plano assinou**, status, desde quando é cliente
+- [ ] **Números por empresa**: quantos clientes finais ela tem cadastrados,
+      quantos agendamentos no mês, quantos profissionais, quantos serviços.
+      Serve para dois usos diferentes — saber se ela está usando (risco de
+      cancelamento) e cobrar por faixa, se um dia o plano for por volume
+- [ ] Totais da plataforma: quantas empresas ativas, receita recorrente,
+      quantas entraram e quantas saíram no mês
 - [ ] Suspender / reativar uma empresa
-- [ ] Métricas agregadas da plataforma — agora um `GROUP BY` direto, sem abrir
-      banco por banco
 - [ ] Acesso de suporte a uma empresa específica, sempre com registro em log
 - [ ] Responsivo mobile + web; sem necessidade de app nativo (uso só interno)
+
+**O que ainda não está decidido** e precisa ser antes de construir: quais são
+os planos, o que diferencia um do outro (número de profissionais? de
+agendamentos? recursos?), e se a cobrança é por assinatura fixa ou por uso. A
+tabela `plataforma.tenants` já tem as colunas `plano` e `status` esperando essa
+definição.
 
 ### Bloco 11 — Apps nativos (iOS / Android)
 Por último de propósito: empacotar um site que ainda está mudando de forma

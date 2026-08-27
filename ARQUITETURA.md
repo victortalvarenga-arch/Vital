@@ -46,8 +46,8 @@ flowchart TB
 ```
 
 **Site e painel são dois bundles separados**, com entradas próprias no Vite
-(`index.html` e `painel.html`). O site carrega ~20 kB e conversa só com
-`/api/publico/*`; o painel carrega ~47 kB e é o único que manda token. Antes os
+(`index.html` e `painel.html`). O site carrega cerca de um terço do painel e
+conversa só com `/api/publico/*`; o painel é o único que manda token. Antes os
 dois saíam do mesmo `App.jsx`, então abrir o site baixava o financeiro junto e
 levava a credencial do painel para o navegador de quem só queria marcar
 horário.
@@ -64,15 +64,18 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
                    dates.js (datas como texto), migrate.js (migrations),
                    rota.js (erro em handler async), contexto.js (conexão da
                    requisição), tenant.js (resolve a empresa + config padrão)
-  src/routes/      catalogo | clientes | agendamentos | publico | mensagens | relatorios
+  src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
+                   relatorios | uploads (imagens da empresa)
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
+  uploads/         imagens enviadas, uma pasta por empresa. Fora do Git.
 web/               Vite + React, sem framework de UI. CSS à mão.
   index.html       entrada do site da cliente
   painel.html      entrada do painel da equipe
-  src/site/        App.jsx, styles.css e tema.js (aplica a marca em runtime)
-  src/painel/      App.jsx e styles.css do painel
-  src/shared/      publico.js (API sem token) e painel-api.js (API com token)
+  src/site/        App.jsx, styles.css, tema.js (aplica a marca em runtime)
+  src/painel/      App.jsx, styles.css e ConfigSite.jsx (a empresa edita o site)
+  src/shared/      publico.js (API sem token), painel-api.js (API com token),
+                   imagem.js (reduz a foto antes de subir)
 ```
 
 ## Decisões estruturais
@@ -132,13 +135,14 @@ hora.
 **A marca vem do banco, não do CSS.** `site/tema.js` recebe a config da empresa
 e escreve as variáveis CSS em runtime — cor primária, fundo, texto, e uma
 derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
-nenhum rebuild por cliente. É o que vai permitir a empresa escolher a própria
-paleta na tela de Aparência (Bloco 6).
+nenhum rebuild por cliente. É o que permite a empresa escolher a própria paleta
+em Configurações → Site da cliente.
 
 **A cliente escolhe a categoria antes de ver a lista.** Um estúdio com quarenta
 serviços numa página só é uma parede de texto. O site mostra as categorias como
 cartões — com a foto de um dos serviços do grupo — e só abre a lista depois do
-toque. A empresa desliga isso em Aparência se tiver poucos serviços.
+toque. A empresa desliga isso em Configurações → Site da cliente, se tiver
+poucos serviços.
 
 **Imagens: reduzidas no navegador, servidas pelo Express.** A foto que sai da
 câmera tem 4000px e 8 MB, e vai aparecer num quadrado de 60px. `shared/imagem.js`
