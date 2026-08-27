@@ -1,134 +1,80 @@
 # Estúdio Agenda
 
-Sistema de agendamento, cadastro de clientes e CRM por WhatsApp para um estúdio de
-estética. Dois públicos numa base só: a cliente que agenda pelo site e a equipe que
-opera o painel.
+Sistema de agendamento, cadastro de clientes e CRM por WhatsApp. Hoje atende um
+estúdio de estética; o alvo é virar produto que a Vital vende para várias
+empresas — o plano está em `ROADMAP.md`.
+
+Como rodar: `README.md`. Como o sistema é montado: `ARQUITETURA.md`.
 
 ## Como este repositório se documenta
 
-Dois arquivos, dois papéis — e os dois viajam com a pasta do projeto: qualquer
-sessão do Claude Code aberta aqui, nesta conta ou em outra, os lê e continua de
-onde paramos, sem depender de memória de conversa.
+Quatro arquivos, quatro papéis. Todos viajam no Git, então qualquer sessão do
+Claude Code — nesta conta ou em outra, nesta máquina ou noutra — recupera o
+contexto inteiro lendo os arquivos, sem depender de memória de conversa.
 
-- **Este arquivo, `CLAUDE.md`** — o estado atual, implementado. Carregado
-  automaticamente no início de toda sessão. Uma decisão só entra aqui depois
-  que o código que ela descreve já existe de verdade.
-- **`ROADMAP.md`** — o plano: blocos futuros e as decisões de arquitetura por
-  trás deles, cada uma com o porquê. Não carrega sozinho; este arquivo aponta
-  para ele, e quando um bloco do roteiro é concluído, a decisão dele migra para
-  aqui.
+| Arquivo | Papel |
+|---|---|
+| `CLAUDE.md` | Regras de trabalho e convenções. Carregado automaticamente em toda sessão. |
+| `ARQUITETURA.md` | Como o sistema é montado hoje e por quê. Estado atual, implementado. |
+| `ROADMAP.md` | O plano: blocos futuros e as decisões de arquitetura por trás deles. |
+| `README.md` | Só o necessário para rodar o projeto. |
 
-Regra prática: toda decisão de arquitetura que tomarmos em conversa — não só
-mudança de código — vira parágrafo num desses dois arquivos, com o motivo. Se
-não está escrito, não aconteceu; a próxima sessão não vai adivinhar.
+**Cada assunto mora em um lugar só.** Arquitetura não se repete no `CLAUDE.md`
+nem no `README.md` — se precisar citar, aponte para `ARQUITETURA.md`. Quando um
+bloco do `ROADMAP.md` é concluído, a decisão dele migra para `ARQUITETURA.md` e
+sai do roteiro.
 
-Isso só viaja para *outra máquina* se a pasta for copiada ou publicada num
-repositório Git com remoto — hoje é uma pasta local (`is a git repository:
-false`). Avise se quiser colocar em Git/GitHub para acessar de outro lugar.
+### Revisar a documentação a cada tarefa
 
-## Como rodar
+**Ao terminar qualquer tarefa, reveja os quatro arquivos antes de dar a tarefa
+por encerrada** — não só o que parece relacionado. Pergunte de cada um: alguma
+frase aqui ficou falsa agora?
 
-```bash
-npm run setup     # instala server/ e web/ e popula o banco de exemplo
-npm run dev       # sobe API (3333) e front (5173) juntos
-```
+Não é burocracia: já aconteceu de o `CLAUDE.md` afirmar "hoje é uma pasta local,
+não é repositório Git" horas depois de o projeto ter ido para o GitHub, e de a
+lista de pendências pedir para criar a tabela `users` que já existia. Documento
+errado é pior que documento ausente — manda a próxima sessão para o caminho
+errado com confiança.
 
-Só o backend: `cd server && npm run dev`. Zerar o banco: `cd server && npm run reset`.
-
-## Arquitetura
-
-```
-server/          Express + SQLite (better-sqlite3). Fonte da verdade.
-  db/migrations/ Esquema em migrations numeradas, versionadas por user_version.
-  src/lib/       availability.js (horários), templates.js (mensagens),
-                 migrate.js (migrations) e tenant.js (empresa + config padrão)
-  src/routes/    catalogo | clientes | agendamentos | publico | mensagens | relatorios
-  src/jobs/      geração e despacho da fila de WhatsApp (node-cron)
-  src/whatsapp/  provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
-web/             Vite + React, sem framework de UI. CSS escrito à mão em styles.css.
-  src/api.js     único ponto que fala com a API; traduz nomes servidor ↔ tela
-  src/App.jsx    site público e painel no mesmo bundle
-```
-
-## Decisões que valem manter
-
-**Datas são texto, não `Date`.** `'YYYY-MM-DD'` e `'HH:MM'` em todo lugar, banco
-incluso. O estúdio opera num fuso só; usar `Date` com UTC só cria bug de agenda
-virando o dia. Helpers em `server/src/lib/dates.js`.
-
-**Conflito de horário se valida no servidor, sempre.** `lib/availability.js` é o
-único lugar que decide se um horário está livre. O front tem uma cópia simplificada
-só para desenhar a grade rápido — ela nunca autoriza gravação. Duas clientes clicam
-no mesmo horário no mesmo segundo; só o banco resolve isso.
-
-**Nada é apagado se tem histórico.** Excluir serviço ou profissional com
-agendamentos vinculados apenas desativa (`ativo = 0`). O relatório do mês passado
-precisa do nome.
-
-**Toda linha de negócio tem `tenant_id`.** Hoje é sempre `'default'` e é um
-deploy por empresa. A coluna existe assim mesmo porque acrescentá-la depois, com
-agenda cheia, é a migração cara. Quem decide de quem é o dado é
-`lib/tenant.js` — nunca escreva `'default'` na mão numa consulta.
-
-**A config da empresa mora em `tenants.config`, não em `settings`.** É JSON, e o
-que o banco guarda é só o que foi alterado: `getConfig()` mescla por cima de
-`configPadrao`. Campo novo de personalização não precisa de migration. As chaves
-operacionais (`passoAgenda`, `horaLembreteVespera`...) são planas porque o
-código já as lê assim; o que é novo vem agrupado em `marca`, `textos`,
-`vocabulario` e `exibir`.
-
-**A fila de mensagens é uma tabela, não um efeito colateral.** `gerarFila()` decide
-quem recebe o quê e grava em `messages` com `dedupe_key`. `despachar()` entrega.
-Separado de propósito: dá para revisar antes de disparar, e nada se perde se a API
-da Meta cair no meio.
-
-**O front recarrega o estado inteiro depois de cada mutação.** `GET /api/estado`
-devolve tudo numa chamada. Simples e sempre correto. Se um dia ficar lento, o lugar
-de otimizar é aqui — não vale complicar antes.
-
-## O que falta (em ordem de importância)
-
-> O plano de virar produto white-label (multi-tenant, separação site/painel,
-> redesign, personalização por empresa) está em `ROADMAP.md`, dividido em blocos.
-> Ele reorganiza e supera a lista abaixo — leia os dois.
-
-
-1. **Separar o bundle público do painel.** Hoje `App.jsx` carrega `/api/estado` —
-   que exige token — para as duas telas. O site deveria usar só
-   `/api/publico/vitrine`. Enquanto isso não for feito, não exponha o front na
-   internet com `ADMIN_TOKEN` embutido.
-2. **Autenticação de verdade.** Hoje é um token único no `.env`. Para mais de uma
-   pessoa operando, criar tabela de usuários com senha hasheada (argon2) e sessão.
-3. **Pagamento online.** Não existe ainda. Criar `server/src/routes/pagamentos.js`
-   com Asaas ou Mercado Pago: gerar cobrança Pix/link no `POST /api/publico/agendar`,
-   receber webhook e escrever em `appointments.pag_status` / `pag_ref`. Não confie
-   no front para dizer que foi pago.
-4. **WhatsApp oficial.** `WHATSAPP_PROVIDER=meta` já está implementado, mas cada
-   template precisa ser cadastrado e aprovado no WhatsApp Manager e o nome colocado
-   em `templates.meta_template_name`. Fora da janela de 24h só sai template aprovado;
-   texto livre é rejeitado.
-5. **Webhook de resposta.** Quando a cliente responde "SIM", marcar o agendamento
-   como confirmado, e "PARAR" desligar o `optin`.
-6. ~~**Migrations.**~~ Feito no Bloco 0: `db/migrations/*.sql` versionadas por
-   `PRAGMA user_version`, aplicadas por `lib/migrate.js`. Nunca edite uma
-   migration já aplicada — crie a próxima.
-7. **Testes do motor de horários.** É a parte que quebra silencioso e cara caro.
+Toda decisão de arquitetura tomada em conversa — não só mudança de código — vira
+parágrafo em `ARQUITETURA.md` ou `ROADMAP.md`, com o motivo. Se não está
+escrito, não aconteceu.
 
 ## Convenções
 
 - Código e comentários em português. Nomes de tabela e coluna em inglês
   (`clients`, `staff_id`) porque é o que ORMs e ferramentas esperam.
-- Comentário explica *por que*, não *o que*. Se o código não estiver óbvio, prefira
-  reescrever o código.
+- Comentário explica *por que*, não *o que*. Se o código não estiver óbvio,
+  prefira reescrever o código.
 - Sem biblioteca de UI. O CSS em `web/src/styles.css` usa variáveis e é curto de
   propósito; não introduza Tailwind ou styled-components sem motivo forte.
-- Telefone é guardado só com dígitos, sem `+55`. A conversão para o formato da API
-  do WhatsApp acontece em `foneE164()`.
+- Nunca edite uma migration já aplicada — crie a próxima.
+- Nunca escreva `'default'` como `tenant_id` na mão numa consulta; quem decide é
+  `lib/tenant.js`.
+- Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê
+  está em `ARQUITETURA.md`.
+- Telefone é guardado só com dígitos, sem `+55`.
 
-## LGPD
+## Ao construir telas novas
 
-O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal.
-`clients.optin` controla mensagens de marketing (aniversário, campanhas) e é
-respeitado em `jobs/mensagens.js` e nas campanhas. Lembretes de agendamento são
-comunicação transacional e não dependem de opt-in. Ao adicionar qualquer disparo
-novo, decida em qual das duas categorias ele cai.
+- **Mobile primeiro.** Quase todo agendamento sai do celular, e site e painel
+  vão virar app (Capacitor) no futuro: nada que dependa de mouse — sem hover
+  como única pista, sem botão direito, alvo de toque confortável.
+- **Pense em papel, não em "o usuário".** Cada empresa tem dono, gerente e
+  funcionário, com permissões diferentes. Esconder botão não é controle de
+  acesso: a rota também precisa recusar.
+- **Pense em muitas empresas.** A pergunta é sempre "isso funciona para uma
+  Vital com 200 clientes, ou só para um estúdio?".
+
+## O que falta
+
+Lista completa e priorizada em `ROADMAP.md`, dividida em blocos. Os itens que
+não pertencem a nenhum bloco e continuam abertos:
+
+1. **Pagamento online.** Não existe. Criar `server/src/routes/pagamentos.js` com
+   Asaas ou Mercado Pago: gerar cobrança Pix/link no `POST /api/publico/agendar`,
+   receber webhook e escrever em `appointments.pag_status` / `pag_ref`. Não
+   confie no front para dizer que foi pago.
+2. **Webhook de resposta do WhatsApp.** Quando a cliente responde "SIM", marcar o
+   agendamento como confirmado; "PARAR" desliga o `optin`.
+3. **Testes do motor de horários.** É a parte que quebra silencioso e cara caro.

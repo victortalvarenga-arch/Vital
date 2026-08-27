@@ -150,22 +150,16 @@ o rótulo na tela.
 
 ## Blocos
 
-### Bloco 0 — Migrations e fundação de dados ✅ concluído, revisado pelos Blocos 1 e 2
-Precisava vir primeiro: todo o resto adiciona coluna.
+### Bloco 0 — Migrations e fundação de dados ✅ concluído
+Migrations versionadas, tabelas `units`, `blocks` e `users`, colunas de foto,
+preço e vínculo Google, config em JSON. **O que ficou implementado está descrito
+em `ARQUITETURA.md`** — aqui fica só o que isso significa para o que vem a
+seguir.
 
-- [x] Runner de migrations versionado por `PRAGMA user_version` (`lib/migrate.js`)
-- [x] Tabela `units` (nome, endereço, fone, mapa, jornada)
-- [x] Tabela `blocks` (bloqueio: staff nulo = fecha para todos)
-- [x] Tabela `users` (email, senha_hash, papel, staff_id)
-- [x] `services.foto`, `services.mostrar_preco`
-- [x] `clients.google_sub`, `clients.email`
-- [x] Config em JSON com `configPadrao`, cobrindo marca, textos, vocabulário e exibição
-- [x] ~~Tabela `tenants` + coluna `tenant_id` num banco SQLite só~~ — o desenho de
-      tabela seguirá parecido, mas o motor troca para Postgres no Bloco 1
-
-**O que sobrevive à troca de motor:** a forma das tabelas e o formato da config
-em JSON. **O que não sobrevive:** o SQL específico do SQLite (`PRAGMA`, tipos) e
-a forma síncrona de acessar o banco em `db.js`.
+**O que sobrevive à troca de motor (Bloco 1):** a forma das tabelas e o formato
+da config em JSON. **O que não sobrevive:** o SQL específico do SQLite
+(`PRAGMA`, tipos), a forma síncrona de acessar o banco em `db.js` e a coluna
+`tenant_id` como está — o Bloco 2 a refaz com Row-Level Security.
 
 ### Bloco 1 — Trocar o motor: SQLite → Postgres
 Só troca de motor, ainda sem multiempresa — objetivo único é provar que tudo
@@ -310,7 +304,8 @@ web estiver estável.
 ## Fora de escopo por enquanto
 
 Pagamento online, webhook de resposta do WhatsApp e API oficial da Meta seguem
-como estão no CLAUDE.md — entram depois que a base white-label estiver de pé.
+como estão (listados no fim do `CLAUDE.md`) — entram depois que a base
+white-label estiver de pé.
 
 Testes do motor de horários (`lib/availability.js`) sobem de prioridade no
 Bloco 7: bloqueio de horário e unidades mexem exatamente na parte que quebra

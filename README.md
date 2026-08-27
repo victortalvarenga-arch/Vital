@@ -1,73 +1,53 @@
 # Estúdio Agenda
 
-Site de agendamento + painel de gestão + CRM por WhatsApp para estúdio de estética.
+Site de agendamento, painel de gestão e CRM por WhatsApp. Um estúdio de estética
+é o exemplo que acompanha o projeto; o alvo é servir qualquer negócio de
+agendamento (ver `ROADMAP.md`).
 
 ## Rodar
 
-Precisa de Node 20 ou mais novo.
+Precisa de **Node 20 ou mais novo**.
 
 ```bash
-npm install          # instala o 'concurrently' da raiz
-npm run setup        # instala server/ e web/, cria e popula o banco
-npm run dev          # API em :3333, site em :5173
+npm install                              # concurrently, na raiz
+cp server/.env.example server/.env       # sem isto a API não sobe configurada
+npm run setup                            # instala server/ e web/, cria e popula o banco
+npm run dev                              # API em :3333, site em :5173
 ```
 
 Abra <http://localhost:5173>. A tela abre no site público; o botão
 **Área da equipe** leva ao painel.
 
-O banco é um arquivo em `server/db/estudio.db`. Para recomeçar do zero:
+Por padrão o `.env` vem com `ADMIN_TOKEN` vazio, o que deixa o painel **sem
+senha** — bom para desenvolver, nunca para publicar. A API avisa isso no boot.
 
-```bash
-cd server && npm run reset
-```
+## Comandos
 
-## O que já funciona
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Sobe API e front juntos |
+| `npm run dev:api` | Só o backend |
+| `npm run dev:web` | Só o front |
+| `cd server && npm run reset` | Apaga o banco e popula de novo |
 
-**Site** — serviços por categoria com preço e duração, escolha de profissional,
-calendário com horários reais (consultados na API, não em cache), identificação por
-WhatsApp. Se o número já existe, a cliente não preenche nada; se é primeiro acesso,
-pede nome, nascimento e endereço uma única vez. Escolha entre pagar antes ou no
-atendimento.
+O banco é um arquivo em `server/db/estudio.db`, criado no primeiro `setup`. Não
+vai para o Git.
 
-**Painel** — agenda em colunas por profissional com blocos proporcionais à duração;
-status agendado / confirmado / concluído / faltou; recebimento na hora; ficha da
-cliente com histórico, total gasto e há quanto tempo não aparece; cadastro de
-serviços; equipe com jornada por dia da semana e comissão; financeiro com ticket
-médio, faltas, ranking de serviços e comissões do mês.
+## Se algo der errado
 
-**WhatsApp** — a aba mostra a fila do dia calculada pelo servidor: lembrete da
-véspera, aviso no dia, pós-atendimento, aniversário e reativação de quem sumiu.
-Campanhas (Dia da Mulher, Natal, vaga de última hora, promoção) são disparo manual
-com seleção de quem recebe. Os textos são editáveis com variáveis como `{cliente}`
-e `{hora}`.
+**`better-sqlite3` falha ao instalar** — costuma ser versão de Node sem binário
+pronto. Confira `node -v`; em Node 24 use `better-sqlite3` 12 ou mais novo.
 
-## WhatsApp: manual agora, oficial depois
+**`npm run reset` diz que não consegue apagar o arquivo** — o servidor está
+rodando e segurando o banco. Pare o `npm run dev` antes.
 
-Por padrão o sistema roda em `WHATSAPP_PROVIDER=manual`. Ele monta a mensagem e
-gera um link `wa.me` — o atendente clica e o WhatsApp abre com o texto pronto.
-Funciona hoje, sem conta aprovada e sem custo, e serve bem para um estúdio.
+**Porta 3333 ou 5173 ocupada** — mude `PORT` no `server/.env` (a API) ou
+`server.port` em `web/vite.config.js` (o front).
 
-Para automatizar de verdade é preciso a **API oficial do WhatsApp Business** (Cloud
-API da Meta, direto ou via parceiro como Z-API, 360dialog ou Twilio). Três coisas
-mudam o projeto e vale saber antes de orçar:
+## Documentação
 
-- Cobra-se por conversa iniciada. Mensagens de utilidade (lembrete, confirmação)
-  são baratas; marketing (aniversário, promoção, Natal) custa mais.
-- Fora da janela de 24 horas desde a última mensagem da cliente, só sai **template
-  aprovado pela Meta**. Texto livre é rejeitado. Por isso a tabela `templates` tem
-  a coluna `meta_template_name`.
-- A cliente pode bloquear marketing sem afetar os lembretes. Trate as duas
-  categorias como coisas diferentes.
-
-O código já está pronto para os dois modos: troque a variável no `.env` e preencha
-`WHATSAPP_TOKEN` e `WHATSAPP_PHONE_ID`.
-
-## Pagamento
-
-Ainda não implementado. O fluxo já registra a forma escolhida e o painel permite dar
-baixa manual. Para cobrar online, veja o item 3 do `CLAUDE.md`.
-
-## Estrutura
-
-Veja `CLAUDE.md` — ele explica a arquitetura, as decisões de projeto e o que falta,
-e é o arquivo que o Claude Code lê primeiro ao abrir a pasta.
+| Arquivo | Para quê |
+|---|---|
+| `ARQUITETURA.md` | Como o sistema é montado e por quê |
+| `ROADMAP.md` | O plano: blocos futuros e decisões de arquitetura |
+| `CLAUDE.md` | Regras para quem programa aqui (lido pelo Claude Code) |
