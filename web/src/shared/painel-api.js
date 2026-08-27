@@ -31,11 +31,13 @@ const servicoParaTela = s => ({
   id: s.id, nome: s.nome, cat: s.categoria, desc: s.descricao,
   preco: s.preco, duracao: s.duracao, intervalo: s.intervalo,
   ativo: s.ativo, profs: s.profissionais,
+  foto: s.foto || '', mostrarPreco: s.mostrarPreco !== false,
 });
 
 const servicoParaApi = s => ({
   nome: s.nome, categoria: s.cat, descricao: s.desc, preco: s.preco,
   duracao: s.duracao, intervalo: s.intervalo, ativo: s.ativo, profissionais: s.profs,
+  foto: s.foto || '', mostrarPreco: s.mostrarPreco !== false,
 });
 
 const clienteParaTela = c => ({
@@ -98,6 +100,13 @@ export const api = {
     ? req(`/servicos/${s.id}`, { method: 'PUT', body: servicoParaApi(s) })
     : req('/servicos', { method: 'POST', body: servicoParaApi(s) }),
   removerServico: id => req(`/servicos/${id}`, { method: 'DELETE' }),
+
+  /* ── configuração do site ── */
+  salvarConfig: patch => req('/config', { method: 'PUT', body: patch }),
+
+  /** Sobe uma imagem já reduzida pelo navegador e devolve a URL pública. */
+  enviarImagem: (dataUrl, uso) =>
+    req('/uploads', { method: 'POST', body: { arquivo: dataUrl, uso } }),
 
   /* ── equipe ── */
   salvarProfissional: p => p.id

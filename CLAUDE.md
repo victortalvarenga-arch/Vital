@@ -68,6 +68,10 @@ escrito, não aconteceu.
   `painel-api.js`: é o que mantém a credencial do painel fora do bundle público.
 - Campo novo na config não entra na vitrine sozinho — `/api/publico/vitrine`
   monta a resposta a dedo, para não publicar segredo por descuido.
+- Nada de lista fixa de categoria, ramo ou serviço no código: cada empresa tem
+  as suas. Use texto livre com sugestões do que já existe.
+- Imagem sempre passa por `shared/imagem.js` antes de subir, e o nome do
+  arquivo é decidido pelo servidor, nunca pelo cliente.
 
 ## Ao construir telas novas
 

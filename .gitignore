@@ -5,3 +5,6 @@ dist/
 *.db-shm
 *.db-wal
 .DS_Store
+
+# imagens enviadas pelas empresas (não versionar)
+uploads/

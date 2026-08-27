@@ -124,11 +124,33 @@ Calendário/Financeiro, Cadastros e Configurações. No computador a lateral é
 fixa; no celular vira gaveta. A equipe abre isto do balcão e do próprio
 telefone.
 
+Em **Configurações → Site da cliente** (`painel/ConfigSite.jsx`) a empresa muda
+identidade, cor, logo, capa, textos, contato e o que aparece ou não — tudo sem
+programador. Grava no mesmo JSON que a vitrine lê, então salvar muda o site na
+hora.
+
 **A marca vem do banco, não do CSS.** `site/tema.js` recebe a config da empresa
 e escreve as variáveis CSS em runtime — cor primária, fundo, texto, e uma
 derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
 nenhum rebuild por cliente. É o que vai permitir a empresa escolher a própria
 paleta na tela de Aparência (Bloco 6).
+
+**A cliente escolhe a categoria antes de ver a lista.** Um estúdio com quarenta
+serviços numa página só é uma parede de texto. O site mostra as categorias como
+cartões — com a foto de um dos serviços do grupo — e só abre a lista depois do
+toque. A empresa desliga isso em Aparência se tiver poucos serviços.
+
+**Imagens: reduzidas no navegador, servidas pelo Express.** A foto que sai da
+câmera tem 4000px e 8 MB, e vai aparecer num quadrado de 60px. `shared/imagem.js`
+redimensiona por canvas antes de subir — economiza o pacote de dados de quem
+cadastra, o disco do servidor e o carregamento do site. Sobe como data URL em
+JSON, o que dispensa a dependência de multipart e já entrega o tamanho sob
+controle.
+
+O nome do arquivo é **sempre gerado no servidor**: nome vindo do cliente é
+caminho para `../../` e para sobrescrever arquivo de outra empresa. Cada empresa
+tem sua pasta em `server/uploads/<tenant>/`, então apagar tudo de um cliente que
+saiu é apagar uma pasta.
 
 **A vitrine publica campos escolhidos a dedo, não a config inteira.** Na config
 também moram horários de disparo de mensagem e chave Pix; `/api/publico/vitrine`

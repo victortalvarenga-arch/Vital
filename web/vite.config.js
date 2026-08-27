@@ -26,6 +26,10 @@ export default defineConfig({
     port: 5173,
     // O front chama '/api/...' e o Vite repassa para o Express.
     // Assim não há CORS nem URL diferente entre dev e produção.
-    proxy: { '/api': { target: 'http://localhost:3333', changeOrigin: true } },
+    proxy: {
+      '/api': { target: 'http://localhost:3333', changeOrigin: true },
+      // As imagens enviadas pelas empresas são servidas pelo Express.
+      '/uploads': { target: 'http://localhost:3333', changeOrigin: true },
+    },
   },
 });

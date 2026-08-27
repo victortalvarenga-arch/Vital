@@ -222,3 +222,28 @@ img { max-width: 100%; display: block; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ── categorias: escolher o grupo antes de ver a lista ── */
+.cats { display: flex; flex-direction: column; gap: 10px; }
+.cat-cartao {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  padding: 12px 14px; border: 1px solid var(--linha); border-radius: var(--raio);
+  background: var(--fundo); transition: border-color .15s; min-height: 76px;
+}
+.cat-cartao:hover { border-color: var(--marca); }
+.cat-foto {
+  width: 54px; height: 54px; border-radius: 10px; flex: none; overflow: hidden;
+  background: var(--marca-clara); display: grid; place-items: center;
+}
+.cat-foto img { width: 100%; height: 100%; object-fit: cover; }
+.cat-inicial { font-size: 21px; font-weight: 700; color: var(--marca); }
+.cat-txt { flex: 1; min-width: 0; }
+.cat-nome { font-weight: 600; font-size: 16px; }
+.cat-qtd { color: var(--fraco); font-size: 13.5px; margin-top: 2px; }
+.cat-seta { color: var(--fraco); flex: none; }
+
+.volta-cat {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 0;
+  color: var(--cinza); font-size: 14px; font-weight: 500; min-height: 40px;
+}
+.volta-cat:hover { color: var(--marca); }

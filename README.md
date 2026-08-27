@@ -27,6 +27,10 @@ Duas páginas, dois bundles:
 | <http://localhost:5173> | Site da cliente — escolhe serviço e agenda |
 | <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
 
+Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços):
+painel → **Configurações → Site da cliente**. As imagens ficam em
+`server/uploads/`, fora do Git.
+
 Por padrão o `.env` vem com `ADMIN_TOKEN` vazio, o que deixa o painel **sem
 senha** — bom para desenvolver, nunca para publicar. A API avisa isso no boot.
 

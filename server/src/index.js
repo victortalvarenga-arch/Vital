@@ -10,6 +10,7 @@ import { agendamentos } from './routes/agendamentos.js';
 import { publico } from './routes/publico.js';
 import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
+import { uploads, PASTA as PASTA_UPLOADS } from './routes/uploads.js';
 import { iniciarJobs } from './jobs/mensagens.js';
 import { rota } from './lib/rota.js';
 import { comEmpresa } from './lib/tenant.js';
@@ -34,6 +35,19 @@ function exigeToken(req, res, next) {
 app.get('/api/saude', (req, res) => res.json({ ok: true, data: hoje() }));
 
 /**
+ * Imagens enviadas pela empresa: logo, capa, foto de serviço.
+ *
+ * São públicas por natureza — aparecem no site para qualquer visitante. O que
+ * protege é o nome do arquivo, gerado no servidor, e a pasta por empresa.
+ * `dotfiles: 'deny'` e `index: false` evitam servir o que não foi pedido.
+ */
+app.use('/uploads', express.static(PASTA_UPLOADS, {
+  dotfiles: 'deny',
+  index: false,
+  maxAge: '7d',
+}));
+
+/**
  * Toda rota de dado passa por aqui antes de qualquer outra coisa: descobre a
  * empresa e prende a conexão do Postgres a ela. Do middleware para baixo, o
  * banco recusa sozinho qualquer linha de outra empresa.
@@ -45,6 +59,7 @@ app.use('/api/publico', publico);
 
 /* Painel: protegido. */
 app.use('/api', exigeToken);
+app.use('/api/uploads', uploads);
 app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);

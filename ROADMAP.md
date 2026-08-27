@@ -236,7 +236,8 @@ Referência: `esteticalaurafaust.ageenda.com.br`. O que ficou está em
 
 - [x] Design system com a marca vinda da config, aplicada em runtime
 - [x] Capa, logo, nome, endereço com link para o mapa e chamada para agendar
-- [x] Serviços por categoria com descrição, preço, duração e botão próprio
+- [x] Serviços agrupados por categoria: cartões primeiro, lista depois do toque
+- [x] Foto, descrição, preço e duração em cada serviço, com botão próprio
 - [x] Agendamento em passos: serviço → profissional → dia → hora → WhatsApp
 - [x] Horários vindos do servidor, não adivinhados pelo front
 - [x] Passo do profissional se pula sozinho quando só há uma pessoa
@@ -260,11 +261,25 @@ O login em si é pequeno; o custo está no vínculo de conta e nas telas.
 - [ ] Agendar sem login continua funcionando, lado a lado
 - [ ] LGPD: e-mail e foto entram na mesma lógica de `optin`
 
-### Bloco 6 — Personalização pela própria empresa
-- [ ] Aba "Aparência" no painel: cores, logo, capa, textos, vocabulário
-- [ ] Upload de imagens (logo, capa, foto de serviço) com recorte e limite de tamanho
-- [ ] Pré-visualização do site ao lado da edição
-- [ ] Alternar o que aparece: preço, duração, escolha de profissional, avaliações
+### Bloco 6 — Personalização pela própria empresa ✅ concluído
+Veio junto com o site, porque configurar sem ter o que configurar não fazia
+sentido. Detalhes em `ARQUITETURA.md`.
+
+- [x] Aba **Site da cliente** no painel: identidade, cor, logo, capa, textos,
+      contato, o que exibir e regras da agenda
+- [x] Upload de imagem com redução no navegador antes de subir; nome do arquivo
+      gerado no servidor e pasta por empresa
+- [x] Foto por serviço, categoria como texto livre (não lista fixa no código) e
+      interruptor de "mostrar preço" por serviço
+- [x] Interruptores gerais: preço, duração, fotos, categorias, escolha de
+      profissional
+- [ ] Pré-visualização do site ao lado da edição — falta; hoje o botão "Abrir o
+      site" resolve, em outra aba
+
+**Resolve a pendência de `uploads/`** que vinha desde o Bloco 1: as imagens vão
+para `server/uploads/<empresa>/`, servido pelo Express. Continua valendo o item
+de produção — se a hospedagem do Node apagar o disco entre deploys, isso vira
+storage de objeto.
 
 ### Bloco 7 — Painel da equipe
 O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no
@@ -401,10 +416,12 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 
 ### Hospedagem
 
-- [ ] **Decidir onde `server/uploads/` vive.** Vercel apaga o disco a cada
-      deploy: se a hospedagem do Node for efêmera, as imagens precisam ir para
-      storage de objeto (S3, R2, ou o storage do próprio provedor de banco).
-      Pendência herdada do Bloco 1; vira bloqueio no Bloco 6.
+- [ ] **`server/uploads/<empresa>/` só funciona com disco que persiste.** Já
+      está implementado e funcionando local (Bloco 6). Vercel apaga o disco a
+      cada deploy — lá, as imagens da empresa sumiriam no deploy seguinte. Antes
+      de publicar, ou escolher hospedagem com disco, ou trocar por storage de
+      objeto (S3, R2, ou o do próprio provedor de banco). É um adaptador: só
+      `routes/uploads.js` muda.
 - [ ] **Fuso do servidor.** O código trata data e hora como texto justamente
       para não depender disso, mas os jobs de mensagem usam `TZ_ESTUDIO`.
       Conferir se o provedor roda em UTC e se a variável está definida.

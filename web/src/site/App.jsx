@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, Calendar, Check, Clock, Instagram, MapPin, MessageCircle,
-  Phone, TriangleAlert,
+  ArrowLeft, Calendar, Check, ChevronRight, Clock, Instagram, MapPin,
+  MessageCircle, Phone, TriangleAlert,
 } from 'lucide-react';
 import * as api from '../shared/publico.js';
 import { aplicarTema } from './tema.js';
@@ -185,35 +185,83 @@ function Home({ dados, aoAgendar }) {
         <section className="sec">
           <h2 className="sec-titulo">Serviços</h2>
           {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
-          {categorias.map(({ nome, itens }) => (
-            <div key={nome || 'todos'}>
-              {nome && <h3 className="cat">{nome}</h3>}
-              {itens.map(s => (
-                <article key={s.id} className="svc">
-                  {exibir?.fotos && s.foto && <img className="svc-foto" src={s.foto} alt="" />}
-                  <div className="svc-txt">
-                    <div className="svc-nome">{s.nome}</div>
-                    {s.descricao && <div className="svc-desc">{s.descricao}</div>}
-                    <div className="svc-meta">
-                      {s.preco != null
-                        ? <span className="svc-preco">{brl(s.preco)}</span>
-                        : <span className="svc-preco" style={{ color: 'var(--cinza)' }}>Sob consulta</span>}
-                      {exibir?.duracao && <span className="svc-dur">{duracaoTexto(s.duracao)}</span>}
-                    </div>
-                  </div>
-                  <button className="b b-c b-peq" onClick={() => aoAgendar(s.id)}>
-                    {textos?.botaoAgendar || 'Agendar'}
-                  </button>
-                </article>
-              ))}
-            </div>
-          ))}
+
+          {/* Com categorias ligadas, a cliente escolhe o grupo antes de ver a
+              lista. Um estúdio com 40 serviços numa página só é uma parede de
+              texto; separado, ela vai direto ao que interessa. */}
+          {exibir?.categorias && categorias.length > 1 ? (
+            <ListaPorCategoria
+              categorias={categorias} exibir={exibir} textos={textos} aoAgendar={aoAgendar}
+            />
+          ) : (
+            <ListaDeServicos
+              itens={servicos} exibir={exibir} textos={textos} aoAgendar={aoAgendar}
+            />
+          )}
         </section>
       </div>
 
       <Rodape negocio={negocio} textos={textos} />
     </main>
   );
+}
+
+function ListaPorCategoria({ categorias, exibir, textos, aoAgendar }) {
+  const [aberta, setAberta] = useState(null);
+
+  if (aberta) {
+    const grupo = categorias.find(c => c.nome === aberta);
+    return (
+      <>
+        <button className="volta-cat" onClick={() => setAberta(null)}>
+          <ArrowLeft size={16} /> Todas as categorias
+        </button>
+        <h3 className="cat" style={{ marginTop: 14 }}>{grupo.nome}</h3>
+        <ListaDeServicos itens={grupo.itens} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />
+      </>
+    );
+  }
+
+  return (
+    <div className="cats">
+      {categorias.map(({ nome, itens }) => {
+        const capa = itens.find(s => s.foto)?.foto;
+        return (
+          <button key={nome} className="cat-cartao" onClick={() => setAberta(nome)}>
+            <div className="cat-foto">
+              {capa ? <img src={capa} alt="" /> : <span className="cat-inicial">{nome?.[0]?.toUpperCase()}</span>}
+            </div>
+            <div className="cat-txt">
+              <div className="cat-nome">{nome}</div>
+              <div className="cat-qtd">{itens.length} {itens.length === 1 ? 'opção' : 'opções'}</div>
+            </div>
+            <ChevronRight size={20} className="cat-seta" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ListaDeServicos({ itens, exibir, textos, aoAgendar }) {
+  return itens.map(s => (
+    <article key={s.id} className="svc">
+      {exibir?.fotos && s.foto && <img className="svc-foto" src={s.foto} alt="" />}
+      <div className="svc-txt">
+        <div className="svc-nome">{s.nome}</div>
+        {s.descricao && <div className="svc-desc">{s.descricao}</div>}
+        <div className="svc-meta">
+          {s.preco != null
+            ? <span className="svc-preco">{brl(s.preco)}</span>
+            : <span className="svc-preco" style={{ color: 'var(--cinza)' }}>Sob consulta</span>}
+          {exibir?.duracao && <span className="svc-dur">{duracaoTexto(s.duracao)}</span>}
+        </div>
+      </div>
+      <button className="b b-c b-peq" onClick={() => aoAgendar(s.id)}>
+        {textos?.botaoAgendar || 'Agendar'}
+      </button>
+    </article>
+  ));
 }
 
 function Rodape({ negocio, textos }) {

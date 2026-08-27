@@ -18,10 +18,11 @@ catalogo.post('/servicos', rota(async (req, res) => {
   if (!b.nome) return res.status(400).json({ erro: 'nome é obrigatório' });
   const id = uid();
   await db.run(
-    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem,foto,mostrar_preco)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     id, b.nome, b.categoria || 'Geral', b.descricao || '', +b.preco || 0,
-    +b.duracao || 60, +b.intervalo || 0, b.ativo === false ? 0 : 1, +b.ordem || 0
+    +b.duracao || 60, +b.intervalo || 0, b.ativo === false ? 0 : 1, +b.ordem || 0,
+    b.foto || '', b.mostrarPreco === false ? 0 : 1
   );
   await salvarVinculos(id, b.profissionais);
   const servicos = await listarServicos();
@@ -34,9 +35,10 @@ catalogo.put('/servicos/:id', rota(async (req, res) => {
   const b = { ...serviceOut(atual), ...req.body };
   await db.run(
     `UPDATE services SET nome=?, categoria=?, descricao=?, preco=?, duracao=?,
-            intervalo=?, ativo=?, ordem=? WHERE id=?`,
+            intervalo=?, ativo=?, ordem=?, foto=?, mostrar_preco=? WHERE id=?`,
     b.nome, b.categoria, b.descricao, +b.preco, +b.duracao, +b.intervalo || 0,
-    b.ativo ? 1 : 0, +b.ordem || 0, req.params.id
+    b.ativo ? 1 : 0, +b.ordem || 0, b.foto || '', b.mostrarPreco === false ? 0 : 1,
+    req.params.id
   );
   if (req.body.profissionais) await salvarVinculos(req.params.id, req.body.profissionais);
   const servicos = await listarServicos();

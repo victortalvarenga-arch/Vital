@@ -188,3 +188,80 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .swatches{flex-direction:row}
 }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important} }
+
+/* ══ configuração do site ══════════════════════════════════════════ */
+
+.cs { max-width: 780px; }
+.cs-topo {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 26px;
+}
+.cs-topo h1 { font-size: 24px; }
+.cs-topo p { color: var(--muted); font-size: 14px; margin: 5px 0 0; max-width: 46ch; }
+.cs-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.cs-sec { border-top: 1px solid var(--line); padding: 24px 0; }
+.cs-sec:first-of-type { border-top: 0; padding-top: 0; }
+.cs-sec-cab { margin-bottom: 16px; }
+.cs-sec-cab h2 { font-size: 17px; }
+.cs-sec-cab p { color: var(--muted); font-size: 13.5px; margin: 4px 0 0; }
+
+.cs-campos { display: flex; flex-direction: column; gap: 16px; }
+.cs-campo label {
+  display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin-bottom: 6px;
+}
+.cs-campo textarea {
+  width: 100%; font-family: inherit; font-size: 14px; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; outline: none; resize: vertical;
+}
+.cs-campo textarea:focus { border-color: var(--lacquer); box-shadow: 0 0 0 3px rgba(163,42,78,.12); }
+.cs-dica { display: block; font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+
+.cs-cor { display: flex; gap: 10px; align-items: center; }
+.cs-cor input[type=color] {
+  width: 48px; height: 42px; padding: 3px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--paper); cursor: pointer; flex: none;
+}
+
+.cs-chave { display: flex; gap: 12px; align-items: flex-start; }
+.cs-chave-nome { font-size: 14.5px; font-weight: 500; }
+.sw {
+  width: 42px; height: 24px; border-radius: 999px; background: var(--line);
+  padding: 3px; flex: none; transition: background .16s; margin-top: 1px;
+}
+.sw span {
+  display: block; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform .16s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.sw.on { background: var(--lacquer); }
+.sw.on span { transform: translateX(18px); }
+
+.cs-img { display: flex; gap: 12px; align-items: center; }
+.cs-img-previa {
+  width: 84px; height: 60px; border-radius: 10px; flex: none; overflow: hidden;
+  border: 1px solid var(--line); background: var(--porcelain);
+  display: grid; place-items: center; color: var(--muted);
+}
+.cs-img-previa img { width: 100%; height: 100%; object-fit: cover; }
+.cs-img-btns { display: flex; gap: 8px; }
+
+/* barra fixa: some do caminho no celular quando há coisa por salvar */
+.cs-barra {
+  position: sticky; bottom: 0; margin-top: 22px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-radius: 12px;
+  background: var(--ink); color: var(--porcelain); font-size: 14px;
+  box-shadow: 0 8px 30px -14px rgba(0,0,0,.5);
+}
+
+/* foto no cadastro de serviço */
+.svc-foto-campo { display: flex; gap: 12px; align-items: center; }
+.svc-foto-previa {
+  width: 64px; height: 64px; border-radius: 10px; flex: none; overflow: hidden;
+  border: 1px solid var(--line); background: var(--porcelain);
+  display: grid; place-items: center; color: var(--muted);
+}
+.svc-foto-previa img { width: 100%; height: 100%; object-fit: cover; }

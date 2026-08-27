@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
+import ConfigSite from './ConfigSite.jsx';
+import { prepararImagem } from '../shared/imagem.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
-  Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu
+  Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
+  Upload, Image as ImageIcon
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -146,6 +149,7 @@ export default function App() {
     ] },
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
+      { k: 'site', nome: 'Site da cliente', icon: Globe },
     ] },
   ];
 
@@ -194,6 +198,7 @@ export default function App() {
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && <Financeiro dados={dados} />}
+        {secao === 'site' && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
       </main>
 
       {toast && <div className="p-aviso"><Check size={17} />{toast}</div>}
@@ -511,7 +516,7 @@ function Servicos({ dados, acao, aviso }) {
     <>
       <div className="head">
         <div><h2>Serviços</h2><div className="sub">{servicos.filter(s => s.ativo).length} ativos no site · preço e duração alimentam a agenda automaticamente</div></div>
-        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', cat: 'Unhas', desc: '', preco: 0, duracao: 60, ativo: true, profs: [] })}><Plus size={16} /> Novo serviço</button>
+        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', cat: '', desc: '', preco: 0, duracao: 60, intervalo: 10, ativo: true, profs: [], foto: '', mostrarPreco: true })}><Plus size={16} /> Novo serviço</button>
       </div>
       <div className="card list">
         {servicos.map(s => (
@@ -527,28 +532,69 @@ function Servicos({ dados, acao, aviso }) {
           </div>
         ))}
       </div>
-      {edit && <EditarServico s={edit} staff={staff} acao={acao} fechar={() => setEdit(null)} aviso={aviso} />}
+      {edit && <EditarServico s={edit} staff={staff} acao={acao} fechar={() => setEdit(null)} aviso={aviso}
+                              categorias={[...new Set(servicos.map(x => x.cat).filter(Boolean))].sort()} />}
     </>
   );
 }
 
-function EditarServico({ s, staff, acao, fechar, aviso }) {
+function EditarServico({ s, staff, acao, fechar, aviso, categorias = [] }) {
   const [f, setF] = useState({ ...s });
+  const entradaFoto = useRef(null);
+  const [subindo, setSubindo] = useState(false);
   const toggleProf = id => setF(v => ({ ...v, profs: v.profs.includes(id) ? v.profs.filter(x => x !== id) : [...v.profs, id] }));
   const salvar = async () => {
     const ok = await acao(() => api.salvarServico(f), 'Serviço salvo');
     if (ok) fechar();
   };
+
+  const enviarFoto = async e => {
+    const arquivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!arquivo) return;
+    setSubindo(true);
+    try {
+      const dataUrl = await prepararImagem(arquivo, { largura: 900 });
+      const { url } = await api.enviarImagem(dataUrl, 'servico');
+      setF(v => ({ ...v, foto: url }));
+    } catch (erro) {
+      aviso?.(erro.message);
+    } finally {
+      setSubindo(false);
+    }
+  };
+
   return (
     <Modal onClose={fechar}>
       <h2 style={{ fontSize: 24, marginBottom: 18 }}>{s.id ? 'Editar serviço' : 'Novo serviço'}</h2>
       <Campo label="Nome"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
       <Campo label="Descrição (aparece no site)"><textarea rows={2} value={f.desc} onChange={e => setF(v => ({ ...v, desc: e.target.value }))} /></Campo>
+
+      <Campo label="Foto (aparece no site)">
+        <div className="svc-foto-campo">
+          <div className="svc-foto-previa">
+            {f.foto ? <img src={f.foto} alt="" /> : <ImageIcon size={18} />}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-g btn-s" disabled={subindo} onClick={() => entradaFoto.current?.click()}>
+              <Upload size={14} /> {subindo ? 'Enviando…' : f.foto ? 'Trocar' : 'Enviar'}
+            </button>
+            {f.foto && <button className="btn btn-g btn-s" onClick={() => setF(v => ({ ...v, foto: '' }))}><Trash2 size={14} /></button>}
+          </div>
+          <input ref={entradaFoto} type="file" accept="image/*" hidden onChange={enviarFoto} />
+        </div>
+      </Campo>
+
       <div className="mrow">
         <Campo label="Categoria">
-          <select value={f.cat} onChange={e => setF(v => ({ ...v, cat: e.target.value }))}>
-            {Object.keys(CAT_COR).map(c => <option key={c}>{c}</option>)}
-          </select>
+          {/* Texto livre com sugestões, não lista fixa: cada ramo tem os
+              próprios grupos, e uma lista no código só serviria a um deles. */}
+          <input list="categorias-existentes" value={f.cat}
+                 placeholder="Ex.: Unhas"
+                 onChange={e => setF(v => ({ ...v, cat: e.target.value }))} />
+          <datalist id="categorias-existentes">
+            {categorias.map(c => <option key={c} value={c} />)}
+          </datalist>
         </Campo>
         <Campo label="Preço (R$)"><input type="number" value={f.preco} onChange={e => setF(v => ({ ...v, preco: +e.target.value }))} /></Campo>
       </div>
@@ -558,9 +604,13 @@ function EditarServico({ s, staff, acao, fechar, aviso }) {
           {staff.map(p => <button key={p.id} className={'chip' + (f.profs.includes(p.id) ? ' on' : '')} onClick={() => toggleProf(p.id)}>{p.nome.split(' ')[0]}</button>)}
         </div>
       </Campo>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <Switch on={f.ativo} onChange={() => setF(v => ({ ...v, ativo: !v.ativo }))} />
         <span style={{ fontSize: 14 }}>Visível no site</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <Switch on={f.mostrarPreco !== false} onChange={() => setF(v => ({ ...v, mostrarPreco: v.mostrarPreco === false }))} />
+        <span style={{ fontSize: 14 }}>Mostrar o preço <span style={{ color: 'var(--muted)' }}>— desligado, aparece “Sob consulta”</span></span>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-p" style={{ flex: 1 }} disabled={!f.nome || f.profs.length === 0} onClick={salvar}>Salvar</button>
