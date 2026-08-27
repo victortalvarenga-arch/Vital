@@ -1,0 +1,121 @@
+/**
+ * Cliente da API.
+ *
+ * Uma coisa importante: o servidor fala em `categoria`, `profissionais`,
+ * `clienteId`… e a tela usa nomes curtos (`cat`, `profs`, `cliente`).
+ * Em vez de espalhar essa tradução pelos componentes, ela mora aqui,
+ * nas funções `paraTela`. Se um dia os nomes ficarem iguais, apaga daqui e pronto.
+ */
+
+const BASE = import.meta.env.VITE_API_URL || '/api';
+const TOKEN = import.meta.env.VITE_ADMIN_TOKEN || '';
+
+async function req(caminho, { method = 'GET', body } = {}) {
+  const r = await fetch(BASE + caminho, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const texto = await r.text();
+  const json = texto ? JSON.parse(texto) : null;
+  if (!r.ok) throw new Error(json?.erro || `Falha na requisição (${r.status})`);
+  return json;
+}
+
+/* ── tradução servidor → tela ── */
+
+const servicoParaTela = s => ({
+  id: s.id, nome: s.nome, cat: s.categoria, desc: s.descricao,
+  preco: s.preco, duracao: s.duracao, intervalo: s.intervalo,
+  ativo: s.ativo, profs: s.profissionais,
+});
+
+const servicoParaApi = s => ({
+  nome: s.nome, categoria: s.cat, descricao: s.desc, preco: s.preco,
+  duracao: s.duracao, intervalo: s.intervalo, ativo: s.ativo, profissionais: s.profs,
+});
+
+const clienteParaTela = c => ({
+  id: c.id, nome: c.nome, fone: c.fone, nasc: c.nascimento || '',
+  end: c.endereco || '', obs: c.obs || '', optin: c.optin, criado: c.criadoEm,
+});
+
+const clienteParaApi = c => ({
+  nome: c.nome, fone: c.fone, nascimento: c.nasc || null,
+  endereco: c.end, obs: c.obs, optin: c.optin !== false,
+});
+
+const agParaTela = a => ({
+  id: a.id, cliente: a.clienteId, servico: a.servicoId, prof: a.profissionalId,
+  data: a.data, hora: a.hora, duracao: a.duracao, valor: a.valor,
+  status: a.status, pagamento: a.pagamento, origem: a.origem,
+});
+
+export const api = {
+  /* Estado completo do painel numa chamada só. */
+  async estado() {
+    const d = await req('/estado');
+    return {
+      config: d.config,
+      servicos: d.servicos.map(servicoParaTela),
+      staff: d.profissionais,
+      clientes: d.clientes.map(clienteParaTela),
+      agendamentos: d.agendamentos.map(agParaTela),
+      templates: d.templates,
+    };
+  },
+
+  /* ── site público ── */
+  vitrine: () => req('/publico/vitrine'),
+  identificar: fone => req('/publico/identificar', { method: 'POST', body: { fone } }),
+  agendarPublico: dados => req('/publico/agendar', { method: 'POST', body: dados }),
+
+  /* ── disponibilidade ── */
+  horarios: ({ servicoId, profissionalId, data }) => {
+    const q = new URLSearchParams({ servicoId, data });
+    if (profissionalId) q.set('profissionalId', profissionalId);
+    return req(`/agendamentos/horarios?${q}`);
+  },
+
+  /* ── agendamentos ── */
+  criarAgendamento: a => req('/agendamentos', {
+    method: 'POST',
+    body: { clienteId: a.cliente, servicoId: a.servico, profissionalId: a.prof, data: a.data, hora: a.hora, forcar: a.forcar },
+  }),
+  atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
+  removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
+
+  /* ── clientes ── */
+  salvarCliente: c => c.id
+    ? req(`/clientes/${c.id}`, { method: 'PUT', body: clienteParaApi(c) })
+    : req('/clientes', { method: 'POST', body: clienteParaApi(c) }),
+
+  /* ── serviços ── */
+  salvarServico: s => s.id
+    ? req(`/servicos/${s.id}`, { method: 'PUT', body: servicoParaApi(s) })
+    : req('/servicos', { method: 'POST', body: servicoParaApi(s) }),
+  removerServico: id => req(`/servicos/${id}`, { method: 'DELETE' }),
+
+  /* ── equipe ── */
+  salvarProfissional: p => p.id
+    ? req(`/profissionais/${p.id}`, { method: 'PUT', body: p })
+    : req('/profissionais', { method: 'POST', body: p }),
+  removerProfissional: id => req(`/profissionais/${id}`, { method: 'DELETE' }),
+
+  /* ── mensagens ── */
+  fila: () => req('/mensagens/fila'),
+  gerarFila: () => req('/mensagens/fila/gerar', { method: 'POST' }),
+  marcarEnviada: id => req(`/mensagens/fila/${id}/enviar`, { method: 'POST' }),
+  pularMensagem: id => req(`/mensagens/fila/${id}/pular`, { method: 'POST' }),
+  salvarTemplate: (id, patch) => req(`/mensagens/templates/${id}`, { method: 'PUT', body: patch }),
+  dispararCampanha: (chave, clienteIds, variaveis) =>
+    req(`/mensagens/campanhas/${chave}`, { method: 'POST', body: { clienteIds, variaveis } }),
+  previaCampanha: (chave, clienteId) =>
+    req(`/mensagens/campanhas/${chave}/previa`, { method: 'POST', body: { clienteId } }),
+
+  /* ── relatórios ── */
+  resumo: mes => req(`/relatorios/resumo${mes ? `?mes=${mes}` : ''}`),
+};

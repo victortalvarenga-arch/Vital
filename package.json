@@ -1,0 +1,11 @@
+{
+  "name": "estudio-agenda",
+  "private": true,
+  "scripts": {
+    "setup": "cd server && npm install && npm run seed && cd ../web && npm install",
+    "dev": "concurrently -n api,web -c magenta,cyan \"cd server && npm run dev\" \"cd web && npm run dev\"",
+    "dev:api": "cd server && npm run dev",
+    "dev:web": "cd web && npm run dev"
+  },
+  "devDependencies": { "concurrently": "^9.1.0" }
+}
