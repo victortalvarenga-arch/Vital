@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { db, uid, listarServicos, staffOut, getConfig } from '../db.js';
+import { db, uid, listarServicos, staffOut, getConfig, listarUnidades } from '../db.js';
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { criarAgendamento } from './agendamentos.js';
+import { horariosLivres, horariosPorServico } from '../lib/availability.js';
 
 export const publico = Router();
 
@@ -12,18 +13,68 @@ export const publico = Router();
  * Nunca exponha aqui lista de clientes nem faturamento.
  */
 
+/**
+ * Tudo que o site precisa numa chamada: identidade, marca, serviços e equipe.
+ *
+ * O que sai daqui é público de verdade — qualquer pessoa na internet vê. Por
+ * isso a config passa por uma lista de campos escolhidos a dedo, em vez de ir
+ * inteira: nela também moram horários de disparo de mensagem e chave Pix.
+ */
 publico.get('/vitrine', rota(async (req, res) => {
   const cfg = await getConfig();
   const equipe = await db.all('SELECT * FROM staff WHERE ativo=1 ORDER BY nome');
+  const servicos = await listarServicos({ somenteAtivos: true });
+
   res.json({
-    estudio: {
-      nome: cfg.nome, slogan: cfg.slogan, endereco: cfg.endereco,
-      fone: cfg.fone, instagram: cfg.instagram, janelaDias: cfg.janelaDias || 30,
+    negocio: {
+      nome: cfg.nome,
+      slogan: cfg.slogan,
+      sobre: cfg.sobre,
+      endereco: cfg.endereco,
+      mapa: cfg.mapa,
+      fone: cfg.fone,
+      whatsapp: cfg.whatsapp || cfg.fone,
+      instagram: cfg.instagram,
+      janelaDias: cfg.janelaDias || 30,
+      formasPagamento: cfg.formasPagamento || [],
     },
-    servicos: await listarServicos({ somenteAtivos: true }),
+    marca: cfg.marca,
+    textos: cfg.textos,
+    exibir: cfg.exibir,
+    vocabulario: cfg.vocabulario,
+    unidades: await listarUnidades({ somenteAtivas: true }),
+    // Preço só sai se a empresa quiser mostrar — algumas preferem "sob consulta".
+    servicos: servicos.map(s => ({
+      ...s,
+      preco: cfg.exibir?.preco && s.mostrarPreco ? s.preco : null,
+    })),
     profissionais: equipe.map(staffOut)
-      .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor, jornada: p.jornada })),
+      .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor })),
   });
+}));
+
+/**
+ * Horários livres, calculados pelo servidor.
+ *
+ * O front tem uma noção de jornada só para desenhar a grade, mas quem sabe o
+ * que está ocupado é o banco. Sem esta rota o site mostraria horário já
+ * vendido e a cliente só descobriria ao tentar confirmar.
+ */
+publico.get('/horarios', rota(async (req, res) => {
+  const { servicoId, profissionalId, data } = req.query;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) {
+    return res.status(400).json({ erro: 'informe data=YYYY-MM-DD' });
+  }
+  if (!servicoId) return res.status(400).json({ erro: 'informe servicoId' });
+
+  const svc = await db.get('SELECT * FROM services WHERE id=? AND ativo=1', servicoId);
+  if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
+  const duracao = svc.duracao + (svc.intervalo || 0);
+
+  if (profissionalId) {
+    return res.json({ data, horarios: await horariosLivres({ staffId: profissionalId, data, duracao }) });
+  }
+  res.json({ data, porProfissional: await horariosPorServico({ servicoId, data }) });
 }));
 
 /**

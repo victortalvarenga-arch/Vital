@@ -12,9 +12,9 @@ flowchart TB
         painel["Painel da equipe<br><i>opera o negócio</i>"]
     end
 
-    subgraph front["web/ · Vite + React"]
-        app["App.jsx<br><b>site e painel no mesmo bundle</b>"]
-        api["api.js<br><i>único ponto que fala com a API</i>"]
+    subgraph front["web/ · Vite + React · dois bundles"]
+        site2["site/<br><i>só fala com /api/publico</i>"]
+        painel2["painel/<br><i>manda token</i>"]
     end
 
     subgraph back["server/ · Express + pg"]
@@ -29,10 +29,10 @@ flowchart TB
     db[("PostgreSQL<br><b>Row-Level Security por empresa</b>")]
     wa["WhatsApp"]
 
-    site --> app
-    painel --> app
-    app --> api
-    api --> emp
+    site --> site2
+    painel --> painel2
+    site2 --> emp
+    painel2 --> emp
     emp --> publico
     emp --> privado
     publico --> motor
@@ -45,10 +45,12 @@ flowchart TB
     prov --> wa
 ```
 
-O ponto que mais importa nesse desenho: **site e painel saem do mesmo bundle**
-(`App.jsx`) e ambos hoje carregam `/api/estado`, que exige token. É o motivo de
-ainda não dar para publicar o front na internet, e o primeiro item que o
-`ROADMAP.md` resolve.
+**Site e painel são dois bundles separados**, com entradas próprias no Vite
+(`index.html` e `painel.html`). O site carrega ~20 kB e conversa só com
+`/api/publico/*`; o painel carrega ~47 kB e é o único que manda token. Antes os
+dois saíam do mesmo `App.jsx`, então abrir o site baixava o financeiro junto e
+levava a credencial do painel para o navegador de quem só queria marcar
+horário.
 
 ## Pastas
 
@@ -65,9 +67,12 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens | relatorios
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
-web/               Vite + React, sem framework de UI. CSS à mão em styles.css.
-  src/api.js       único ponto que fala com a API; traduz nomes servidor ↔ tela
-  src/App.jsx      site público e painel no mesmo bundle
+web/               Vite + React, sem framework de UI. CSS à mão.
+  index.html       entrada do site da cliente
+  painel.html      entrada do painel da equipe
+  src/site/        App.jsx, styles.css e tema.js (aplica a marca em runtime)
+  src/painel/      App.jsx e styles.css do painel
+  src/shared/      publico.js (API sem token) e painel-api.js (API com token)
 ```
 
 ## Decisões estruturais
@@ -101,6 +106,34 @@ perde se a API da Meta cair no meio.
 **O front recarrega o estado inteiro depois de cada mutação.** `GET /api/estado`
 devolve tudo numa chamada. Simples e sempre correto. Se um dia ficar lento, o
 lugar de otimizar é aqui — não vale complicar antes.
+
+## As duas telas
+
+**Site da cliente** (`web/src/site/`) — capa, logo, nome, chamada para agendar e
+os serviços por categoria, cada um com botão próprio. Agendar é um fluxo de
+passos: serviço → profissional → dia e hora → WhatsApp → confirmação. Mobile
+primeiro, porque quase todo agendamento sai do celular.
+
+Quem decide os horários livres é o servidor, por `/api/publico/horarios`. O
+front tem noção de jornada só para desenhar a grade; se ele adivinhasse a
+disponibilidade, mostraria horário já vendido e a cliente só descobriria ao
+tentar confirmar.
+
+**Painel da equipe** (`web/src/painel/`) — navegação lateral agrupada em
+Calendário/Financeiro, Cadastros e Configurações. No computador a lateral é
+fixa; no celular vira gaveta. A equipe abre isto do balcão e do próprio
+telefone.
+
+**A marca vem do banco, não do CSS.** `site/tema.js` recebe a config da empresa
+e escreve as variáveis CSS em runtime — cor primária, fundo, texto, e uma
+derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
+nenhum rebuild por cliente. É o que vai permitir a empresa escolher a própria
+paleta na tela de Aparência (Bloco 6).
+
+**A vitrine publica campos escolhidos a dedo, não a config inteira.** Na config
+também moram horários de disparo de mensagem e chave Pix; `/api/publico/vitrine`
+monta um objeto explícito para não vazar nada por descuido quando um campo novo
+aparecer.
 
 ## Banco
 

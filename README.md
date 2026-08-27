@@ -20,8 +20,12 @@ npm run setup                            # instala server/ e web/, cria e popula
 npm run dev                              # API em :3333, site em :5173
 ```
 
-Abra <http://localhost:5173>. A tela abre no site público; o botão
-**Área da equipe** leva ao painel.
+Duas páginas, dois bundles:
+
+| Endereço | O que é |
+|---|---|
+| <http://localhost:5173> | Site da cliente — escolhe serviço e agenda |
+| <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
 
 Por padrão o `.env` vem com `ADMIN_TOKEN` vazio, o que deixa o painel **sem
 senha** — bom para desenvolver, nunca para publicar. A API avisa isso no boot.

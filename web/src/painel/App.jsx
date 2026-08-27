@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { api } from './api.js';
-import './styles.css';
+import { api } from '../shared/painel-api.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
-  Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink
+  Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -101,423 +100,13 @@ const Switch = ({ on, onChange }) => (
 /* ══════════════════════════════════════════════
    APP
    ══════════════════════════════════════════════ */
+
 export default function App() {
   const { dados, erro, recarregar } = useEstado();
-  const [modo, setModo] = useState('site');
+  const [secao, setSecao] = useState('agenda');
+  const [menuAberto, setMenuAberto] = useState(false);
   const [toast, setToast] = useState(null);
   const [falha, setFalha] = useState(null);
-
-  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); } }, [toast]);
-  useEffect(() => { if (falha) { const t = setTimeout(() => setFalha(null), 4000); return () => clearTimeout(t); } }, [falha]);
-
-  if (erro && !dados) return (
-    <div className="est" style={{ display: 'grid', placeItems: 'center', height: '100vh', textAlign: 'center', padding: 24 }}>
-      <div>
-        <TriangleAlert size={34} style={{ color: 'var(--lacquer)' }} />
-        <h2 style={{ fontSize: 22, margin: '12px 0 6px' }}>Servidor fora do ar</h2>
-        <p style={{ color: 'var(--muted)', fontSize: 14, maxWidth: 380 }}>
-          Não consegui falar com a API. Rode <code>npm run dev</code> dentro de <code>server/</code> e recarregue a página.
-        </p>
-        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>{erro}</p>
-      </div>
-    </div>
-  );
-
-  if (!dados) return (
-    <div className="est" style={{ display: 'grid', placeItems: 'center', height: '100vh' }}>
-      <p style={{ color: 'var(--muted)' }}>Carregando…</p>
-    </div>
-  );
-
-  /** Executa uma chamada de API, recarrega o estado e avisa em caso de erro. */
-  const acao = async (fn, mensagem) => {
-    try { await fn(); await recarregar(); if (mensagem) setToast(mensagem); return true; }
-    catch (e) { setFalha(e.message); return false; }
-  };
-
-  return (
-    <div className="est">
-      {modo === 'site'
-        ? <Site dados={dados} acao={acao} irPainel={() => setModo('painel')} aviso={setToast} />
-        : <Painel dados={dados} acao={acao} recarregar={recarregar} irSite={() => setModo('site')} aviso={setToast} />}
-      {toast && <div className="toast"><Check size={17} />{toast}</div>}
-      {falha && <div className="toast" style={{ background: '#8A2B2B' }}><TriangleAlert size={17} />{falha}</div>}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   SITE PÚBLICO
-   ══════════════════════════════════════════════ */
-function Site({ dados, acao, irPainel, aviso }) {
-  const { config, servicos, staff, clientes, agendamentos } = dados;
-  const [tela, setTela] = useState('home');
-  const [ag, setAg] = useState({});
-  const cats = [...new Set(servicos.filter(s => s.ativo).map(s => s.cat))];
-
-  const iniciar = svc => { setAg({ servico: svc.id }); setTela('fluxo'); window.scrollTo(0, 0); };
-
-  return (
-    <div>
-      <header className="site-top">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--lacquer)', display: 'grid', placeItems: 'center' }}>
-            <Sparkles size={17} color="#fff" />
-          </div>
-          <div>
-            <div className="disp" style={{ fontSize: 16, lineHeight: 1 }}>{config.nome}</div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.06em' }}>{config.slogan}</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-g btn-s" onClick={irPainel}>Área da equipe</button>
-          {tela === 'home' && <button className="btn btn-p btn-s" onClick={() => setTela('fluxo')}>Agendar</button>}
-        </div>
-      </header>
-
-      {tela === 'home' && (
-        <>
-          <section className="hero">
-            <div className="hero-in">
-              <div className="swatches" aria-hidden="true">
-                {cats.map(c => <div key={c} className="swatch" style={{ background: CAT_COR[c] || '#A32A4E' }} />)}
-              </div>
-              <div>
-                <div className="eyebrow" style={{ marginBottom: 14 }}>Agenda aberta · {config.janelaDias} dias</div>
-                <h1>Escolha o serviço,<br />escolha a hora.<br /><em>Pronto.</em></h1>
-                <p>Sem ligação, sem esperar resposta. Você reserva em menos de um minuto e recebe a confirmação no WhatsApp na hora.</p>
-                <button className="btn btn-p" onClick={() => setTela('fluxo')}>Agendar horário <ArrowRight size={17} /></button>
-              </div>
-            </div>
-          </section>
-
-          <section className="sec">
-            <div className="eyebrow">O que fazemos</div>
-            <h2 style={{ fontSize: 32, marginTop: 6 }}>Serviços e valores</h2>
-            {cats.map(cat => (
-              <div key={cat} style={{ marginTop: 30 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span className="dot" style={{ background: CAT_COR[cat], marginTop: 0 }} />
-                  <h3 style={{ fontSize: 21 }}>{cat}</h3>
-                </div>
-                <div className="svc-grid">
-                  {servicos.filter(s => s.ativo && s.cat === cat).map(s => (
-                    <div key={s.id} className="card svc">
-                      <div className="svc-top"><h3>{s.nome}</h3></div>
-                      {s.desc && <p className="desc">{s.desc}</p>}
-                      <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Clock size={13} /> {s.duracao} min
-                      </div>
-                      <div className="svc-foot">
-                        <span className="price mono">{brl(s.preco)}</span>
-                        <button className="btn btn-g btn-s" onClick={() => iniciar(s)}>Agendar</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-
-          <section className="sec" style={{ paddingTop: 0 }}>
-            <div className="card" style={{ padding: 26, display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-              <div>
-                <div className="eyebrow">Quem atende</div>
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {staff.map(p => (
-                    <div key={p.id} style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
-                      <div className="avatar" style={{ background: p.cor }}>{iniciais(p.nome)}</div>
-                      <div><div style={{ fontWeight: 600, fontSize: 14 }}>{p.nome}</div>
-                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.funcao}</div></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="eyebrow">Onde ficamos</div>
-                <p style={{ fontSize: 14, marginTop: 12, lineHeight: 1.6 }}>
-                  <MapPin size={14} style={{ verticalAlign: -2 }} /> {config.endereco}<br />
-                  <Phone size={14} style={{ verticalAlign: -2 }} /> <span className="mono">{fmtFone(config.fone)}</span><br />
-                  <Instagram size={14} style={{ verticalAlign: -2 }} /> @{config.instagram}
-                </p>
-              </div>
-            </div>
-          </section>
-          <footer style={{ textAlign: 'center', padding: '30px 20px 40px', fontSize: 12, color: 'var(--muted)' }}>
-            © {new Date().getFullYear()} {config.nome}
-          </footer>
-        </>
-      )}
-
-      {tela === 'fluxo' && (
-        <Fluxo dados={dados} acao={acao} inicial={ag} aviso={aviso} sair={() => { setTela('home'); window.scrollTo(0, 0); }} />
-      )}
-    </div>
-  );
-}
-
-/* ── fluxo de agendamento do cliente ── */
-function Fluxo({ dados, acao, inicial, sair, aviso }) {
-  const { config, servicos, staff, clientes, agendamentos } = dados;
-  const [passo, setPasso] = useState(inicial.servico ? 2 : 1);
-  const [f, setF] = useState({ servico: inicial.servico || null, prof: null, data: hojeISO(), hora: null, fone: '', pagamento: null });
-  const [cliente, setCliente] = useState(null);
-  const [novo, setNovo] = useState({ nome: '', nasc: '', end: '' });
-  const [buscou, setBuscou] = useState(false);
-  const [feito, setFeito] = useState(null);
-
-  const svc = servicos.find(s => s.id === f.servico);
-  const profs = svc ? staff.filter(p => svc.profs.includes(p.id)) : [];
-  const prof = staff.find(p => p.id === f.prof);
-  const dias = useMemo(() => Array.from({ length: config.janelaDias }, (_, i) => addDias(hojeISO(), i)), [config.janelaDias]);
-  const [slots, setSlots] = useState([]);
-  const [carregandoSlots, setCarregandoSlots] = useState(false);
-
-  // Os horários vêm do servidor, não do cache local: outra pessoa pode ter
-  // acabado de marcar enquanto esta tela estava aberta.
-  useEffect(() => {
-    if (!prof || !svc) return setSlots([]);
-    let cancelado = false;
-    setCarregandoSlots(true);
-    api.horarios({ servicoId: svc.id, profissionalId: prof.id, data: f.data })
-      .then(r => { if (!cancelado) setSlots(r.horarios || []); })
-      .catch(() => { if (!cancelado) setSlots([]); })
-      .finally(() => { if (!cancelado) setCarregandoSlots(false); });
-    return () => { cancelado = true; };
-  }, [prof?.id, svc?.id, f.data]);
-
-  useEffect(() => { if (profs.length === 1 && !f.prof) setF(v => ({ ...v, prof: profs[0].id })); }, [f.servico]);
-
-  const [buscando, setBuscando] = useState(false);
-
-  const buscar = async () => {
-    const d = soDigitos(f.fone);
-    if (d.length < 10) return;
-    setBuscando(true);
-    try {
-      const r = await api.identificar(d);
-      setCliente(r.cadastrada ? { id: r.id, nome: r.primeiroNome } : null);
-    } catch { setCliente(null); }
-    setBuscando(false);
-    setBuscou(true);
-  };
-
-  const [enviando, setEnviando] = useState(false);
-  const [erroEnvio, setErroEnvio] = useState(null);
-
-  const confirmar = async () => {
-    setEnviando(true); setErroEnvio(null);
-    try {
-      await api.agendarPublico({
-        fone: soDigitos(f.fone),
-        nome: cliente ? undefined : novo.nome.trim(),
-        nascimento: novo.nasc || undefined,
-        endereco: novo.end || undefined,
-        servicoId: svc.id,
-        profissionalId: prof.id,
-        data: f.data,
-        hora: f.hora,
-        formaPagamento: f.pagamento,
-      });
-      const nomeCliente = cliente?.nome || novo.nome;
-      const tpl = dados.templates.find(t => t.chave === 'confirmacao');
-      const msg = renderTemplate(tpl.texto, {
-        cliente: nomeCliente.split(' ')[0], estudio: config.nome, data: fmtData(f.data), hora: f.hora,
-        servico: svc.nome, profissional: prof.nome.split(' ')[0], valor: brl(svc.preco), endereco: config.endereco,
-      });
-      setFeito({ nome: nomeCliente, msg, fone: soDigitos(f.fone) });
-    } catch (e) {
-      // O caso comum: alguém pegou o horário nos últimos segundos.
-      setErroEnvio(e.message);
-      setPasso(3);
-    }
-    setEnviando(false);
-  };
-
-  if (feito) return (
-    <div className="flow">
-      <div style={{ textAlign: 'center', padding: '20px 0 26px' }}>
-        <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'var(--ok)', display: 'grid', placeItems: 'center', margin: '0 auto 18px' }}>
-          <Check size={30} color="#fff" strokeWidth={3} />
-        </div>
-        <h2 style={{ fontSize: 30 }}>Horário reservado</h2>
-        <p style={{ color: 'var(--muted)', fontSize: 15, marginTop: 8 }}>
-          {fmtData(f.data)} às {f.hora} · {svc.nome} com {prof.nome.split(' ')[0]}
-        </p>
-      </div>
-      <div className="card" style={{ padding: 18 }}>
-        <div className="eyebrow" style={{ marginBottom: 10 }}>Mensagem enviada no WhatsApp</div>
-        <div className="bubble" style={{ background: '#F4F0F1' }}>{feito.msg}</div>
-        <a className="btn btn-wa" style={{ width: '100%', marginTop: 14 }} href={waLink(feito.fone, feito.msg)} target="_blank" rel="noopener noreferrer">
-          <MessageCircle size={17} /> Abrir no WhatsApp
-        </a>
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, lineHeight: 1.5 }}>
-          No sistema real esse envio é automático via API oficial do WhatsApp. Aqui o botão abre a conversa pra você ver o resultado.
-        </p>
-      </div>
-      <button className="btn btn-g" style={{ width: '100%', marginTop: 12 }} onClick={sair}>Voltar ao início</button>
-    </div>
-  );
-
-  const podeAvancar = { 1: !!f.servico, 2: !!f.prof, 3: !!f.hora, 4: cliente ? true : (novo.nome.trim().length > 2 && soDigitos(f.fone).length >= 10), 5: !!f.pagamento }[passo];
-
-  return (
-    <div className="flow">
-      <div className="steps">{[1, 2, 3, 4, 5].map(n => <div key={n} className={'step-bar' + (n <= passo ? ' on' : '')} />)}</div>
-      <button className="btn btn-g btn-s" style={{ marginBottom: 20 }} onClick={() => passo === 1 ? sair() : setPasso(passo - 1)}>
-        <ArrowLeft size={15} /> Voltar
-      </button>
-
-      {passo === 1 && (<>
-        <div className="eyebrow">Passo 1 de 5</div>
-        <h2 style={{ fontSize: 28, margin: '6px 0 20px' }}>O que você quer fazer?</h2>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {servicos.filter(s => s.ativo).map(s => (
-            <button key={s.id} className="card" style={{ padding: 15, display: 'flex', gap: 12, alignItems: 'center', textAlign: 'left', borderColor: f.servico === s.id ? 'var(--lacquer)' : 'var(--line)' }}
-              onClick={() => setF(v => ({ ...v, servico: s.id, prof: null, hora: null }))}>
-              <span className="dot" style={{ background: CAT_COR[s.cat], marginTop: 0 }} />
-              <span style={{ flex: 1 }}>
-                <b style={{ fontSize: 15 }}>{s.nome}</b>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>{s.duracao} min</span>
-              </span>
-              <span className="mono" style={{ fontWeight: 600 }}>{brl(s.preco)}</span>
-            </button>
-          ))}
-        </div>
-      </>)}
-
-      {passo === 2 && (<>
-        <div className="eyebrow">Passo 2 de 5</div>
-        <h2 style={{ fontSize: 28, margin: '6px 0 20px' }}>Com quem?</h2>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {profs.map(p => (
-            <button key={p.id} className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'center', textAlign: 'left', borderColor: f.prof === p.id ? 'var(--lacquer)' : 'var(--line)' }}
-              onClick={() => setF(v => ({ ...v, prof: p.id, hora: null }))}>
-              <div className="avatar" style={{ background: p.cor }}>{iniciais(p.nome)}</div>
-              <div><b style={{ fontSize: 15 }}>{p.nome}</b><div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.funcao}</div></div>
-              {f.prof === p.id && <Check size={19} style={{ marginLeft: 'auto', color: 'var(--lacquer)' }} />}
-            </button>
-          ))}
-        </div>
-      </>)}
-
-      {passo === 3 && (<>
-        <div className="eyebrow">Passo 3 de 5</div>
-        <h2 style={{ fontSize: 28, margin: '6px 0 20px' }}>Quando fica bom?</h2>
-        <div className="days">
-          {dias.map(d => {
-            const temJornada = !!prof.jornada[dow(d)];
-            const dt = new Date(d + 'T12:00:00');
-            return (
-              <button key={d} disabled={!temJornada} className={'day' + (f.data === d ? ' on' : '') + (!temJornada ? ' off' : '')}
-                onClick={() => setF(v => ({ ...v, data: d, hora: null }))}>
-                <div className="dw">{DIAS[dt.getDay()]}</div>
-                <div className="dn">{dt.getDate()}</div>
-                <div className="dw" style={{ opacity: .6 }}>{MESES[dt.getMonth()]}</div>
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 24 }}>
-          <label>Horários livres em {fmtData(f.data)}</label>
-          {erroEnvio && (
-            <div className="card" style={{ padding: 13, marginBottom: 10, fontSize: 13, borderColor: '#C08', color: '#8A2B2B' }}>
-              {erroEnvio} Escolha outro horário.
-            </div>
-          )}
-          {carregandoSlots
-            ? <div className="card" style={{ padding: 18, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Consultando a agenda…</div>
-            : slots.length === 0
-            ? <div className="card" style={{ padding: 18, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
-                Nenhum horário livre nesse dia. Escolha outra data acima.
-              </div>
-            : <div className="chips">
-                {slots.map(h => <button key={h} className={'chip slot' + (f.hora === h ? ' on' : '')} onClick={() => setF(v => ({ ...v, hora: h }))}>{h}</button>)}
-              </div>}
-        </div>
-      </>)}
-
-      {passo === 4 && (<>
-        <div className="eyebrow">Passo 4 de 5</div>
-        <h2 style={{ fontSize: 28, margin: '6px 0 8px' }}>Seu WhatsApp</h2>
-        <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>É por ele que a gente confirma e lembra do seu horário.</p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-          <input inputMode="numeric" placeholder="(47) 99999-9999" value={fmtFone(f.fone)}
-            onChange={e => { setF(v => ({ ...v, fone: soDigitos(e.target.value) })); setBuscou(false); setCliente(null); }} />
-          <button className="btn btn-d" onClick={buscar} disabled={soDigitos(f.fone).length < 10 || buscando}>
-            {buscando ? '…' : 'Continuar'}
-          </button>
-        </div>
-
-        {buscou && cliente && (
-          <div className="card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center', borderColor: 'var(--ok)' }}>
-            <div className="avatar" style={{ background: 'var(--ok)' }}>{iniciais(cliente.nome)}</div>
-            <div>
-              <b style={{ fontSize: 15 }}>Oi de novo, {cliente.nome.split(' ')[0]}!</b>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Já temos seu cadastro. Não precisa preencher nada.</div>
-            </div>
-          </div>
-        )}
-
-        {buscou && !cliente && (
-          <div className="card" style={{ padding: 18 }}>
-            <div className="tag" style={{ marginBottom: 14 }}>Primeiro acesso</div>
-            <Campo label="Nome completo"><input value={novo.nome} onChange={e => setNovo(v => ({ ...v, nome: e.target.value }))} placeholder="Como podemos te chamar" /></Campo>
-            <Campo label="Data de nascimento"><input type="date" value={novo.nasc} onChange={e => setNovo(v => ({ ...v, nasc: e.target.value }))} /></Campo>
-            <Campo label="Endereço"><input value={novo.end} onChange={e => setNovo(v => ({ ...v, end: e.target.value }))} placeholder="Rua, número e bairro" /></Campo>
-            <p style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5, margin: 0 }}>
-              Pedimos isso uma única vez. Nas próximas visitas basta o WhatsApp. Seus dados ficam só com a gente e servem para lembretes e mimos de aniversário.
-            </p>
-          </div>
-        )}
-      </>)}
-
-      {passo === 5 && (<>
-        <div className="eyebrow">Passo 5 de 5</div>
-        <h2 style={{ fontSize: 28, margin: '6px 0 20px' }}>Confira e finalize</h2>
-        <div className="resume" style={{ marginBottom: 18 }}>
-          <div className="row"><span className="k">Serviço</span><span>{svc.nome}</span></div>
-          <div className="row"><span className="k">Profissional</span><span>{prof.nome}</span></div>
-          <div className="row"><span className="k">Quando</span><span className="mono">{fmtDataLonga(f.data)} · {f.hora}</span></div>
-          <div className="row"><span className="k">Duração</span><span>{svc.duracao} min</span></div>
-          <div className="row"><span className="k">Total</span><b className="mono" style={{ fontSize: 17 }}>{brl(svc.preco)}</b></div>
-        </div>
-        <label>Como quer pagar?</label>
-        <div className="pay">
-          <button className={'payopt' + (f.pagamento === 'pix' ? ' on' : '')} onClick={() => setF(v => ({ ...v, pagamento: 'pix' }))}>
-            <QrCode size={22} color="var(--lacquer)" />
-            <div><b>Pix agora</b><span>Garante o horário na hora. Chave: {config.pixChave}</span></div>
-          </button>
-          <button className={'payopt' + (f.pagamento === 'cartao' ? ' on' : '')} onClick={() => setF(v => ({ ...v, pagamento: 'cartao' }))}>
-            <CreditCard size={22} color="var(--lacquer)" />
-            <div><b>Cartão agora</b><span>Em até 3x sem juros pelo link de pagamento</span></div>
-          </button>
-          <button className={'payopt' + (f.pagamento === 'local' ? ' on' : '')} onClick={() => setF(v => ({ ...v, pagamento: 'local' }))}>
-            <Banknote size={22} color="var(--lacquer)" />
-            <div><b>Pagar no atendimento</b><span>Pix, cartão ou dinheiro no dia</span></div>
-          </button>
-        </div>
-      </>)}
-
-      {passo < 5 && (
-        <button className="btn btn-p" style={{ width: '100%', marginTop: 24 }} disabled={!podeAvancar} onClick={() => setPasso(passo + 1)}>
-          Continuar <ArrowRight size={17} />
-        </button>
-      )}
-      {passo === 5 && (
-        <button className="btn btn-p" style={{ width: '100%', marginTop: 24 }} disabled={!f.pagamento || enviando} onClick={confirmar}>
-          {enviando ? 'Reservando…' : 'Confirmar agendamento'}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   PAINEL
-   ══════════════════════════════════════════════ */
-function Painel({ dados, acao, recarregar, irSite, aviso }) {
-  const [aba, setAba] = useState('agenda');
   const [fila, setFila] = useState({ modoManual: true, itens: [] });
 
   // A fila é calculada pelo servidor (jobs/mensagens.js). Aqui a gente só lê.
@@ -526,38 +115,89 @@ function Painel({ dados, acao, recarregar, irSite, aviso }) {
   }, []);
   useEffect(() => { carregarFila(); }, [carregarFila]);
 
-  const abas = [
-    { k: 'agenda', nome: 'Agenda', icon: Calendar },
-    { k: 'clientes', nome: 'Clientes', icon: Users },
-    { k: 'servicos', nome: 'Serviços', icon: Sparkles },
-    { k: 'equipe', nome: 'Equipe', icon: Store },
-    { k: 'crm', nome: 'WhatsApp', icon: MessageCircle, badge: fila.itens.length },
-    { k: 'financeiro', nome: 'Financeiro', icon: Wallet },
+  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); } }, [toast]);
+  useEffect(() => { if (falha) { const t = setTimeout(() => setFalha(null), 4000); return () => clearTimeout(t); } }, [falha]);
+
+  if (erro && !dados) return (
+    <div className="p-centro">
+      <TriangleAlert size={34} style={{ color: 'var(--p-marca)' }} />
+      <h2>Servidor fora do ar</h2>
+      <p>Não consegui falar com a API. Rode <code>npm run dev</code> em <code>server/</code> e recarregue.</p>
+      <p className="p-fraco">{erro}</p>
+    </div>
+  );
+  if (!dados) return <div className="p-centro"><p className="p-fraco">Carregando…</p></div>;
+
+  /** Executa uma chamada de API, recarrega o estado e avisa em caso de erro. */
+  const acao = async (fn, mensagem) => {
+    try { await fn(); await recarregar(); if (mensagem) setToast(mensagem); return true; }
+    catch (e) { setFalha(e.message); return false; }
+  };
+
+  const GRUPOS = [
+    { titulo: null, itens: [
+      { k: 'agenda', nome: 'Calendário', icon: Calendar },
+      { k: 'financeiro', nome: 'Financeiro', icon: Wallet },
+    ] },
+    { titulo: 'Cadastros', itens: [
+      { k: 'servicos', nome: 'Serviços', icon: Sparkles },
+      { k: 'equipe', nome: 'Profissionais', icon: Store },
+      { k: 'clientes', nome: 'Clientes', icon: Users },
+    ] },
+    { titulo: 'Configurações', itens: [
+      { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
+    ] },
   ];
 
+  const atual = GRUPOS.flatMap(g => g.itens).find(i => i.k === secao);
+  const irPara = k => { setSecao(k); setMenuAberto(false); };
+
   return (
-    <div className="shell">
-      <nav className="rail">
-        <div className="brand">
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--lacquer)', display: 'grid', placeItems: 'center' }}><Sparkles size={16} color="#fff" /></div>
-          <div className="nm">{dados.config.nome}</div>
+    <div className="p-app">
+      {/* Barra de topo: no celular é ela que abre o menu. */}
+      <header className="p-topo">
+        <button className="p-menu-btn" onClick={() => setMenuAberto(v => !v)} aria-label="Menu">
+          {menuAberto ? <X size={20} /> : <Menu size={20} />}
+        </button>
+        <span className="p-titulo">{atual?.nome}</span>
+        <a className="p-ver-site" href="/" title="Ver o site"><ExternalLink size={18} /></a>
+      </header>
+
+      {menuAberto && <div className="p-veu" onClick={() => setMenuAberto(false)} />}
+
+      <nav className={'p-lado' + (menuAberto ? ' aberto' : '')}>
+        <div className="p-marca">
+          <span className="p-marca-sigla">{(dados.config.nome || '?').trim()[0].toUpperCase()}</span>
+          <span className="p-marca-nome">{dados.config.nome}</span>
         </div>
-        {abas.map(a => (
-          <button key={a.k} className={'nav' + (aba === a.k ? ' on' : '')} onClick={() => setAba(a.k)}>
-            <a.icon size={17} /> {a.nome}
-            {a.badge > 0 && <span className="badge">{a.badge}</span>}
-          </button>
+        {GRUPOS.map((g, i) => (
+          <div key={i} className="p-grupo">
+            {g.titulo && <div className="p-grupo-t">{g.titulo}</div>}
+            {g.itens.map(item => (
+              <button key={item.k}
+                      className={'p-nav' + (secao === item.k ? ' on' : '')}
+                      onClick={() => irPara(item.k)}>
+                <item.icon size={18} />
+                <span>{item.nome}</span>
+                {item.badge > 0 && <span className="p-badge">{item.badge}</span>}
+              </button>
+            ))}
+          </div>
         ))}
-        <button className="nav" style={{ marginTop: 'auto' }} onClick={irSite}><ExternalLink size={17} /> Ver o site</button>
+        <a className="p-nav p-nav-fim" href="/"><ExternalLink size={18} /><span>Ver o site</span></a>
       </nav>
-      <div className="main">
-        {aba === 'agenda' && <Agenda dados={dados} acao={acao} aviso={aviso} />}
-        {aba === 'clientes' && <Clientes dados={dados} acao={acao} aviso={aviso} />}
-        {aba === 'servicos' && <Servicos dados={dados} acao={acao} aviso={aviso} />}
-        {aba === 'equipe' && <Equipe dados={dados} acao={acao} aviso={aviso} />}
-        {aba === 'crm' && <CRM dados={dados} acao={acao} aviso={aviso} fila={fila} recarregarFila={carregarFila} />}
-        {aba === 'financeiro' && <Financeiro dados={dados} />}
-      </div>
+
+      <main className="p-conteudo">
+        {secao === 'agenda' && <Agenda dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
+        {secao === 'financeiro' && <Financeiro dados={dados} />}
+      </main>
+
+      {toast && <div className="p-aviso"><Check size={17} />{toast}</div>}
+      {falha && <div className="p-aviso erro"><TriangleAlert size={17} />{falha}</div>}
     </div>
   );
 }
@@ -1267,3 +907,4 @@ function Financeiro({ dados }) {
     </>
   );
 }
+

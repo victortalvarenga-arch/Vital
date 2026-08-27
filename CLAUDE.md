@@ -64,6 +64,10 @@ escrito, não aconteceu.
 - Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê
   está em `ARQUITETURA.md`.
 - Telefone é guardado só com dígitos, sem `+55`.
+- O site (`web/src/site/`) importa `shared/publico.js` e **nunca** o
+  `painel-api.js`: é o que mantém a credencial do painel fora do bundle público.
+- Campo novo na config não entra na vitrine sozinho — `/api/publico/vitrine`
+  monta a resposta a dedo, para não publicar segredo por descuido.
 
 ## Ao construir telas novas
 

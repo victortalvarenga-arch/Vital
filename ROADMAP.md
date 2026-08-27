@@ -208,25 +208,46 @@ a empresa de volta ao pool. 11 casos, todos passando.
 **Ainda em aberto deste bloco:** `server/uploads/<slug>/` — depende de decidir
 a hospedagem, e só vira bloqueio no Bloco 6.
 
-### Bloco 3 — Separação das áreas e autenticação
-- [ ] Duas entradas no Vite; `App.jsx` (1269 linhas) quebrado em `site/`, `painel/`, `shared/`
-- [ ] `/api/publico/*` passa a servir tudo que o site precisa (hoje ele usa `/api/estado`, que exige token)
-- [ ] Login real: argon2 e sessão em cookie httpOnly, substituindo o `ADMIN_TOKEN` único
-- [ ] Middleware que resolve a empresa pela URL e configura a conexão para o
-      `tenant_id` certo (Bloco 2)
-- [ ] Sessão desenhada para dois públicos desde já: equipe e cliente
+### Bloco 3 — Separação das áreas ✅ concluído (a autenticação virou o Bloco 3b)
+A metade que a UI precisava está feita. O login não era pré-requisito de nada
+visual, então foi separado para não atrasar a tela.
 
-### Bloco 4 — Site do cliente (o visual)
-Referência: `esteticalaurafaust.ageenda.com.br`. Mobile-first — quase todo
-agendamento sai do celular, e este é um dos dois candidatos a virar app nativo
-no bloco de apps nativos.
+- [x] Duas entradas no Vite; `App.jsx` de 1269 linhas quebrado em `site/`,
+      `painel/` e `shared/` — o site virou um bundle de ~20 kB que não carrega
+      mais o financeiro nem a credencial do painel
+- [x] `/api/publico/*` passa a servir tudo que o site precisa: vitrine com
+      marca, textos e vocabulário, mais `/publico/horarios`
+- [x] Middleware que resolve a empresa e abre a conexão certa (veio do Bloco 2)
 
-- [ ] Design system: tokens de cor/espaço/tipografia lendo a config da empresa
-- [ ] Capa + logo + nome + CTA "Agende seu horário"
-- [ ] Serviços por categoria: foto, nome, descrição, preço, duração, botão próprio
-- [ ] Fluxo de agendamento em passos: serviço → profissional → data → horário → WhatsApp → confirmação
-- [ ] Blocos de localização com mapa, Instagram, formas de pagamento, rodapé
-- [ ] PWA instalável (manifest + ícone da empresa)
+### Bloco 3b — Autenticação de verdade
+Não bloqueia mais nada visual. Enquanto não for feito, **não publique o painel
+na internet**: o `ADMIN_TOKEN` vazio deixa tudo aberto.
+
+- [ ] Login com argon2 e sessão em cookie `httpOnly`, no lugar do token único
+- [ ] Papéis com regra: dono vê tudo; gerente não edita a aparência;
+      funcionário só a própria agenda, não bloqueia horário de outro nem mexe
+      no site
+- [ ] Cada regra vale na tela **e** na rota — esconder botão não é controle
+- [ ] Sessão desenhada para dois públicos: equipe e cliente (Bloco 5)
+
+### Bloco 4 — Site do cliente ✅ concluído
+Referência: `esteticalaurafaust.ageenda.com.br`. O que ficou está em
+`ARQUITETURA.md`, seção "As duas telas".
+
+- [x] Design system com a marca vinda da config, aplicada em runtime
+- [x] Capa, logo, nome, endereço com link para o mapa e chamada para agendar
+- [x] Serviços por categoria com descrição, preço, duração e botão próprio
+- [x] Agendamento em passos: serviço → profissional → dia → hora → WhatsApp
+- [x] Horários vindos do servidor, não adivinhados pelo front
+- [x] Passo do profissional se pula sozinho quando só há uma pessoa
+- [x] Rodapé com mapa, WhatsApp, Instagram e formas de pagamento
+- [x] Mobile primeiro: alvos de toque de 48px, `font-size: 16px` nos campos
+      para o iOS não dar zoom, área segura do iPhone respeitada
+- [ ] PWA instalável (manifest + ícone da empresa) — falta
+
+**Verificado de ponta a ponta:** o fluxo público inteiro, incluindo que a
+vitrine não vaza cliente, financeiro, chave Pix nem telefone da equipe, que o
+mesmo horário é recusado duas vezes e que horário vendido some da grade.
 
 ### Bloco 5 — Área do cliente (login Google)
 Único bloco sem dependente: nada mais quebra se ele deslizar para depois.
@@ -246,6 +267,9 @@ O login em si é pequeno; o custo está no vínculo de conta e nas telas.
 - [ ] Alternar o que aparece: preço, duração, escolha de profissional, avaliações
 
 ### Bloco 7 — Painel da equipe
+O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no
+celular). O que falta aqui são as telas em si e as capacidades novas.
+
 Segundo candidato a app nativo. A imagem de referência que você trouxe (menu do
 painel de uma empresa real, aberto no Safari do celular) mostra uma estrutura
 que vale seguir de perto: **Painel, Financeiro, Calendário, Agendamentos,
