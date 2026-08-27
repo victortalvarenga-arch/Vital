@@ -281,56 +281,39 @@ para `server/uploads/<empresa>/`, servido pelo Express. Continua valendo o item
 de produção — se a hospedagem do Node apagar o disco entre deploys, isso vira
 storage de objeto.
 
-### Bloco 6b — Site: refinamento visual e agendamento em janela
-O site funciona; agora precisa ficar bonito e o agendamento precisa parar de
-ser uma tela cheia separada. Referência continua sendo
-`esteticalaurafaust.ageenda.com.br` — vale navegar nele antes de começar.
+### Bloco 6b — Site: refinamento visual e agendamento em janela ✅ concluído
+O desenho final está em `ARQUITETURA.md`, seção "As duas telas".
 
-**O agendamento vira uma janela sobre a home**, não uma troca de tela. A
-referência divide em três colunas:
+- [x] Agendamento em janela sobre a home, com Esc para fechar, foco preso
+      dentro dela e a rolagem da página de trás travada
+- [x] Três colunas: passo à esquerda, conteúdo no centro, resumo à direita.
+      No celular vira uma coluna, com o resumo numa barra no rodapé que mostra
+      o total e abre ao toque
+- [x] Resumo ao vivo: profissional, serviço, data e hora, total
+- [x] **Calendário por mês**, com navegação entre meses. Dia com vaga ganha um
+      traço embaixo do número — não só cor, que não serve a quem não a
+      distingue e some na impressão
+- [x] Rota nova `/publico/dias-livres?mes=`, resolvendo o mês numa consulta só;
+      dia a dia seriam trinta idas ao banco para pintar uma tela
+- [x] Opção "qualquer profissional" no passo de escolha
+- [x] Seção de serviços refeita: foto maior, inicial colorida quando não há
+      foto, hierarquia de preço e duração
+- [x] Animações discretas ao rolar, que somem inteiras com
+      `prefers-reduced-motion`
+- [x] **Instagram: só o link** (decidido em 2026-08-27 — ver abaixo)
 
-- **Esquerda** — em que passo está (bolinhas), ilustração e um texto curto de
-  ajuda ("Datas em verde possuem disponibilidade").
-- **Centro** — o passo atual.
-- **Direita** — resumo ao vivo do que já foi escolhido: profissional, serviço,
-  serviços adicionais e **total**. É o que dá segurança para confirmar.
+**Verificado:** 8 casos no calendário, incluindo o que mais importa — lotar
+todos os horários de um dia faz ele sumir do calendário, ou seja, calendário e
+lista de horas não divergem.
 
-No celular isso não cabe em três colunas: vira uma só, com o resumo colapsado
-no rodapé mostrando o total, expansível ao toque.
-
-- [ ] Agendamento em janela (modal) sobre a home, com foco preso dentro dela e
-      fechamento por Esc — e por gesto/botão no celular
-- [ ] Coluna de resumo ao vivo, com total somando serviço + adicionais
-- [ ] **Calendário por mês**, não a faixa de dias de hoje. Dia com vaga sai
-      marcado (a referência usa um traço verde embaixo do número), dia cheio
-      ou fora da jornada sai apagado. Navegação mês anterior / próximo mês.
-      Isso muda a rota: `/publico/horarios` responde por dia; vai precisar de
-      algo como `/publico/dias-livres?mes=YYYY-MM`, senão o calendário faria 30
-      chamadas para pintar um mês.
-- [ ] Seção de serviços mais bonita — hoje é uma lista funcional e sem graça
-- [ ] Animações discretas ao rolar a página, com `prefers-reduced-motion`
-      respeitado. Cuidado para não virar enfeite: a página é para agendar
-      rápido, não para impressionar.
-- [ ] Escolher profissional: incluir a opção "qualquer profissional" (hoje ou
-      escolhe uma, ou o sistema decide sozinho quando só há uma)
-- [ ] **Faixa do Instagram na home**, com as últimas fotos do perfil — igual à
-      referência. Ver o aviso abaixo antes de prometer prazo.
-
-**Instagram não é mais só colar um link.** A API que fazia isso de forma simples
-(Basic Display) foi **desligada pela Meta em dezembro de 2024**. Hoje só existe
-caminho oficial pela Graph API / Instagram Login, e ele exige que o perfil da
-empresa seja **Profissional (comercial ou criador)** — perfil pessoal não é mais
-acessível por API nenhuma. Consequências para o nosso caso:
-
-- A empresa precisa conectar a conta dela, com autorização pela Meta. Não dá
-  para só digitar o @ no painel e funcionar.
-- Como somos multiempresa, isso vira mais um cadastro por cliente e um token
-  por empresa para guardar e renovar.
-- **Caminho barato para começar**: a empresa escolhe algumas fotos e sobe pelo
-  painel, na mesma tela de configuração do site (o upload já existe). Fica
-  parecido visualmente, sem depender da Meta, sem token para renovar. Só não
-  atualiza sozinho quando ela posta.
-- Decidir qual dos dois antes de começar — o esforço é bem diferente.
+**O que a Meta mudou, para quando a faixa de fotos voltar à mesa.** A API que
+fazia isso de forma simples (Basic Display) foi **desligada em dezembro de
+2024**. Hoje só existe caminho oficial pela Graph API / Instagram Login, e ele
+exige perfil **Profissional** (comercial ou criador) — perfil pessoal não é mais
+acessível por API nenhuma. Sendo multiempresa, isso vira um cadastro na Meta e
+um token para renovar por cliente. **Caminho barato quando for a hora**: a
+empresa sobe algumas fotos pelo painel, onde o upload já existe. Fica parecido
+visualmente, sem amarrar a plataforma à Meta; só não atualiza sozinho.
 
 ### Bloco 6c — Serviços adicionais
 Vender um extra junto do principal: limpeza de pele **+ depilação de nariz**.

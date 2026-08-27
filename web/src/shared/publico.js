@@ -33,6 +33,16 @@ export function horarios({ servicoId, profissionalId, data }) {
   return req(`/horarios?${q}`);
 }
 
+/**
+ * Quais dias de um mês têm vaga. O calendário pinta a partir disto, numa
+ * chamada só — pedir dia a dia seriam trinta.
+ */
+export function diasLivres({ servicoId, profissionalId, mes }) {
+  const q = new URLSearchParams({ servicoId, mes });
+  if (profissionalId) q.set('profissionalId', profissionalId);
+  return req(`/dias-livres?${q}`);
+}
+
 /** Diz se o WhatsApp já tem cadastro — para não pedir os dados de novo. */
 export const identificar = fone => req('/identificar', { method: 'POST', body: { fone } });
 

@@ -3,7 +3,7 @@ import { db, uid, listarServicos, staffOut, getConfig, listarUnidades } from '..
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { criarAgendamento } from './agendamentos.js';
-import { horariosLivres, horariosPorServico } from '../lib/availability.js';
+import { horariosLivres, horariosPorServico, diasComVaga } from '../lib/availability.js';
 
 export const publico = Router();
 
@@ -75,6 +75,22 @@ publico.get('/horarios', rota(async (req, res) => {
     return res.json({ data, horarios: await horariosLivres({ staffId: profissionalId, data, duracao }) });
   }
   res.json({ data, porProfissional: await horariosPorServico({ servicoId, data }) });
+}));
+
+/**
+ * Quais dias do mês têm vaga — o calendário usa para saber o que pintar.
+ *
+ * Separado de `/horarios` de propósito: o calendário precisa de trinta dias de
+ * uma vez, e a lista de horas precisa de um dia só. Misturar os dois numa rota
+ * faria o desenho do mês carregar horário que ninguém pediu.
+ */
+publico.get('/dias-livres', rota(async (req, res) => {
+  const { servicoId, profissionalId, mes } = req.query;
+  if (!/^\d{4}-\d{2}$/.test(mes || '')) {
+    return res.status(400).json({ erro: 'informe mes=YYYY-MM' });
+  }
+  if (!servicoId) return res.status(400).json({ erro: 'informe servicoId' });
+  res.json({ mes, dias: await diasComVaga({ servicoId, profissionalId, mes }) });
 }));
 
 /**

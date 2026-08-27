@@ -72,7 +72,8 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
 web/               Vite + React, sem framework de UI. CSS à mão.
   index.html       entrada do site da cliente
   painel.html      entrada do painel da equipe
-  src/site/        App.jsx, styles.css, tema.js (aplica a marca em runtime)
+  src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
+                   datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css e ConfigSite.jsx (a empresa edita o site)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
                    imagem.js (reduz a foto antes de subir)
@@ -113,12 +114,24 @@ lugar de otimizar é aqui — não vale complicar antes.
 ## As duas telas
 
 **Site da cliente** (`web/src/site/`) — capa, logo, nome, chamada para agendar e
-os serviços por categoria, cada um com botão próprio. Agendar é um fluxo de
-passos: serviço → profissional → dia e hora → WhatsApp → confirmação. Mobile
-primeiro, porque quase todo agendamento sai do celular.
+os serviços por categoria, cada um com botão próprio. Mobile primeiro, porque
+quase todo agendamento sai do celular.
 
-Quem decide os horários livres é o servidor, por `/api/publico/horarios`. O
-front tem noção de jornada só para desenhar a grade; se ele adivinhasse a
+**O agendamento é uma janela sobre a home**, não uma troca de tela — a cliente
+não perde de vista onde estava. Três colunas: em que passo está, o passo atual,
+e o resumo do que já escolheu com o total. O resumo não é enfeite: é ele que dá
+segurança para confirmar. No celular vira uma coluna só, com o resumo numa
+barra no rodapé que mostra o total e abre ao toque.
+
+Quem decide os horários livres é o servidor. São **duas rotas, de propósito**:
+`/api/publico/dias-livres?mes=` diz quais dias do mês têm vaga, e
+`/api/publico/horarios?data=` lista as horas de um dia. O calendário precisa de
+trinta dias de uma vez; a lista de horas, de um dia só. Juntar as duas faria o
+desenho do mês carregar horário que ninguém pediu — e pedir dia a dia seriam
+trinta idas ao banco para pintar uma tela. `diasComVaga()` resolve o mês com uma
+consulta e o resto em memória.
+
+O front tem noção de jornada só para desenhar; se ele adivinhasse a
 disponibilidade, mostraria horário já vendido e a cliente só descobriria ao
 tentar confirmar.
 
