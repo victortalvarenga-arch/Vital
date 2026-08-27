@@ -55,6 +55,30 @@ que você definiu ao instalar o Postgres. Corrija a linha no `server/.env`.
 **Porta 3333 ou 5173 ocupada** — mude `PORT` no `server/.env` (a API) ou
 `server.port` em `web/vite.config.js` (o front).
 
+## Ver o banco por interface gráfica
+
+O **pgAdmin 4** vem junto na instalação (menu Iniciar → *pgAdmin 4*). Na
+primeira execução ele pede para criar uma senha mestra — é só dele, não tem
+relação com o banco. Depois, *Add New Server*:
+
+| Campo | Valor |
+|---|---|
+| Name | Vital (local) |
+| Host | `localhost` |
+| Port | `5432` |
+| Maintenance database | `vital` |
+| Username | `postgres` |
+| Password | a que você definiu ao instalar o Postgres |
+
+As tabelas ficam em *Servers → Vital → Databases → vital → Schemas → public →
+Tables*.
+
+Para consulta rápida sem abrir interface:
+
+```bash
+psql -U postgres -d vital -c "SELECT nome, preco FROM services ORDER BY ordem;"
+```
+
 ## Documentação
 
 | Arquivo | Para quê |

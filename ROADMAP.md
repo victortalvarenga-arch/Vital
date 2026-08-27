@@ -307,6 +307,69 @@ web estiver estável.
 - [ ] Cadastro de desenvolvedor na Apple e no Google, ícones e telas de loja
 - [ ] Revisão da Apple (mais demorada e mais estrita que a do Google)
 
+## Importante para produção
+
+Lista viva. **Nada aqui bloqueia o desenvolvimento local**, mas cada item vira
+problema real no dia em que houver cliente de verdade acessando. Ao terminar
+qualquer bloco, pergunte se surgiu item novo para cá.
+
+### Segredos e acesso
+
+- [ ] **`ADMIN_TOKEN` vazio deixa o painel sem senha.** Hoje é assim de
+      propósito e a API avisa no boot. Nunca publicar assim — o Bloco 3
+      substitui por login de verdade.
+- [ ] **A senha do Postgres local é `vitaldev`**, escrita em `server/.env`.
+      É senha de desenvolvimento; em produção vem do cofre de variáveis do
+      provedor, nunca de arquivo.
+- [ ] **O front ainda embute o token do painel no bundle.** Enquanto o Bloco 3
+      não separar as áreas, publicar o site expõe o acesso ao painel.
+- [ ] `CORS_ORIGIN` precisa apontar para o domínio real, não `localhost`.
+- [ ] Conferir que nenhum log imprime a `DATABASE_URL` inteira (o boot já
+      mascara a senha — manter assim ao mexer nele).
+
+### Banco
+
+- [ ] **Migrations rodam no boot da API.** Com uma instância só, tudo bem. Com
+      várias subindo ao mesmo tempo (o normal em nuvem), todas tentam migrar
+      juntas. Antes do primeiro deploy com mais de uma instância, pôr um
+      *advisory lock* do Postgres em volta do runner, ou tirar a migration do
+      boot e rodar como passo separado do deploy.
+- [ ] **Conexões esgotam rápido em serverless.** Cada função Vercel abre o
+      próprio pool; provedores gerenciados têm limite baixo de conexões. Usar a
+      *connection string* com pooler (Neon e Supabase oferecem uma) e reduzir o
+      tamanho do pool.
+- [ ] **TLS obrigatório no gerenciado.** `db.js` já liga sozinho quando a URL
+      não é localhost; conferir se o provedor exige certificado verificado
+      (hoje está `rejectUnauthorized: false`).
+- [ ] **Backup.** O gerenciado faz sozinho; confirmar a frequência e, mais
+      importante, **testar uma restauração** antes de ter dado real.
+- [ ] `npm run reset` derruba o schema inteiro. Já recusa rodar fora de
+      localhost — manter essa trava ao mexer no script.
+
+### Hospedagem
+
+- [ ] **Decidir onde `server/uploads/` vive.** Vercel apaga o disco a cada
+      deploy: se a hospedagem do Node for efêmera, as imagens precisam ir para
+      storage de objeto (S3, R2, ou o storage do próprio provedor de banco).
+      Pendência herdada do Bloco 1; vira bloqueio no Bloco 6.
+- [ ] **Fuso do servidor.** O código trata data e hora como texto justamente
+      para não depender disso, mas os jobs de mensagem usam `TZ_ESTUDIO`.
+      Conferir se o provedor roda em UTC e se a variável está definida.
+- [ ] **Os jobs de cron rodam dentro do processo da API.** Com várias
+      instâncias, todas disparam a mesma fila. O `dedupe_key` evita mensagem
+      duplicada, mas o trabalho é repetido — avaliar mover para um agendador
+      externo.
+
+### Dados pessoais
+
+- [ ] A partir do primeiro cliente real, a base tem nome, telefone, endereço e
+      nascimento de pessoas reais. As regras de LGPD que hoje são teoria
+      (`optin`, transacional vs. marketing) passam a valer de fato — ver
+      `ARQUITETURA.md`.
+- [ ] Definir por quanto tempo guardar histórico de quem não é mais cliente.
+- [ ] Ter um caminho para exportar e apagar os dados de uma empresa que sair da
+      plataforma.
+
 ## Fora de escopo por enquanto
 
 Pagamento online, webhook de resposta do WhatsApp e API oficial da Meta seguem

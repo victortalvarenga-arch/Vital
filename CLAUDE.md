@@ -24,6 +24,10 @@ nem no `README.md` — se precisar citar, aponte para `ARQUITETURA.md`. Quando u
 bloco do `ROADMAP.md` é concluído, a decisão dele migra para `ARQUITETURA.md` e
 sai do roteiro.
 
+Ao descobrir algo que só vira problema com cliente real acessando — segredo
+exposto, limite de conexão, backup, dado pessoal —, o lugar é a seção
+**"Importante para produção"** do `ROADMAP.md`, não um comentário no código.
+
 ### Revisar a documentação a cada tarefa
 
 **Ao terminar qualquer tarefa, reveja os quatro arquivos antes de dar a tarefa
