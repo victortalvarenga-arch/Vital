@@ -1,18 +1,20 @@
 import { Router } from 'express';
 import { db, uid, clientOut, apptOut } from '../db.js';
 import { hoje, soDigitos, diasEntre } from '../lib/dates.js';
+import { rota } from '../lib/rota.js';
 
 export const clientes = Router();
 
 /** Acrescenta o que o painel sempre quer junto: visitas, gasto e há quanto tempo sumiu. */
-function comMetricas(c) {
-  const m = db.prepare(
+async function comMetricas(c) {
+  const m = await db.get(
     `SELECT COUNT(*) visitas,
             SUM(CASE WHEN pag_status='pago' THEN valor ELSE 0 END) gasto,
             MAX(CASE WHEN data <= ? THEN data END) ultima,
             SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas
-       FROM appointments WHERE client_id=? AND status <> 'cancelado'`
-  ).get(hoje(), c.id);
+       FROM appointments WHERE client_id=? AND status <> 'cancelado'`,
+    hoje(), c.id
+  );
   return {
     ...c,
     visitas: m.visitas || 0,
@@ -23,55 +25,62 @@ function comMetricas(c) {
   };
 }
 
-clientes.get('/', (req, res) => {
+clientes.get('/', rota(async (req, res) => {
   const q = (req.query.q || '').trim();
+  // ILIKE, não LIKE: no Postgres LIKE diferencia maiúscula de minúscula, e
+  // buscar "amanda" deixaria de encontrar "Amanda".
   const rows = q
-    ? db.prepare(`SELECT * FROM clients WHERE nome LIKE ? OR fone LIKE ? ORDER BY nome`)
-        .all(`%${q}%`, `%${soDigitos(q)}%`)
-    : db.prepare('SELECT * FROM clients ORDER BY nome').all();
-  res.json(rows.map(r => comMetricas(clientOut(r))));
-});
+    ? await db.all(
+        `SELECT * FROM clients WHERE nome ILIKE ? OR fone LIKE ? ORDER BY nome`,
+        `%${q}%`, `%${soDigitos(q)}%`
+      )
+    : await db.all('SELECT * FROM clients ORDER BY nome');
+  res.json(await Promise.all(rows.map(r => comMetricas(clientOut(r)))));
+}));
 
-clientes.get('/:id', (req, res) => {
-  const r = db.prepare('SELECT * FROM clients WHERE id=?').get(req.params.id);
+clientes.get('/:id', rota(async (req, res) => {
+  const r = await db.get('SELECT * FROM clients WHERE id=?', req.params.id);
   if (!r) return res.status(404).json({ erro: 'cliente não encontrada' });
-  const historico = db.prepare(
-    'SELECT * FROM appointments WHERE client_id=? ORDER BY data DESC, hora DESC'
-  ).all(req.params.id).map(apptOut);
-  res.json({ ...comMetricas(clientOut(r)), historico });
-});
+  const linhas = await db.all(
+    'SELECT * FROM appointments WHERE client_id=? ORDER BY data DESC, hora DESC',
+    req.params.id
+  );
+  res.json({ ...(await comMetricas(clientOut(r))), historico: linhas.map(apptOut) });
+}));
 
-clientes.post('/', (req, res) => {
+clientes.post('/', rota(async (req, res) => {
   const b = req.body || {};
   const fone = soDigitos(b.fone);
   if (!b.nome || fone.length < 10) {
     return res.status(400).json({ erro: 'nome e WhatsApp com DDD são obrigatórios' });
   }
-  const existe = db.prepare('SELECT * FROM clients WHERE fone=?').get(fone);
+  const existe = await db.get('SELECT * FROM clients WHERE fone=?', fone);
   if (existe) return res.status(409).json({ erro: 'já existe cliente com esse WhatsApp', cliente: clientOut(existe) });
 
   const id = uid();
-  db.prepare(
-    `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,?,?)`
-  ).run(id, b.nome.trim(), fone, b.nascimento || null, b.endereco || '', b.obs || '',
-        b.optin === false ? 0 : 1, hoje());
-  res.status(201).json(comMetricas(clientOut(db.prepare('SELECT * FROM clients WHERE id=?').get(id))));
-});
+  await db.run(
+    `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,?,?)`,
+    id, b.nome.trim(), fone, b.nascimento || null, b.endereco || '', b.obs || '',
+    b.optin === false ? 0 : 1, hoje()
+  );
+  res.status(201).json(await comMetricas(clientOut(await db.get('SELECT * FROM clients WHERE id=?', id))));
+}));
 
-clientes.put('/:id', (req, res) => {
-  const atual = db.prepare('SELECT * FROM clients WHERE id=?').get(req.params.id);
+clientes.put('/:id', rota(async (req, res) => {
+  const atual = await db.get('SELECT * FROM clients WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'cliente não encontrada' });
   const b = { ...clientOut(atual), ...req.body };
-  db.prepare(
-    `UPDATE clients SET nome=?, fone=?, nascimento=?, endereco=?, obs=?, optin=? WHERE id=?`
-  ).run(b.nome, soDigitos(b.fone), b.nascimento || null, b.endereco || '', b.obs || '',
-        b.optin ? 1 : 0, req.params.id);
-  res.json(comMetricas(clientOut(db.prepare('SELECT * FROM clients WHERE id=?').get(req.params.id))));
-});
+  await db.run(
+    `UPDATE clients SET nome=?, fone=?, nascimento=?, endereco=?, obs=?, optin=? WHERE id=?`,
+    b.nome, soDigitos(b.fone), b.nascimento || null, b.endereco || '', b.obs || '',
+    b.optin ? 1 : 0, req.params.id
+  );
+  res.json(await comMetricas(clientOut(await db.get('SELECT * FROM clients WHERE id=?', req.params.id))));
+}));
 
-clientes.delete('/:id', (req, res) => {
-  const usos = db.prepare('SELECT COUNT(*) n FROM appointments WHERE client_id=?').get(req.params.id).n;
+clientes.delete('/:id', rota(async (req, res) => {
+  const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE client_id=?', req.params.id);
   if (usos > 0) return res.status(409).json({ erro: `cliente tem ${usos} agendamentos; remova o histórico primeiro` });
-  db.prepare('DELETE FROM clients WHERE id=?').run(req.params.id);
+  await db.run('DELETE FROM clients WHERE id=?', req.params.id);
   res.json({ ok: true });
-});
+}));

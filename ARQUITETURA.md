@@ -17,7 +17,7 @@ flowchart TB
         api["api.js<br><i>único ponto que fala com a API</i>"]
     end
 
-    subgraph back["server/ · Express"]
+    subgraph back["server/ · Express + pg"]
         publico["/api/publico/*<br><i>aberto</i>"]
         privado["/api/*<br><i>exige ADMIN_TOKEN</i>"]
         motor["lib/availability.js<br><b>decide se o horário está livre</b>"]
@@ -25,7 +25,7 @@ flowchart TB
         prov["whatsapp/<br><i>manual | meta</i>"]
     end
 
-    db[("SQLite<br>server/db/estudio.db")]
+    db[("PostgreSQL<br><i>local · Neon/Supabase depois</i>")]
     wa["WhatsApp"]
 
     site --> app
@@ -51,13 +51,13 @@ ainda não dar para publicar o front na internet, e o primeiro item que o
 ## Pastas
 
 ```
-server/            Express + SQLite (better-sqlite3). Fonte da verdade.
-  db/migrations/   Esquema em migrations numeradas, versionadas por user_version.
-  db/estudio.db    O banco. Não versionado (está no .gitignore).
-  src/db.js        Abre o banco, roda migrations, converte linha ↔ objeto da API.
+server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
+  db/migrations/   Esquema em migrations numeradas, versionadas em tabela.
+  src/db.js        Pool de conexões, migrations no boot, linha ↔ objeto da API.
+  src/reset.js     Zera o banco em desenvolvimento. Recusa rodar fora de localhost.
   src/lib/         availability.js (horários), templates.js (mensagens),
                    dates.js (datas como texto), migrate.js (migrations),
-                   tenant.js (empresa + config padrão)
+                   rota.js (erro em handler async), tenant.js (empresa + config)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens | relatorios
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
@@ -72,10 +72,18 @@ web/               Vite + React, sem framework de UI. CSS à mão em styles.css.
 incluso. O negócio opera num fuso só; usar `Date` com UTC só cria bug de agenda
 virando o dia. Helpers em `server/src/lib/dates.js`.
 
-**Conflito de horário se valida no servidor, sempre.** `lib/availability.js` é o
-único lugar que decide se um horário está livre. O front tem uma cópia
-simplificada só para desenhar a grade rápido — ela nunca autoriza gravação. Duas
-clientes clicam no mesmo horário no mesmo segundo; só o banco resolve isso.
+**Conflito de horário se valida no servidor, dentro da transação que grava.**
+`lib/availability.js` é o único lugar que decide se um horário está livre. O
+front tem uma cópia simplificada só para desenhar a grade rápido — ela nunca
+autoriza gravação. Duas clientes clicam no mesmo horário no mesmo segundo, e a
+conferência precisa acontecer na *mesma* transação do `INSERT`: fora dela, as
+duas leriam "livre" antes de qualquer uma gravar, e as duas gravariam. Por isso
+`conflita()` aceita o cliente da transação como argumento.
+
+**Todo handler assíncrono passa por `lib/rota.js`.** O Express 4 não trata
+Promise rejeitada: sem o embrulho, uma falha de banco vira "unhandled rejection"
+no log e a requisição fica pendurada até o navegador desistir — sem status, sem
+mensagem. Cai fora quando atualizarmos para o Express 5.
 
 **Nada é apagado se tem histórico.** Excluir serviço ou profissional com
 agendamentos vinculados apenas desativa (`ativo = 0`). O relatório do mês
@@ -92,10 +100,26 @@ lugar de otimizar é aqui — não vale complicar antes.
 
 ## Banco
 
+**PostgreSQL**, um banco só. Local para desenvolver (grátis, mesma versão da
+produção), gerenciado quando for para o ar — a única diferença entre os dois é
+`DATABASE_URL` no `.env`, nunca código.
+
 Migrations numeradas em `server/db/migrations/`, aplicadas por `lib/migrate.js`
-e versionadas por `PRAGMA user_version`. Cada arquivo roda uma vez, na ordem do
-nome, dentro de uma transação. **Nunca edite uma migration já aplicada — crie a
-próxima.**
+no boot da API e registradas na tabela `schema_migrations`. Cada arquivo roda uma
+vez, na ordem do nome, dentro de uma transação — e o Postgres faz DDL
+transacional, então migration que falha no meio não deixa tabela pela metade.
+**Nunca edite uma migration já aplicada — crie a próxima.**
+
+**Dinheiro é `NUMERIC`, nunca float.** `0.1 + 0.2` em ponto flutuante não dá
+`0.3`, e isso vira centavo errado em comissão e fechamento de caixa. O `pg`
+devolve `NUMERIC` e `COUNT()` como texto por padrão; `db.js` registra
+conversores para os dois, senão preço voltaria como `"85.00"` e quebraria a
+soma na tela.
+
+**As consultas usam `?` como marcador, não `$1`.** `db.js` traduz antes de
+enviar. Veio da troca de motor — permitiu manter as consultas do projeto
+inteiro intactas — e continua valendo porque `?` é mais legível quando são seis
+parâmetros.
 
 ```mermaid
 erDiagram

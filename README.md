@@ -6,11 +6,16 @@ agendamento (ver `ROADMAP.md`).
 
 ## Rodar
 
-Precisa de **Node 20 ou mais novo**.
+Precisa de **Node 20+** e **PostgreSQL 17** rodando na máquina.
 
 ```bash
+# 1. Postgres, uma vez só (Windows)
+winget install PostgreSQL.PostgreSQL.17
+psql -U postgres -c "CREATE DATABASE vital;"
+
+# 2. O projeto
 npm install                              # concurrently, na raiz
-cp server/.env.example server/.env       # sem isto a API não sobe configurada
+cp server/.env.example server/.env       # ajuste DATABASE_URL se sua senha for outra
 npm run setup                            # instala server/ e web/, cria e popula o banco
 npm run dev                              # API em :3333, site em :5173
 ```
@@ -28,18 +33,24 @@ senha** — bom para desenvolver, nunca para publicar. A API avisa isso no boot.
 | `npm run dev` | Sobe API e front juntos |
 | `npm run dev:api` | Só o backend |
 | `npm run dev:web` | Só o front |
-| `cd server && npm run reset` | Apaga o banco e popula de novo |
+| `cd server && npm run seed` | Popula um banco vazio |
+| `cd server && npm run reset` | Apaga tudo e popula de novo (só em localhost) |
 
-O banco é um arquivo em `server/db/estudio.db`, criado no primeiro `setup`. Não
-vai para o Git.
+As migrations rodam sozinhas quando a API sobe.
 
 ## Se algo der errado
 
-**`better-sqlite3` falha ao instalar** — costuma ser versão de Node sem binário
-pronto. Confira `node -v`; em Node 24 use `better-sqlite3` 12 ou mais novo.
+**`DATABASE_URL não definida`** — falta copiar `server/.env.example` para
+`server/.env`.
 
-**`npm run reset` diz que não consegue apagar o arquivo** — o servidor está
-rodando e segurando o banco. Pare o `npm run dev` antes.
+**`ECONNREFUSED` ao subir a API** — o Postgres não está rodando. No Windows:
+`Get-Service postgresql*` e, se preciso, `Start-Service postgresql-x64-17`.
+
+**`password authentication failed`** — a senha em `DATABASE_URL` não bate com a
+que você definiu ao instalar o Postgres. Corrija a linha no `server/.env`.
+
+**`database "vital" does not exist`** — falta o passo 1:
+`psql -U postgres -c "CREATE DATABASE vital;"`.
 
 **Porta 3333 ou 5173 ocupada** — mude `PORT` no `server/.env` (a API) ou
 `server.port` em `web/vite.config.js` (o front).

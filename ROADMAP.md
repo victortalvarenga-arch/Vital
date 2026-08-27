@@ -161,30 +161,36 @@ da config em JSON. **O que não sobrevive:** o SQL específico do SQLite
 (`PRAGMA`, tipos), a forma síncrona de acessar o banco em `db.js` e a coluna
 `tenant_id` como está — o Bloco 2 a refaz com Row-Level Security.
 
-### Bloco 1 — Trocar o motor: SQLite → Postgres
-Só troca de motor, ainda sem multiempresa — objetivo único é provar que tudo
-funciona igual em Postgres, antes de empilhar a complexidade do Bloco 2 em
-cima. Roda primeiro **local, de graça**; o gerenciado na nuvem só entra quando
-for hora de outra pessoa além de nós acessar o sistema.
+### Bloco 1 — Trocar o motor: SQLite → Postgres ✅ concluído
+Só troca de motor, ainda sem multiempresa. O que ficou implementado está em
+`ARQUITETURA.md`.
 
-- [ ] Postgres instalado local (Windows, via winget) — é o mesmo motor, o mesmo
-      SQL, a mesma forma de conectar que o gerenciado depois. "Nunca Postgres
-      na própria máquina" vale pra **produção**; em desenvolvimento é exatamente
-      onde ele deve rodar.
-- [ ] Portar `db/migrations/*.sql` para dialeto Postgres (tipos, sem `PRAGMA`,
-      `ALTER TABLE` quando preciso) — as mesmas migrations rodam local e depois
-      na nuvem, sem reescrever
-- [ ] Reescrever `db.js` e os `db.prepare(...).all()/get()/run()` de todas as
-      rotas para a API assíncrona do driver Postgres (`pg`)
-- [ ] Pool de conexões no lugar de uma conexão só
-- [ ] `DATABASE_URL` num `.env` — trocar de local para gerenciado é mudar essa
-      linha, nada de código
-- [ ] Quando for a hora de sair do zero custo: **Neon** ou **Supabase**
-      (gerenciado, tier gratuito, sem cartão) — decisão de quando, não de qual
-      motor, essa parte já está resolvida
-- [ ] Decidir, junto do provedor de hospedagem do Node, se `server/uploads/`
-      continua em disco ou já migra para storage de objeto
-- [ ] Confirmar que toda rota hoje existente responde igual, com o mesmo seed
+- [x] PostgreSQL 17 local (winget), rodando como serviço do Windows — mesma
+      versão que Neon e Supabase rodam, então local e produção não divergem
+- [x] Esquema portado para dialeto Postgres, consolidado numa migration só
+      (as duas do SQLite não valia carregar: metade era reconstrução de tabela,
+      exigência que só o SQLite tinha)
+- [x] Migrations agora versionadas na tabela `schema_migrations`, não em
+      `PRAGMA user_version`; rodam no boot da API
+- [x] `db.js`, as 6 rotas, os jobs e o seed reescritos para a API assíncrona do
+      `pg` — 122 chamadas ao banco
+- [x] Pool de conexões
+- [x] `DATABASE_URL` no `.env`; trocar local ↔ gerenciado é essa linha só
+- [x] `npm run reset` recusa rodar se a URL não for localhost
+
+**Quatro coisas que o SQLite escondia e apareceram na troca:**
+
+1. `LIKE` do Postgres diferencia maiúscula de minúscula. A busca de clientes
+   passou a usar `ILIKE`, senão "amanda" não acharia "Amanda".
+2. `IS NOT ?` é sintaxe de SQLite. Virou `IS DISTINCT FROM`.
+3. A conferência de conflito de horário estava **fora** da transação, apesar do
+   comentário afirmar que estava dentro. Com um escritor só isso passava; com
+   pool de conexões vira corrida real. Agora está dentro de verdade.
+4. Express 4 não captura erro em handler `async` — antes nada era assíncrono, e
+   o problema não existia. Todo handler passa por `lib/rota.js` agora.
+
+**Ainda em aberto deste bloco:** decidir onde `server/uploads/` vive quando
+escolhermos a hospedagem do Node. Não bloqueia nada até o Bloco 6.
 
 ### Bloco 2 — Multiempresa dentro do Postgres
 Antigo "Bloco 1" de banco por empresa, redesenhado para o motor novo. Agora é

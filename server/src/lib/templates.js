@@ -15,16 +15,17 @@ export const VARIAVEIS = [
  * Monta as variáveis a partir de um agendamento (ou só do cliente, em campanhas).
  * Use sempre esta função para não haver dois lugares gerando textos diferentes.
  */
-export function variaveis({ cliente, agendamento = null }) {
-  const cfg = getConfig();
-  const svc = agendamento && db.prepare('SELECT * FROM services WHERE id=?').get(agendamento.service_id);
-  const prof = agendamento && db.prepare('SELECT * FROM staff WHERE id=?').get(agendamento.staff_id);
+export async function variaveis({ cliente, agendamento = null }) {
+  const cfg = await getConfig();
+  const svc = agendamento && await db.get('SELECT * FROM services WHERE id=?', agendamento.service_id);
+  const prof = agendamento && await db.get('SELECT * FROM staff WHERE id=?', agendamento.staff_id);
 
   let dias = '';
   if (cliente) {
-    const ult = db.prepare(
-      `SELECT data FROM appointments WHERE client_id=? AND status='concluido' ORDER BY data DESC LIMIT 1`
-    ).get(cliente.id);
+    const ult = await db.get(
+      `SELECT data FROM appointments WHERE client_id=? AND status='concluido' ORDER BY data DESC LIMIT 1`,
+      cliente.id
+    );
     if (ult) dias = String(diasEntre(ult.data, hoje()));
   }
 

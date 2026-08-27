@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { db, uid, setConfig, salvarVinculos } from './db.js';
+import { db, pool, iniciarBanco, uid, setConfig, salvarVinculos } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
 import { TEMPLATES_PADRAO } from './lib/templates.js';
 
@@ -8,15 +8,18 @@ import { TEMPLATES_PADRAO } from './lib/templates.js';
  * É idempotente: se já houver serviços, não faz nada (use `npm run reset` para zerar).
  */
 
-const jaTem = db.prepare('SELECT COUNT(*) n FROM services').get().n > 0;
-if (jaTem && !process.argv.includes('--forcar')) {
+await iniciarBanco();
+
+const { n: jaTem } = await db.get('SELECT COUNT(*) n FROM services');
+if (jaTem > 0 && !process.argv.includes('--forcar')) {
   console.log('Banco já populado. Use `npm run reset` para recomeçar do zero.');
+  await pool.end();
   process.exit(0);
 }
 
 const h = hoje();
 
-setConfig({
+await setConfig({
   nome: 'Estúdio Lume',
   slogan: 'Estética & beleza · Joinville',
   fone: '47996195696',
@@ -54,9 +57,12 @@ const staff = [
   { id: 's3', nome: 'Karen Souza', funcao: 'Estética facial', cor: '#3E7D63', comissao: 45, fone: '47977776666',
     jornada: { 1: ['13:00', '19:00'], 3: ['13:00', '19:00'], 5: ['13:00', '19:00'] } },
 ];
-const insStaff = db.prepare(
-  `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`);
-staff.forEach(p => insStaff.run(p.id, p.nome, p.funcao, p.fone, p.cor, p.comissao, JSON.stringify(p.jornada), h));
+for (const p of staff) {
+  await db.run(
+    `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`,
+    p.id, p.nome, p.funcao, p.fone, p.cor, p.comissao, JSON.stringify(p.jornada), h
+  );
+}
 
 const servicos = [
   ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1']],
@@ -71,12 +77,13 @@ const servicos = [
   ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3']],
   ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3']],
 ];
-const insSvc = db.prepare(
-  `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem) VALUES (?,?,?,?,?,?,10,1,?)`);
-servicos.forEach(([id, nome, cat, desc, preco, dur, profs], i) => {
-  insSvc.run(id, nome, cat, desc, preco, dur, i);
-  salvarVinculos(id, profs);
-});
+for (const [i, [id, nome, cat, desc, preco, dur, profs]] of servicos.entries()) {
+  await db.run(
+    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem) VALUES (?,?,?,?,?,?,10,1,?)`,
+    id, nome, cat, desc, preco, dur, i
+  );
+  await salvarVinculos(id, profs);
+}
 
 const clientes = [
   ['c1', 'Amanda Ribeiro', '47991234567', '1994-09-02', 'Rua das Palmeiras, 210 — Costa e Silva', 'Prefere tons nude.', -240],
@@ -86,35 +93,43 @@ const clientes = [
   ['c5', 'Renata Alves', '47995678901', '2001-01-27', 'Rua Dona Francisca, 2200 — Santo Antônio', '', -30],
   ['c6', 'Débora Nunes', '47996789012', '1985-08-30', 'Rua São Paulo, 77 — Bucarein', 'Sempre atrasa 10 min.', -520],
 ];
-const insCli = db.prepare(
-  `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,1,?)`);
-clientes.forEach(([id, nome, fone, nasc, end, obs, d]) => insCli.run(id, nome, fone, nasc, end, obs, addDias(h, d)));
+for (const [id, nome, fone, nasc, end, obs, d] of clientes) {
+  await db.run(
+    `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,1,?)`,
+    id, nome, fone, nasc, end, obs, addDias(h, d)
+  );
+}
 
-const insAppt = db.prepare(
-  `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_forma,origem,criado_em)
-   VALUES (?,?,?,?,?,?,?,?,?,?,?,'site',?)`);
-const mk = (cli, svc, prof, dia, hora, status, pagStatus, forma) => {
-  const s = db.prepare('SELECT * FROM services WHERE id=?').get(svc);
-  insAppt.run(uid(), cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
-              status, pagStatus, forma, h);
+const mk = async (cli, svc, prof, dia, hora, status, pagStatus, forma) => {
+  const s = await db.get('SELECT * FROM services WHERE id=?', svc);
+  await db.run(
+    `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_forma,origem,criado_em)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,'site',?)`,
+    uid(), cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
+    status, pagStatus, forma, h
+  );
 };
-mk('c1', 'v1', 's1', 0, '09:00', 'concluido', 'pago', 'pix');
-mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
-mk('c3', 'v4', 's1', 0, '11:00', 'confirmado', 'aberto', 'local');
-mk('c5', 'v10', 's3', 0, '14:00', 'agendado', 'aberto', 'local');
-mk('c4', 'v2', 's1', 0, '14:30', 'confirmado', 'pago', 'cartao');
-mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'aberto', 'local');
-mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
-mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
-mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
-mk('c5', 'v9', 's2', 2, '11:00', 'agendado', 'aberto', 'local');
-mk('c1', 'v1', 's1', -21, '09:00', 'concluido', 'pago', 'pix');
-mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
-mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
-mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
+await mk('c1', 'v1', 's1', 0, '09:00', 'concluido', 'pago', 'pix');
+await mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
+await mk('c3', 'v4', 's1', 0, '11:00', 'confirmado', 'aberto', 'local');
+await mk('c5', 'v10', 's3', 0, '14:00', 'agendado', 'aberto', 'local');
+await mk('c4', 'v2', 's1', 0, '14:30', 'confirmado', 'pago', 'cartao');
+await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'aberto', 'local');
+await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
+await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
+await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
+await mk('c5', 'v9', 's2', 2, '11:00', 'agendado', 'aberto', 'local');
+await mk('c1', 'v1', 's1', -21, '09:00', 'concluido', 'pago', 'pix');
+await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
+await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
+await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
 
-const insTpl = db.prepare(
-  `INSERT INTO templates (id,chave,titulo,quando,tipo,ativo,texto) VALUES (?,?,?,?,?,1,?)`);
-TEMPLATES_PADRAO.forEach(t => insTpl.run(uid(), t.chave, t.titulo, t.quando, t.tipo, t.texto));
+for (const t of TEMPLATES_PADRAO) {
+  await db.run(
+    `INSERT INTO templates (id,chave,titulo,quando,tipo,ativo,texto) VALUES (?,?,?,?,?,1,?)`,
+    uid(), t.chave, t.titulo, t.quando, t.tipo, t.texto
+  );
+}
 
 console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
+await pool.end();

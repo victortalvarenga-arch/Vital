@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
-import { db, getConfig, listarServicos, staffOut, clientOut, apptOut, templateOut } from './db.js';
+import { db, iniciarBanco, getConfig, listarServicos, staffOut, clientOut, apptOut, templateOut } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
 import { catalogo } from './routes/catalogo.js';
 import { clientes } from './routes/clientes.js';
@@ -11,6 +11,7 @@ import { publico } from './routes/publico.js';
 import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
 import { iniciarJobs } from './jobs/mensagens.js';
+import { rota } from './lib/rota.js';
 
 const app = express();
 app.use(cors({ origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',') }));
@@ -46,18 +47,25 @@ app.use('/api/relatorios', relatorios);
  * Bootstrap do painel: devolve tudo o que a tela precisa numa chamada só.
  * Evita 6 requisições em cascata no carregamento e mantém o front simples.
  */
-app.get('/api/estado', (req, res) => {
+app.get('/api/estado', rota(async (req, res) => {
   const h = hoje();
+  const [config, servicos, equipe, clientela, agenda, modelos] = await Promise.all([
+    getConfig(),
+    listarServicos(),
+    db.all('SELECT * FROM staff ORDER BY nome'),
+    db.all('SELECT * FROM clients ORDER BY nome'),
+    db.all('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora', addDias(h, -120)),
+    db.all('SELECT * FROM templates ORDER BY tipo, titulo'),
+  ]);
   res.json({
-    config: getConfig(),
-    servicos: listarServicos(),
-    profissionais: db.prepare('SELECT * FROM staff ORDER BY nome').all().map(staffOut),
-    clientes: db.prepare('SELECT * FROM clients ORDER BY nome').all().map(clientOut),
-    agendamentos: db.prepare('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora')
-      .all(addDias(h, -120)).map(apptOut),
-    templates: db.prepare('SELECT * FROM templates ORDER BY tipo, titulo').all().map(templateOut),
+    config,
+    servicos,
+    profissionais: equipe.map(staffOut),
+    clientes: clientela.map(clientOut),
+    agendamentos: agenda.map(apptOut),
+    templates: modelos.map(templateOut),
   });
-});
+}));
 
 app.use((err, req, res, next) => {
   console.error(err);
@@ -65,9 +73,21 @@ app.use((err, req, res, next) => {
 });
 
 const porta = process.env.PORT || 3333;
-app.listen(porta, () => {
-  console.log(`\n  Estúdio Agenda · API em http://localhost:${porta}`);
-  console.log(`  Banco: ${process.env.DB_FILE || 'server/db/estudio.db'}`);
-  if (!process.env.ADMIN_TOKEN) console.log('  ⚠  ADMIN_TOKEN vazio: o painel está sem senha (ok em dev).');
-  iniciarJobs();
-});
+
+// As migrations rodam antes de aceitar requisição: subir a API contra um banco
+// com esquema velho é pior do que não subir.
+iniciarBanco()
+  .then(() => {
+    app.listen(porta, () => {
+      // A URL carrega a senha do banco; nunca imprima inteira.
+      const alvo = (process.env.DATABASE_URL || '').replace(/:[^:@/]*@/, ':***@');
+      console.log(`\n  Estúdio Agenda · API em http://localhost:${porta}`);
+      console.log(`  Banco: ${alvo || '(DATABASE_URL não definida)'}`);
+      if (!process.env.ADMIN_TOKEN) console.log('  ⚠  ADMIN_TOKEN vazio: o painel está sem senha (ok em dev).');
+      iniciarJobs();
+    });
+  })
+  .catch(erro => {
+    console.error(`\n  Não foi possível preparar o banco: ${erro.message}\n`);
+    process.exit(1);
+  });

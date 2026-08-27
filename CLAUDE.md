@@ -49,6 +49,10 @@ escrito, não aconteceu.
 - Sem biblioteca de UI. O CSS em `web/src/styles.css` usa variáveis e é curto de
   propósito; não introduza Tailwind ou styled-components sem motivo forte.
 - Nunca edite uma migration já aplicada — crie a próxima.
+- Todo acesso ao banco é assíncrono (`await db.get/all/run`). Consultas usam `?`
+  como marcador; `db.js` traduz para `$1` do Postgres.
+- Todo handler de rota assíncrono vai embrulhado em `rota()`, senão erro nele
+  pendura a requisição sem resposta.
 - Nunca escreva `'default'` como `tenant_id` na mão numa consulta; quem decide é
   `lib/tenant.js`.
 - Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê
