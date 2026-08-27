@@ -36,21 +36,17 @@ esqueça o filtro, consegue devolver linha de empresa errada.
 
 ## Decisões tomadas
 
-**Postgres gerenciado na nuvem, um banco só, isolado por Row-Level Security —
-não SQLite, não arquivo por empresa.** Revisa a decisão anterior (arquivo por
-empresa), que fazia sentido para rodar num servidor próprio mas esbarra na
-nuvem: SQLite trava a escrita por arquivo, o que não combina com vários
-processos da API rodando ao mesmo tempo nem com hospedagens de disco temporário
-(a maioria das nuvens "normais" — Railway, Render, Vercel — apaga o disco a
-cada deploy).
+**Postgres, um banco só, isolado por Row-Level Security.** ✅ Implementado nos
+Blocos 1 e 2 — o desenho está em `ARQUITETURA.md`, seção "Isolamento entre
+empresas".
 
-Postgres resolve isso de fábrica: foi feito para muitos processos escrevendo ao
-mesmo tempo, e todo provedor de nuvem sabe hospedar. RLS fecha o risco que a
-coluna `tenant_id` sozinha deixava aberto — uma política do próprio banco recusa
-qualquer linha fora da empresa da conexão atual, mesmo que uma rota esqueça o
-filtro no código. Cadastrar empresa nova vira um `INSERT`, não criar arquivo e
-rodar migration; relatório da plataforma vira um `GROUP BY` normal, não abrir
-banco por banco.
+Fica aqui só o porquê da escolha, que é decisão de produto: SQLite trava a
+escrita por arquivo, o que não combina com vários processos da API rodando ao
+mesmo tempo nem com hospedagem de disco temporário (Railway, Render e Vercel
+apagam o disco a cada deploy). Postgres foi feito para isso e todo provedor de
+nuvem sabe hospedar. E o modelo de um banco só deixa barato o que a Vital mais
+vai fazer: cadastrar empresa nova é um `INSERT`, e relatório da plataforma é um
+`GROUP BY`, não abrir banco por banco.
 
 **Postgres local para desenvolver de graça; gerenciado só quando alguém além de
 nós for acessar.** São dois ambientes, não dois planos concorrentes — todo
@@ -71,13 +67,6 @@ diferentes que se conectam por uma URL — o plano de usar Vercel não muda nada
 do que já foi decidido aqui, só confirma que precisávamos mesmo sair do SQLite:
 Vercel roda o processo do Node de forma efêmera, sem disco persistente, e um
 arquivo `.db` não sobreviveria a isso de jeito nenhum.
-
-**Trocar de motor é maior do que redesenhar tabela — vira bloco próprio.**
-SQLite é síncrono, Postgres é assíncrono; a troca toca a leitura e escrita de
-toda rota. Por isso o antigo "Bloco 1" virou dois: primeiro provar que tudo
-funciona igual rodando em Postgres (Bloco 1), depois desenhar multiempresa por
-cima (Bloco 2). Misturar os dois riscos na mesma entrega dificultaria achar a
-causa se algo quebrar.
 
 **Apps nativos entram no escopo, além do site responsivo.** Recomendação de
 caminho técnico: empacotar o mesmo código web (site do cliente e painel da
@@ -344,10 +333,40 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       juntas. Antes do primeiro deploy com mais de uma instância, pôr um
       *advisory lock* do Postgres em volta do runner, ou tirar a migration do
       boot e rodar como passo separado do deploy.
-- [ ] **Conexões esgotam rápido em serverless.** Cada função Vercel abre o
-      próprio pool; provedores gerenciados têm limite baixo de conexões. Usar a
-      *connection string* com pooler (Neon e Supabase oferecem uma) e reduzir o
-      tamanho do pool.
+- [ ] **Conexões esgotam rápido em serverless, mas o pooler brigaria com o
+      RLS do jeito que está hoje.** Cada função Vercel abre o próprio pool e os
+      provedores têm limite baixo de conexões, então a saída natural seria a
+      *connection string* com pooler (Neon e Supabase oferecem uma). Só que
+      **elas usam pooling em modo transação**, e nossa empresa é marcada na
+      conexão com `set_config(..., false)`, que é escopo de *sessão*: em modo
+      transação, cada comando pode cair num backend diferente. Duas
+      consequências, uma ruim e uma pior — a consulta perde o contexto e não
+      devolve nada, e o backend que ficou marcado pode servir outra empresa
+      depois, aí sim vazando.
+
+      **Antes de usar pooler em modo transação**, trocar para escopo de
+      transação: envolver a requisição num `BEGIN`/`COMMIT` e usar
+      `set_config(..., true)` (equivalente a `SET LOCAL`), que morre junto com a
+      transação e não sobrevive na conexão. Enquanto for conexão direta ou
+      pooling em modo sessão, o desenho atual está correto — o `RESET` na
+      devolução cobre.
+- [ ] **Reduzir o tamanho do pool** por instância, seja qual for a escolha
+      acima.
+- [ ] **Conferir se o usuário do provedor não ignora o RLS.** É a armadilha
+      que apaga o Bloco 2 inteiro em silêncio: o Postgres ignora Row-Level
+      Security para superusuário e para o dono da tabela, e o usuário que Neon
+      ou Supabase entregam por padrão costuma ser um dos dois. Se a aplicação
+      conectar com ele, as políticas continuam lá, sem efeito nenhum, e nada
+      falha para avisar. Em produção, repetir o que foi feito local: um papel
+      só da aplicação, sem `SUPERUSER` e sem `BYPASSRLS`, com `GRANT` nas
+      tabelas. **Testar com duas empresas antes de confiar.**
+- [ ] **A senha de `vital_app` é `vitalapp` em desenvolvimento**, definida por
+      `npm run senha-app` a partir do `.env`. Em produção o papel é criado e a
+      senha definida pelo cofre do provedor — o script recusa rodar fora de
+      localhost.
+- [ ] **`DATABASE_ADMIN_URL` é credencial de deploy, não da aplicação.** Ela
+      pode criar tabela e ignora RLS. O processo que atende requisição nunca
+      deve ter acesso a ela.
 - [ ] **TLS obrigatório no gerenciado.** `db.js` já liga sozinho quando a URL
       não é localhost; conferir se o provedor exige certificado verificado
       (hoje está `rejectUnauthorized: false`).

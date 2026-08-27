@@ -121,6 +121,17 @@ export const db = {
     try {
       // set_config em vez de SET porque aceita parâmetro; concatenar o id na
       // string seria injeção de SQL esperando acontecer.
+      //
+      // O `false` no fim faz o valor valer para a SESSÃO inteira, não só para
+      // a transação. Correto aqui, porque a conexão é nossa do começo ao fim
+      // da requisição e é devolvida com RESET.
+      //
+      // ATENÇÃO ao ir para produção: atrás de um pooler em modo transação
+      // (PgBouncer, e as connection strings "pooled" de Neon e Supabase) isto
+      // se quebra — cada comando pode cair num backend diferente, e o backend
+      // que ficou marcado pode servir outra empresa depois. Nesse cenário, a
+      // requisição precisa virar uma transação e usar `true` aqui. Registrado
+      // em ROADMAP.md, "Importante para produção".
       await cliente.query('SELECT set_config($1, $2, false)', ['app.tenant_id', tenantId]);
       return await contexto.run({ cliente, tenantId }, fn);
     } finally {
