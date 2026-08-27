@@ -296,8 +296,9 @@ O desenho final está em `ARQUITETURA.md`, seção "As duas telas".
 - [x] Rota nova `/publico/dias-livres?mes=`, resolvendo o mês numa consulta só;
       dia a dia seriam trinta idas ao banco para pintar uma tela
 - [x] Opção "qualquer profissional" no passo de escolha
-- [x] Seção de serviços refeita: foto maior, inicial colorida quando não há
-      foto, hierarquia de preço e duração
+- [x] Seção de serviços em grade de círculos, com a foto na frente do nome;
+      inicial sobre a cor da marca quando não há foto
+- [x] Recado opcional da cliente no agendamento, que chega ao painel
 - [x] Animações discretas ao rolar, que somem inteiras com
       `prefers-reduced-motion`
 - [x] **Instagram: só o link** (decidido em 2026-08-27 — ver abaixo)

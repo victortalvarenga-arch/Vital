@@ -151,6 +151,19 @@ derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
 nenhum rebuild por cliente. É o que permite a empresa escolher a própria paleta
 em Configurações → Site da cliente.
 
+**Serviços em grade de círculos, com a foto na frente.** A foto é o que a
+pessoa reconhece antes de ler — "unhas", "sobrancelha" — e reconhecer é mais
+rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor da
+marca, para o círculo não ficar vazio e a grade não desalinhar. A seção de
+serviços é a única que usa o contêiner largo (`.env-largo`): a grade respira
+melhor, e o resto do site continua estreito, que é o que se lê bem.
+
+**A cliente pode deixar um recado no agendamento.** Campo opcional no último
+passo, que grava em `appointments.obs` e aparece para a equipe no painel — "sou
+alérgica a acetona", "vou levar minha filha". É texto livre vindo da internet:
+o servidor corta em 500 caracteres em vez de recusar, porque devolver erro por
+causa de um recado longo perderia o agendamento inteiro.
+
 **A cliente escolhe a categoria antes de ver a lista.** Um estúdio com quarenta
 serviços numa página só é uma parede de texto. O site mostra as categorias como
 cartões — com a foto de um dos serviços do grupo — e só abre a lista depois do

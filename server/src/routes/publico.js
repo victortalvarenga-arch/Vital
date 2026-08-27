@@ -132,8 +132,14 @@ publico.post('/agendar', rota(async (req, res) => {
     cliente = await db.get('SELECT * FROM clients WHERE id=?', id);
   }
 
+  // Recado da cliente ("prefiro tons nude", "sou alérgica a acetona"). Texto
+  // livre vindo da internet: corta no limite em vez de recusar, porque
+  // devolver erro por causa de um recado longo perderia o agendamento inteiro.
+  const obs = String(b.obs || '').trim().slice(0, 500);
+
   const r = await criarAgendamento(
-    { clienteId: cliente.id, servicoId: b.servicoId, profissionalId: b.profissionalId, data: b.data, hora: b.hora,
+    { clienteId: cliente.id, servicoId: b.servicoId, profissionalId: b.profissionalId,
+      data: b.data, hora: b.hora, obs,
       pagamento: { status: 'aberto', forma: b.formaPagamento || 'local' } },
     { origem: 'site' }
   );

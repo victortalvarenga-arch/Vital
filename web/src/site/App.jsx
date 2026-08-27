@@ -112,13 +112,15 @@ function Home({ dados, aoAgendar }) {
         </div>
       </div>
 
-      <div className="env">
-        {negocio.sobre && (
+      {negocio.sobre && (
+        <div className="env">
           <Revela>
             <section className="sec sobre"><p>{negocio.sobre}</p></section>
           </Revela>
-        )}
+        </div>
+      )}
 
+      <div className="env-largo">
         <section className="sec">
           <h2 className="sec-titulo">Serviços</h2>
           {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
@@ -186,29 +188,36 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
   );
 }
 
+/**
+ * Serviços em grade, cada um com a foto redonda.
+ *
+ * A foto vira o que a pessoa reconhece primeiro — "unhas", "sobrancelha" — bem
+ * mais rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor
+ * da marca, para o círculo não ficar vazio e a grade não desalinhar.
+ */
 function Servicos({ itens, exibir, textos, aoAgendar }) {
   return (
-    <div className="svcs">
+    <div className="svc-grade">
       {itens.map((s, i) => (
         <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
-          <article className="svc">
-            {exibir?.fotos && (
-              s.foto
-                ? <img className="svc-foto" src={s.foto} alt="" loading="lazy" />
-                : <div className="svc-foto svc-foto-vazia">{s.nome.trim()[0].toUpperCase()}</div>
-            )}
-            <div className="svc-txt">
-              <div className="svc-nome">{s.nome}</div>
-              {s.descricao && <div className="svc-desc">{s.descricao}</div>}
-              <div className="svc-meta">
+          <article className="svc-item">
+            <button className="svc-circulo" onClick={() => aoAgendar(s.id)}
+                    aria-label={`Agendar ${s.nome}`}>
+              {s.foto
+                ? <img src={s.foto} alt="" loading="lazy" />
+                : <span className="svc-inicial">{s.nome.trim()[0].toUpperCase()}</span>}
+            </button>
+            <h4 className="svc-nome" title={s.descricao || undefined}>{s.nome}</h4>
+            {(s.preco != null || exibir?.duracao) && (
+              <p className="svc-meta">
                 {s.preco != null
                   ? <span className="svc-preco">{brl(s.preco)}</span>
-                  : <span className="svc-preco sob-consulta">Sob consulta</span>}
+                  : <span className="sob-consulta">Sob consulta</span>}
                 {exibir?.duracao && <span className="svc-dur">{duracaoTexto(s.duracao)}</span>}
-              </div>
-            </div>
-            <button className="b b-c b-peq svc-btn" onClick={() => aoAgendar(s.id)}>
-              {textos?.botaoAgendar || 'Agendar'}
+              </p>
+            )}
+            <button className="b b-p b-peq svc-btn" onClick={() => aoAgendar(s.id)}>
+              <Calendar size={15} /> {textos?.botaoAgendar || 'Agendar'}
             </button>
           </article>
         </Revela>

@@ -118,7 +118,7 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
             {passo === 'servico' && (
               <Opcoes
                 itens={servicos.map(s => ({
-                  id: s.id, nome: s.nome, foto: s.foto,
+                  id: s.id, nome: s.nome, foto: s.foto, desc: s.descricao,
                   sub: [s.preco != null ? brl(s.preco) : 'Sob consulta',
                         exibir?.duracao ? duracaoTexto(s.duracao) : null].filter(Boolean).join(' · '),
                 }))}
@@ -239,6 +239,7 @@ function Opcoes({ itens, aoEscolher }) {
               </span>}
           <span className="jn-opcao-txt">
             <span className="jn-opcao-nome">{o.nome}</span>
+            {o.desc && <span className="jn-opcao-desc">{o.desc}</span>}
             {o.sub && <span className="jn-opcao-sub">{o.sub}</span>}
           </span>
           <ChevronRight size={18} className="jn-opcao-seta" />
@@ -351,6 +352,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   const [fone, setFone] = useState('');
   const [conhecida, setConhecida] = useState(null);
   const [form, setForm] = useState({ nome: '', nascimento: '', aceitaMensagens: true });
+  const [obs, setObs] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('local');
   const [ocupado, setOcupado] = useState(false);
 
@@ -375,6 +377,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         data: escolha.data,
         hora: escolha.hora,
         formaPagamento,
+        obs,
         ...(conhecida?.cadastrada ? {} : form),
       }));
     } catch (e) { aviso(e.message); setOcupado(false); }
@@ -422,6 +425,16 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
 
       {conhecida && (
         <>
+          <div className="campo">
+            <label htmlFor="jn-obs">
+              Alguma observação? <span className="jn-opcional">opcional</span>
+            </label>
+            <textarea id="jn-obs" rows={3} maxLength={500} value={obs}
+                      placeholder="Ex.: prefiro tons nude, sou alérgica a acetona, vou levar minha filha…"
+                      onChange={e => setObs(e.target.value)} />
+            <span className="jn-contador">{obs.length}/500</span>
+          </div>
+
           {formas.length > 0 && (
             <div className="campo">
               <label htmlFor="jn-pag">Pagamento</label>

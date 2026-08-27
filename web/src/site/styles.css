@@ -44,6 +44,9 @@ img { max-width: 100%; display: block; }
 :focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; border-radius: 4px; }
 
 .env { max-width: 640px; margin: 0 auto; padding: 0 20px; }
+/* A grade de círculos respira melhor larga; o resto do site continua estreito,
+   que é o que se lê bem. */
+.env-largo { max-width: 900px; margin: 0 auto; padding: 0 20px; }
 .centro { display: grid; place-items: center; min-height: 70vh; text-align: center; padding: 24px; }
 .vazio { color: var(--fraco); font-size: 14.5px; padding: 20px 0; text-align: center; }
 
@@ -107,28 +110,39 @@ img { max-width: 100%; display: block; }
 
 /* ── serviços ── */
 .cat { font-size: 18px; margin: 4px 0 14px; }
-.svcs { display: flex; flex-direction: column; }
-.svc {
-  display: flex; align-items: center; gap: 14px; padding: 14px 0;
-  border-bottom: 1px solid var(--linha);
+/* Grade de círculos: a foto é o que se reconhece antes do nome. */
+.svc-grade {
+  display: grid; gap: 22px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
-.svcs .revela:last-child .svc { border-bottom: 0; }
-.svc-foto {
-  width: 64px; height: 64px; border-radius: 12px; object-fit: cover;
-  flex: none; background: var(--superficie);
+.svc-item {
+  display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;
 }
-.svc-foto-vazia {
-  display: grid; place-items: center; color: var(--marca);
-  background: var(--marca-clara); font-weight: 700; font-size: 21px;
+.svc-circulo {
+  width: 116px; height: 116px; border-radius: 50%; overflow: hidden; padding: 0;
+  background: var(--marca-clara); display: grid; place-items: center;
+  border: 3px solid var(--fundo); box-shadow: var(--sombra);
+  transition: transform .18s ease, box-shadow .18s ease;
 }
-.svc-txt { flex: 1; min-width: 0; }
-.svc-nome { font-weight: 600; font-size: 15.5px; }
-.svc-desc { color: var(--cinza); font-size: 13.5px; margin-top: 3px; line-height: 1.45; }
-.svc-meta { display: flex; gap: 10px; align-items: baseline; margin-top: 6px; font-size: 14px; }
+.svc-circulo img { width: 100%; height: 100%; object-fit: cover; }
+.svc-inicial { font-size: 34px; font-weight: 700; color: var(--marca); }
+.svc-circulo:hover { transform: translateY(-3px); box-shadow: 0 10px 26px -12px rgba(0,0,0,.35); }
+
+.svc-item .svc-nome { font-weight: 600; font-size: 15px; line-height: 1.3; text-wrap: balance; }
+.svc-meta {
+  display: flex; gap: 8px; align-items: baseline; justify-content: center;
+  font-size: 13.5px; flex-wrap: wrap;
+}
 .svc-preco { font-weight: 700; }
 .sob-consulta { color: var(--cinza); font-weight: 600; }
 .svc-dur { color: var(--fraco); }
 .svc-btn { flex: none; }
+
+@media (max-width: 420px) {
+  .svc-grade { grid-template-columns: repeat(2, 1fr); gap: 20px 10px; }
+  .svc-circulo { width: 96px; height: 96px; }
+  .svc-inicial { font-size: 28px; }
+}
 
 /* ── categorias: escolher o grupo antes de ver a lista ── */
 .cats { display: flex; flex-direction: column; gap: 10px; }
@@ -253,6 +267,7 @@ img { max-width: 100%; display: block; }
 .jn-opcao-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .jn-opcao-nome { font-weight: 600; font-size: 15px; }
 .jn-opcao-sub { color: var(--cinza); font-size: 13.5px; }
+.jn-opcao-desc { color: var(--cinza); font-size: 13px; line-height: 1.4; }
 .jn-opcao-seta { color: var(--fraco); flex: none; }
 
 /* calendário do mês */
@@ -299,6 +314,17 @@ img { max-width: 100%; display: block; }
 
 /* formulário e confirmação dentro da janela */
 .jn-form { max-width: 380px; }
+.jn-form textarea {
+  width: 100%; padding: 12px 14px; font-size: 16px; font-family: inherit;
+  border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo);
+  color: var(--texto); outline: none; resize: vertical; line-height: 1.45;
+}
+.jn-form textarea:focus {
+  border-color: var(--marca);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 15%, transparent);
+}
+.jn-opcional { color: var(--fraco); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.jn-contador { display: block; text-align: right; font-size: 12px; color: var(--fraco); margin-top: 4px; }
 .jn-check {
   display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px;
   color: var(--cinza); margin: 4px 0 16px; line-height: 1.45;
