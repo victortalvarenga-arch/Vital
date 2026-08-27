@@ -313,6 +313,24 @@ no rodapé mostrando o total, expansível ao toque.
       rápido, não para impressionar.
 - [ ] Escolher profissional: incluir a opção "qualquer profissional" (hoje ou
       escolhe uma, ou o sistema decide sozinho quando só há uma)
+- [ ] **Faixa do Instagram na home**, com as últimas fotos do perfil — igual à
+      referência. Ver o aviso abaixo antes de prometer prazo.
+
+**Instagram não é mais só colar um link.** A API que fazia isso de forma simples
+(Basic Display) foi **desligada pela Meta em dezembro de 2024**. Hoje só existe
+caminho oficial pela Graph API / Instagram Login, e ele exige que o perfil da
+empresa seja **Profissional (comercial ou criador)** — perfil pessoal não é mais
+acessível por API nenhuma. Consequências para o nosso caso:
+
+- A empresa precisa conectar a conta dela, com autorização pela Meta. Não dá
+  para só digitar o @ no painel e funcionar.
+- Como somos multiempresa, isso vira mais um cadastro por cliente e um token
+  por empresa para guardar e renovar.
+- **Caminho barato para começar**: a empresa escolhe algumas fotos e sobe pelo
+  painel, na mesma tela de configuração do site (o upload já existe). Fica
+  parecido visualmente, sem depender da Meta, sem token para renovar. Só não
+  atualiza sozinho quando ela posta.
+- Decidir qual dos dois antes de começar — o esforço é bem diferente.
 
 ### Bloco 6c — Serviços adicionais
 Vender um extra junto do principal: limpeza de pele **+ depilação de nariz**.
@@ -321,6 +339,11 @@ escolha, não depois.
 
 Mexe no modelo de dados, então precisa de migration — e é a primeira desde que
 o esquema existe, boa hora para conferir se o runner está confortável.
+
+**Faça este bloco pensando no 6d (combos) junto.** Os dois precisam da mesma
+base: um agendamento com mais de um serviço. Modelar só para adicionais e
+descobrir depois que combo não cabe é retrabalho caro, porque a essa altura já
+existe agenda gravada.
 
 - [ ] Tabela de vínculo `service_addons` (serviço principal → serviços que
       podem ser oferecidos como extra). Um adicional é um `service` normal,
@@ -334,6 +357,34 @@ o esquema existe, boa hora para conferir se o runner está confortável.
 - [ ] Decidir como o agendamento guarda os adicionais: hoje `appointments` tem
       um `service_id` só. Provavelmente uma tabela de itens do agendamento —
       cuidado, isso toca relatório e comissão
+
+### Bloco 6d — Combos e promoções
+Pacote fechado com preço melhor: "Limpeza de pele + Design de sobrancelha por
+R$ 200, em vez de R$ 225". Serve para vender o serviço parado junto do que já
+tem procura.
+
+**Depende do Bloco 6c**, e o motivo é econômico: os dois precisam da mesma
+coisa — um agendamento com mais de um serviço. Fazer o modelo de dados duas
+vezes é o desperdício a evitar. Combo é adicional com preço de pacote e nome
+próprio.
+
+- [ ] Cadastro no painel: nome do combo, quais serviços entram, preço do
+      pacote, e opcionalmente uma validade
+- [ ] Cálculo automático da economia (soma dos avulsos − preço do combo) — a
+      empresa não deve ter de fazer essa conta na mão, e é ela que vira o
+      argumento de venda na tela
+- [ ] **Sinal visual claro de que é vantagem**: preço cheio riscado ao lado do
+      preço do combo, com "economize R$ 25" em destaque. Selo de promoção no
+      cartão. Sem isso o combo vira só mais um item da lista e ninguém percebe
+      a vantagem
+- [ ] Combo com validade some do site sozinho quando vence — promoção de Natal
+      não pode continuar no ar em março
+- [ ] Duração do combo soma a de todos os serviços, mesma armadilha do 6c
+- [ ] Relatório precisa saber separar o que foi vendido em combo do que foi
+      vendido avulso, senão o ticket médio mente
+- [ ] Comissão: definir como divide entre profissionais quando o combo é
+      executado por mais de uma pessoa. **Decidir com você antes de codar** —
+      não existe resposta técnica certa, é regra de negócio
 
 ### Bloco 7 — Painel da equipe
 O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no
