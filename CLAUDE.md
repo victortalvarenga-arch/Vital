@@ -29,6 +29,11 @@ Ao descobrir algo que só vira problema com cliente real acessando — segredo
 exposto, limite de conexão, backup, dado pessoal —, o lugar é a seção
 **"Importante para produção"** do `ROADMAP.md`, não um comentário no código.
 
+Falha, dívida ou melhoria percebida de passagem, que não pertence ao que se está
+fazendo agora, vai para **"Achados"** no `ROADMAP.md` — na hora em que é notada,
+mesmo sem plano de conserto. O que fica só na conversa se perde na próxima
+sessão.
+
 ### Revisar a documentação a cada tarefa
 
 **Ao terminar qualquer tarefa, reveja os quatro arquivos antes de dar a tarefa

@@ -523,6 +523,54 @@ web estiver estável.
 - [ ] Cadastro de desenvolvedor na Apple e no Google, ícones e telas de loja
 - [ ] Revisão da Apple (mais demorada e mais estrita que a do Google)
 
+## Achados
+
+Lista viva do que se percebe pelo caminho e não pertence a bloco nenhum: falha
+encontrada, dívida deixada de propósito, coisa que só vai doer depois. **Entra
+aqui na hora em que é notada**, mesmo sem plano de conserto — achado que fica só
+na conversa se perde na próxima sessão.
+
+Sai daqui quando é resolvido, ou quando vira item de um bloco.
+
+### Corretude
+
+- [ ] **O ranking por serviço credita o adicional ao serviço principal.** O
+      caixa total está certo; o "o que mais dá dinheiro" não. Combos já saem
+      certos, porque o rateio vira o `valor` de cada linha na venda — os
+      adicionais é que continuam pendurados num agendamento só. Decidir se o
+      extra vira linha própria no relatório.
+- [ ] **Encaixe pelo painel não oferece adicionais nem combos.** Quem marca pelo
+      balcão lança o valor na mão, e o que ela digitar não bate com o que o site
+      cobraria pelo mesmo atendimento.
+
+### Cobertura de teste
+
+- [ ] Catálogo, clientes, config e uploads não têm teste de rota. São as que
+      sobraram; agenda, combos, cadastro, plataforma e isolamento têm.
+- [ ] A fila de WhatsApp (`jobs/mensagens.js`) não tem teste nenhum, e é código
+      que roda sozinho, sem ninguém olhando.
+- [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
+      que ela segura.
+
+### Produto
+
+- [ ] **A Vital não consegue cobrar.** `plano` é texto livre, sem preço nem
+      ciclo, e não há cobrança nenhuma. O produto funciona inteiro e não fatura.
+- [ ] **Pagamento online da cliente não existe** (item antigo, no fim do
+      `CLAUDE.md`): `pag_status` e `pag_ref` esperam um gateway que nunca veio.
+- [ ] Acesso de suporte ao painel de uma empresa: a auditoria já existe, o
+      caminho de entrada não — e é a única porta que atravessaria o isolamento
+      de propósito, então merece desenho, não improviso.
+
+### Operação
+
+- [ ] Não há como exportar os dados de uma empresa, nem para ela levar embora
+      nem para backup por empresa. Vira exigência de LGPD no dia do primeiro
+      cliente de verdade.
+- [ ] `npm run reset` recria as duas empresas de exemplo, mas empresas criadas
+      pelo cadastro somem. Aceitável em desenvolvimento; anotado para não
+      surpreender.
+
 ## Importante para produção
 
 Lista viva. **Nada aqui bloqueia o desenvolvimento local**, mas cada item vira
