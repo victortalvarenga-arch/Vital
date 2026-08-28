@@ -151,6 +151,18 @@ derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
 nenhum rebuild por cliente. É o que permite a empresa escolher a própria paleta
 em Configurações → Site da cliente.
 
+**As linhas da grade são montadas no código, não deixadas para o navegador.**
+`flex-wrap` enche cada linha até acabar o espaço e joga o resto na última: 13
+itens onde cabem 6 viram 6 + 6 + 1, com um círculo sozinho no fim. Varrendo
+larguras de 300 a 1400px e de 2 a 60 itens, a quebra automática deixa item
+solitário em 547 de 3.304 combinações — não é caso raro.
+
+`site/Grade.jsx` mede a largura disponível, escolhe o **menor número de linhas**
+que comporta todos e divide os itens **por igual** entre elas, sobra nas
+primeiras. Com espaço para 6: 7 → 4+3, 13 → 5+4+4, 17 → 6+6+5. Cada linha é
+centralizada, inclusive a última. Um `ResizeObserver` refaz a conta quando a
+janela muda ou o celular gira.
+
 **Serviços em grade de círculos, com a foto na frente.** A foto é o que a
 pessoa reconhece antes de ler — "unhas", "sobrancelha" — e reconhecer é mais
 rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor da

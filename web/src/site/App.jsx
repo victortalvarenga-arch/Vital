@@ -7,6 +7,7 @@ import * as api from '../shared/publico.js';
 import { aplicarTema } from './tema.js';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
 import Agendar from './Agendar.jsx';
+import Grade from './Grade.jsx';
 
 export default function App() {
   const [dados, setDados] = useState(null);
@@ -167,7 +168,7 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
   // Categoria usa a mesma grade redonda do serviço: a home inteira fala a mesma
   // língua visual, e a foto de um dos serviços do grupo já diz o que é.
   return (
-    <div className="svc-grade">
+    <Grade>
       {categorias.map(({ nome, itens }, i) => {
         const capa = itens.find(s => s.foto)?.foto;
         return (
@@ -190,7 +191,7 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
           </Revela>
         );
       })}
-    </div>
+    </Grade>
   );
 }
 
@@ -203,7 +204,7 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
  */
 function Servicos({ itens, exibir, textos, aoAgendar }) {
   return (
-    <div className="svc-grade">
+    <Grade>
       {itens.map((s, i) => (
         <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
           <article className="svc-item">
@@ -228,7 +229,7 @@ function Servicos({ itens, exibir, textos, aoAgendar }) {
           </article>
         </Revela>
       ))}
-    </div>
+    </Grade>
   );
 }
 

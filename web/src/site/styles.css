@@ -110,16 +110,23 @@ img { max-width: 100%; display: block; }
 
 /* ── serviços ── */
 .cat { font-size: 18px; margin: 4px 0 14px; }
-/* Grade de círculos: a foto é o que se reconhece antes do nome. */
-.svc-grade {
-  display: grid; gap: 22px 14px;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-}
+/* Grade de círculos: a foto é o que se reconhece antes do nome.
+   O número de colunas é decidido em Grade.jsx, para as linhas ficarem
+   equilibradas; aqui só entra a aparência. */
+.grade-fora { width: 100%; --item: 150px; display: flex; flex-direction: column; gap: 24px; }
+/* Cada linha é montada em Grade.jsx e centralizada aqui — inclusive a última,
+   que é justamente a que a quebra automática deixaria torta. */
+.grade-linha { display: flex; justify-content: center; gap: 16px; }
+.grade-inicial { flex-wrap: wrap; }
+.grade-linha > .revela { flex: 0 0 var(--item); max-width: var(--item); }
 .svc-item {
   display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;
 }
 .svc-circulo {
-  width: 116px; height: 116px; border-radius: 50%; overflow: hidden; padding: 0;
+  /* Acompanha a largura do item, com teto para não virar um disco enorme
+     quando há poucos serviços. */
+  width: min(100%, 128px); aspect-ratio: 1;
+  border-radius: 50%; overflow: hidden; padding: 0;
   background: var(--marca-clara); display: grid; place-items: center;
   border: 3px solid var(--fundo); box-shadow: var(--sombra);
   transition: transform .18s ease, box-shadow .18s ease;
@@ -139,8 +146,7 @@ img { max-width: 100%; display: block; }
 .svc-btn { flex: none; }
 
 @media (max-width: 420px) {
-  .svc-grade { grid-template-columns: repeat(2, 1fr); gap: 20px 10px; }
-  .svc-circulo { width: 96px; height: 96px; }
+  .grade { gap: 20px 10px; }
   .svc-inicial { font-size: 28px; }
 }
 
