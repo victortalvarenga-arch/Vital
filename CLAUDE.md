@@ -50,8 +50,13 @@ escrito, não aconteceu.
   (`clients`, `staff_id`) porque é o que ORMs e ferramentas esperam.
 - Comentário explica *por que*, não *o que*. Se o código não estiver óbvio,
   prefira reescrever o código.
-- Sem biblioteca de UI. O CSS em `web/src/styles.css` usa variáveis e é curto de
-  propósito; não introduza Tailwind ou styled-components sem motivo forte.
+- Sem biblioteca de UI. Cada bundle tem seu CSS (`site/styles.css`,
+  `painel/styles.css`), com variáveis e curto de propósito; não introduza
+  Tailwind ou styled-components sem motivo forte.
+- Ao mexer no CSS de um bundle, confira se toda `className` do JSX tem regra
+  correspondente. Já aconteceu de `.chip` sumir numa divisão de arquivo: os
+  botões viraram texto solto, o clique continuou funcionando e a tela parecia
+  quebrada sem nenhum erro no console.
 - Nunca edite uma migration já aplicada — crie a próxima.
 - Todo acesso ao banco é assíncrono (`await db.get/all/run`). Consultas usam `?`
   como marcador; `db.js` traduz para `$1` do Postgres.
