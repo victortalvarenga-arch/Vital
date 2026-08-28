@@ -24,13 +24,15 @@ const PASSOS = [
   { k: 'pronto', titulo: 'Tudo certo', ajuda: '' },
 ];
 
-export default function Agendar({ dados, servicoInicial, categoriaInicial, aoFechar }) {
+export default function Agendar({ dados, servicoInicial, categoriaInicial, comboInicial, aoFechar }) {
   const { negocio, textos, exibir, servicos, profissionais } = dados;
+  const combo = (dados.combos || []).find(c => c.id === comboInicial) || null;
   const [escolha, setEscolha] = useState(() => ({
     categoria: categoriaInicial
       || (servicoInicial ? servicos.find(x => x.id === servicoInicial)?.categoria : null)
       || null,
     servicoId: servicoInicial || null,
+    comboId: comboInicial || null,
     adicionaisIds: [], profissionalId: null, data: null, hora: null,
   }));
   const [confirmado, setConfirmado] = useState(null);
@@ -38,7 +40,18 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, aoFec
   const [resumoAberto, setResumoAberto] = useState(false);
   const janela = useRef(null);
 
-  const servico = servicos.find(s => s.id === escolha.servicoId);
+  /**
+   * O que está sendo comprado.
+   *
+   * Combo entra aqui com a mesma forma de um serviço — nome, preço, duração e
+   * quem executa. Assim o resumo, a escolha de profissional e a confirmação
+   * seguem funcionando sem um segundo caminho paralelo, que é onde as duas
+   * versões acabariam divergindo.
+   */
+  const servico = combo
+    ? { id: combo.id, nome: combo.nome, preco: combo.preco, duracao: combo.duracao,
+        profissionais: combo.profissionais, ehCombo: true }
+    : servicos.find(s => s.id === escolha.servicoId);
   const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id));
   const profissional = profissionais.find(p => p.id === escolha.profissionalId);
   const extras = servicos.filter(x => escolha.adicionaisIds.includes(x.id));
@@ -63,13 +76,18 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, aoFec
    * decide, e a navegação anda por ela nos dois sentidos.
    */
   const util = useCallback(k => {
+    // No combo o pacote já está fechado: não há categoria, serviço nem extra a
+    // escolher, só quem atende e quando.
+    if (combo) return k === 'profissional'
+      ? exibir?.escolherProfissional && equipe.length > 1
+      : ['data', 'dados', 'pronto'].includes(k);
     // Continua útil quando a janela abriu por uma categoria: é para lá que o
     // "Voltar" leva, e trocar de categoria sem fechar é o caminho natural.
     if (k === 'categoria') return !servicoInicial && exibir?.categorias && categorias.length > 1;
     if (k === 'adicionais') return ofertados.length > 0;
     if (k === 'profissional') return exibir?.escolherProfissional && equipe.length > 1;
     return true;
-  }, [servicoInicial, exibir, categorias.length, ofertados.length, equipe.length]);
+  }, [combo, servicoInicial, exibir, categorias.length, ofertados.length, equipe.length]);
 
   /**
    * A janela sempre abre no começo do fluxo.
@@ -86,8 +104,10 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, aoFec
   // A condição precisa ser a MESMA de util('categoria'). Com uma categoria só,
   // olhar a quantidade de serviços fazia a janela abrir num passo que util()
   // considera inválido — e aí o "Voltar" não tinha para onde ir e morria.
-  const [passo, setPasso] = useState(() =>
-    !servicoInicial && !categoriaInicial && util('categoria') ? 'categoria' : 'servico');
+  const [passo, setPasso] = useState(() => {
+    if (comboInicial) return PASSOS.find(p => util(p.k))?.k || 'data';
+    return !servicoInicial && !categoriaInicial && util('categoria') ? 'categoria' : 'servico';
+  });
 
   const andar = (de, direcao) => {
     let i = PASSOS.findIndex(p => p.k === de) + direcao;
@@ -146,7 +166,8 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, aoFec
     setPasso(p => andar(p, -1));
   };
 
-  // Preço só some quando a empresa esconde: aí não há total a mostrar.
+  // Preço só some quando a empresa esconde: aí não há total a mostrar. No
+  // combo o total é o preço do pacote — nunca a soma dos serviços dentro dele.
   const total = servico?.preco == null
     ? null
     : Number(servico.preco) + extras.reduce((n, x) => n + Number(x.preco || 0), 0);
@@ -305,7 +326,7 @@ function Resumo({ servico, profissional, escolha, extras, total, aberto, aoAlter
 
         {profissional && <ItemResumo rotulo="Profissional" valor={profissional.nome} />}
         {!profissional && escolha.data && <ItemResumo rotulo="Profissional" valor="Qualquer um" />}
-        {servico && <ItemResumo rotulo="Serviço" valor={servico.nome} />}
+        {servico && <ItemResumo rotulo={servico.ehCombo ? 'Promoção' : 'Serviço'} valor={servico.nome} />}
         {escolha.data && (
           <ItemResumo rotulo="Data e horário" valor={`${porExtenso(escolha.data)}${escolha.hora ? ` · ${escolha.hora}` : ''}`} />
         )}
@@ -429,13 +450,14 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
     try {
       const r = await api.diasLivres({
         servicoId: escolha.servicoId,
+        comboId: escolha.comboId || undefined,
         profissionalId: escolha.profissionalId || undefined,
         adicionais: escolha.adicionaisIds,
         mes,
       });
       setComVaga(new Set(r.dias));
     } catch (e) { aviso(e.message); setComVaga(new Set()); }
-  }, [mes, escolha.servicoId, escolha.profissionalId, escolha.adicionaisIds, aviso]);
+  }, [mes, escolha.servicoId, escolha.comboId, escolha.profissionalId, escolha.adicionaisIds, aviso]);
 
   useEffect(() => { carregarMes(); }, [carregarMes]);
 
@@ -444,6 +466,7 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
     try {
       const r = await api.horarios({
         servicoId: escolha.servicoId,
+        comboId: escolha.comboId || undefined,
         profissionalId: escolha.profissionalId || undefined,
         adicionais: escolha.adicionaisIds,
         data: d,
@@ -546,7 +569,9 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
     try {
       aoConfirmar(await api.agendar({
         fone: digitos,
-        servicoId: escolha.servicoId,
+        // Combo: o servidor monta os agendamentos em sequência e rateia o
+        // preço. Mandar `servicoId` junto faria virar um agendamento avulso.
+        ...(escolha.comboId ? { comboId: escolha.comboId } : { servicoId: escolha.servicoId }),
         profissionalId: escolha.profissionalId,
         data: escolha.data,
         hora: escolha.hora,
@@ -663,7 +688,7 @@ function Pronto({ resultado, escolha, servico, profissional, extras, negocio, te
         você recebe a confirmação no WhatsApp.
       </p>
       <dl className="jn-pronto-resumo">
-        <ItemResumo rotulo="Serviço" valor={servico?.nome} />
+        <ItemResumo rotulo={servico?.ehCombo ? 'Promoção' : 'Serviço'} valor={servico?.nome} />
         {extras?.length > 0 && <ItemResumo rotulo="Adicionais" valor={extras.map(x => x.nome).join(', ')} />}
         {profissional && <ItemResumo rotulo="Com" valor={profissional.nome} />}
         <ItemResumo rotulo="Quando" valor={`${porExtenso(escolha.data)} · ${escolha.hora}`} />

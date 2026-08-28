@@ -236,6 +236,8 @@ export const apptOut = r => r && ({
   pagamento: { status: r.pag_status, forma: r.pag_forma, ref: r.pag_ref },
   origem: r.origem, obs: r.obs, criadoEm: r.criado_em,
   unidadeId: r.unit_id || null,
+  // `comboGrupo` amarra os irmãos da mesma venda; cancelar um cancela o grupo.
+  comboId: r.combo_id || null, comboGrupo: r.combo_grupo || null,
 });
 
 export const templateOut = r => r && ({

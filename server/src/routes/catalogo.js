@@ -3,6 +3,7 @@ import { db, uid, staffOut, serviceOut, listarServicos, salvarVinculos, getConfi
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { adicionaisDe } from '../lib/adicionais.js';
+import { comboCompleto, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
 import { exige } from '../lib/auth.js';
 
 export const catalogo = Router();
@@ -191,4 +192,112 @@ catalogo.delete('/profissionais/:id', exige('equipe'), rota(async (req, res) => 
   }
   await db.run('DELETE FROM staff WHERE id=?', req.params.id);
   res.json({ ok: true });
+}));
+
+/* ── combos e promoções ──────────────────────────────────────────────────── *
+ *
+ * Sem `exige()`: quem atende também cria promoção. Foi decisão do negócio —
+ * é a pessoa no balcão que sabe qual serviço está parado e vale empurrar junto,
+ * e esperar o dono aprovar mataria a ideia antes de ela virar venda.
+ *
+ * Combo não é agenda nem dinheiro de ninguém em particular, então não passa por
+ * `escopoDe`: é catálogo, e catálogo é da empresa inteira.
+ */
+
+/** Confere o pacote e devolve a lista de serviços já lida do banco. */
+async function conferirCombo(b) {
+  const nome = String(b.nome || '').trim();
+  if (nome.length < 2) return { erro: 'informe o nome da promoção' };
+
+  const ids = [...new Set((b.servicosIds || []).filter(Boolean))];
+  // Pacote de um item só é o serviço avulso com outro nome — e faria a tela
+  // prometer uma economia que não existe.
+  if (ids.length < 2) return { erro: 'um combo precisa de ao menos dois serviços' };
+
+  const servicos = await db.all(
+    `SELECT id, nome, preco FROM services WHERE id = ANY(?) AND ativo = 1`, ids
+  );
+  if (servicos.length !== ids.length) return { erro: 'algum serviço do combo não existe ou está arquivado' };
+
+  const preco = Number(b.preco);
+  if (!(preco >= 0)) return { erro: 'informe o preço do pacote' };
+
+  // Combo que custa o mesmo ou mais que a soma não é promoção: é a tabela de
+  // preços com um nome novo, e o selo de vantagem estaria mentindo.
+  if (economiaDe(servicos, preco) <= 0) {
+    const cheio = servicos.reduce((n, s) => n + Number(s.preco), 0);
+    return { erro: `o pacote precisa custar menos que os serviços avulsos (R$ ${cheio.toFixed(2)})` };
+  }
+
+  if (b.validoAte && !/^\d{4}-\d{2}-\d{2}$/.test(b.validoAte)) {
+    return { erro: 'validade inválida (use YYYY-MM-DD)' };
+  }
+  return { nome, ids, preco };
+}
+
+/** Reescreve a lista de serviços do combo. A ordem é a do atendimento. */
+async function salvarServicosDoCombo(comboId, ids) {
+  await db.run('DELETE FROM combo_services WHERE combo_id = ?', comboId);
+  for (const [i, id] of ids.entries()) {
+    await db.run(
+      'INSERT INTO combo_services (combo_id, service_id, ordem) VALUES (?,?,?)',
+      comboId, id, i
+    );
+  }
+}
+
+catalogo.get('/combos', rota(async (req, res) => {
+  // O painel vê os vencidos também: a empresa precisa achar a promoção do ano
+  // passado para reaproveitar a validade em vez de recadastrar tudo.
+  const linhas = await db.all('SELECT id FROM combos ORDER BY ordem, nome');
+  const lista = [];
+  for (const { id } of linhas) lista.push(await comboCompleto(id));
+  res.json(lista);
+}));
+
+catalogo.post('/combos', rota(async (req, res) => {
+  const b = req.body || {};
+  const conf = await conferirCombo(b);
+  if (conf.erro) return res.status(400).json({ erro: conf.erro });
+
+  const id = uid();
+  await db.run(
+    `INSERT INTO combos (id,nome,descricao,preco,foto,valido_ate,ativo,ordem,criado_em)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    id, conf.nome, String(b.descricao || '').slice(0, 500), conf.preco,
+    b.foto || '', b.validoAte || null, b.ativo === false ? 0 : 1, +b.ordem || 0, hoje()
+  );
+  await salvarServicosDoCombo(id, conf.ids);
+  res.status(201).json(await comboCompleto(id));
+}));
+
+catalogo.put('/combos/:id', rota(async (req, res) => {
+  const atual = await db.get('SELECT id FROM combos WHERE id = ?', req.params.id);
+  if (!atual) return res.status(404).json({ erro: 'combo não encontrado' });
+
+  const b = req.body || {};
+  const conf = await conferirCombo(b);
+  if (conf.erro) return res.status(400).json({ erro: conf.erro });
+
+  await db.run(
+    `UPDATE combos SET nome=?, descricao=?, preco=?, foto=?, valido_ate=?, ativo=?, ordem=?
+      WHERE id=?`,
+    conf.nome, String(b.descricao || '').slice(0, 500), conf.preco,
+    b.foto || '', b.validoAte || null, b.ativo === false ? 0 : 1, +b.ordem || 0,
+    req.params.id
+  );
+  await salvarServicosDoCombo(req.params.id, conf.ids);
+  res.json(await comboCompleto(req.params.id));
+}));
+
+catalogo.delete('/combos/:id', rota(async (req, res) => {
+  // Os agendamentos já vendidos guardam `combo_id`; apagar a linha quebraria a
+  // referência. Arquivar tira da vitrine e preserva o histórico.
+  const r = await db.run('UPDATE combos SET ativo = 0 WHERE id = ?', req.params.id);
+  res.json({ ok: true, arquivado: true });
+}));
+
+/** Quem faz o combo inteiro — o site precisa saber para oferecer a escolha. */
+catalogo.get('/combos/:id/profissionais', rota(async (req, res) => {
+  res.json(await profissionaisDoCombo(req.params.id));
 }));

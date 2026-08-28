@@ -35,7 +35,11 @@ clientes.get('/', rota(async (req, res) => {
         `%${q}%`, `%${soDigitos(q)}%`
       )
     : await db.all('SELECT * FROM clients ORDER BY nome');
-  res.json(await Promise.all(rows.map(r => comMetricas(clientOut(r)))));
+  // Em sequência: a requisição roda numa conexão só, que atende uma consulta
+  // por vez — o Promise.all não ganhava paralelismo, só enfileirava.
+  const lista = [];
+  for (const r of rows) lista.push(await comMetricas(clientOut(r)));
+  res.json(lista);
 }));
 
 clientes.get('/:id', rota(async (req, res) => {

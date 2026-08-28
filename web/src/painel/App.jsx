@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
+import { brl } from '../shared/formato.js';
+import Combos from './Combos.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
 import Usuarios from './Usuarios.jsx';
@@ -9,7 +11,7 @@ import {
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut, KeyRound, Ban
+  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -20,7 +22,7 @@ import {
 
 /* ─────────── utilidades ─────────── */
 const uid = () => Math.random().toString(36).slice(2, 9);
-const brl = n => (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 const toMin = h => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
 const toHora = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -162,6 +164,8 @@ function Painel({ sessao, aoSair }) {
     ] },
     { titulo: 'Cadastros', itens: [
       ...(p.cadastros ? [{ k: 'servicos', nome: 'Serviços', icon: Sparkles }] : []),
+      // Sem guarda de papel de propósito: quem atende também cria promoção.
+      { k: 'combos', nome: 'Promoções', icon: Tag },
       ...(p.equipe ? [{ k: 'equipe', nome: 'Profissionais', icon: Store }] : []),
       ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
     ] },
@@ -224,6 +228,7 @@ function Painel({ sessao, aoSair }) {
         )}
         {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}

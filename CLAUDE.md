@@ -84,6 +84,13 @@ escrito, não aconteceu.
   monta a resposta a dedo, para não publicar segredo por descuido.
 - Nada de lista fixa de categoria, ramo ou serviço no código: cada empresa tem
   as suas. Use texto livre com sugestões do que já existe.
+- Dinheiro que se divide entre pessoas se divide em centavos inteiros, e a sobra
+  do arredondamento tem dono. Cada parte arredondando sozinha faz a soma não
+  bater com o que a cliente pagou, e o caixa fecha torto sem explicação.
+- Arquivo de teste nunca importa `src/` no topo. `db.js` monta o pool na carga
+  do módulo, com a URL que estiver valendo — import estático (ou `await import`
+  no topo) prende o pool no banco de trabalho. Importe dentro do `before()`,
+  depois de `prepararBanco()`. Já apagou o banco de desenvolvimento uma vez.
 - Imagem sempre passa por `shared/imagem.js` antes de subir, e o nome do
   arquivo é decidido pelo servidor, nunca pelo cliente.
 - Mexeu em regra de negócio, rode `cd server && npm test`. Teste novo entra em

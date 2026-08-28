@@ -30,7 +30,7 @@ export const porExtenso = iso => {
   return `${semana}, ${d} de ${MESES_CURTOS[m - 1]}`;
 };
 
-export const brl = v => (v == null ? '' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+export { brl } from '../shared/formato.js';
 
 export const duracaoTexto = min =>
   min >= 60 ? `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, '0') : ''}` : `${min}min`;

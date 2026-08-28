@@ -62,7 +62,8 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   src/db.js        Pool de conexões, migrations no boot, linha ↔ objeto da API.
   src/reset.js     Zera o banco em desenvolvimento. Recusa rodar fora de localhost.
   src/senha-app.js Define a senha do papel vital_app a partir do .env (dev).
-  src/lib/         availability.js (horários), templates.js (mensagens),
+  src/lib/         availability.js (horários), combos.js (pacotes e rateio),
+                   templates.js (mensagens),
                    dates.js (datas como texto), migrate.js (migrations),
                    rota.js (erro em handler async), contexto.js (conexão da
                    requisição), tenant.js (resolve a empresa + config padrão)
@@ -77,9 +78,10 @@ web/               Vite + React, sem framework de UI. CSS à mão.
   painel.html      entrada do painel da equipe
   src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
-  src/painel/      App.jsx, styles.css e ConfigSite.jsx (a empresa edita o site)
+  src/painel/      App.jsx, styles.css, ConfigSite.jsx (a empresa edita o site),
+                   Combos.jsx (promoções), Usuarios.jsx (acesso)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
-                   imagem.js (reduz a foto antes de subir)
+                   imagem.js (reduz a foto antes de subir), formato.js (moeda)
 ```
 
 ## Decisões estruturais
@@ -463,6 +465,50 @@ quem não pode; recusar na rota é o que impede a chamada direta. Um sem o outro
 `/api/relatorios/resumo` sem ver o menu, e depois `/api/estado` devolvendo a
 agenda inteira que a rota filtrada escondia. Rota nova que devolve dado de
 agenda ou de dinheiro precisa passar por `escopoDe`.
+
+## Combos e promoções
+
+Pacote de serviços com preço fechado, mais barato que a soma dos avulsos. Serve
+para vender o serviço parado junto do que já tem procura.
+
+**Um combo vira vários agendamentos, não um só.** O caminho óbvio era pendurar
+os serviços num agendamento como o Bloco 6c faz com os adicionais — mas um
+agendamento tem um `staff_id`, e combo executado por duas pessoas é justamente o
+caso que a regra de comissão precisa cobrir. Aqui cada serviço do pacote vira um
+agendamento normal, em sequência, ligados por `combo_grupo`. O ganho é que nada
+mais mudou: o motor de horários continua reservando uma cadeira por vez, a
+agenda desenha os blocos reais, e o financeiro soma `valor` por profissional como
+sempre somou.
+
+**O desconto é rateado na venda, e o resultado vira o `valor` de cada linha.**
+A regra: o desconto do pacote é dividido entre as profissionais envolvidas na
+proporção do preço de tabela do serviço de cada uma — quem leva o serviço mais
+caro absorve a maior parte. Com uma pessoa só, ela absorve tudo, que é a mesma
+conta com um item só, não um caso à parte.
+
+A conta acontece em `ratearCombo()`, em centavos inteiros, e o que sobra da
+divisão vai para quem perdeu a maior fração no arredondamento. Se cada parte
+arredondasse por conta própria, a soma não bateria com o que a cliente pagou e o
+caixa fecharia com centavos órfãos todo mês. Há teste percorrendo milhares de
+combinações para garantir que a soma das partes é exatamente o preço do pacote.
+
+Ratear na hora de fechar a comissão, em vez de na venda, daria outra resposta a
+cada mudança na tabela de preços — e comissão paga não se recalcula.
+
+**A validade é conferida na leitura, não por um job.** `vencido()` compara com a
+data de hoje toda vez que o combo é lido, então a promoção some do site sozinha
+no dia certo sem depender de nada ter rodado, e volta se a empresa esticar o
+prazo. Apagar um combo arquiva (`ativo = 0`) em vez de remover a linha: os
+agendamentos vendidos apontam para ele.
+
+**Quem vende o pacote é uma profissional só, do começo ao fim.** É o caso comum
+do balcão e mantém a reserva sendo uma pergunta só — "cabem 90 minutos seguidos
+na agenda dela?". O rateio e o banco já suportam mais de uma pessoa; falta a tela
+que deixa escolher por serviço.
+
+**Criar promoção não tem guarda de papel**, ao contrário do resto dos cadastros:
+foi decisão do negócio, porque é quem está no balcão que sabe qual serviço está
+parado e vale empurrar junto.
 
 ## Testes
 

@@ -71,6 +71,7 @@ export const api = {
       clientes: d.clientes.map(clienteParaTela),
       agendamentos: d.agendamentos.map(agParaTela),
       templates: d.templates,
+      combos: d.combos || [],
     };
   },
 
@@ -93,6 +94,14 @@ export const api = {
   }),
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
+
+  /* ── combos e promoções ── */
+  combos: () => req('/combos'),
+  salvarCombo: c => c.id
+    ? req(`/combos/${c.id}`, { method: 'PUT', body: c })
+    : req('/combos', { method: 'POST', body: c }),
+  removerCombo: id => req(`/combos/${id}`, { method: 'DELETE' }),
+  agendarCombo: a => req('/agendamentos/combo', { method: 'POST', body: a }),
 
   /* ── clientes ── */
   salvarCliente: c => c.id

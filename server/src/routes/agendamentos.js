@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { db, uid, apptOut, staffOut } from '../db.js';
-import { hoje, agora } from '../lib/dates.js';
+import { hoje, agora, toMin, toHora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
 import { escopoDe } from '../lib/auth.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
+import { comboCompleto, profissionaisDoCombo, ratearCombo } from '../lib/combos.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 
 export const agendamentos = Router();
@@ -125,6 +126,93 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
   return { agendamento: { ...apptOut(resultado.criado), adicionais: extras.itens } };
 }
 
+/**
+ * Vende um combo: um agendamento por serviço, todos ligados pelo mesmo grupo.
+ *
+ * Os horários saem em sequência a partir de `hora` — a cliente faz um serviço
+ * depois do outro. O preço do pacote é rateado entre eles antes de gravar, de
+ * modo que `SUM(valor)` por profissional continue sendo a produção dela sem que
+ * o financeiro precise saber o que é combo. Ver `lib/combos.js`.
+ *
+ * Tudo numa transação só: meio combo gravado é pior do que nenhum, porque a
+ * cliente pagou o pacote e recebeu metade dele.
+ */
+export async function criarCombo(b, { origem = 'painel' } = {}) {
+  const combo = await comboCompleto(b.comboId);
+  if (!combo) return { erro: 'combo não encontrado', codigo: 404 };
+  if (!combo.ativo || combo.vencido) return { erro: 'esta promoção não está mais no ar', codigo: 409 };
+  if (!combo.servicos.length) return { erro: 'combo sem serviços', codigo: 409 };
+
+  const prof = await db.get('SELECT * FROM staff WHERE id=? AND ativo=1', b.profissionalId);
+  if (!prof) return { erro: 'profissional não encontrada', codigo: 404 };
+  const cli = await db.get('SELECT * FROM clients WHERE id=?', b.clienteId);
+  if (!cli) return { erro: 'cliente não encontrada', codigo: 404 };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(b.data || '') || !/^\d{2}:\d{2}$/.test(b.hora || '')) {
+    return { erro: 'data (YYYY-MM-DD) e hora (HH:MM) inválidas', codigo: 400 };
+  }
+
+  // Uma pessoa faz o combo inteiro; se ela não faz algum dos serviços, o
+  // pacote não é dela. O motivo de ser assim está em `lib/combos.js`.
+  const habilitadas = await profissionaisDoCombo(combo.id);
+  if (!habilitadas.includes(prof.id)) {
+    return { erro: `${prof.nome} não faz todos os serviços deste combo`, codigo: 409 };
+  }
+
+  // O rateio acontece agora, sobre o preço de tabela de hoje, e vira o `valor`
+  // gravado. Refazer a conta na hora da comissão daria outra resposta assim que
+  // a tabela mudasse — e comissão paga não se recalcula.
+  const partes = ratearCombo(combo.servicos, combo.preco);
+
+  let inicio = toMin(b.hora);
+  const aGravar = partes.map(svc => {
+    const dur = svc.duracao + (svc.intervalo || 0);
+    const item = { svc, hora: toHora(inicio), duracao: dur, valor: svc.valor };
+    inicio += dur;
+    return item;
+  });
+
+  for (const item of aGravar) {
+    if (!dentroDaJornada(staffOut(prof), b.data, item.hora, item.duracao)) {
+      return { erro: `o combo não cabe na jornada de ${prof.nome} nesse horário`, codigo: 409 };
+    }
+  }
+
+  const grupo = uid();
+  const resultado = await db.transacao(async tx => {
+    for (const item of aGravar) {
+      if (await conflita({ staffId: prof.id, data: b.data, hora: item.hora, duracao: item.duracao }, tx)) {
+        return { erro: 'esse horário acabou de ser ocupado', codigo: 409 };
+      }
+      await tx.run(
+        `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,
+                                   status,pag_status,pag_forma,origem,obs,combo_id,combo_grupo,criado_em)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        uid(), b.clienteId, item.svc.id, prof.id, b.data, item.hora, item.duracao, item.valor,
+        'agendado', b.pagamento?.status || 'aberto', b.pagamento?.forma || 'local',
+        origem, b.obs || '', combo.id, grupo, `${hoje()} ${agora()}`
+      );
+    }
+    return { criados: await tx.all('SELECT * FROM appointments WHERE combo_grupo=? ORDER BY hora', grupo) };
+  });
+
+  if (resultado.erro) return resultado;
+
+  for (const criado of resultado.criados) await enfileirarConfirmacao(criado);
+  return {
+    agendamentos: resultado.criados.map(apptOut),
+    combo: { id: combo.id, nome: combo.nome, preco: combo.preco, economia: combo.economia },
+  };
+}
+
+agendamentos.post('/combo', rota(async (req, res) => {
+  if (!podeMexer(req.usuario, req.body?.profissionalId)) {
+    return res.status(403).json({ erro: 'você só pode agendar na própria agenda' });
+  }
+  const r = await criarCombo(req.body || {}, { origem: 'painel' });
+  if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
+  res.status(201).json(r);
+}));
+
 agendamentos.post('/', rota(async (req, res) => {
   if (!podeMexer(req.usuario, req.body?.profissionalId)) {
     return res.status(403).json({ erro: 'você só pode agendar na própria agenda' });
@@ -180,6 +268,20 @@ agendamentos.put('/:id', rota(async (req, res) => {
     if (mudouHorario) {
       await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, req.params.id);
     }
+
+    // Cancelar metade de um combo deixaria a cliente pagando preço de pacote
+    // por um serviço só. O pacote cai junto.
+    if (b.status === 'cancelado' && atual.combo_grupo) {
+      await tx.run(
+        `UPDATE appointments SET status='cancelado' WHERE combo_grupo=? AND status <> 'cancelado'`,
+        atual.combo_grupo
+      );
+      await tx.run(
+        `DELETE FROM messages WHERE status='pendente' AND appointment_id IN
+           (SELECT id FROM appointments WHERE combo_grupo=?)`,
+        atual.combo_grupo
+      );
+    }
     return { atualizado: await tx.get('SELECT * FROM appointments WHERE id=?', req.params.id) };
   });
 
@@ -193,9 +295,16 @@ agendamentos.delete('/:id', rota(async (req, res) => {
   if (!podeMexer(req.usuario, atual.staff_id)) {
     return res.status(403).json({ erro: 'você só pode apagar da própria agenda' });
   }
+  // Mesmo motivo do cancelamento: o combo é uma venda só.
+  const alvos = atual.combo_grupo
+    ? (await db.all('SELECT id FROM appointments WHERE combo_grupo=?', atual.combo_grupo)).map(a => a.id)
+    : [atual.id];
+
   await db.transacao(async tx => {
-    await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, req.params.id);
-    await tx.run('DELETE FROM appointments WHERE id=?', req.params.id);
+    for (const id of alvos) {
+      await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, id);
+      await tx.run('DELETE FROM appointments WHERE id=?', id);
+    }
   });
-  res.json({ ok: true });
+  res.json({ ok: true, removidos: alvos.length });
 }));

@@ -363,3 +363,20 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bloqueio:hover:not(:disabled) { border-color: var(--muted); color: var(--ink); }
 .bloqueio:disabled { cursor: default; }
 .bloqueio span { display: block; line-height: 1.25; }
+
+/* ── promoções ──────────────────────────────────────────────────────────── */
+.combo-li{gap:12px}
+.combo-li.off{opacity:.5}
+.combo-selo{width:34px; height:34px; border-radius:10px; flex:none; display:grid; place-items:center;
+  background:var(--blush); color:var(--lacquer-d)}
+.combo-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+  margin-left:8px; padding:2px 7px; border-radius:6px; background:var(--line); color:var(--muted)}
+.combo-preco{display:flex; flex-direction:column; align-items:flex-end; flex:none; line-height:1.25}
+.combo-cheio{font-size:12px; color:var(--muted); text-decoration:line-through}
+.combo-preco b{font-size:15px}
+
+/* a conta aparecendo enquanto a empresa decide o preço */
+.combo-conta{border-radius:12px; padding:11px 13px; margin-bottom:16px; font-size:13.5px}
+.combo-conta div{display:flex; justify-content:space-between; gap:12px; padding:2px 0}
+.combo-conta.ok{background:var(--blush); color:var(--lacquer-d)}
+.combo-conta.ruim{background:#F7EFEF; color:#8A2B2B}

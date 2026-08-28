@@ -16,6 +16,7 @@ import { bloqueios } from './routes/bloqueios.js';
 import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { rota } from './lib/rota.js';
 import { comAdicionais } from './lib/adicionais.js';
+import { combosAtivos } from './lib/combos.js';
 import { comEmpresa } from './lib/tenant.js';
 
 /**
@@ -117,6 +118,9 @@ app.get('/api/estado', rota(async (req, res) => {
     : await db.all('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora', desde);
   const modelos = await db.all('SELECT * FROM templates ORDER BY tipo, titulo');
   const fechados = await db.all('SELECT * FROM blocks WHERE data >= ? ORDER BY data, hora_ini', desde);
+  // Vencidos junto: o painel precisa achar a promoção do ano passado para
+  // reaproveitar, e é ele quem marca qual está fora do ar.
+  const pacotes = await combosAtivos({ incluirVencidos: true });
   res.json({
     config,
     servicos,
@@ -124,6 +128,7 @@ app.get('/api/estado', rota(async (req, res) => {
     clientes: clientela.map(clientOut),
     agendamentos: await comAdicionais(agenda.map(apptOut)),
     templates: modelos.map(templateOut),
+    combos: pacotes,
     // Funcionário vê o que fecha a agenda dele: o próprio e os da empresa toda.
     bloqueios: fechados
       .filter(b => !so || !b.staff_id || b.staff_id === so)

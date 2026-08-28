@@ -28,7 +28,8 @@ Duas páginas, dois bundles:
 | <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
 
 Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços):
-painel → **Configurações → Site da cliente**. As imagens ficam em
+painel → **Configurações → Site da cliente**. Promoções (pacote de serviços com
+preço fechado) ficam em **Cadastros → Promoções**. As imagens ficam em
 `server/uploads/`, fora do Git.
 
 **O site não tem login.** A cliente informa o WhatsApp na hora de agendar e
@@ -38,14 +39,16 @@ pronto — se já agendou antes, é reconhecida pelo número.
 senha —, e quem criar vira o dono. Essa tela some assim que existir um usuário;
 daí em diante só quem já está dentro convida os outros.
 
-Contas deste ambiente de desenvolvimento (senha `vital1234` nas três):
+O `seed` não cria conta nenhuma de propósito — senha conhecida em script que
+pode rodar fora da sua máquina é problema esperando acontecer. Quem você criar
+na tela de primeiro acesso vira o dono; as demais entram pelo painel, em
+**Configurações → Acesso ao painel**.
 
-| E-mail | Papel | Vê |
-|---|---|---|
-| `dono@vital.com` | dono | o negócio inteiro |
-| `funcionaria@vital.com` | funcionário | a própria agenda e a própria produção |
+Para testar os dois papéis, crie uma segunda pessoa como **funcionário** e
+vincule a alguém da equipe: é o vínculo que diz ao sistema qual agenda e qual
+produção são dela.
 
-Novas pessoas entram pelo painel, em **Configurações → Acesso ao painel**.
+`npm run reset` apaga também os acessos, e a tela de primeiro acesso volta.
 
 ## Comandos
 

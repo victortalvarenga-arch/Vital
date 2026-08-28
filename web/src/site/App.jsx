@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calendar, ChevronRight, Instagram, MapPin, MessageCircle,
-  Phone, TriangleAlert,
+  Phone, Sparkles, TriangleAlert,
 } from 'lucide-react';
 import * as api from '../shared/publico.js';
 import { aplicarTema } from './tema.js';
@@ -40,6 +40,7 @@ export default function App() {
         dados={dados}
         aoAgendar={servicoId => setAgendando({ servicoId, chave: Date.now() })}
         aoAbrirCategoria={categoria => setAgendando({ categoria, chave: Date.now() })}
+        aoAgendarCombo={comboId => setAgendando({ comboId, chave: Date.now() })}
       />
       {agendando && (
         <Agendar
@@ -49,6 +50,7 @@ export default function App() {
           dados={dados}
           servicoInicial={agendando.servicoId}
           categoriaInicial={agendando.categoria}
+          comboInicial={agendando.comboId}
           aoFechar={() => setAgendando(null)}
         />
       )}
@@ -126,8 +128,9 @@ const Revela = ({ children, className = '' }) => {
 
 /* ── home ── */
 
-function Home({ dados, aoAgendar, aoAbrirCategoria }) {
+function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   const { negocio, marca, textos, exibir, servicos } = dados;
+  const combos = dados.combos || [];
 
   const categorias = useMemo(() => {
     const mapa = new Map();
@@ -170,6 +173,15 @@ function Home({ dados, aoAgendar, aoAbrirCategoria }) {
         <section className="bloco">
           <div className="env">
             <Revela><p className="sobre">{negocio.sobre}</p></Revela>
+          </div>
+        </section>
+      )}
+
+      {combos.length > 0 && (
+        <section className="bloco">
+          <div className="env-largo">
+            <Revela><h2 className="bloco-titulo">Promoções</h2></Revela>
+            <Promocoes itens={combos} exibir={exibir} aoAgendar={aoAgendarCombo} />
           </div>
         </section>
       )}
@@ -275,6 +287,46 @@ function Servicos({ itens, exibir, textos, aoAgendar }) {
         </Revela>
       ))}
     </Grade>
+  );
+}
+
+/**
+ * Promoções: o pacote e, ao lado, o que ele deixa de custar.
+ *
+ * O preço cheio riscado e o "economize" existem porque combo sem vantagem
+ * visível vira só mais um item da lista, e ninguém percebe que é oferta. Os
+ * dois números vêm calculados do servidor — a empresa não digita economia.
+ *
+ * Cartão em bloco, e não círculo como os serviços: promoção precisa carregar
+ * o que está dentro dela, e nome de dois serviços não cabe embaixo de uma foto
+ * redonda.
+ */
+function Promocoes({ itens, exibir, aoAgendar }) {
+  return (
+    <div className="promos">
+      {itens.map((c, i) => (
+        <Revela key={c.id} className={`atraso-${Math.min(i, 5)}`}>
+          <article className="promo">
+            <span className="promo-selo"><Sparkles size={13} /> Promoção</span>
+            {c.foto && <img className="promo-foto" src={c.foto} alt="" loading="lazy" />}
+            <h4 className="promo-nome">{c.nome}</h4>
+            <p className="promo-itens">{c.servicos.map(s => s.nome).join(' + ')}</p>
+            {c.descricao && <p className="promo-desc">{c.descricao}</p>}
+
+            <div className="promo-precos">
+              <span className="promo-cheio">{brl(c.precoCheio)}</span>
+              <strong className="promo-preco">{brl(c.preco)}</strong>
+            </div>
+            <p className="promo-economia">economize {brl(c.economia)}</p>
+            {exibir?.duracao && <p className="promo-dur">{duracaoTexto(c.duracao)} no total</p>}
+
+            <button className="b b-p b-peq promo-btn" onClick={() => aoAgendar(c.id)}>
+              <Calendar size={15} /> Aproveitar
+            </button>
+          </article>
+        </Revela>
+      ))}
+    </div>
   );
 }
 

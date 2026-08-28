@@ -404,37 +404,27 @@ Detalhes em `ARQUITETURA.md`.
       não misturar dois sentidos no mesmo campo. Migration pequena; o efeito é
       esconder da vitrine e continuar aceitando como extra.
 
-### Bloco 6d — Combos e promoções
-Pacote fechado com preço melhor: "Limpeza de pele + Design de sobrancelha por
-R$ 200, em vez de R$ 225". Serve para vender o serviço parado junto do que já
-tem procura.
+### Bloco 6d — Combos e promoções ✅ concluído
+Detalhes e o porquê do modelo em `ARQUITETURA.md`.
 
-**Depende do Bloco 6c**, e o motivo é econômico: os dois precisam da mesma
-coisa — um agendamento com mais de um serviço. Fazer o modelo de dados duas
-vezes é o desperdício a evitar. Combo é adicional com preço de pacote e nome
-próprio.
-
-- [ ] Cadastro no painel: nome do combo, quais serviços entram, preço do
-      pacote, e opcionalmente uma validade
-- [ ] Cálculo automático da economia (soma dos avulsos − preço do combo) — a
-      empresa não deve ter de fazer essa conta na mão, e é ela que vira o
-      argumento de venda na tela
-- [ ] **Sinal visual claro de que é vantagem**: preço cheio riscado ao lado do
-      preço do combo, com "economize R$ 25" em destaque. Selo de promoção no
-      cartão. Sem isso o combo vira só mais um item da lista e ninguém percebe
-      a vantagem
-- [ ] Combo com validade some do site sozinho quando vence — promoção de Natal
-      não pode continuar no ar em março
-- [ ] Duração do combo soma a de todos os serviços, mesma armadilha do 6c
-- [ ] Relatório precisa saber separar o que foi vendido em combo do que foi
-      vendido avulso, senão o ticket médio mente. **Vale para os adicionais do
-      6c também**, e já vale hoje: o ranking "serviços mais vendidos" agrupa por
-      `service_id` e soma `appointments.valor`, então o preço do extra é
-      creditado ao serviço principal. O total do caixa está certo; o ranking por
-      serviço, não. Decidir se o extra vira linha própria no relatório
-- [ ] Comissão: definir como divide entre profissionais quando o combo é
-      executado por mais de uma pessoa. **Decidir com você antes de codar** —
-      não existe resposta técnica certa, é regra de negócio
+- [x] Cadastro no painel: nome, serviços, preço do pacote, validade e chamada
+- [x] Economia calculada sozinha, e mostrada enquanto a empresa decide o preço
+- [x] Selo de promoção, preço cheio riscado e "economize R$ X" no site
+- [x] Combo com validade some do site sozinho quando vence
+- [x] Duração soma a de todos os serviços, limpeza junto
+- [x] **Comissão**: o desconto é rateado na proporção do preço de tabela de cada
+      serviço, entre todas as profissionais envolvidas; com uma pessoa só, ela
+      absorve tudo. O rateio vira o `valor` de cada agendamento na venda, então
+      o financeiro e o ranking por serviço já saem certos sem saber o que é
+      combo — o problema que os adicionais ainda têm
+- [x] Cancelar ou apagar um pedaço derruba o pacote inteiro
+- [ ] Combo com mais de uma profissional: o rateio e o banco já suportam, falta
+      a tela que deixa escolher quem faz cada serviço. Hoje o site vende com uma
+      pessoa só, do começo ao fim
+- [ ] Encaixe de combo pelo painel (a rota `POST /agendamentos/combo` existe;
+      falta o formulário)
+- [ ] Foto própria do combo — o campo existe no banco e no site, falta o upload
+      na tela de cadastro
 
 ### Bloco 7 — Painel da equipe
 O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no

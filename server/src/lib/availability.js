@@ -105,19 +105,26 @@ export async function horariosLivres({ staffId, data, duracao, passo }) {
   return livres;
 }
 
+/** Horários livres de várias pessoas para um atendimento de dada duração. */
+export async function horariosPorEquipe({ staffIds, data, duracao }) {
+  const resultado = [];
+  for (const id of staffIds) {
+    const horarios = await horariosLivres({ staffId: id, data, duracao });
+    if (horarios.length) resultado.push({ profissionalId: id, horarios });
+  }
+  return resultado;
+}
+
 /** Mesma coisa, porém para todos os profissionais habilitados no serviço. */
 export async function horariosPorServico({ servicoId, data, duracaoExtra = 0 }) {
   const svc = await db.get('SELECT * FROM services WHERE id = ?', servicoId);
   if (!svc) return [];
   const vinculos = await db.all('SELECT staff_id FROM service_staff WHERE service_id = ?', servicoId);
-  const duracao = svc.duracao + (svc.intervalo || 0) + duracaoExtra;
-
-  const resultado = [];
-  for (const { staff_id: id } of vinculos) {
-    const horarios = await horariosLivres({ staffId: id, data, duracao });
-    if (horarios.length) resultado.push({ profissionalId: id, horarios });
-  }
-  return resultado;
+  return horariosPorEquipe({
+    staffIds: vinculos.map(v => v.staff_id),
+    data,
+    duracao: svc.duracao + (svc.intervalo || 0) + duracaoExtra,
+  });
 }
 
 /**
@@ -138,7 +145,6 @@ export async function horariosPorServico({ servicoId, data, duracaoExtra = 0 }) 
 export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra = 0 }) {
   const svc = await db.get('SELECT * FROM services WHERE id = ? AND ativo = 1', servicoId);
   if (!svc) return [];
-  const duracao = svc.duracao + (svc.intervalo || 0) + duracaoExtra;
 
   const equipe = profissionalId
     ? await db.all('SELECT * FROM staff WHERE id = ? AND ativo = 1', profissionalId)
@@ -148,6 +154,27 @@ export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra
           WHERE ss.service_id = ? AND s.ativo = 1`,
         servicoId
       );
+
+  return diasComVagaPara({
+    equipe, mes, duracao: svc.duracao + (svc.intervalo || 0) + duracaoExtra,
+  });
+}
+
+/**
+ * O núcleo do calendário: dado um time e uma duração, quais dias do mês têm
+ * pelo menos uma vaga.
+ *
+ * Separado de `diasComVaga` porque combo não é um serviço — é uma sequência
+ * deles, com uma duração somada e um time próprio (quem faz o pacote inteiro).
+ * Sem isto, o calendário do combo seria uma segunda implementação da mesma
+ * regra, e duas implementações da mesma regra divergem.
+ *
+ * @param {object} o
+ * @param {object[]} o.equipe   linhas de `staff`, já filtradas por ativo
+ * @param {number} o.duracao    minutos que a cadeira fica ocupada
+ * @param {string} o.mes        'YYYY-MM'
+ */
+export async function diasComVagaPara({ equipe, duracao, mes }) {
   if (!equipe.length) return [];
 
   const cfg = await getConfig();

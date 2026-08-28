@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { db, uid, listarServicos, staffOut, getConfig, listarUnidades } from '../db.js';
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
-import { criarAgendamento } from './agendamentos.js';
-import { horariosLivres, horariosPorServico, diasComVaga } from '../lib/availability.js';
+import { criarAgendamento, criarCombo } from './agendamentos.js';
+import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara } from '../lib/availability.js';
 import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
+import { combosAtivos, comboCompleto, profissionaisDoCombo } from '../lib/combos.js';
 
 export const publico = Router();
 
@@ -21,6 +22,48 @@ export const publico = Router();
  * isso a config passa por uma lista de campos escolhidos a dedo, em vez de ir
  * inteira: nela também moram horários de disparo de mensagem e chave Pix.
  */
+/**
+ * Serviços com o preço já filtrado pela config e os extras que cada um oferece.
+ *
+ * Em sequência, e não em Promise.all: a requisição roda numa conexão só, que
+ * atende uma consulta por vez — o paralelismo era aparente.
+ */
+async function comPrecoEExtras(servicos, cfg) {
+  const saida = [];
+  for (const s of servicos) {
+    saida.push({
+      ...s,
+      preco: cfg.exibir?.preco && s.mostrarPreco ? s.preco : null,
+      adicionais: await adicionaisDe(s.id, s.categoria),
+    });
+  }
+  return saida;
+}
+
+/**
+ * Combos para o site.
+ *
+ * `precoCheio` e `economia` saem sempre, mesmo com a empresa escondendo preço:
+ * sem os dois números o selo de promoção não tem o que provar, e um combo sem
+ * vantagem visível é só mais um item na lista.
+ */
+async function vitrineDeCombos(cfg) {
+  const lista = await combosAtivos();
+  const saida = [];
+  for (const c of lista) {
+    saida.push({
+      id: c.id, nome: c.nome, descricao: c.descricao, foto: c.foto,
+      preco: c.preco, precoCheio: c.precoCheio, economia: c.economia,
+      duracao: c.duracao, validoAte: c.validoAte,
+      servicos: c.servicos.map(s => ({ id: s.id, nome: s.nome, preco: s.preco })),
+      // Quem faz o pacote inteiro. O site precisa da lista para saber se há
+      // escolha de profissional a oferecer — e para não oferecer quem não faz.
+      profissionais: await profissionaisDoCombo(c.id),
+    });
+  }
+  return saida;
+}
+
 publico.get('/vitrine', rota(async (req, res) => {
   const cfg = await getConfig();
   const equipe = await db.all('SELECT * FROM staff WHERE ativo=1 ORDER BY nome');
@@ -45,11 +88,9 @@ publico.get('/vitrine', rota(async (req, res) => {
     vocabulario: cfg.vocabulario,
     unidades: await listarUnidades({ somenteAtivas: true }),
     // Preço só sai se a empresa quiser mostrar — algumas preferem "sob consulta".
-    servicos: await Promise.all(servicos.map(async s => ({
-      ...s,
-      preco: cfg.exibir?.preco && s.mostrarPreco ? s.preco : null,
-      adicionais: await adicionaisDe(s.id, s.categoria),
-    }))),
+    servicos: await comPrecoEExtras(servicos, cfg),
+    // Promoção vencida não sai da vitrine: `combosAtivos` já a esconde.
+    combos: await vitrineDeCombos(cfg),
     profissionais: equipe.map(staffOut)
       .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor })),
   });
@@ -67,7 +108,19 @@ publico.get('/horarios', rota(async (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) {
     return res.status(400).json({ erro: 'informe data=YYYY-MM-DD' });
   }
-  if (!servicoId) return res.status(400).json({ erro: 'informe servicoId' });
+  // Combo ocupa a cadeira pelo pacote inteiro e só quem faz todos os serviços
+  // aparece — a mesma pessoa atende do começo ao fim.
+  if (req.query.comboId) {
+    const combo = await comboCompleto(req.query.comboId);
+    if (!combo || !combo.ativo || combo.vencido) {
+      return res.status(404).json({ erro: 'promoção não encontrada' });
+    }
+    const equipe = await profissionaisDoCombo(combo.id);
+    const so = profissionalId ? equipe.filter(id => id === profissionalId) : equipe;
+    return res.json({ data, porProfissional: await horariosPorEquipe({ staffIds: so, data, duracao: combo.duracao }) });
+  }
+
+  if (!servicoId) return res.status(400).json({ erro: 'informe servicoId ou comboId' });
 
   const svc = await db.get('SELECT * FROM services WHERE id=? AND ativo=1', servicoId);
   if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
@@ -99,7 +152,19 @@ publico.get('/dias-livres', rota(async (req, res) => {
   if (!/^\d{4}-\d{2}$/.test(mes || '')) {
     return res.status(400).json({ erro: 'informe mes=YYYY-MM' });
   }
-  if (!servicoId) return res.status(400).json({ erro: 'informe servicoId' });
+  if (req.query.comboId) {
+    const combo = await comboCompleto(req.query.comboId);
+    if (!combo || !combo.ativo || combo.vencido) {
+      return res.status(404).json({ erro: 'promoção não encontrada' });
+    }
+    const ids = await profissionaisDoCombo(combo.id);
+    const equipe = ids.length
+      ? await db.all(`SELECT * FROM staff WHERE id = ANY(?) AND ativo = 1`, ids)
+      : [];
+    return res.json({ mes, dias: await diasComVagaPara({ equipe, mes, duracao: combo.duracao }) });
+  }
+
+  if (!servicoId) return res.status(400).json({ erro: 'informe servicoId ou comboId' });
 
   const svc = await db.get('SELECT * FROM services WHERE id=? AND ativo=1', servicoId);
   if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
@@ -165,16 +230,23 @@ publico.post('/agendar', rota(async (req, res) => {
   // devolver erro por causa de um recado longo perderia o agendamento inteiro.
   const obs = String(b.obs || '').trim().slice(0, 500);
 
-  const r = await criarAgendamento(
-    { clienteId: cliente.id, servicoId: b.servicoId, profissionalId: b.profissionalId,
-      data: b.data, hora: b.hora, obs, adicionaisIds: b.adicionaisIds,
-      pagamento: { status: 'aberto', forma: b.formaPagamento || 'local' } },
-    { origem: 'site' }
-  );
+  const dados = {
+    clienteId: cliente.id, profissionalId: b.profissionalId,
+    data: b.data, hora: b.hora, obs,
+    pagamento: { status: 'aberto', forma: b.formaPagamento || 'local' },
+  };
+
+  // Combo vira vários agendamentos em sequência, não um só. O resto da resposta
+  // é igual, para o site não ter dois caminhos de confirmação.
+  const r = b.comboId
+    ? await criarCombo({ ...dados, comboId: b.comboId }, { origem: 'site' })
+    : await criarAgendamento({ ...dados, servicoId: b.servicoId, adicionaisIds: b.adicionaisIds }, { origem: 'site' });
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
 
   res.status(201).json({
-    agendamento: r.agendamento,
+    agendamento: r.agendamento || r.agendamentos[0],
+    agendamentos: r.agendamentos,
+    combo: r.combo,
     cliente: { id: cliente.id, primeiroNome: cliente.nome.split(' ')[0] },
     // O pagamento online entra aqui: gere a cobrança no gateway e devolva a URL.
     // Veja server/src/routes/pagamentos.js (ainda não implementado).

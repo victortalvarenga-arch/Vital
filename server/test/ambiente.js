@@ -53,6 +53,27 @@ export async function prepararBanco() {
   process.env.DATABASE_URL = appTeste;
 
   const db = await import('../src/db.js');
+
+  // Confere onde o pool REALMENTE foi parar, não o que a variável diz.
+  //
+  // `db.js` monta o pool na carga do módulo. Se qualquer coisa importar `db.js`
+  // — direto ou por tabela — antes desta função rodar, o import abaixo devolve
+  // o módulo já em cache, com o pool apontado para o banco de trabalho, e as
+  // variáveis de ambiente trocadas acima não valem para nada. Já aconteceu: um
+  // `import` estático no topo de um arquivo de teste, e a suíte apagou o banco
+  // de desenvolvimento inteiro.
+  //
+  // Perguntar ao servidor em qual banco a conexão caiu é a única checagem que
+  // não pode ser enganada por ordem de import.
+  const { current_database: banco } = await db.db.get('SELECT current_database()');
+  if (banco !== NOME) {
+    throw new Error(
+      `o pool está em "${banco}", não em "${NOME}". ` +
+      'Algum import estático carregou src/db.js antes de prepararBanco(). ' +
+      'Troque por `await import(...)` depois da chamada.'
+    );
+  }
+
   await db.iniciarBanco();
   return db;
 }
