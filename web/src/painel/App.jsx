@@ -555,7 +555,9 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
     api.adicionais()
       .then(r => {
         if (!vivo) return;
-        setExtras(r.porServico[s.id] || []);
+        // Serviço novo ainda não tem extras próprios, mas já herda os da
+        // categoria — mostrar isso evita a impressão de que nada foi salvo.
+        setExtras(s.id ? (r.porServico[s.id] || []) : []);
         setExtrasCat(r.porCategoria[s.cat] || []);
       })
       .catch(() => { if (vivo) { setExtras([]); setExtrasCat([]); } });
@@ -573,8 +575,10 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
 
   const salvar = async () => {
     const ok = await acao(async () => {
-      await api.salvarServico(f);
-      if (extras) await api.salvarAdicionaisDoServico(s.id || f.id, extras);
+      // Serviço novo só ganha id ao ser criado, e os extras precisam dele.
+      const salvo = await api.salvarServico(f);
+      const id = s.id || salvo?.id;
+      if (extras && id) await api.salvarAdicionaisDoServico(id, extras);
       if (extrasCat && f.cat) await api.salvarAdicionaisDaCategoria(f.cat, extrasCat);
     }, 'Serviço salvo');
     if (ok) fechar();
@@ -636,7 +640,7 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
           {staff.map(p => <button key={p.id} className={'chip' + (f.profs.includes(p.id) ? ' on' : '')} onClick={() => toggleProf(p.id)}>{p.nome.split(' ')[0]}</button>)}
         </div>
       </Campo>
-      {s.id && (
+      {servicos.length > 0 && (
         <Campo label="Serviços adicionais oferecidos junto">
           <div className="add-alvo">
             <button className={'add-aba' + (alvo === 'servico' ? ' on' : '')}
@@ -651,6 +655,8 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
             {alvo === 'servico'
               ? 'Aparece só quando a cliente escolhe este serviço.'
               : `Aparece em todos os serviços de "${f.cat}". O site oferece a soma das duas listas.`}
+            {' '}Um adicional é um serviço do seu catálogo — para oferecer
+            "depilação de buço", cadastre-a como serviço primeiro.
           </p>
           {carregando ? <p className="add-ajuda">Carregando…</p> : (
             <div className="chips">

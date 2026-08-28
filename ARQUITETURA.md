@@ -203,6 +203,10 @@ tem preço, duração, foto e quem executa, sem duplicar cadastro: depilação d
 nariz pode ser vendida sozinha e como extra da limpeza de pele, com o mesmo
 registro.
 
+Consequência a saber: **o extra também aparece sozinho na vitrine**, porque é
+um serviço como outro qualquer. Vender algo só como adicional ainda não é
+possível — está anotado no `ROADMAP.md`.
+
 A oferta vem de dois lugares e o site mostra a **união**: por serviço ("na
 limpeza de pele, ofereça buço") e por categoria ("em qualquer serviço de Unhas,
 ofereça esmaltação"). A empresa pensa dos dois jeitos, então o cadastro aceita

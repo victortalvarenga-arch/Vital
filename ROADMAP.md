@@ -330,6 +330,15 @@ Detalhes em `ARQUITETURA.md`.
 - [ ] Painel ainda não exibe os extras na agenda do dia nem no financeiro — o
       `valor` total já está certo, mas o ranking por serviço credita tudo ao
       principal. Entra no Bloco 7.
+- [ ] **Falta "vender só como adicional".** Hoje um extra é um serviço normal,
+      então ele também aparece sozinho na vitrine: cadastrar "depilação de
+      buço" para oferecer junto da limpeza de pele coloca ela na lista da
+      categoria também. Desligar "visível no site" não resolve — `ativo = 0`
+      já significa "arquivado", e o motor recusa arquivado como extra.
+
+      Precisa de coluna própria (algo como `services.somente_adicional`), para
+      não misturar dois sentidos no mesmo campo. Migration pequena; o efeito é
+      esconder da vitrine e continuar aceitando como extra.
 
 ### Bloco 6d — Combos e promoções
 Pacote fechado com preço melhor: "Limpeza de pele + Design de sobrancelha por
