@@ -647,6 +647,40 @@ que deixa escolher por serviço.
 foi decisão do negócio, porque é quem está no balcão que sabe qual serviço está
 parado e vale empurrar junto.
 
+## A agenda do painel
+
+**Os dias vão no eixo X, não os profissionais.** Com uma coluna por pessoa, a
+tela cabia um dia só e a semana virava sete cliques; e o número de colunas mudava
+conforme quem estava em jornada, então a agenda tinha uma largura diferente a
+cada dia. Com os dias fixos, a quem pertence cada atendimento é dito dentro do
+próprio bloco — cor e primeiro nome.
+
+O preço dessa troca é que atendimentos passam a colidir: com pessoas nas colunas,
+dois nunca se cruzavam. `emFaixas()` resolve como um calendário resolve — agrupa
+quem se sobrepõe e divide a largura do grupo. Empilhar um sobre o outro
+esconderia atendimento, que é o pior defeito que uma agenda pode ter.
+
+A grade é de meia em meia hora e a legenda, de hora em hora, centrada na própria
+linha. A meia hora é o passo em que a agenda é vendida; sem a linha, não dá para
+ver a olho se um bloco começa às 10h ou às 10h30. A constante `TOPO` reserva a
+folga acima da primeira linha para a legenda das 08:00 não sair cortada.
+
+### Arrastar para remarcar
+
+Eventos de ponteiro, não de mouse: o mesmo código atende dedo e cursor, e o
+painel vai virar app. **No toque o arrasto só começa depois de segurar** — sem
+isso ele brigaria com a rolagem, e a agenda ficaria impossível de percorrer no
+celular. No cursor, basta mexer cinco pixels.
+
+Onde o ponteiro está sai de `elementsFromPoint`, e não de medir a grade: assim a
+conta continua certa com a semana rolando na horizontal, a página rolando na
+vertical e qualquer largura de coluna — nada disso precisa ser previsto.
+
+**O arrasto é só a intenção.** Quem decide se o horário novo vale é o servidor,
+que confere conflito e jornada dentro da mesma transação que grava — soltar em
+cima de outro atendimento volta 409 e nada muda. Atendimento concluído ou com
+falta não se arrasta: mexer no passado é pelo detalhe, de propósito.
+
 ## Unidades
 
 Os endereços em que a empresa atende. A tabela `units` existia desde o Bloco 0 e

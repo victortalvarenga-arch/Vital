@@ -156,6 +156,48 @@ describe('funcionário só mexe na própria agenda', () => {
     assert.equal(r.status, 403);
   });
 
+  test('remarca arrastando: muda dia e hora numa tacada', async () => {
+    await db.db.comEmpresa('default', () => agendar(db, { prof: 'p1', data: DIA, hora: '09:00' }));
+    const r = await ana('PUT', `/api/agendamentos/a-${DIA}-09:00-p1`,
+      { data: '2027-03-08', hora: '15:30' });
+    assert.equal(r.status, 200);
+    assert.equal(r.corpo.data, '2027-03-08');
+    assert.equal(r.corpo.hora, '15:30');
+  });
+
+  test('soltar em cima de outro atendimento é recusado', async () => {
+    // O arrasto na tela é só a intenção; quem decide se o horário vale é o
+    // servidor, na mesma transação que grava.
+    await db.db.comEmpresa('default', async () => {
+      await agendar(db, { prof: 'p1', data: DIA, hora: '09:00' });
+      await agendar(db, { prof: 'p1', data: DIA, hora: '14:00' });
+    });
+    const r = await ana('PUT', `/api/agendamentos/a-${DIA}-09:00-p1`, { hora: '14:00' });
+    assert.equal(r.status, 409);
+
+    await db.db.comEmpresa('default', async () => {
+      const ainda = await db.db.get('SELECT hora FROM appointments WHERE id=?', `a-${DIA}-09:00-p1`);
+      assert.equal(ainda.hora, '09:00', 'recusado quer dizer que nada mudou');
+    });
+  });
+
+  test('remarcar apaga os lembretes do horário antigo', async () => {
+    await db.db.comEmpresa('default', async () => {
+      await agendar(db, { prof: 'p1', data: DIA, hora: '09:00' });
+      await db.db.run(
+        `INSERT INTO messages (id,appointment_id,client_id,template_chave,fone,texto,
+                               status,agendado_para,criado_em)
+         VALUES ('m1', ?, 'c1', 'lembrete_vespera', '47900000001', 'oi', 'pendente', ?, ?)`,
+        `a-${DIA}-09:00-p1`, DIA + ' 18:00', '2026-01-01'
+      );
+    });
+    await ana('PUT', `/api/agendamentos/a-${DIA}-09:00-p1`, { hora: '16:00' });
+    await db.db.comEmpresa('default', async () => {
+      const { n } = await db.db.get("SELECT COUNT(*) n FROM messages WHERE status='pendente'");
+      assert.equal(n, 0, 'lembrete do horário antigo não vale mais');
+    });
+  });
+
   test('altera e apaga o que é seu', async () => {
     await db.db.comEmpresa('default', () => agendar(db, { prof: 'p1', data: DIA, hora: '09:00' }));
     const id = `a-${DIA}-09:00-p1`;

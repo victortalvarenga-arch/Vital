@@ -439,7 +439,8 @@ Integrações, Logs, Configurar App/Website).
 
 - [x] Shell com navegação lateral e identidade própria — veio no Bloco 4
 - [x] Agenda com colunas por profissional e blocos proporcionais à duração
-- [ ] **Arrastar para remarcar** na agenda — hoje só pelo formulário de edição
+- [x] **Arrastar para remarcar**, com toque e cursor. Ver `ARQUITETURA.md`
+- [x] Agenda por semana, com os dias no eixo X e quem atende dentro do bloco
 - [x] Bloqueio de horário na agenda (almoço, folga, feriado), integrado ao
       `availability.js`, ao calendário do site e à gravação. Funcionário fecha
       só a própria agenda; feriado da empresa é do dono. Ver `ARQUITETURA.md`.
@@ -560,6 +561,14 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] Acesso de suporte ao painel de uma empresa: a auditoria já existe, o
       caminho de entrada não — e é a única porta que atravessaria o isolamento
       de propósito, então merece desenho, não improviso.
+
+### Código
+
+- [ ] `web/src/painel/App.jsx` passou de 1300 linhas e junta agenda, clientes,
+      serviços, equipe, CRM e financeiro. Cada tela nova que nasce ali aumenta o
+      risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e ConfigSite
+      já saíram; falta separar o resto — e o obstáculo é que os ajudantes
+      (`Modal`, `Campo`, formatadores) moram lá dentro.
 
 ### Operação
 

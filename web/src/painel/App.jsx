@@ -274,20 +274,110 @@ function Painel({ sessao, aoSair }) {
 }
 
 /* ── Agenda ── */
-const H_INI = 8, H_FIM = 20, PX_H = 56;
+/**
+ * Geometria da agenda.
+ *
+ * `TOPO` é a folga acima da primeira linha. Sem ela, a legenda das 08:00 —
+ * centrada na própria linha, que é onde ela precisa estar para ser lida junto
+ * com a grade — sairia cortada pela borda de cima.
+ */
+const H_INI = 8, H_FIM = 20, PX_H = 56, TOPO = 10;
+const MIN_POR_PX = 60 / PX_H;
 
+/** Os sete dias da semana que contém `iso`, de segunda a domingo. */
+function semanaDe(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const desdeSegunda = (d.getDay() + 6) % 7;
+  const segunda = addDias(iso, -desdeSegunda);
+  return Array.from({ length: 7 }, (_, i) => addDias(segunda, i));
+}
+
+/**
+ * Distribui lado a lado o que se sobrepõe no mesmo dia.
+ *
+ * Com profissionais nas colunas, dois atendimentos nunca colidiam: cada pessoa
+ * tinha a sua faixa. Com os dias nas colunas, tudo que acontece às 10h no mesmo
+ * dia disputa o mesmo espaço — e empilhar um por cima do outro esconderia
+ * atendimento, que é o pior defeito que uma agenda pode ter.
+ *
+ * O algoritmo é o de calendário: agrupa quem se cruza, e dentro do grupo cada
+ * um entra na primeira faixa livre. A largura é dividida pelo tamanho do grupo,
+ * então dois atendimentos simultâneos ficam com metade cada.
+ */
+function emFaixas(itens) {
+  const ordenados = [...itens].sort((a, b) => a.ini - b.ini || a.fim - b.fim);
+  const saida = [];
+  let grupo = [], fimDoGrupo = -1;
+
+  const fechar = () => {
+    const ultimoDaFaixa = [];
+    for (const it of grupo) {
+      let f = ultimoDaFaixa.findIndex(fim => fim <= it.ini);
+      if (f === -1) f = ultimoDaFaixa.length;
+      ultimoDaFaixa[f] = it.fim;
+      it.faixa = f;
+    }
+    for (const it of grupo) it.faixas = ultimoDaFaixa.length;
+    saida.push(...grupo);
+    grupo = []; fimDoGrupo = -1;
+  };
+
+  for (const it of ordenados) {
+    if (grupo.length && it.ini >= fimDoGrupo) fechar();
+    grupo.push(it);
+    fimDoGrupo = Math.max(fimDoGrupo, it.fim);
+  }
+  if (grupo.length) fechar();
+  return saida;
+}
+
+/**
+ * Em que dia e hora o ponteiro está, dentro da grade.
+ *
+ * Usa `elementsFromPoint` em vez de medir a grade por conta própria: assim a
+ * conta continua certa com a semana rolando na horizontal, com a página
+ * rolando na vertical e com qualquer largura de coluna — nada disso precisa
+ * ser previsto aqui.
+ */
+function ondeCaiu(x, y, a, passo) {
+  const alvo = document.elementsFromPoint(x, y).find(el => el.dataset?.dia);
+  if (!alvo) return null;
+
+  const r = alvo.getBoundingClientRect();
+  const bruto = H_INI * 60 + (y - r.top - TOPO) * MIN_POR_PX;
+  const snap = Math.round(bruto / passo) * passo;
+  // Não deixa o atendimento nascer antes da abertura nem terminar depois do
+  // fim da grade — arrastar para fora não pode virar horário impossível.
+  const min = Math.min(Math.max(snap, H_INI * 60), H_FIM * 60 - a.duracao);
+  return { data: alvo.dataset.dia, hora: toHora(min) };
+}
+
+/**
+ * A agenda da semana.
+ *
+ * **Os dias vão no eixo X, não os profissionais.** Com uma coluna por pessoa, a
+ * tela só cabia um dia e a semana virava sete cliques; e o número de colunas
+ * mudava conforme quem estava em jornada, então a agenda tinha uma largura
+ * diferente a cada dia. Com os dias fixos, a quem pertence cada atendimento é
+ * dito dentro do próprio bloco — cor e primeiro nome.
+ */
 function Agenda({ dados, acao, aviso, poderes }) {
   const { staff, servicos, clientes, agendamentos } = dados;
-  const [data, setData] = useState(hojeISO());
+  const [ancora, setAncora] = useState(hojeISO());
   const [sel, setSel] = useState(null);
   const [novo, setNovo] = useState(false);
   const [bloquear, setBloquear] = useState(null);
+  const [arrasto, setArrasto] = useState(null);
 
-  const doDia = agendamentos.filter(a => a.data === data && a.status !== 'cancelado');
-  const fechados = (dados.bloqueios || []).filter(b => b.data === data);
-  const ativos = staff.filter(p => p.jornada[dow(data)]);
-  const cols = ativos.length || 1;
-  const receita = doDia.reduce((s, a) => s + a.valor, 0);
+  const passo = dados.config.passoAgenda || 30;
+  const semana = useMemo(() => semanaDe(ancora), [ancora]);
+  const de = semana[0], ate = semana[6];
+
+  const daSemana = agendamentos.filter(a => a.data >= de && a.data <= ate && a.status !== 'cancelado');
+  const fechados = (dados.bloqueios || []).filter(b => b.data >= de && b.data <= ate);
+  const receita = daSemana.reduce((s, a) => s + a.valor, 0);
+  const hoje = hojeISO();
+  const diaParaAcao = semana.includes(hoje) ? hoje : semana[0];
 
   const mudarStatus = async (id, status) => {
     await acao(() => api.atualizarAgendamento(id, { status }), 'Agendamento atualizado');
@@ -304,81 +394,171 @@ function Agenda({ dados, acao, aviso, poderes }) {
     setSel(null);
   };
 
+  /* ── arrastar para remarcar ──────────────────────────────────────────── *
+   *
+   * Ponteiro, não mouse: o mesmo código atende dedo e cursor, e o painel vai
+   * virar app. No toque, o arrasto só começa depois de segurar — sem isso ele
+   * brigaria com a rolagem da página, e a agenda ficaria impossível de
+   * percorrer no celular.
+   *
+   * Quem decide se o horário novo vale continua sendo o servidor: ele confere
+   * conflito e jornada dentro da mesma transação que grava. Aqui é só a
+   * intenção — e é por isso que soltar em cima de outro atendimento devolve
+   * erro em vez de sobrescrever. */
+  const aoPegar = (e, a) => {
+    // Atendimento que já aconteceu não se remarca; mudar isso é pelo detalhe.
+    if (a.status === 'concluido' || a.status === 'falta') { setSel(a); return; }
+
+    const alvo = e.currentTarget;
+    alvo.setPointerCapture(e.pointerId);
+
+    const inicio = { x: e.clientX, y: e.clientY };
+    const toque = e.pointerType === 'touch';
+    let ativo = false;
+    let destino = null;
+
+    const espera = toque
+      ? setTimeout(() => { ativo = true; setArrasto({ id: a.id }); }, 320)
+      : null;
+
+    const encerrar = () => {
+      alvo.onpointermove = alvo.onpointerup = alvo.onpointercancel = null;
+      if (espera) clearTimeout(espera);
+      setArrasto(null);
+    };
+
+    alvo.onpointermove = ev => {
+      const andou = Math.hypot(ev.clientX - inicio.x, ev.clientY - inicio.y);
+      if (!ativo) {
+        // No toque, mexer antes de segurar é rolagem: desiste do arrasto.
+        if (toque) { if (andou > 8) encerrar(); return; }
+        if (andou < 5) return;
+        ativo = true;
+      }
+      destino = ondeCaiu(ev.clientX, ev.clientY, a, passo);
+      setArrasto(destino ? { id: a.id, ...destino } : { id: a.id });
+    };
+
+    alvo.onpointerup = async () => {
+      const alvoFinal = destino;
+      const arrastou = ativo;
+      encerrar();
+      if (!arrastou) { setSel(a); return; }            // não saiu do lugar: é um toque
+      if (!alvoFinal) return;
+      if (alvoFinal.data === a.data && alvoFinal.hora === a.hora) return;
+
+      await acao(
+        () => api.atualizarAgendamento(a.id, { data: alvoFinal.data, hora: alvoFinal.hora }),
+        `Remarcado para ${fmtData(alvoFinal.data)} às ${alvoFinal.hora}`
+      );
+    };
+
+    alvo.onpointercancel = encerrar;
+  };
+
   return (
     <>
       <div className="head">
         <div>
           <h2>Agenda</h2>
-          <div className="sub">{doDia.length} atendimentos · {brl(receita)} previstos · {ativos.length} profissionais em jornada</div>
+          <div className="sub">
+            {daSemana.length} atendimentos na semana · {brl(receita)} previstos
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="btn btn-g btn-s" onClick={() => setData(addDias(data, -1))}><ChevronLeft size={16} /></button>
-          <button className="btn btn-g btn-s" style={{ minWidth: 150 }} onClick={() => setData(hojeISO())}>
-            {data === hojeISO() ? 'Hoje' : fmtData(data)}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-g btn-s" onClick={() => setAncora(addDias(ancora, -7))}
+                  aria-label="Semana anterior"><ChevronLeft size={16} /></button>
+          <button className="btn btn-g btn-s" style={{ minWidth: 172 }} onClick={() => setAncora(hoje)}>
+            {semana.includes(hoje) ? 'Esta semana' : `${fmtData(de)} – ${fmtData(ate)}`}
           </button>
-          <button className="btn btn-g btn-s" onClick={() => setData(addDias(data, 1))}><ChevronRight size={16} /></button>
-          <button className="btn btn-g btn-s" onClick={() => setBloquear({ data })}>
+          <button className="btn btn-g btn-s" onClick={() => setAncora(addDias(ancora, 7))}
+                  aria-label="Próxima semana"><ChevronRight size={16} /></button>
+          <button className="btn btn-g btn-s" onClick={() => setBloquear({ data: diaParaAcao })}>
             <Ban size={16} /> Bloquear
           </button>
           <button className="btn btn-p btn-s" onClick={() => setNovo(true)}><Plus size={16} /> Encaixe</button>
         </div>
       </div>
 
-      {ativos.length === 0 ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-          <p style={{ color: 'var(--muted)' }}>Ninguém trabalha em {fmtData(data)}. Ajuste as jornadas em Equipe.</p>
-        </div>
-      ) : (
-        <div className="agenda">
-          <div className="hours">
-            <div style={{ height: 39, borderBottom: '1px solid var(--line)' }} />
-            {Array.from({ length: H_FIM - H_INI }, (_, i) => <div key={i} className="hcell">{String(H_INI + i).padStart(2, '0')}:00</div>)}
+      <div className="agenda">
+        {/* Legendas de hora em hora, centradas na própria linha. A grade é de
+            meia em meia hora: é o passo em que a agenda é vendida, e sem ela
+            não dá para ver a olho se um bloco começa às 10h ou às 10h30. */}
+        <div className="horas">
+          <div className="horas-topo" />
+          <div className="horas-corpo" style={{ height: (H_FIM - H_INI) * PX_H + TOPO * 2 }}>
+            {Array.from({ length: H_FIM - H_INI + 1 }, (_, i) => (
+              <span key={i} className="hlabel" style={{ top: TOPO + i * PX_H }}>
+                {String(H_INI + i).padStart(2, '0')}:00
+              </span>
+            ))}
           </div>
-          <div className="cols" style={{ gridTemplateColumns: `repeat(${cols},minmax(148px,1fr))` }}>
-            {ativos.map(p => (
-              <div key={p.id}>
-                <div className="colhead">
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.cor }} />
-                  {p.nome.split(' ')[0]}
-                  <span className="mono" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)' }}>
-                    {p.jornada[dow(data)][0]}–{p.jornada[dow(data)][1]}
-                  </span>
+        </div>
+
+        <div className="semana">
+          {semana.map(dia => {
+            const daqui = daSemana.filter(a => a.data === dia);
+            const blocos = emFaixas(daqui.map(a => ({
+              a, ini: toMin(a.hora), fim: toMin(a.hora) + a.duracao,
+            })));
+            const emJornada = staff.filter(p => p.ativo && p.jornada[dow(dia)]).length;
+
+            return (
+              <div key={dia} className={'dia' + (dia === hoje ? ' hoje' : '')}>
+                <div className="diahead">
+                  <span className="diahead-nome">{DIAS[new Date(dia + 'T12:00:00').getDay()]}</span>
+                  <span className="diahead-num">{dia.slice(8)}</span>
+                  {emJornada === 0 && <span className="diahead-vazio">fechado</span>}
                 </div>
-                <div className="colbody" style={{ height: (H_FIM - H_INI) * PX_H }}>
-                  {Array.from({ length: H_FIM - H_INI }, (_, i) => <div key={i} className="grid-line" style={{ top: i * PX_H }} />)}
+
+                <div className="diabody" data-dia={dia}
+                     style={{ height: (H_FIM - H_INI) * PX_H + TOPO * 2 }}>
+                  {Array.from({ length: (H_FIM - H_INI) * 2 + 1 }, (_, i) => (
+                    <div key={i} className={'linha' + (i % 2 ? ' meia' : '')}
+                         style={{ top: TOPO + i * PX_H / 2 }} />
+                  ))}
 
                   {/* Bloqueio entra ATRÁS do agendamento: quando os dois se
                       cruzam, o que importa ver é a cliente que já está marcada. */}
-                  {fechados.filter(b => !b.profissionalId || b.profissionalId === p.id).map(b => {
-                    const top = (toMin(b.horaIni) - H_INI * 60) / 60 * PX_H;
-                    const h = Math.max((toMin(b.horaFim) - toMin(b.horaIni)) / 60 * PX_H, 18);
-                    const meu = b.profissionalId === p.id;
+                  {fechados.filter(b => b.data === dia).map(b => {
+                    const p = staff.find(x => x.id === b.profissionalId);
+                    const top = TOPO + (toMin(b.horaIni) - H_INI * 60) / MIN_POR_PX;
+                    const h = Math.max((toMin(b.horaFim) - toMin(b.horaIni)) / MIN_POR_PX, 16);
+                    const meu = Boolean(b.profissionalId);
                     return (
-                      <button key={b.id + p.id} className="bloqueio"
-                              style={{ top, height: h }}
-                              title={meu ? 'Liberar este horário' : 'Fecha a empresa toda'}
+                      <button key={b.id} className="bloqueio" style={{ top, height: h }}
+                              title={meu ? `Liberar (${p?.nome || '—'})` : 'Fecha a empresa toda'}
                               disabled={!meu && !poderes.verDeTodos}
                               onClick={() => acao(() => api.removerBloqueio(b.id), 'Horário liberado')}>
-                        <span>{b.motivo || 'Bloqueado'}</span>
+                        <span>{b.motivo || 'Bloqueado'}{p ? ` · ${p.nome.split(' ')[0]}` : ''}</span>
                       </button>
                     );
                   })}
 
-                  {doDia.filter(a => a.prof === p.id).map(a => {
+                  {blocos.map(({ a, ini, fim, faixa, faixas }) => {
                     const c = clientes.find(x => x.id === a.cliente);
                     const s = servicos.find(x => x.id === a.servico);
-                    const top = (toMin(a.hora) - H_INI * 60) / 60 * PX_H;
-                    const h = Math.max(a.duracao / 60 * PX_H - 3, 26);
+                    const p = staff.find(x => x.id === a.prof);
+                    const puxando = arrasto?.id === a.id;
+                    const larg = 100 / faixas;
                     return (
-                      <button key={a.id} onClick={() => setSel(a)}
-                        className={'appt ' + (a.status === 'concluido' ? 'done' : '') + (a.status === 'falta' ? ' falta' : '')}
-                        style={{ top, height: h, background: p.cor + '1f', borderLeftColor: p.cor }}>
+                      <button key={a.id}
+                        className={'appt' + (a.status === 'concluido' ? ' done' : '')
+                          + (a.status === 'falta' ? ' falta' : '') + (puxando ? ' puxando' : '')}
+                        style={{
+                          top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
+                          height: Math.max((fim - ini) / MIN_POR_PX - 2, 26),
+                          left: `calc(${faixa * larg}% + 3px)`,
+                          width: `calc(${larg}% - 6px)`,
+                          background: (p?.cor || '#999') + '1f',
+                          borderLeftColor: p?.cor || '#999',
+                        }}
+                        onPointerDown={e => aoPegar(e, a)}>
                         <b>{c?.nome.split(' ')[0]}</b>
                         <span className="t">{a.hora}</span> · {s?.nome}
-                        {a.pagamento.status === 'pago' && <span style={{ color: 'var(--ok)', fontWeight: 700 }}> ✓pago</span>}
-                        {/* Só o sinal de que tem extra; a lista inteira está a
-                            um toque, no detalhe. A coluna é estreita demais
-                            para caber nome de serviço em cima de nome. */}
+                        {/* Quem atende é dito aqui, já que a coluna virou o dia. */}
+                        <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
+                        {a.pagamento.status === 'pago' && <span className="appt-pago">✓ pago</span>}
                         {a.adicionais.length > 0 && (
                           <span className="appt-mais">
                             + {a.adicionais.length === 1
@@ -391,9 +571,14 @@ function Agenda({ dados, acao, aviso, poderes }) {
                   })}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
+      </div>
+
+      {/* Onde vai cair, enquanto o dedo ainda está em cima. */}
+      {arrasto?.hora && (
+        <div className="arrasto-aviso">{fmtData(arrasto.data)} às {arrasto.hora}</div>
       )}
 
       {sel && (() => {
