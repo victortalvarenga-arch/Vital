@@ -11,6 +11,7 @@
     "start": "node src/index.js",
     "seed": "node src/seed.js",
     "reset": "node src/reset.js && npm run seed",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
     "senha-app": "node src/senha-app.js"
   },
   "dependencies": {
@@ -23,7 +24,6 @@
     "pg": "^8.23.0"
   },
   "allowScripts": {
-    "better-sqlite3@12.11.1": true,
     "argon2@0.45.1": true
   }
 }

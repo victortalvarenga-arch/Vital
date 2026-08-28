@@ -66,6 +66,7 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
                    requisição), tenant.js (resolve a empresa + config padrão)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
                    relatorios | uploads (imagens da empresa)
+  test/            suíte automatizada (`npm test`), banco próprio
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
   uploads/         imagens enviadas, uma pasta por empresa. Fora do Git.
@@ -460,6 +461,42 @@ quem não pode; recusar na rota é o que impede a chamada direta. Um sem o outro
 `/api/relatorios/resumo` sem ver o menu, e depois `/api/estado` devolvendo a
 agenda inteira que a rota filtrada escondia. Rota nova que devolve dado de
 agenda ou de dinheiro precisa passar por `escopoDe`.
+
+## Testes
+
+`cd server && npm test`. Roda com o `node:test` nativo — sem framework, sem
+dependência a mais.
+
+**Banco de verdade, não simulação.** O motor de horários concilia jornada,
+agendamentos e bloqueios em SQL, com RLS por baixo; um banco simulado testaria o
+simulador. A suíte usa um banco à parte, `vital_teste`, criado sozinho na
+primeira execução e apagado e repovoado a cada teste — `test/ambiente.js` recusa
+rodar se a URL não terminar em `_teste`, porque um dia alguém vai rodar `npm
+test` apontando para o banco de trabalho.
+
+A limpeza entre testes é `DELETE`, não `TRUNCATE`: `vital_app` não tem esse
+direito de propósito, e `TRUNCATE` ignora RLS — apagaria também o que é de outra
+empresa.
+
+**Por que o motor primeiro.** É a parte que quebra em silêncio: um erro ali não
+derruba nada, só vende um horário que não existe, e a conta chega no balcão com
+a cliente na frente. Hoje ele tem quatro fontes de verdade para conciliar
+(jornada, agendamentos, bloqueios, duração com adicionais e limpeza) e três
+caminhos que precisam concordar entre si — `horariosLivres` desenha a grade,
+`conflita` autoriza a gravação e `diasComVaga` pinta o calendário do mês, cada
+um com sua própria implementação da mesma regra. Há teste cruzando os três: o
+que a grade oferece, o gravar tem de aceitar; o dia que o calendário promete, a
+grade tem de entregar.
+
+**A suíte foi conferida quebrando o motor de propósito.** Seis defeitos
+plantados um a um — a grade ignorando bloqueio, sobreposição virando `<=`,
+cancelado voltando a ocupar, o feriado sumindo do calendário, `conflita`
+deixando de olhar bloqueio, a limpeza saindo da conta. Cinco falharam de cara; o
+sexto passou, e passou por culpa do teste, que somava a duração à mão e pulava
+justamente o lugar onde o motor faz essa soma. O teste foi refeito para entrar
+por `horariosPorServico` e `diasComVaga`. Teste verde que continua verde com o
+código quebrado não prova nada — vale repetir esse exercício ao cobrir uma parte
+nova.
 
 ## WhatsApp
 

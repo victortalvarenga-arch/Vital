@@ -608,6 +608,11 @@ Pagamento online, webhook de resposta do WhatsApp e API oficial da Meta seguem
 como estão (listados no fim do `CLAUDE.md`) — entram depois que a base
 white-label estiver de pé.
 
-Testes do motor de horários (`lib/availability.js`) sobem de prioridade no
-Bloco 7: bloqueio de horário e unidades mexem exatamente na parte que quebra
-silencioso.
+A suíte do motor de horários saiu daqui: existe, roda com `npm test` e está
+descrita em `ARQUITETURA.md`. O que falta cobrir, em ordem de risco:
+
+- [ ] Rotas de agendamento ponta a ponta (`POST /api/publico/agendar`), inclusive
+      duas clientes disputando o mesmo horário ao mesmo tempo
+- [ ] Papéis: o que cada rota devolve para dono e para funcionário — hoje isso já
+      vazou duas vezes e foi pego por teste descartável, que se perdeu depois
+- [ ] Isolamento entre empresas (é o item já listado no Bloco 9)

@@ -57,8 +57,13 @@ Novas pessoas entram pelo painel, em **Configurações → Acesso ao painel**.
 | `cd server && npm run seed` | Roda migrations e popula um banco vazio |
 | `cd server && npm run reset` | Apaga tudo e popula de novo (só em localhost) |
 | `cd server && npm run senha-app` | Redefine a senha do usuário da aplicação |
+| `cd server && npm test` | Roda a suíte automatizada |
 
 As migrations rodam sozinhas quando a API sobe.
+
+`npm test` usa um banco separado, `vital_teste`, criado sozinho na primeira vez.
+Ele apaga e repovoa os próprios dados a cada teste e nunca toca no banco de
+trabalho.
 
 **Dois usuários de banco, de propósito.** A aplicação conecta como `vital_app`,
 sem superusuário — é isso que faz o isolamento entre empresas valer, porque o

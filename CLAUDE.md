@@ -80,6 +80,12 @@ escrito, não aconteceu.
   as suas. Use texto livre com sugestões do que já existe.
 - Imagem sempre passa por `shared/imagem.js` antes de subir, e o nome do
   arquivo é decidido pelo servidor, nunca pelo cliente.
+- Mexeu em regra de negócio, rode `cd server && npm test`. Teste novo entra em
+  `server/test/`, com banco de verdade — ver `ARQUITETURA.md`.
+- Teste verde não é prova. Antes de dar a cobertura por feita, quebre o código
+  de propósito e confira que a suíte acusa. Já aconteceu de um teste passar com
+  o motor quebrado porque ele refazia a conta em vez de chamar o código que
+  faz.
 - **Nunca grave dado com acento pela API usando PowerShell.** `Invoke-WebRequest`
   com `ConvertTo-Json` corrompe UTF-8 no corpo da requisição: "Depilação" virou
   "Depila��o" no banco, e só apareceu na tela. Para escrever dado de
@@ -108,4 +114,3 @@ não pertencem a nenhum bloco e continuam abertos:
    confie no front para dizer que foi pago.
 2. **Webhook de resposta do WhatsApp.** Quando a cliente responde "SIM", marcar o
    agendamento como confirmado; "PARAR" desliga o `optin`.
-3. **Testes do motor de horários.** É a parte que quebra silencioso e cara caro.
