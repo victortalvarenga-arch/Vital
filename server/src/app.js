@@ -28,6 +28,23 @@ import { comEmpresa } from './lib/tenant.js';
  * de pé nem job disparando no meio.
  */
 const app = express();
+
+/**
+ * Atrás de proxy (Vercel, Cloudflare, nginx), o `Host` que chega é o do proxy,
+ * não o que a pessoa digitou — e é o que a pessoa digitou que diz de qual
+ * empresa é a requisição. Com `trust proxy`, o Express passa a ler
+ * `X-Forwarded-Host` e `X-Forwarded-Proto`.
+ *
+ * Desligado por padrão, e é assim que tem de ser: ligado sem proxy na frente,
+ * qualquer cliente manda `X-Forwarded-Host` e escolhe de qual empresa quer ser.
+ * Em produção, o valor é o número de proxies confiáveis (`1` na maioria dos
+ * provedores), nunca `true`.
+ */
+if (process.env.TRUST_PROXY) {
+  const v = process.env.TRUST_PROXY;
+  app.set('trust proxy', /^\d+$/.test(v) ? Number(v) : v);
+}
+
 app.use(cors({ origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',') }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());

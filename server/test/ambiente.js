@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import http from 'node:http';
 import pg from 'pg';
 
 /**
@@ -94,6 +95,12 @@ const TABELAS = [
 
 export async function limpar(db) {
   for (const t of TABELAS) await db.db.run(`DELETE FROM ${t}`);
+
+  // A config mora em `plataforma.tenants`, que não tem RLS e não está na lista
+  // acima. Sem zerar, um ajuste de config feito por um teste sobrevive para o
+  // próximo — e o próximo falha por um motivo que não é dele.
+  const { empresaAtual } = await import('../src/lib/contexto.js');
+  await db.db.run(`UPDATE plataforma.tenants SET config = '{}' WHERE id = ?`, empresaAtual());
 }
 
 /**
@@ -116,7 +123,13 @@ export async function limparAgenda(db) {
  * leitura, e um resultado errado aponta o bug em vez de levantar dúvida sobre
  * a aritmética do próprio teste.
  */
-export async function cenario(db, { jornada, duracao = 60, intervalo = 0, passo = 30 } = {}) {
+/**
+ * O `prefixo` existe porque as chaves primárias são globais, não por empresa:
+ * `staff.id` é único no banco inteiro. Em produção os ids vêm de `uid()`, que é
+ * aleatório, então nunca colidem — mas duas empresas de teste com ids escritos
+ * à mão colidem na hora.
+ */
+export async function cenario(db, { jornada, duracao = 60, intervalo = 0, passo = 30, prefixo = '' } = {}) {
   const dias = {};
   for (let d = 0; d <= 6; d++) dias[d] = jornada || ['09:00', '18:00'];
 
@@ -124,31 +137,39 @@ export async function cenario(db, { jornada, duracao = 60, intervalo = 0, passo 
 
   await db.db.run(
     `INSERT INTO staff (id,nome,jornada,ativo,criado_em) VALUES (?,?,?,1,?)`,
-    'p1', 'Ana', JSON.stringify(dias), '2026-01-01'
+    prefixo + 'p1', 'Ana', JSON.stringify(dias), '2026-01-01'
   );
   await db.db.run(
     `INSERT INTO staff (id,nome,jornada,ativo,criado_em) VALUES (?,?,?,1,?)`,
-    'p2', 'Bia', JSON.stringify(dias), '2026-01-01'
+    prefixo + 'p2', 'Bia', JSON.stringify(dias), '2026-01-01'
   );
   await db.db.run(
     `INSERT INTO services (id,nome,categoria,preco,duracao,intervalo,ativo,ordem)
      VALUES (?,?,?,?,?,?,1,0)`,
-    's1', 'Corte', 'Cabelo', 100, duracao, intervalo
+    prefixo + 's1', 'Corte', 'Cabelo', 100, duracao, intervalo
   );
-  await db.salvarVinculos('s1', ['p1', 'p2']);
+  await db.salvarVinculos(prefixo + 's1', [prefixo + 'p1', prefixo + 'p2']);
 
   await db.db.run(
     `INSERT INTO clients (id,nome,fone,criado_em) VALUES (?,?,?,?)`,
-    'c1', 'Cliente Um', '47900000001', '2026-01-01'
+    prefixo + 'c1', 'Cliente Um', '47900000001', '2026-01-01'
   );
 }
 
 /** Ocupa um horário, como um agendamento faria. */
-export const agendar = (db, { prof = 'p1', data, hora, duracao = 60, status = 'agendado' }) =>
+export const agendar = (db, {
+  prof = 'p1', data, hora, duracao = 60, status = 'agendado',
+  cliente, servico,
+}) =>
   db.db.run(
     `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,criado_em)
      VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    `a-${data}-${hora}-${prof}`, 'c1', 's1', prof, data, hora, duracao, 100, status, '2026-01-01'
+    `a-${data}-${hora}-${prof}`,
+    // Sem cliente e serviço explícitos, seguem os do cenário — e o prefixo de
+    // empresa, quando houver, é o mesmo do profissional.
+    cliente || prof.replace(/p\d+$/, 'c1'),
+    servico || prof.replace(/p\d+$/, 's1'),
+    prof, data, hora, duracao, 100, status, '2026-01-01'
   );
 
 /** Fecha um intervalo. `prof` nulo fecha a empresa toda. */
@@ -180,37 +201,81 @@ export async function subirApi() {
   await new Promise(ok => servidor.once('listening', ok));
   const base = `http://127.0.0.1:${servidor.address().port}`;
 
-  /** Um cliente HTTP que guarda o cookie de sessão, como um navegador. */
-  const cliente = () => {
+  /**
+   * Um cliente HTTP que guarda o cookie de sessão, como um navegador.
+   *
+   * `node:http` e não `fetch`: o `fetch` do Node ignora um header `Host`
+   * passado à mão, e é justamente o `Host` que decide de qual empresa é a
+   * requisição. Sem controlá-lo não dá para testar o isolamento entre
+   * empresas pelas rotas de verdade.
+   */
+  const cliente = ({ host } = {}) => {
     let cookie = '';
-    return async (metodo, caminho, corpo) => {
-      const r = await fetch(base + caminho, {
-        method: metodo,
-        headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-        body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    return (metodo, caminho, corpo) => new Promise((ok, falha) => {
+      const dados = corpo === undefined ? null : JSON.stringify(corpo);
+      const req = http.request({
+        hostname: '127.0.0.1', port: servidor.address().port, path: caminho, method: metodo,
+        headers: {
+          'content-type': 'application/json',
+          ...(host ? { host } : {}),
+          ...(cookie ? { cookie } : {}),
+          ...(dados ? { 'content-length': Buffer.byteLength(dados) } : {}),
+        },
+      }, res => {
+        const set = res.headers['set-cookie'] || [];
+        if (set.length) cookie = set.map(c => c.split(';')[0]).join('; ');
+        let texto = '';
+        res.setEncoding('utf8');
+        res.on('data', p => { texto += p; });
+        res.on('end', () => {
+          let json;
+          try { json = texto ? JSON.parse(texto) : null; } catch { json = texto; }
+          ok({ status: res.statusCode, corpo: json });
+        });
       });
-      const set = r.headers.getSetCookie?.() || [];
-      if (set.length) cookie = set.map(c => c.split(';')[0]).join('; ');
-      const texto = await r.text();
-      let json;
-      try { json = texto ? JSON.parse(texto) : null; } catch { json = texto; }
-      return { status: r.status, corpo: json };
-    };
+      req.on('error', falha);
+      if (dados) req.write(dados);
+      req.end();
+    });
   };
 
-  const entrar = async (email, senha) => {
-    const req = cliente();
+  const entrar = async (email, senha, opcoes) => {
+    const req = cliente(opcoes);
     const r = await req('POST', '/api/auth/login', { email, senha });
     if (r.status !== 200) throw new Error(`login de ${email} falhou: ${JSON.stringify(r.corpo)}`);
     return req;
   };
 
+  /** O mesmo cliente, mas dizendo-se de outro endereço. */
+  const noHost = host => cliente({ host });
+
   return {
     base,
     anonimo: cliente,
     entrar,
+    noHost,
     fechar: () => new Promise(ok => servidor.close(ok)),
   };
+}
+
+/**
+ * Cria uma segunda empresa e a popula com dados próprios.
+ *
+ * Existe para o teste de isolamento: provar que uma empresa não vê a outra
+ * exige duas empresas de verdade, com dado de verdade em cada uma.
+ */
+export async function criarEmpresa(db, { id, slug, nome, dominio = '' }) {
+  // `tenants.nome` é a razão social do cadastro; `config.nome` é o que aparece
+  // no site. Nascem iguais — é o que o cadastro self-service também faz.
+  await db.db.run(
+    `INSERT INTO plataforma.tenants (id, slug, nome, dominio, config, ativo, criado_em)
+     VALUES (?,?,?,?,?,1,?)
+     ON CONFLICT (id) DO UPDATE SET slug = EXCLUDED.slug, dominio = EXCLUDED.dominio,
+                                    config = EXCLUDED.config, ativo = 1, status = 'ativa'`,
+    id, slug, nome, dominio, JSON.stringify({ nome }), '2026-01-01'
+  );
+  const { esquecerCacheDeEmpresas } = await import('../src/lib/tenant.js');
+  esquecerCacheDeEmpresas();
 }
 
 export const SENHA = 'senha-de-teste-1234';

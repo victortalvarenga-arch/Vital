@@ -1,30 +1,85 @@
 /**
- * Resolvedor de empresa.
+ * Resolvedor de empresa: de quem é esta requisição.
  *
- * Hoje é um deploy por cliente e este módulo devolve sempre a mesma empresa.
- * Ele existe assim mesmo porque é o único lugar que decide de quem é o dado —
- * quando o Bloco 7 chegar, passa a olhar o subdomínio e nada mais muda.
+ * É o único lugar que decide isso. Toda consulta de dado de negócio recebe o id
+ * daqui — nunca se escreve 'default' na mão.
  *
- * Toda consulta que lê dado de negócio deve receber o id daqui, nunca escrever
- * 'default' na mão.
+ * Três caminhos, nesta ordem:
+ *   1. domínio próprio      agenda.estudiolume.com.br → a empresa dona dele
+ *   2. subdomínio nosso     lume.vital.app            → a empresa de slug 'lume'
+ *   3. nada disso           localhost, IP, apex       → TENANT_PADRAO
+ *
+ * **Host que nomeia empresa inexistente não cai no padrão.** Cair seria servir
+ * o site de uma empresa no endereço de outra — pior do que dar erro. Quem
+ * resolve devolve `null`, e o middleware responde 404.
  */
 export const TENANT_PADRAO = process.env.TENANT_PADRAO || 'default';
 
+/** Hosts que não nomeiam empresa nenhuma: é o ambiente local ou um IP. */
+const SEM_EMPRESA = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1']);
+
 /**
- * Descobre de qual empresa é a requisição.
+ * O rótulo à esquerda do host, quando ele é mesmo um subdomínio.
  *
- * Hoje devolve sempre a mesma, porque é um domínio só. A ordem de resolução já
- * está montada para o dia do subdomínio (Bloco 9) — quando chegar lá, só a
- * consulta ao banco entra no lugar do fallback.
+ * `vital.app` não tem subdomínio; `lume.vital.app` tem. `lume.localhost` também
+ * conta, para dar como testar mais de uma empresa na máquina sem DNS.
  */
-export function resolverTenant(req) {
-  // Bloco 9: buscar em plataforma.tenants por slug (subdomínio) ou dominio.
-  const host = (req?.hostname || '').toLowerCase();
-  const sub = host.split('.')[0];
-  if (sub && !['localhost', 'www', '127'].includes(sub) && host.split('.').length > 2) {
-    return sub;
-  }
-  return TENANT_PADRAO;
+export function subdominioDe(host) {
+  const partes = host.split('.');
+  const ehLocal = partes.at(-1) === 'localhost';
+  const minimo = ehLocal ? 2 : 3;
+  if (partes.length < minimo) return null;
+  const sub = partes[0];
+  return ['www', 'api', 'app'].includes(sub) ? null : sub;
+}
+
+/**
+ * Cache de host → empresa.
+ *
+ * Sem ele, toda requisição — inclusive cada imagem do site — faria uma consulta
+ * a `plataforma.tenants` só para descobrir de quem é. O prazo é curto de
+ * propósito: suspender uma empresa precisa surtir efeito em pouco tempo, sem
+ * reiniciar nada.
+ */
+const cache = new Map();
+const VALIDADE_MS = 60_000;
+
+/** Esquece o que estiver guardado. Chamado ao criar ou suspender empresa. */
+export function esquecerCacheDeEmpresas() { cache.clear(); }
+
+/**
+ * @returns {Promise<{id:string, status:string, ativo:boolean}|null>}
+ *          `null` quando o host nomeia uma empresa que não existe.
+ */
+export async function resolverTenant(req, db) {
+  const host = String(req?.hostname || '').toLowerCase();
+
+  const PADRAO = { id: TENANT_PADRAO, status: 'ativa', ativo: true };
+
+  // localhost, IP ou host sem ponto: é o ambiente local, e não há o que buscar.
+  if (SEM_EMPRESA.has(host) || !host.includes('.')) return PADRAO;
+  const sub = subdominioDe(host);
+
+  const guardado = cache.get(host);
+  if (guardado && Date.now() - guardado.em < VALIDADE_MS) return guardado.empresa;
+
+  // `plataforma.tenants` não tem RLS: é cadastro nosso, e a consulta acontece
+  // antes de existir empresa definida na conexão — é ela que define.
+  const linha = await db.get(
+    `SELECT id, status, ativo FROM plataforma.tenants
+      WHERE dominio = ? OR (slug = ? AND ? <> '')
+      ORDER BY (dominio = ?) DESC LIMIT 1`,
+    host, sub || '', sub || '', host
+  );
+
+  const empresa = linha
+    ? { id: linha.id, status: linha.status, ativo: !!linha.ativo }
+    // Domínio ou subdomínio que não é de ninguém. No apex sem subdomínio
+    // (`vital.app`), a de sempre — é a nossa própria página.
+    : (sub ? null : PADRAO);
+
+  cache.set(host, { empresa, em: Date.now() });
+  return empresa;
 }
 
 /**
@@ -35,9 +90,22 @@ export function resolverTenant(req) {
  * linha de outra empresa, mesmo que esqueça o filtro.
  */
 export function comEmpresa(db) {
-  return (req, res, next) => {
-    req.tenantId = resolverTenant(req);
-    db.comEmpresa(req.tenantId, () => new Promise(resolve => {
+  return async (req, res, next) => {
+    let empresa;
+    try { empresa = await resolverTenant(req, db); }
+    catch (erro) { return next(erro); }
+
+    if (!empresa) {
+      return res.status(404).json({ erro: 'não existe uma agenda neste endereço' });
+    }
+    // Empresa suspensa para de responder na porta, e não em cada rota: assim
+    // não há rota nova nascendo sem a checagem.
+    if (!empresa.ativo || empresa.status !== 'ativa') {
+      return res.status(403).json({ erro: 'esta agenda está temporariamente indisponível' });
+    }
+
+    req.tenantId = empresa.id;
+    db.comEmpresa(empresa.id, () => new Promise(resolve => {
       // A conexão só volta ao pool quando a resposta termina; até lá, toda
       // consulta da requisição sai dela. Vale para os dois desfechos: erro
       // tratado também gera resposta, e 'close' cobre cliente que desistiu.

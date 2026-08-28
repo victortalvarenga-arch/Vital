@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { migrar } from './lib/migrate.js';
-import { contexto, conexaoAtual } from './lib/contexto.js';
-import { TENANT_PADRAO, comPadroes } from './lib/tenant.js';
+import { contexto, conexaoAtual, empresaAtual } from './lib/contexto.js';
+import { comPadroes } from './lib/tenant.js';
 
 const { Pool, types } = pg;
 
@@ -176,16 +176,42 @@ export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().to
  * ------------------------------------------------------------------ */
 
 /**
+ * De qual empresa é a config desta chamada.
+ *
+ * `plataforma.tenants` é o único lugar do sistema SEM Row-Level Security — é
+ * cadastro nosso, não dado de negócio de ninguém. O preço disso é que aqui o
+ * banco não protege: uma consulta que erre a empresa lê e escreve a linha
+ * errada sem reclamar.
+ *
+ * Foi exatamente o que aconteceu enquanto havia uma empresa só: o padrão destes
+ * argumentos era `TENANT_PADRAO`, e ninguém passava nada. Com duas empresas, o
+ * site de uma mostraria a marca da outra e `PUT /api/config` de uma
+ * sobrescreveria a config da outra. Agora a empresa vem da conexão da
+ * requisição, como em todo o resto, e a falta dela é erro em vez de palpite.
+ */
+function empresaDaConfig(explicito) {
+  const id = explicito || empresaAtual();
+  if (!id) {
+    throw new Error(
+      'config sem empresa definida. Fora de uma requisição HTTP, ' +
+      'envolva em db.comEmpresa(id, fn).'
+    );
+  }
+  return id;
+}
+
+/**
  * Config vive em tenants.config, uma por empresa. O que o banco guarda é só o
  * que foi alterado; o resto chega de configPadrao, então campo novo aparece
  * sem migration.
  */
-export async function getConfig(tenantId = TENANT_PADRAO) {
-  const r = await db.get('SELECT config FROM plataforma.tenants WHERE id = ?', tenantId);
+export async function getConfig(tenantId) {
+  const r = await db.get('SELECT config FROM plataforma.tenants WHERE id = ?', empresaDaConfig(tenantId));
   return comPadroes(r?.config || {});
 }
 
-export async function setConfig(patch, tenantId = TENANT_PADRAO) {
+export async function setConfig(patch, tenantIdExplicito) {
+  const tenantId = empresaDaConfig(tenantIdExplicito);
   const r = await db.get('SELECT config FROM plataforma.tenants WHERE id = ?', tenantId);
   const salvo = r?.config || {};
 
@@ -201,8 +227,11 @@ export async function setConfig(patch, tenantId = TENANT_PADRAO) {
   return getConfig(tenantId);
 }
 
-export async function getTenant(tenantId = TENANT_PADRAO) {
-  const r = await db.get('SELECT id, slug, nome, dominio, plano, status, ativo FROM plataforma.tenants WHERE id = ?', tenantId);
+export async function getTenant(tenantId) {
+  const r = await db.get(
+    'SELECT id, slug, nome, dominio, plano, status, ativo FROM plataforma.tenants WHERE id = ?',
+    empresaDaConfig(tenantId)
+  );
   return r && { id: r.id, slug: r.slug, nome: r.nome, dominio: r.dominio,
     plano: r.plano, status: r.status, ativo: !!r.ativo };
 }
@@ -271,31 +300,37 @@ export const userOut = r => r && ({
  * Leituras compostas
  * ------------------------------------------------------------------ */
 
+/*
+ * Sem `WHERE tenant_id` nenhum, de propósito: quem filtra é o Row-Level
+ * Security, a partir da empresa marcada na conexão.
+ *
+ * Estas três consultas traziam o filtro escrito à mão, com a empresa padrão
+ * como valor default — e nunca ninguém passava outra. Com uma empresa só,
+ * inofensivo; com duas, a segunda via a lista vazia, porque o RLS já recortava
+ * para ela e o filtro escrito recortava de novo para a primeira. É a razão da
+ * regra do `CLAUDE.md`: `tenant_id` não se escreve em consulta.
+ */
+
 /** Lê serviços já com a lista de profissionais habilitados. */
-export async function listarServicos({ somenteAtivos = false, tenantId = TENANT_PADRAO } = {}) {
+export async function listarServicos({ somenteAtivos = false } = {}) {
   const rows = await db.all(
-    `SELECT * FROM services WHERE tenant_id = ? ${somenteAtivos ? 'AND ativo = 1' : ''}
-     ORDER BY ordem, nome`,
-    tenantId
+    `SELECT * FROM services ${somenteAtivos ? 'WHERE ativo = 1' : ''} ORDER BY ordem, nome`
   );
   const vinculos = await db.all('SELECT * FROM service_staff');
   return rows.map(r => serviceOut(r, vinculos.filter(v => v.service_id === r.id).map(v => v.staff_id)));
 }
 
-export async function listarUnidades({ somenteAtivas = false, tenantId = TENANT_PADRAO } = {}) {
+export async function listarUnidades({ somenteAtivas = false } = {}) {
   const rows = await db.all(
-    `SELECT * FROM units WHERE tenant_id = ? ${somenteAtivas ? 'AND ativo = 1' : ''}
-     ORDER BY ordem, nome`,
-    tenantId
+    `SELECT * FROM units ${somenteAtivas ? 'WHERE ativo = 1' : ''} ORDER BY ordem, nome`
   );
   return rows.map(unitOut);
 }
 
 /** Bloqueios de um intervalo de datas — o motor de horários consulta daqui. */
-export async function listarBloqueios({ de, ate, tenantId = TENANT_PADRAO }) {
+export async function listarBloqueios({ de, ate }) {
   const rows = await db.all(
-    'SELECT * FROM blocks WHERE tenant_id = ? AND data >= ? AND data <= ? ORDER BY data, hora_ini',
-    tenantId, de, ate
+    'SELECT * FROM blocks WHERE data >= ? AND data <= ? ORDER BY data, hora_ini', de, ate
   );
   return rows.map(blockOut);
 }

@@ -466,6 +466,51 @@ quem não pode; recusar na rota é o que impede a chamada direta. Um sem o outro
 agenda inteira que a rota filtrada escondia. Rota nova que devolve dado de
 agenda ou de dinheiro precisa passar por `escopoDe`.
 
+## De quem é a requisição
+
+`lib/tenant.js` é o único lugar que decide isso. Três caminhos, nesta ordem:
+domínio próprio (`agenda.estudiolume.com.br`), subdomínio nosso
+(`lume.vital.app`), e por último a empresa padrão — que é o caso de `localhost`
+e do apex.
+
+**Endereço que nomeia empresa inexistente devolve 404, não cai no padrão.**
+Cair seria servir o site de uma empresa no endereço de outra. E empresa
+suspensa para de responder na porta, no middleware, e não em cada rota: assim
+não há rota nova nascendo sem a checagem.
+
+O host resolvido fica num cache de 60 segundos — sem ele, cada imagem do site
+consultaria `plataforma.tenants`. O prazo é curto porque suspender uma empresa
+precisa surtir efeito sem reiniciar nada.
+
+**Atrás de proxy é preciso `TRUST_PROXY`.** Vercel e nginx entregam o host real
+em `X-Forwarded-Host`; sem a variável, o Express lê o host do proxy e toda
+requisição vira a empresa padrão. Ela fica desligada por padrão de propósito:
+ligada sem proxy na frente, qualquer cliente manda o cabeçalho e escolhe de qual
+empresa quer ser.
+
+### A armadilha do `plataforma.tenants`
+
+É a única tabela do sistema **sem** Row-Level Security — é cadastro nosso, não
+dado de negócio de ninguém, e a consulta que resolve a empresa acontece antes de
+existir empresa definida na conexão. O preço é que ali o banco não protege
+ninguém: uma consulta que erre a empresa lê e escreve a linha errada calada.
+
+Foi o que aconteceu enquanto havia uma empresa só. `getConfig()` e `setConfig()`
+tinham `TENANT_PADRAO` como valor padrão do argumento, e nenhum chamador passava
+nada; `listarServicos()`, `listarUnidades()` e `listarBloqueios()` traziam
+`WHERE tenant_id = ?` escrito à mão, com o mesmo padrão. Inofensivo com um
+cliente. Com dois, o site da segunda empresa mostraria a marca da primeira e
+**zero serviços** — porque o RLS já recortava para ela e o filtro escrito
+recortava de novo para a outra —, e `PUT /api/config` de uma reescreveria o site
+da outra.
+
+Hoje a config vem da empresa da conexão (`empresaAtual()`), e a falta dela é
+erro em vez de palpite. É também a razão da regra do `CLAUDE.md`: `tenant_id`
+não se escreve em consulta. Quem filtra é o banco.
+
+Nada disso deu erro em momento algum — o teste de isolamento é que achou, e por
+isso ele existe.
+
 ## Combos e promoções
 
 Pacote de serviços com preço fechado, mais barato que a soma dos avulsos. Serve
@@ -513,8 +558,9 @@ parado e vale empurrar junto.
 ## Testes
 
 `cd server && npm test`. Roda com o `node:test` nativo — sem framework, sem
-dependência a mais. Dois arquivos: o motor de horários, chamado direto, e as
-rotas de agendamento, faladas por HTTP.
+dependência a mais. Quatro arquivos: o motor de horários, chamado direto, e as
+rotas de agendamento, de combos e de isolamento entre empresas, faladas por
+HTTP.
 
 **Montar a aplicação e subir a aplicação são coisas separadas.** `app.js`
 exporta o Express montado; `index.js` roda as migrations, abre a porta e liga o

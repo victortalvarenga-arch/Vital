@@ -73,6 +73,9 @@ escrito, não aconteceu.
   passa por cima.
 - Nunca escreva `tenant_id` numa consulta — nem no `WHERE`, nem no `INSERT`. O
   banco filtra e preenche sozinho (Row-Level Security). Ver `ARQUITETURA.md`.
+- `plataforma.tenants` é a única tabela sem RLS, e por isso a única onde errar a
+  empresa passa calado. Nunca use `TENANT_PADRAO` como valor padrão de argumento
+  ali: a empresa vem de `empresaAtual()`, e a falta dela é erro.
 - Código que roda fora de uma requisição HTTP (cron, seed, script) precisa de
   `db.comEmpresa(id, fn)`, senão o banco não devolve nem aceita nada.
 - Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê

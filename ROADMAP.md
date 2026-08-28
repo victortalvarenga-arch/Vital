@@ -460,11 +460,15 @@ Antes ("multi-tenant operacional") envolvia criar arquivo e rodar migration por
 empresa. Com o Bloco 2 já pronto, cadastrar empresa nova é uma linha na tabela
 `tenants` — este bloco é sobre expor isso sem depender de nós.
 
-- [ ] Resolver a empresa pelo subdomínio
+- [x] Resolver a empresa pelo subdomínio e por domínio próprio, com 404 para
+      endereço de ninguém e 403 para empresa suspensa. Ver `ARQUITETURA.md`
 - [ ] Cadastro self-service: formulário público cria a linha em `tenants` e a
       empresa já começa a configurar sozinha
-- [ ] Isolamento entre empresas coberto por teste automatizado (duas empresas,
-      confirma que uma nunca vê a outra mesmo pedindo direto)
+- [x] Isolamento entre empresas coberto por teste automatizado — duas empresas
+      de verdade, pedindo pelo id exato da outra, mais uma checagem estrutural
+      de que toda tabela de negócio tem a política ligada e forçada. Achou dois
+      vazamentos reais no primeiro dia: a config e o catálogo apontando sempre
+      para a empresa padrão
 
 ### Bloco 10 — Painel da plataforma (nosso back-office)
 Não existe hoje nenhuma versão disto. Interface só nossa, separada do painel de
