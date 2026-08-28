@@ -9,6 +9,9 @@
   --marca-escura: #7E1E3C;
   --marca-clara: #F6E9ED;
   --marca-borda: #E4C7CF;
+  /* Precisa existir aqui também: tema.js só roda depois que a vitrine responde,
+     e sem o padrão o bloco de serviços pisca sem fundo no primeiro quadro. */
+  --marca-fundo: #FBF4F6;
   --sobre-marca: #FFFFFF;
   --fundo: #FFFFFF;
   --texto: #1A1A1A;
@@ -67,11 +70,22 @@ img { max-width: 100%; display: block; }
 .b-larg { width: 100%; }
 
 /* ── capa e identidade ── */
-.capa { position: relative; height: 190px; background: var(--marca-clara); overflow: hidden; }
-.capa img { width: 100%; height: 100%; object-fit: cover; }
+.capa { position: relative; height: 260px; background: var(--marca-clara); overflow: hidden; }
+/* Zoom lento na entrada, uma vez só. Dá vida à capa sem depender do scroll,
+   que no celular engasga e embrulha o estômago de quem é sensível. */
+.capa img {
+  width: 100%; height: 100%; object-fit: cover;
+  animation: aproxima 1.4s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes aproxima { from { transform: scale(1.08) } to { transform: none } }
 .capa-vazia { width: 100%; height: 100%; background: linear-gradient(135deg, var(--marca-clara), var(--marca-borda)); }
+/* Escurece a base da capa para o logo branco não sumir numa foto clara. */
+.capa-veu {
+  position: absolute; inset: auto 0 0 0; height: 60%;
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,.18));
+}
 
-.identidade { text-align: center; margin-top: -46px; position: relative; z-index: 1; }
+.identidade { text-align: center; margin-top: -52px; position: relative; z-index: 1; padding-bottom: 44px; }
 .logo {
   width: 92px; height: 92px; border-radius: 50%; margin: 0 auto 16px;
   background: var(--fundo); border: 3px solid var(--fundo);
@@ -89,24 +103,72 @@ img { max-width: 100%; display: block; }
 .identidade .local:hover { color: var(--marca); }
 .chamada { margin: 26px 0 6px; }
 
-/* ── seções ── */
-.sec { padding: 34px 0; }
-.sec + .sec { border-top: 1px solid var(--linha); }
-.sec-titulo {
-  font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--fraco); margin-bottom: 16px;
+/* ── blocos ──
+   A página é uma pilha de faixas, cada uma com o próprio fundo. Separa os
+   assuntos sem precisar de linha divisória e dá ritmo à rolagem. */
+.bloco { padding: 52px 0; }
+.bloco-marca { background: var(--marca-fundo); }
+.rodape { background: var(--superficie); }
+
+.bloco-titulo {
+  font-size: 26px; text-align: center; margin-bottom: 30px; letter-spacing: -.02em;
 }
-.sec.sobre p { color: var(--cinza); font-size: 15.5px; line-height: 1.65; }
+.bloco-titulo.pequeno {
+  font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--fraco); text-align: left; margin-bottom: 16px;
+}
+.sobre { color: var(--cinza); font-size: 15.5px; line-height: 1.65; text-align: center; }
 
 /* revelar ao rolar: sutil de propósito — a página existe para agendar rápido,
    não para impressionar. Some inteiro para quem pediu menos movimento. */
-.revela { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease; }
+.revela { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s cubic-bezier(.22,1,.36,1); }
 .revela.visivel { opacity: 1; transform: none; }
-.atraso-1 { transition-delay: .05s; }
-.atraso-2 { transition-delay: .10s; }
-.atraso-3 { transition-delay: .15s; }
-.atraso-4 { transition-delay: .20s; }
-.atraso-5 { transition-delay: .25s; }
+.atraso-1 { transition-delay: .06s; }
+.atraso-2 { transition-delay: .12s; }
+.atraso-3 { transition-delay: .18s; }
+.atraso-4 { transition-delay: .24s; }
+.atraso-5 { transition-delay: .30s; }
+
+/* ── barra sobre a capa ── */
+.barra {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+  transition: background .25s ease, box-shadow .25s ease, border-color .25s ease;
+  border-bottom: 1px solid transparent;
+  padding-top: env(safe-area-inset-top);
+}
+/* Sobre a foto: um véu escuro garante leitura seja qual for a capa. */
+.barra::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,.42), rgba(0,0,0,0));
+  transition: opacity .25s ease;
+}
+.barra.firme { background: var(--fundo); border-bottom-color: var(--linha); box-shadow: 0 1px 12px -6px rgba(0,0,0,.3); }
+.barra.firme::before { opacity: 0; }
+
+.barra-in {
+  position: relative; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; height: 62px;
+}
+.barra-marca { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.barra-logo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex: none; }
+.barra-nome {
+  font-weight: 700; font-size: 15.5px; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .25s ease;
+}
+.barra.firme .barra-nome { color: var(--texto); }
+
+.barra-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
+.barra-link {
+  display: inline-flex; align-items: center; gap: 7px; color: #fff;
+  font-size: 14px; font-weight: 600; text-decoration: none;
+  padding: 0 10px; min-height: 44px; border-radius: 10px;
+  transition: color .25s ease, background .15s ease;
+}
+.barra.firme .barra-link { color: var(--cinza); }
+.barra-link:hover { background: rgba(255,255,255,.16); }
+.barra.firme .barra-link:hover { background: var(--superficie); color: var(--marca); }
+@media (max-width: 520px) { .barra-link span { display: none; } }
 
 /* ── serviços ── */
 .cat { font-size: 18px; margin: 4px 0 14px; }
@@ -177,7 +239,7 @@ img { max-width: 100%; display: block; }
 .ajuda { font-size: 13px; color: var(--fraco); margin: -6px 0 14px; }
 
 /* ── rodapé ── */
-.rodape { background: var(--superficie); padding: 32px 0 40px; margin-top: 20px; border-top: 1px solid var(--linha); }
+.rodape { border-top: 1px solid var(--linha); }
 .rodape-links { display: flex; flex-direction: column; gap: 12px; }
 .rodape-link {
   display: flex; align-items: center; gap: 10px; color: var(--texto);

@@ -151,6 +151,21 @@ derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
 nenhum rebuild por cliente. É o que permite a empresa escolher a própria paleta
 em Configurações → Site da cliente.
 
+**A home é uma pilha de blocos, cada um com o próprio fundo.** Separa os
+assuntos sem linha divisória e dá ritmo à rolagem. O bloco de serviços usa um
+tom bem lavado da cor da marca (`--marca-fundo`, 94% em direção ao branco): a
+cor varia de cliente para cliente, e um tom saturado quebraria o contraste do
+texto escuro para metade das marcas possíveis. O token também tem valor padrão
+no CSS, porque `tema.js` só roda depois que a vitrine responde — sem isso o
+bloco pisca sem fundo no primeiro quadro.
+
+**A barra do topo flutua sobre a capa e se firma ao rolar.** Sobre a foto ela é
+transparente com um véu escuro por baixo do texto: não dá para saber que imagem
+a empresa vai subir, e texto branco sobre capa clara seria ilegível. Passados
+120px, vira sólida. O acesso à conta da cliente entra aqui quando o login do
+Bloco 5 existir — um botão que não leva a lugar nenhum seria pior que a
+ausência dele.
+
 **As linhas da grade são montadas no código, não deixadas para o navegador.**
 `flex-wrap` enche cada linha até acabar o espaço e joga o resto na última: 13
 itens onde cabem 6 viram 6 + 6 + 1, com um círculo sozinho no fim. Varrendo

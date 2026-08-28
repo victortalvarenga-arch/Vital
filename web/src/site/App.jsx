@@ -48,6 +48,48 @@ export default function App() {
   );
 }
 
+/**
+ * Barra que flutua sobre a capa e se firma ao rolar.
+ *
+ * Sobre a foto ela é transparente, com um véu escuro por baixo do texto —
+ * capa clara com texto branco seria ilegível, e não dá para saber que foto a
+ * empresa vai subir. Passado o topo, vira sólida.
+ */
+function BarraTopo({ negocio, marca, aoAgendar }) {
+  const [firme, setFirme] = useState(false);
+
+  useEffect(() => {
+    const aoRolar = () => setFirme(window.scrollY > 120);
+    aoRolar();
+    window.addEventListener('scroll', aoRolar, { passive: true });
+    return () => window.removeEventListener('scroll', aoRolar);
+  }, []);
+
+  return (
+    <header className={'barra' + (firme ? ' firme' : '')}>
+      <div className="env-largo barra-in">
+        <div className="barra-marca">
+          {marca?.logo && <img className="barra-logo" src={marca.logo} alt="" />}
+          <span className="barra-nome">{negocio.nome}</span>
+        </div>
+        <nav className="barra-acoes">
+          {negocio.whatsapp && (
+            <a className="barra-link" href={`https://wa.me/55${soDigitos(negocio.whatsapp)}`}
+               target="_blank" rel="noreferrer">
+              <MessageCircle size={16} /> <span>Falar</span>
+            </a>
+          )}
+          {/* "Minha conta" entra com o login da cliente (Bloco 5 do ROADMAP).
+              Um botão que não leva a lugar nenhum seria pior que a ausência. */}
+          <button className="b b-p b-peq" onClick={() => aoAgendar(null)}>
+            <Calendar size={15} /> Agendar
+          </button>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
 /* ── revelar ao rolar ──────────────────────────────────────────────
    Discreto de propósito: a página existe para agendar rápido, não para
    impressionar. Quem pediu menos movimento no sistema não vê nada. */
@@ -91,9 +133,12 @@ function Home({ dados, aoAgendar }) {
 
   return (
     <main>
-      <header className="capa">
+      <BarraTopo negocio={negocio} marca={marca} aoAgendar={aoAgendar} />
+
+      <div className="capa">
         {marca?.capa ? <img src={marca.capa} alt="" /> : <div className="capa-vazia" />}
-      </header>
+        <div className="capa-veu" aria-hidden="true" />
+      </div>
 
       <div className="env identidade">
         <Logo marca={marca} nome={negocio.nome} />
@@ -114,22 +159,24 @@ function Home({ dados, aoAgendar }) {
       </div>
 
       {negocio.sobre && (
-        <div className="env">
-          <Revela>
-            <section className="sec sobre"><p>{negocio.sobre}</p></section>
-          </Revela>
-        </div>
+        <section className="bloco">
+          <div className="env">
+            <Revela><p className="sobre">{negocio.sobre}</p></Revela>
+          </div>
+        </section>
       )}
 
-      <div className="env-largo">
-        <section className="sec">
-          <h2 className="sec-titulo">Serviços</h2>
+      {/* Bloco com fundo próprio: separa os serviços do resto sem precisar de
+          linha divisória, e é o pedaço que a pessoa veio ver. */}
+      <section className="bloco bloco-marca">
+        <div className="env-largo">
+          <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>
           {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
           {exibir?.categorias && categorias.length > 1
             ? <PorCategoria categorias={categorias} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />
             : <Servicos itens={servicos} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />}
-        </section>
-      </div>
+        </div>
+      </section>
 
       <Rodape negocio={negocio} textos={textos} />
     </main>
@@ -236,9 +283,9 @@ function Servicos({ itens, exibir, textos, aoAgendar }) {
 function Rodape({ negocio, textos }) {
   const NOMES_PAG = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
   return (
-    <footer className="rodape">
+    <footer className="bloco rodape">
       <div className="env">
-        <h2 className="sec-titulo">Contato</h2>
+        <h2 className="bloco-titulo pequeno">Contato</h2>
         <div className="rodape-links">
           {negocio.endereco && (
             <a className="rodape-link"

@@ -34,6 +34,10 @@ export function aplicarTema(marca = {}) {
   r.setProperty('--marca-escura', mistura(primaria, -0.25));
   r.setProperty('--marca-clara', mistura(primaria, 0.88));
   r.setProperty('--marca-borda', mistura(primaria, 0.72));
+  // Fundo de bloco: bem lavado de propósito. A cor da marca varia de cliente
+  // para cliente, e texto escuro precisa continuar legível sobre qualquer uma
+  // delas — um tom saturado quebraria o contraste para metade das marcas.
+  r.setProperty('--marca-fundo', mistura(primaria, 0.94));
   r.setProperty('--sobre-marca', contraste(primaria));
   r.setProperty('--fundo', marca.corFundo || '#FFFFFF');
   r.setProperty('--texto', marca.corTexto || '#1A1A1A');
