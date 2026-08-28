@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { api } from '../shared/painel-api.js';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
+import Usuarios from './Usuarios.jsx';
 import { prepararImagem } from '../shared/imagem.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut
+  Upload, Image as ImageIcon, LogOut, KeyRound
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -167,6 +168,7 @@ function Painel({ sessao, aoSair }) {
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
       ...(p.site ? [{ k: 'site', nome: 'Site da cliente', icon: Globe }] : []),
+      ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
     ] },
   ].filter(g => g.itens.length);
 
@@ -223,6 +225,9 @@ function Painel({ sessao, aoSair }) {
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}
         {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
+        {secao === 'usuarios' && p.equipe && (
+          <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} />
+        )}
       </main>
 
       {toast && <div className="p-aviso"><Check size={17} />{toast}</div>}

@@ -13,7 +13,7 @@ import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
 import { uploads, PASTA as PASTA_UPLOADS } from './routes/uploads.js';
 import { auth } from './routes/auth.js';
-import { sessaoDe, NOME_COOKIE, exige } from './lib/auth.js';
+import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { iniciarJobs } from './jobs/mensagens.js';
 import { rota } from './lib/rota.js';
 import { comEmpresa } from './lib/tenant.js';
@@ -90,12 +90,17 @@ app.use('/api/mensagens', mensagens);
  */
 app.get('/api/estado', rota(async (req, res) => {
   const h = hoje();
+  // Mesmo recorte da rota de agenda: o bootstrap não pode ser a porta dos
+  // fundos que devolve o que a rota filtrada esconde.
+  const so = escopoDe(req.usuario);
   const [config, servicos, equipe, clientela, agenda, modelos] = await Promise.all([
     getConfig(),
     listarServicos(),
     db.all('SELECT * FROM staff ORDER BY nome'),
     db.all('SELECT * FROM clients ORDER BY nome'),
-    db.all('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora', addDias(h, -120)),
+    so
+      ? db.all('SELECT * FROM appointments WHERE data >= ? AND staff_id = ? ORDER BY data, hora', addDias(h, -120), so)
+      : db.all('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora', addDias(h, -120)),
     db.all('SELECT * FROM templates ORDER BY tipo, titulo'),
   ]);
   res.json({

@@ -90,9 +90,10 @@ escrito, não aconteceu.
 - **Mobile primeiro.** Quase todo agendamento sai do celular, e site e painel
   vão virar app (Capacitor) no futuro: nada que dependa de mouse — sem hover
   como única pista, sem botão direito, alvo de toque confortável.
-- **Pense em papel, não em "o usuário".** Cada empresa tem dono, gerente e
-  funcionário, com permissões diferentes. Esconder botão não é controle de
-  acesso: a rota também precisa recusar.
+- **Pense em papel, não em "o usuário".** Cada empresa tem dono e funcionário,
+  com permissões diferentes — e o funcionário vê só o que é dele. Esconder
+  botão não é controle de acesso: a rota também precisa recusar, e rota que
+  devolve agenda ou dinheiro passa por `escopoDe`.
 - **Pense em muitas empresas.** A pergunta é sempre "isso funciona para uma
   Vital com 200 clientes, ou só para um estúdio?".
 

@@ -359,7 +359,7 @@ criados cedo para não exigir migração depois.
 
 | | Quem | Como entra | Existe hoje? |
 |---|---|---|---|
-| **Painel** | Equipe da empresa: dono, gerente, funcionário | E-mail e senha | Sim |
+| **Painel** | Equipe da empresa: dono e funcionário | E-mail e senha | Sim |
 | **Site** | A cliente que agenda | Não entra: informa o WhatsApp na hora de marcar | Não há login |
 
 A cliente **não cria conta**. Ela digita o WhatsApp, e se já agendou antes o
@@ -372,7 +372,8 @@ não uma exigência: agendar só com o WhatsApp continua funcionando ao lado. A
 equipe nunca entra por Google; o painel é e-mail e senha.
 
 **Ninguém da equipe se cadastra sozinho.** O primeiro acesso cria o dono, e daí
-em diante é o dono (ou o gerente) que convida os outros. Um painel onde
+em diante é o dono que convida os outros, em Configurações → Acesso ao painel.
+Um painel onde
 qualquer um cria conta é um painel aberto.
 
 Login com senha (argon2id) e sessão em cookie `httpOnly`. Três decisões e o
@@ -403,21 +404,34 @@ nenhum usuário, a tela oferece criar o dono; havendo um, a rota passa a recusar
 
 ### Papéis
 
-| | dono | gerente | funcionário |
-|---|---|---|---|
-| Configurar o site | sim | não | não |
-| Financeiro | sim | sim | não |
-| Cadastros (serviços) | sim | sim | não |
-| Equipe e usuários | sim | sim | não |
-| Agenda de outros | sim | sim | não |
-| Agenda e clientes | sim | sim | sim |
+Dois, de propósito. Um "gerente" existiu como meio-termo e saiu: estúdio pequeno
+não tem essa pessoa, e cada papel a mais é uma regra a manter coerente entre
+tela e rota. Voltar a criar um é barato se o caso aparecer.
 
-A tabela vive em `lib/auth.js`, num objeto só, para a regra não se espalhar.
+| | dono | funcionário |
+|---|---|---|
+| Configurar o site | sim | não |
+| Cadastros, equipe e acesso | sim | não |
+| Agenda | de todos | **a própria** |
+| Financeiro | do negócio | **o próprio** |
+
+**Funcionário TEM financeiro — o dele.** A própria produção e a própria
+comissão, não o caixa da empresa. É informação que ele tem direito de
+acompanhar sem ver o faturamento alheio, e negar isso empurraria a conversa
+para o WhatsApp toda vez.
+
+Quem decide o recorte é `escopoDe(usuario)`, num lugar só: devolve `null` para
+quem vê tudo, ou o id do profissional para quem vê só o próprio. As rotas de
+agenda e de relatório passam por ele em vez de decidir cada uma. Um funcionário
+sem vínculo com a equipe recebe um id impossível — **falha fechada**: devolver
+`null` ali abriria o negócio inteiro por um cadastro incompleto.
 
 **Cada regra vale na tela e na rota.** Esconder o botão evita erro feio para
 quem não pode; recusar na rota é o que impede a chamada direta. Um sem o outro
-é enganoso — e o teste pegou exatamente isso: na primeira versão a funcionária
-não via o menu do financeiro, mas acessava `/api/relatorios/resumo` à vontade.
+é enganoso — e o teste pegou exatamente isso duas vezes: a funcionária acessando
+`/api/relatorios/resumo` sem ver o menu, e depois `/api/estado` devolvendo a
+agenda inteira que a rota filtrada escondia. Rota nova que devolve dado de
+agenda ou de dinheiro precisa passar por `escopoDe`.
 
 ## WhatsApp
 

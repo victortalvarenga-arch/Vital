@@ -96,10 +96,11 @@ auth.post('/usuarios', exige('equipe'), rota(async (req, res) => {
     return res.status(400).json({ erro: 'informe nome, e-mail e senha de ao menos 8 caracteres' });
   }
   if (!PODERES[papel]) return res.status(400).json({ erro: 'papel inválido' });
-  // Só dono cria outro dono: gerente promovendo alguém a dono contornaria o
-  // próprio limite dele.
-  if (papel === 'dono' && req.usuario.papel !== 'dono') {
-    return res.status(403).json({ erro: 'só o dono pode criar outro dono' });
+  // Funcionário enxerga "o que é meu" — a própria agenda, a própria produção.
+  // Sem dizer quem ele é na equipe, "o meu" não tem resposta e ele entra num
+  // painel vazio sem entender por quê.
+  if (papel === 'funcionario' && !profissionalId) {
+    return res.status(400).json({ erro: 'escolha qual profissional da equipe é esta pessoa' });
   }
 
   const existe = await db.get('SELECT id FROM users WHERE email = ?', String(email).toLowerCase().trim());
@@ -121,12 +122,27 @@ auth.put('/usuarios/:id', exige('equipe'), rota(async (req, res) => {
   const b = req.body || {};
 
   if (b.papel && !PODERES[b.papel]) return res.status(400).json({ erro: 'papel inválido' });
-  if ((b.papel === 'dono' || alvo.papel === 'dono') && req.usuario.papel !== 'dono') {
-    return res.status(403).json({ erro: 'só o dono mexe em outro dono' });
-  }
-  // Desligar a si mesmo tranca a pessoa para fora do próprio painel.
+
+  const papelFinal = b.papel ?? alvo.papel;
+  const vinculoFinal = b.profissionalId !== undefined ? b.profissionalId : alvo.staff_id;
+
+  // As travas de "não se tranque para fora" vêm ANTES da validação de vínculo:
+  // quem tenta se rebaixar precisa ler o motivo real, não um pedido de
+  // preencher campo que nem deveria estar preenchendo.
   if (alvo.id === req.usuario.id && b.ativo === false) {
     return res.status(400).json({ erro: 'você não pode desativar a própria conta' });
+  }
+  if (alvo.id === req.usuario.id && papelFinal !== alvo.papel) {
+    return res.status(400).json({ erro: 'você não pode mudar o próprio nível de acesso' });
+  }
+  // Sempre precisa sobrar um dono ativo, senão a empresa perde o painel.
+  if (alvo.papel === 'dono' && (papelFinal !== 'dono' || b.ativo === false)) {
+    const { n } = await db.get(`SELECT COUNT(*) n FROM users WHERE papel='dono' AND ativo=1`);
+    if (n <= 1) return res.status(400).json({ erro: 'esta é a única conta de dono ativa' });
+  }
+
+  if (papelFinal === 'funcionario' && !vinculoFinal) {
+    return res.status(400).json({ erro: 'escolha qual profissional da equipe é esta pessoa' });
   }
 
   await db.run(

@@ -3,6 +3,7 @@ import { db, uid, apptOut, staffOut } from '../db.js';
 import { hoje, agora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
+import { escopoDe } from '../lib/auth.js';
 import { validarAdicionais, gravarAdicionais } from '../lib/adicionais.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 
@@ -34,6 +35,10 @@ agendamentos.get('/horarios', rota(async (req, res) => {
 agendamentos.get('/', rota(async (req, res) => {
   const { data, de, ate, profissionalId, clienteId } = req.query;
   const cond = [], args = [];
+  // Funcionário só enxerga a própria agenda — e o recorte é imposto aqui, não
+  // aceito do filtro que o front mandou.
+  const so = escopoDe(req.usuario);
+  if (so) { cond.push('staff_id = ?'); args.push(so); }
   if (data) { cond.push('data = ?'); args.push(data); }
   if (de) { cond.push('data >= ?'); args.push(de); }
   if (ate) { cond.push('data <= ?'); args.push(ate); }

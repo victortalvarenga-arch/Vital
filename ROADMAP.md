@@ -88,11 +88,11 @@ tabela `users` (Bloco 0) já tem a coluna `papel`; falta o significado de cada
 um. Três papéis para começar, com regra concreta, não só nome:
 
 - **Dono** — vê e edita tudo, inclusive financeiro e a configuração do site.
-- **Gerente** — opera o dia a dia: agenda de qualquer profissional, cadastros,
-  financeiro. Não edita a aparência do site.
-- **Funcionário** — só a própria agenda. **Não edita a configuração do site**,
-  e **não bloqueia horário de outro profissional** (tabela `blocks`) — só o
-  próprio.
+- **Funcionário** — a própria agenda e a própria produção. Não edita a
+  configuração do site nem cadastros, e não bloqueia horário de outro
+  profissional (tabela `blocks`) — só o próprio.
+
+Implementado no Bloco 3b. O "gerente" foi removido: ver `ARQUITETURA.md`.
 
 Cada regra dessas precisa existir tanto na tela (esconder o que não pode) quanto
 na rota (recusar mesmo se a chamada chegar direto) — esconder botão não é
@@ -224,13 +224,14 @@ Detalhes em `ARQUITETURA.md`, seção "Autenticação e papéis".
 
 - [x] Login com argon2id e sessão em cookie `httpOnly`; o `ADMIN_TOKEN` saiu
 - [x] Sessão em tabela, não JWT — a Vital precisa conseguir derrubar acesso
-- [x] Papéis com regra: dono configura o site; gerente opera tudo menos o site;
-      funcionário vê agenda e clientes, e mais nada
+- [x] Dois papéis: dono vê o negócio inteiro; funcionário vê o que é dele —
+      a própria agenda e a própria produção, incluindo comissão
 - [x] Cada regra vale na tela **e** na rota
 - [x] Primeiro acesso aberto, fechando sozinho quando surge o primeiro usuário
 - [x] Rotas para o dono convidar e editar a equipe do painel
-- [ ] Tela de gestão de usuários no painel — as rotas existem, falta o CRUD
-      visual. Hoje só o primeiro acesso é criado pela tela.
+- [x] Tela "Acesso ao painel": criar, editar, trocar senha, ativar e desativar
+- [x] Travas contra se trancar para fora: não dá para desativar nem mudar o
+      próprio nível, e sempre sobra um dono ativo
 - [ ] "Esqueci minha senha" — depende de envio de e-mail, que o projeto ainda
       não tem. Enquanto isso, o dono redefine pela rota de edição.
 

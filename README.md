@@ -42,9 +42,10 @@ Contas deste ambiente de desenvolvimento (senha `vital1234` nas três):
 
 | E-mail | Papel | Vê |
 |---|---|---|
-| `dono@vital.com` | dono | tudo, inclusive o site |
-| `gerente@vital.com` | gerente | tudo menos configurar o site |
-| `funcionaria@vital.com` | funcionário | só agenda e clientes |
+| `dono@vital.com` | dono | o negócio inteiro |
+| `funcionaria@vital.com` | funcionário | a própria agenda e a própria produção |
+
+Novas pessoas entram pelo painel, em **Configurações → Acesso ao painel**.
 
 ## Comandos
 
