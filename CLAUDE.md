@@ -72,6 +72,10 @@ escrito, não aconteceu.
   as suas. Use texto livre com sugestões do que já existe.
 - Imagem sempre passa por `shared/imagem.js` antes de subir, e o nome do
   arquivo é decidido pelo servidor, nunca pelo cliente.
+- **Nunca grave dado com acento pela API usando PowerShell.** `Invoke-WebRequest`
+  com `ConvertTo-Json` corrompe UTF-8 no corpo da requisição: "Depilação" virou
+  "Depila��o" no banco, e só apareceu na tela. Para escrever dado de
+  teste, use um script Node (`node arquivo.mjs`), que serializa certo.
 
 ## Ao construir telas novas
 
