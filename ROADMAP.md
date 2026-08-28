@@ -519,8 +519,10 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] **A senha do Postgres local é `vitaldev`**, escrita em `server/.env`.
       É senha de desenvolvimento; em produção vem do cofre de variáveis do
       provedor, nunca de arquivo.
-- [ ] **O front ainda embute o token do painel no bundle.** Enquanto o Bloco 3
-      não separar as áreas, publicar o site expõe o acesso ao painel.
+- [x] ~~O front embutia o token do painel no bundle.~~ Resolvido nos Blocos 3 e
+      3b: a sessão é cookie `httpOnly`, que o JavaScript não lê, e o bundle do
+      site nunca importa `painel-api.js`. Não há credencial de painel no código
+      publicado — confirmado por varredura.
 - [ ] `CORS_ORIGIN` precisa apontar para o domínio real, não `localhost`.
 - [ ] Conferir que nenhum log imprime a `DATABASE_URL` inteira (o boot já
       mascara a senha — manter assim ao mexer nele).
