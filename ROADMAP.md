@@ -490,7 +490,10 @@ Terceiro bundle (`vital.html`), com a nossa marca. Detalhes em `ARQUITETURA.md`.
 - [x] Totais da plataforma, inclusive quantas empresas nunca tiveram um
       agendamento, que é o número que diz se o produto pegou
 - [x] Suspender / reativar, com efeito imediato no site e no painel da empresa
-- [x] Registro de auditoria de tudo que a nossa equipe faz sobre uma empresa
+- [x] Registro de auditoria de tudo que a nossa equipe faz sobre uma empresa, e
+      do nascimento de cada empresa. Empresas anteriores a este painel não têm
+      registro de criação, e nenhum foi inventado para elas
+- [x] Link direto para o site e o painel de cada empresa
 - [x] Responsivo mobile + web
 - [ ] **Receita recorrente.** Depende de haver cobrança: hoje `plano` é um texto
       livre, sem preço nem ciclo. Entra junto do pagamento

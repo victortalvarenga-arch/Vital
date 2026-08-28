@@ -40,6 +40,9 @@ beforeEach(async () => {
     });
     await db.db.run('DELETE FROM sessoes WHERE tenant_id = ?', id);
     // Pela conexão de administrador: a aplicação não pode apagar empresa.
+    // A auditoria sai primeiro — a chave estrangeira impede apagar uma empresa
+    // e deixar o histórico dela órfão, que é o comportamento desejado.
+    await comoAdmin('DELETE FROM plataforma.auditoria WHERE tenant_id = $1', id);
     await comoAdmin('DELETE FROM plataforma.tenants WHERE id = $1', id);
   }
   tenant.esquecerCacheDeEmpresas();

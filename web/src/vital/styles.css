@@ -189,3 +189,9 @@ h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 600; }
   display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 50;
 }
 .v-toast.erro { background: var(--v-erro); cursor: pointer; }
+.v-endereco-linha { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.v-link {
+  display: inline-flex; align-items: center; gap: 4px; color: var(--v-marca);
+  text-decoration: none; font-weight: 600;
+}
+.v-link:hover { text-decoration: underline; }

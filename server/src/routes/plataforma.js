@@ -94,6 +94,11 @@ plataforma.get('/empresas', exigeVital, exigePoder('verEmpresas'), rota(async (r
     const n = porId.get(t.id) || {};
     return {
       id: t.id, slug: t.slug, nome: t.nome, dominio: t.dominio || null,
+      // O endereço navegável, montado aqui porque só o servidor sabe em que
+      // domínio as empresas vivem. Em desenvolvimento não há `BASE_DOMINIO`, e
+      // `<slug>.localhost` resolve sozinho no navegador — é como se abre o site
+      // de uma segunda empresa sem DNS nenhum.
+      url: enderecoDe(req, t),
       plano: t.plano, status: t.status, ativo: !!t.ativo, desde: t.criado_em,
       clientes: n.clientes ?? 0,
       profissionais: n.profissionais ?? 0,
@@ -103,6 +108,22 @@ plataforma.get('/empresas', exigeVital, exigePoder('verEmpresas'), rota(async (r
     };
   }));
 }));
+
+/**
+ * De onde a empresa é acessível, do ponto de vista de quem está olhando a tela.
+ *
+ * Domínio próprio ganha da nossa base. Sem `BASE_DOMINIO` — desenvolvimento —,
+ * o subdomínio de `localhost` na mesma porta de onde veio a requisição.
+ */
+function enderecoDe(req, t) {
+  if (t.dominio) return `${req.protocol}://${t.dominio}`;
+  const base = process.env.BASE_DOMINIO;
+  if (base) return `${req.protocol}://${t.slug}.${base}`;
+  // `req.headers.host` traz a porta; `req.hostname`, não — e é a porta do Vite
+  // que importa aqui, não a da API.
+  const porta = String(req.headers.origin || req.headers.referer || '').match(/:(\d+)/)?.[1];
+  return `http://${t.slug}.localhost${porta ? ':' + porta : ''}`;
+}
 
 plataforma.get('/resumo', exigeVital, exigePoder('verEmpresas'), rota(async (req, res) => {
   const t = await db.get(

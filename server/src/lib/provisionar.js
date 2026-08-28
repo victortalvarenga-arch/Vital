@@ -2,6 +2,7 @@ import { db, uid } from '../db.js';
 import { hoje } from './dates.js';
 import { TEMPLATES_PADRAO } from './templates.js';
 import { esquecerCacheDeEmpresas } from './tenant.js';
+import { registrar } from './plataforma.js';
 
 /**
  * Fazer nascer uma empresa.
@@ -50,8 +51,9 @@ async function slugLivre(desejado) {
  * @param {string} o.nome    como o negócio se chama
  * @param {string} [o.ramo]  texto livre; guardado na config para o assistente
  * @param {string} [o.slug]  endereço desejado; sai do nome quando não vem
+ * @param {string} [o.origem] de onde veio: 'auto-cadastro', 'seed', 'suporte'
  */
-export async function provisionarEmpresa({ nome, ramo = '', slug, plano = 'gratuito' }) {
+export async function provisionarEmpresa({ nome, ramo = '', slug, plano = 'gratuito', origem = 'auto-cadastro' }) {
   const limpo = String(nome || '').trim();
   if (limpo.length < 2) return { erro: 'informe o nome do negócio' };
 
@@ -73,6 +75,14 @@ export async function provisionarEmpresa({ nome, ramo = '', slug, plano = 'gratu
         uid(), t.chave, t.titulo, t.quando, t.tipo, t.texto
       );
     }
+  });
+
+  // Empresa nascendo é o evento mais importante da vida da plataforma e não
+  // deixava rastro nenhum — nem o auto-cadastro, nem nada. `usuario_id` fica
+  // nulo porque não foi a nossa equipe que fez: foi ela mesma.
+  await registrar({
+    usuarioId: null, tenantId: id, acao: 'empresa_criada',
+    detalhe: { nome: limpo, ramo, slug: enderecoLivre, origem },
   });
 
   // A resolução por endereço guarda host → empresa por um minuto; sem isto, o

@@ -172,6 +172,7 @@ describe('os totais da plataforma', () => {
     await criarEmpresa(db, { id: 'empresa-c', slug: 'nova', nome: 'Recém-chegada' });
     const { corpo } = await eu('GET', '/api/plataforma/resumo');
     assert.equal(corpo.semNenhumAgendamento, 1);
+    await comoAdmin(`DELETE FROM plataforma.auditoria WHERE tenant_id = 'empresa-c'`);
     await comoAdmin(`DELETE FROM plataforma.tenants WHERE id = 'empresa-c'`);
   });
 });

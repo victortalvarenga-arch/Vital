@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Ban, Building2, Check, LogIn, LogOut, PlayCircle, ScrollText, TriangleAlert, Users,
+  Ban, Building2, Check, ExternalLink, LogIn, LogOut, PlayCircle, ScrollText, TriangleAlert,
 } from 'lucide-react';
 import { api } from './api.js';
 
@@ -188,7 +188,17 @@ function Painel({ sessao, aoSair }) {
                       {e.status !== 'ativa' && <span className="v-tag">{e.status}</span>}
                     </h3>
                     <span className="v-endereco-linha">
-                      {e.dominio || `${e.slug}.vital.app`} · desde {e.desde}
+                      {/* Os dois destinos que a gente de fato abre ao dar
+                          suporte: o site que a cliente dela vê, e o painel em
+                          que ela trabalha. Sem isto, era copiar o endereço à
+                          mão e torcer para acertar o subdomínio. */}
+                      <a className="v-link" href={e.url} target="_blank" rel="noreferrer">
+                        <ExternalLink size={12} /> site
+                      </a>
+                      <a className="v-link" href={`${e.url}/painel.html`} target="_blank" rel="noreferrer">
+                        <ExternalLink size={12} /> painel
+                      </a>
+                      <span>desde {e.desde}</span>
                     </span>
                   </div>
 
@@ -227,15 +237,22 @@ function Painel({ sessao, aoSair }) {
         {aba === 'rastro' && (
           <div className="v-tabela">
             <p className="v-sub" style={{ fontSize: 13.5 }}>
-              Toda ação nossa sobre uma empresa fica registrada. Abrir o dado de
-              alguém para dar suporte é legítimo; fazer isso sem deixar rastro, não.
+              Toda ação nossa sobre uma empresa fica registrada, e o nascimento
+              de cada empresa também. Abrir o dado de alguém para dar suporte é
+              legítimo; fazer isso sem deixar rastro, não.
+            </p>
+            <p className="v-nota" style={{ marginBottom: 14 }}>
+              Empresas anteriores a este painel não têm registro de criação — a
+              data de entrada delas está na lista. Nada é inventado aqui.
             </p>
             {rastro.length === 0 && <p className="v-fraco">Nada registrado ainda.</p>}
             {rastro.map(l => (
               <div key={l.id} className="v-rastro">
                 <span className="v-rastro-acao">{l.acao}</span>
                 <span>{l.empresa || '—'}</span>
-                <span className="v-fraco">{l.usuario}</span>
+                {/* Empresa nascendo não tem "quem" da nossa equipe: quem fez
+                    foi ela, pelo auto-cadastro. O `origem` diz por onde. */}
+                <span className="v-fraco">{l.detalhe?.origem || l.usuario}</span>
                 <span className="v-fraco">{new Date(l.quando).toLocaleString('pt-BR')}</span>
                 {l.detalhe?.motivo && <span className="v-rastro-motivo">“{l.detalhe.motivo}”</span>}
               </div>

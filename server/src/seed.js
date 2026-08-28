@@ -3,7 +3,7 @@ import { db, pool, iniciarBanco, uid, setConfig, salvarVinculos } from './db.js'
 import { TENANT_PADRAO } from './lib/tenant.js';
 import { definirSenhaApp } from './senha-app.js';
 import { hoje, addDias } from './lib/dates.js';
-import { prepararEmpresaPadrao } from './lib/provisionar.js';
+import { prepararEmpresaPadrao, provisionarEmpresa } from './lib/provisionar.js';
 import { hashDaSenha } from './lib/auth.js';
 
 /** Senha das contas de desenvolvimento. Não vai para lugar nenhum além daqui. */
@@ -56,7 +56,13 @@ const h = hoje();
 // `tenants.nome` é a razão social do cadastro e `config.nome` é o que aparece
 // no site. O seed mexia só no segundo, e o back-office da Vital listava o
 // estúdio como "Meu negócio" — o nome que a migration deixa.
-await db.run(`UPDATE plataforma.tenants SET nome = 'Estúdio Lume' WHERE id = ?`, TENANT_PADRAO);
+// `slug` vira o subdomínio. A migration deixa 'default', que serve de id e não
+// serve de endereço — em desenvolvimento é por ele que se abre o site desta
+// empresa, em `lume.localhost:5173`.
+await db.run(
+  `UPDATE plataforma.tenants SET nome = 'Estúdio Lume', slug = 'lume' WHERE id = ?`,
+  TENANT_PADRAO
+);
 
 await setConfig({
   nome: 'Estúdio Lume',
@@ -164,9 +170,75 @@ await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
 await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
 
 await contasDeDesenvolvimento();
+await equipeDaVital();
+await segundaEmpresa();
 
 console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
 
+}
+
+/** Nada de conta ou empresa de demonstração fora da máquina de quem programa. */
+function ehLocal() {
+  return /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '');
+}
+
+/**
+ * Uma segunda empresa, de outro ramo, para o isolamento ser visível.
+ *
+ * Com uma empresa só, nada na tela mostra que o sistema é multiempresa — e o
+ * tipo de erro que o RLS previne (uma vendo o dado da outra) precisa de duas
+ * para aparecer. Aqui ela nasce pelo mesmo caminho de uma empresa de verdade,
+ * `provisionarEmpresa`, e não por SQL à parte: se esse caminho quebrar, o seed
+ * quebra junto e a gente descobre na hora.
+ *
+ * Só em localhost, como as contas abaixo.
+ */
+async function segundaEmpresa() {
+  if (!ehLocal()) return;
+
+  const nova = await provisionarEmpresa({
+    nome: 'Barbearia do João', ramo: 'Barbearia', slug: 'barbearia', origem: 'seed',
+  });
+
+  await db.comEmpresa(nova.id, async () => {
+    await setConfig({
+      nome: 'Barbearia do João',
+      slogan: 'Corte e barba · Joinville',
+      endereco: 'Rua das Palmeiras, 88 — Joinville/SC',
+      configurado: true,
+      vocabulario: { profissional: 'barbeiro', profissionais: 'barbeiros' },
+      marca: { corPrimaria: '#1F4E5F' },
+    });
+
+    await db.run(
+      `INSERT INTO users (id, nome, email, senha_hash, papel, ativo, criado_em)
+       VALUES (?,?,?,?,'dono',1,?)`,
+      uid(), 'João Silva', 'joao@barbearia.com', await hashDaSenha(SENHA_DEV), hoje()
+    );
+
+    const jornada = JSON.stringify(Object.fromEntries(
+      [1, 2, 3, 4, 5, 6].map(d => [d, ['09:00', '19:00']])
+    ));
+    for (const [id, nome, cor] of [['b1', 'João Silva', '#1F4E5F'], ['b2', 'Rafa Duarte', '#8A6A2F']]) {
+      await db.run(
+        `INSERT INTO staff (id,nome,funcao,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,1,?)`,
+        id, nome, 'Barbeiro', cor, 40, jornada, hoje()
+      );
+    }
+    for (const [id, nome, preco, dur] of [
+      ['bs1', 'Corte masculino', 45, 40],
+      ['bs2', 'Barba', 35, 30],
+      ['bs3', 'Corte + barba', 70, 60],
+    ]) {
+      await db.run(
+        `INSERT INTO services (id,nome,categoria,preco,duracao,intervalo,ativo,ordem) VALUES (?,?,?,?,?,5,1,0)`,
+        id, nome, 'Cabelo e barba', preco, dur
+      );
+      await salvarVinculos(id, ['b1', 'b2']);
+    }
+  });
+
+  console.log(`  Segunda empresa: ${nova.nome} · ${nova.slug}.localhost:5173`);
 }
 
 /**
@@ -181,7 +253,7 @@ console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profi
  * acesso — nunca um seed.
  */
 async function contasDeDesenvolvimento() {
-  if (!/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '')) return;
+  if (!ehLocal()) return;
 
   const contas = [
     { email: 'dono@vital.com', nome: 'Laura Prado', papel: 'dono', prof: null },
@@ -201,4 +273,23 @@ async function contasDeDesenvolvimento() {
   console.log('    Só em localhost. Em produção ninguém nasce por seed.');
   console.log('');
   console.log('  Painel: http://localhost:5173/painel.html');
+}
+
+/**
+ * O primeiro acesso do nosso back-office.
+ *
+ * Fora daqui, quem cria é a própria tela de primeiro acesso em
+ * `vital.html#equipe`, que se fecha depois da primeira pessoa.
+ */
+async function equipeDaVital() {
+  if (!ehLocal()) return;
+  const { n } = await db.get('SELECT COUNT(*) n FROM plataforma.usuarios');
+  if (n > 0) return;
+
+  await db.run(
+    `INSERT INTO plataforma.usuarios (id, nome, email, senha_hash, papel, ativo, criado_em)
+     VALUES (?,?,?,?,'admin',1,?)`,
+    uid(), 'Victor Alvarenga', 'victor@vital.com', await hashDaSenha(SENHA_DEV), hoje()
+  );
+  console.log(`  Equipe Vital: victor@vital.com · http://localhost:5173/vital.html#equipe`);
 }

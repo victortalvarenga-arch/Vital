@@ -28,6 +28,7 @@ Duas páginas, dois bundles:
 | <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
 | <http://localhost:5173/vital.html> | Página da Vital — uma empresa se cadastra aqui |
 | <http://localhost:5173/vital.html#equipe> | Back-office da Vital — nossa equipe vê as empresas |
+| <http://barbearia.localhost:5173> | A segunda empresa de exemplo, noutro endereço |
 
 Cada empresa é resolvida pelo endereço: subdomínio (`lume.vital.app`) ou domínio
 próprio. Em `localhost` é sempre a empresa padrão, então dá para desenvolver sem
@@ -50,20 +51,9 @@ não participa do produto. Empresa de verdade nasce vazia, por
 `POST /api/cadastro`, e é o assistente de primeira configuração que a põe de pé.
 Para ver essa experiência, use `npm run seed -- --vazio`.
 
-Contas prontas para entrar (senha `vital1234` nas duas):
-
-| E-mail | Papel | Vê |
-|---|---|---|
-| `dono@vital.com` | dono | o negócio inteiro |
-| `funcionaria@vital.com` | funcionário | a própria agenda e a própria produção |
-
-**Só existem em localhost.** O `seed` confere a `DATABASE_URL` antes de criá-las,
-com a mesma guarda do `reset` — senha conhecida em script que rode em produção é
-problema esperando acontecer. Publicado, quem cria o dono é o cadastro ou a tela
-de primeiro acesso.
-
-Novas pessoas entram pelo painel, em **Configurações → Acesso ao painel**.
-`npm run reset` recria as duas contas acima.
+**Endereços, contas e senhas estão em `ACESSOS-DEV.md`** — inclusive as duas
+empresas de exemplo e o acesso ao back-office da Vital. Todas só existem em
+localhost: o `seed` confere a `DATABASE_URL` antes de criar qualquer uma.
 
 ## Comandos
 

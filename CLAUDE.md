@@ -18,6 +18,7 @@ contexto inteiro lendo os arquivos, sem depender de memória de conversa.
 | `ARQUITETURA.md` | Como o sistema é montado hoje e por quê. Estado atual, implementado. |
 | `ROADMAP.md` | O plano: blocos futuros e as decisões de arquitetura por trás deles. |
 | `README.md` | Só o necessário para rodar o projeto. |
+| `ACESSOS-DEV.md` | Endereços, contas e senhas do ambiente local. Só isso. |
 
 **Cada assunto mora em um lugar só.** Arquitetura não se repete no `CLAUDE.md`
 nem no `README.md` — se precisar citar, aponte para `ARQUITETURA.md`. Quando um

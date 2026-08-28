@@ -693,6 +693,30 @@ Toda ação nossa sobre uma empresa vai para `plataforma.auditoria` antes de a
 resposta sair. Abrir o dado de alguém para dar suporte é legítimo; fazer isso sem
 deixar rastro, não.
 
+**O nascimento de uma empresa também é registrado**, com `usuario_id` nulo — não
+foi a nossa equipe que fez, foi ela mesma. Faltava: o evento mais importante da
+vida da plataforma não deixava traço nenhum. A empresa `default`, que vem da
+migration 001, continua sem registro de criação, e nenhum foi inventado para
+ela — log de auditoria com fato construído depois vale menos que log nenhum.
+A tela diz isso em vez de deixar o vazio no ar.
+
+A chave estrangeira de `auditoria` para `tenants` impede apagar uma empresa e
+deixar o histórico dela órfão. É o comportamento desejado: apagar empresa é
+operação de plataforma, com backup, e o rastro sai junto de propósito ou não sai.
+
+### Desenvolvimento com mais de uma empresa
+
+O navegador resolve qualquer `*.localhost` para 127.0.0.1 sozinho, então
+`barbearia.localhost:5173` chega ao Vite sem DNS nenhum. Para funcionar, duas
+coisas: o Vite escuta em todas as interfaces (`server.host: true`), e o proxy usa
+**`changeOrigin: false`** — com `true`, ele reescreve o `Host` para o do destino,
+e o `Host` é justamente quem diz de qual empresa é a requisição. Toda chamada
+viraria a empresa padrão.
+
+O `seed` cria duas empresas de exemplo, de ramos diferentes, porque com uma só
+nada na tela mostra que o sistema é multiempresa — e o erro que o RLS previne
+precisa de duas para aparecer.
+
 ## Testes
 
 `cd server && npm test`. Roda com o `node:test` nativo — sem framework, sem
