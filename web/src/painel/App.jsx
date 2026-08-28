@@ -562,6 +562,9 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
     return () => { vivo = false; };
   }, [s.id, s.cat]);
 
+  // Enquanto não carregou, não dá para desenhar chip desmarcado: pareceria que
+  // a empresa não tem nada cadastrado, e salvar nesse instante apagaria tudo.
+  const carregando = extras === null || extrasCat === null;
   const marcados = alvo === 'servico' ? (extras || []) : (extrasCat || []);
   const alternarExtra = id => {
     const proximo = marcados.includes(id) ? marcados.filter(x => x !== id) : [...marcados, id];
@@ -649,7 +652,7 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
               ? 'Aparece só quando a cliente escolhe este serviço.'
               : `Aparece em todos os serviços de "${f.cat}". O site oferece a soma das duas listas.`}
           </p>
-          {marcados === null ? <p className="add-ajuda">Carregando…</p> : (
+          {carregando ? <p className="add-ajuda">Carregando…</p> : (
             <div className="chips">
               {servicos.filter(x => x.id !== s.id).map(x => (
                 <button key={x.id}
