@@ -116,6 +116,32 @@ auth.post('/usuarios', exige('equipe'), rota(async (req, res) => {
   res.status(201).json(userOut(await db.get('SELECT * FROM users WHERE id = ?', id)));
 }));
 
+/**
+ * Remove alguém do painel de vez.
+ *
+ * Existe além do "desativar" porque são coisas diferentes: desativar guarda o
+ * histórico de quem era — útil quando a pessoa pode voltar —, e apagar serve
+ * para conta criada por engano ou para teste. As sessões vão junto por cascata.
+ *
+ * O que a pessoa fez na agenda não se perde: `appointments` aponta para `staff`,
+ * não para `users`. Apagar o login não apaga atendimento nem comissão.
+ */
+auth.delete('/usuarios/:id', exige('equipe'), rota(async (req, res) => {
+  const alvo = await db.get('SELECT * FROM users WHERE id = ?', req.params.id);
+  if (!alvo) return res.status(404).json({ erro: 'usuário não encontrado' });
+
+  if (alvo.id === req.usuario.id) {
+    return res.status(400).json({ erro: 'você não pode apagar a própria conta' });
+  }
+  if (alvo.papel === 'dono') {
+    const { n } = await db.get(`SELECT COUNT(*) n FROM users WHERE papel='dono' AND ativo=1`);
+    if (n <= 1) return res.status(400).json({ erro: 'esta é a única conta de dono ativa' });
+  }
+
+  await db.run('DELETE FROM users WHERE id = ?', req.params.id);
+  res.json({ ok: true });
+}));
+
 auth.put('/usuarios/:id', exige('equipe'), rota(async (req, res) => {
   const alvo = await db.get('SELECT * FROM users WHERE id = ?', req.params.id);
   if (!alvo) return res.status(404).json({ erro: 'usuário não encontrado' });

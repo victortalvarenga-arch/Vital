@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { KeyRound, Plus, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Plus, ShieldCheck, Trash2, User as UserIcon } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 
 /**
@@ -27,6 +27,20 @@ export default function Usuarios({ dados, eu, aviso }) {
       setEdit(null);
       return true;
     } catch (e) { aviso(e.message); return false; }
+  };
+
+  const remover = async u => {
+    // Apagar acesso é irreversível e a pessoa perde a entrada na hora; um
+    // clique errado na lista não pode bastar.
+    const pergunta = `Apagar o acesso de ${u.nome}?\n\n`
+      + 'Ela perde a entrada no painel imediatamente. '
+      + 'Os atendimentos e comissões dela continuam no sistema.';
+    if (!confirm(pergunta)) return;
+    try {
+      await api.removerUsuario(u.id);
+      await carregar();
+      setEdit(null);
+    } catch (e) { aviso(e.message); }
   };
 
   return (
@@ -71,14 +85,14 @@ export default function Usuarios({ dados, eu, aviso }) {
       {edit && (
         <EditarUsuario
           u={edit} staff={dados.staff} eu={eu}
-          aoSalvar={salvar} fechar={() => setEdit(null)}
+          aoSalvar={salvar} aoRemover={remover} fechar={() => setEdit(null)}
         />
       )}
     </>
   );
 }
 
-function EditarUsuario({ u, staff, eu, aoSalvar, fechar }) {
+function EditarUsuario({ u, staff, eu, aoSalvar, aoRemover, fechar }) {
   const [f, setF] = useState({ ...u });
   const [ocupado, setOcupado] = useState(false);
   const novo = !u.id;
@@ -179,6 +193,12 @@ function EditarUsuario({ u, staff, eu, aoSalvar, fechar }) {
             {ocupado ? 'Salvando…' : novo ? 'Criar acesso' : 'Salvar'}
           </button>
           <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
+          {!novo && !souEu && (
+            <button className="btn btn-g" type="button" style={{ color: '#8A2B2B' }}
+                    title="Apagar acesso" onClick={() => aoRemover(u)}>
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       </form>
     </div>

@@ -111,6 +111,7 @@ export const api = {
   salvarUsuario: u => u.id
     ? req(`/auth/usuarios/${u.id}`, { method: 'PUT', body: u })
     : req('/auth/usuarios', { method: 'POST', body: u }),
+  removerUsuario: id => req(`/auth/usuarios/${id}`, { method: 'DELETE' }),
 
   /* ── serviços adicionais ── */
   adicionais: () => req('/adicionais'),

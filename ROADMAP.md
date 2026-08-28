@@ -230,8 +230,11 @@ Detalhes em `ARQUITETURA.md`, seção "Autenticação e papéis".
 - [x] Primeiro acesso aberto, fechando sozinho quando surge o primeiro usuário
 - [x] Rotas para o dono convidar e editar a equipe do painel
 - [x] Tela "Acesso ao painel": criar, editar, trocar senha, ativar e desativar
-- [x] Travas contra se trancar para fora: não dá para desativar nem mudar o
-      próprio nível, e sempre sobra um dono ativo
+- [x] Travas contra se trancar para fora: não dá para desativar, mudar o próprio
+      nível nem apagar a própria conta, e sempre sobra um dono ativo
+- [x] Desativar **e** apagar: desativar guarda quem era, para quem pode voltar;
+      apagar serve para conta criada por engano. Atendimento e comissão não vão
+      junto — apontam para `staff`, não para `users`
 - [ ] "Esqueci minha senha" — depende de envio de e-mail, que o projeto ainda
       não tem. Enquanto isso, o dono redefine pela rota de edição.
 
