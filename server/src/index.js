@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 import { db, iniciarBanco, getConfig, listarServicos, staffOut, clientOut, apptOut, templateOut } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
@@ -11,6 +12,8 @@ import { publico } from './routes/publico.js';
 import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
 import { uploads, PASTA as PASTA_UPLOADS } from './routes/uploads.js';
+import { auth } from './routes/auth.js';
+import { sessaoDe, NOME_COOKIE, exige } from './lib/auth.js';
 import { iniciarJobs } from './jobs/mensagens.js';
 import { rota } from './lib/rota.js';
 import { comEmpresa } from './lib/tenant.js';
@@ -18,17 +21,25 @@ import { comEmpresa } from './lib/tenant.js';
 const app = express();
 app.use(cors({ origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',') }));
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 
 /**
- * Autenticação do painel. Neste estágio é um token único no .env — suficiente
- * para rodar local e no primeiro cliente. Antes de colocar em produção com
- * mais de um estúdio, troque por usuários no banco com senha hasheada.
+ * Descobre quem está logado, se estiver, e põe em `req.usuario`.
+ *
+ * Não recusa ninguém: rota pública e tela de login precisam passar por aqui
+ * sem sessão. Quem recusa é `exigeLogin` abaixo.
  */
-function exigeToken(req, res, next) {
-  const esperado = process.env.ADMIN_TOKEN;
-  if (!esperado) return next();                       // sem token configurado = modo aberto (dev)
-  const enviado = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (enviado !== esperado) return res.status(401).json({ erro: 'não autorizado' });
+const identificar = rota(async (req, res, next) => {
+  const s = await sessaoDe(req.cookies?.[NOME_COOKIE]);
+  // Sessão de outra empresa não vale nesta: no dia do subdomínio, o cookie de
+  // um cliente não pode abrir o painel de outro.
+  if (s && s.tenantId === req.tenantId) req.usuario = s.usuario;
+  next();
+});
+
+/** Barra quem não está logado. Tudo do painel passa por aqui. */
+function exigeLogin(req, res, next) {
+  if (!req.usuario) return res.status(401).json({ erro: 'faça login para continuar' });
   next();
 }
 
@@ -53,18 +64,25 @@ app.use('/uploads', express.static(PASTA_UPLOADS, {
  * banco recusa sozinho qualquer linha de outra empresa.
  */
 app.use('/api', comEmpresa(db));
+app.use('/api', identificar);
+
+/* Login e primeiro acesso: abertos, senão ninguém entra na primeira vez. */
+app.use('/api/auth', auth);
 
 /* Site: aberto. */
 app.use('/api/publico', publico);
 
-/* Painel: protegido. */
-app.use('/api', exigeToken);
-app.use('/api/uploads', uploads);
+/* Painel: exige sessão. */
+app.use('/api', exigeLogin);
+
+// A guarda vai na ROTA, não só na tela. Esconder o botão evita erro feio para
+// quem não pode; recusar aqui é o que impede a chamada direta.
+app.use('/api/uploads', exige('cadastros'), uploads);
+app.use('/api/relatorios', exige('financeiro'), relatorios);
 app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);
 app.use('/api/mensagens', mensagens);
-app.use('/api/relatorios', relatorios);
 
 /**
  * Bootstrap do painel: devolve tudo o que a tela precisa numa chamada só.
@@ -106,7 +124,7 @@ iniciarBanco()
       const alvo = (process.env.DATABASE_URL || '').replace(/:[^:@/]*@/, ':***@');
       console.log(`\n  Estúdio Agenda · API em http://localhost:${porta}`);
       console.log(`  Banco: ${alvo || '(DATABASE_URL não definida)'}`);
-      if (!process.env.ADMIN_TOKEN) console.log('  ⚠  ADMIN_TOKEN vazio: o painel está sem senha (ok em dev).');
+      console.log('  Painel protegido por login (argon2 + sessão em cookie).');
       iniciarJobs();
     });
   })

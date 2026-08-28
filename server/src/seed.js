@@ -144,5 +144,8 @@ for (const t of TEMPLATES_PADRAO) {
 }
 
 console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
+console.log('');
+console.log('  O painel agora exige login. Abra http://localhost:5173/painel.html');
+console.log('  e crie o primeiro acesso — a tela aparece sozinha enquanto não houver ninguém.');
 
 }

@@ -3,18 +3,19 @@ import { db, uid, staffOut, serviceOut, listarServicos, salvarVinculos, getConfi
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { adicionaisDe } from '../lib/adicionais.js';
+import { exige } from '../lib/auth.js';
 
 export const catalogo = Router();
 
 /* ── Configuração do negócio ── */
 catalogo.get('/config', rota(async (req, res) => res.json(await getConfig())));
-catalogo.put('/config', rota(async (req, res) => res.json(await setConfig(req.body || {}))));
+catalogo.put('/config', exige('site'), rota(async (req, res) => res.json(await setConfig(req.body || {}))));
 
 /* ── Serviços ── */
 catalogo.get('/servicos', rota(async (req, res) =>
   res.json(await listarServicos({ somenteAtivos: req.query.ativos === '1' }))));
 
-catalogo.post('/servicos', rota(async (req, res) => {
+catalogo.post('/servicos', exige('cadastros'), rota(async (req, res) => {
   const b = req.body || {};
   if (!b.nome) return res.status(400).json({ erro: 'nome é obrigatório' });
   const id = uid();
@@ -30,7 +31,7 @@ catalogo.post('/servicos', rota(async (req, res) => {
   res.status(201).json(servicos.find(s => s.id === id));
 }));
 
-catalogo.put('/servicos/:id', rota(async (req, res) => {
+catalogo.put('/servicos/:id', exige('cadastros'), rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM services WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'serviço não encontrado' });
   const b = { ...serviceOut(atual), ...req.body };
@@ -46,7 +47,7 @@ catalogo.put('/servicos/:id', rota(async (req, res) => {
   res.json(servicos.find(s => s.id === req.params.id));
 }));
 
-catalogo.delete('/servicos/:id', rota(async (req, res) => {
+catalogo.delete('/servicos/:id', exige('cadastros'), rota(async (req, res) => {
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE service_id=?', req.params.id);
   if (usos > 0) {
     // Não apaga histórico: só some do site. Relatório do mês passado precisa do nome.
@@ -76,7 +77,7 @@ catalogo.get('/adicionais', rota(async (req, res) => {
 }));
 
 /** Substitui os extras de um serviço pela lista enviada. */
-catalogo.put('/adicionais/servico/:id', rota(async (req, res) => {
+catalogo.put('/adicionais/servico/:id', exige('cadastros'), rota(async (req, res) => {
   const svc = await db.get('SELECT id FROM services WHERE id=?', req.params.id);
   if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
 
@@ -94,7 +95,7 @@ catalogo.put('/adicionais/servico/:id', rota(async (req, res) => {
 }));
 
 /** Substitui os extras de uma categoria inteira. */
-catalogo.put('/adicionais/categoria/:nome', rota(async (req, res) => {
+catalogo.put('/adicionais/categoria/:nome', exige('cadastros'), rota(async (req, res) => {
   const categoria = req.params.nome;
   const ids = [...new Set(req.body?.adicionais || [])].filter(Boolean);
   await db.transacao(async tx => {
@@ -117,7 +118,7 @@ catalogo.put('/adicionais/categoria/:nome', rota(async (req, res) => {
  * buço" quando está montando o serviço principal, e "ofereça buço em toda a
  * Facial" quando está cadastrando o próprio buço.
  */
-catalogo.put('/adicionais/addon/:id/categorias', rota(async (req, res) => {
+catalogo.put('/adicionais/addon/:id/categorias', exige('cadastros'), rota(async (req, res) => {
   const svc = await db.get('SELECT id FROM services WHERE id=?', req.params.id);
   if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
 
@@ -157,7 +158,7 @@ catalogo.get('/profissionais', rota(async (req, res) => {
   res.json(rows.map(staffOut));
 }));
 
-catalogo.post('/profissionais', rota(async (req, res) => {
+catalogo.post('/profissionais', exige('equipe'), rota(async (req, res) => {
   const b = req.body || {};
   if (!b.nome) return res.status(400).json({ erro: 'nome é obrigatório' });
   const id = uid();
@@ -170,7 +171,7 @@ catalogo.post('/profissionais', rota(async (req, res) => {
   res.status(201).json(staffOut(await db.get('SELECT * FROM staff WHERE id=?', id)));
 }));
 
-catalogo.put('/profissionais/:id', rota(async (req, res) => {
+catalogo.put('/profissionais/:id', exige('equipe'), rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM staff WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'profissional não encontrada' });
   const b = { ...staffOut(atual), ...req.body };
@@ -182,7 +183,7 @@ catalogo.put('/profissionais/:id', rota(async (req, res) => {
   res.json(staffOut(await db.get('SELECT * FROM staff WHERE id=?', req.params.id)));
 }));
 
-catalogo.delete('/profissionais/:id', rota(async (req, res) => {
+catalogo.delete('/profissionais/:id', exige('equipe'), rota(async (req, res) => {
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE staff_id=?', req.params.id);
   if (usos > 0) {
     await db.run('UPDATE staff SET ativo=0 WHERE id=?', req.params.id);

@@ -31,8 +31,9 @@ Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços):
 painel → **Configurações → Site da cliente**. As imagens ficam em
 `server/uploads/`, fora do Git.
 
-Por padrão o `.env` vem com `ADMIN_TOKEN` vazio, o que deixa o painel **sem
-senha** — bom para desenvolver, nunca para publicar. A API avisa isso no boot.
+Na primeira vez, o painel pede para **criar o primeiro acesso** — nome, e-mail e
+senha. Quem criar vira o dono. Essa tela some assim que existir um usuário; daí
+em diante, só quem já está dentro convida os outros.
 
 ## Comandos
 
@@ -71,6 +72,9 @@ Corrija a linha no `server/.env`.
 **Uma consulta volta vazia sem motivo** — provavelmente está rodando fora de uma
 requisição HTTP, onde não há empresa definida e o RLS esconde tudo. Envolva em
 `db.comEmpresa(id, fn)`.
+
+**Esqueci a senha do painel** — em desenvolvimento, `cd server && npm run reset`
+zera tudo e a tela de primeiro acesso volta.
 
 **`database "vital" does not exist`** — falta o passo 1:
 `psql -U postgres -c "CREATE DATABASE vital;"`.

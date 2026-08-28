@@ -8,15 +8,15 @@
  */
 
 const BASE = import.meta.env.VITE_API_URL || '/api';
-const TOKEN = import.meta.env.VITE_ADMIN_TOKEN || '';
 
 async function req(caminho, { method = 'GET', body } = {}) {
   const r = await fetch(BASE + caminho, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
-    },
+    // A sessão viaja num cookie httpOnly — que o JavaScript não lê de
+    // propósito, para um XSS não conseguir roubá-la. Por isso `credentials`:
+    // sem ele o navegador não manda o cookie e tudo volta 401.
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
   const texto = await r.text();
@@ -100,6 +100,17 @@ export const api = {
     ? req(`/servicos/${s.id}`, { method: 'PUT', body: servicoParaApi(s) })
     : req('/servicos', { method: 'POST', body: servicoParaApi(s) }),
   removerServico: id => req(`/servicos/${id}`, { method: 'DELETE' }),
+
+  /* ── login ── */
+  precisaConfigurar: () => req('/auth/precisa-configurar'),
+  primeiroAcesso: dados => req('/auth/primeiro-acesso', { method: 'POST', body: dados }),
+  login: (email, senha) => req('/auth/login', { method: 'POST', body: { email, senha } }),
+  sair: () => req('/auth/sair', { method: 'POST' }),
+  eu: () => req('/auth/eu'),
+  usuarios: () => req('/auth/usuarios'),
+  salvarUsuario: u => u.id
+    ? req(`/auth/usuarios/${u.id}`, { method: 'PUT', body: u })
+    : req('/auth/usuarios', { method: 'POST', body: u }),
 
   /* ── serviços adicionais ── */
   adicionais: () => req('/adicionais'),

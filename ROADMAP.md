@@ -219,16 +219,28 @@ visual, então foi separado para não atrasar a tela.
       marca, textos e vocabulário, mais `/publico/horarios`
 - [x] Middleware que resolve a empresa e abre a conexão certa (veio do Bloco 2)
 
-### Bloco 3b — Autenticação de verdade
-Não bloqueia mais nada visual. Enquanto não for feito, **não publique o painel
-na internet**: o `ADMIN_TOKEN` vazio deixa tudo aberto.
+### Bloco 3b — Autenticação de verdade ✅ concluído
+Detalhes em `ARQUITETURA.md`, seção "Autenticação e papéis".
 
-- [ ] Login com argon2 e sessão em cookie `httpOnly`, no lugar do token único
-- [ ] Papéis com regra: dono vê tudo; gerente não edita a aparência;
-      funcionário só a própria agenda, não bloqueia horário de outro nem mexe
-      no site
-- [ ] Cada regra vale na tela **e** na rota — esconder botão não é controle
-- [ ] Sessão desenhada para dois públicos: equipe e cliente (Bloco 5)
+- [x] Login com argon2id e sessão em cookie `httpOnly`; o `ADMIN_TOKEN` saiu
+- [x] Sessão em tabela, não JWT — a Vital precisa conseguir derrubar acesso
+- [x] Papéis com regra: dono configura o site; gerente opera tudo menos o site;
+      funcionário vê agenda e clientes, e mais nada
+- [x] Cada regra vale na tela **e** na rota
+- [x] Primeiro acesso aberto, fechando sozinho quando surge o primeiro usuário
+- [x] Rotas para o dono convidar e editar a equipe do painel
+- [ ] Tela de gestão de usuários no painel — as rotas existem, falta o CRUD
+      visual. Hoje só o primeiro acesso é criado pela tela.
+- [ ] "Esqueci minha senha" — depende de envio de e-mail, que o projeto ainda
+      não tem. Enquanto isso, o dono redefine pela rota de edição.
+
+**Provado por teste, não por leitura:** 25 casos. Sem login, as seis rotas do
+painel recusam e o site público continua aberto. Senha errada e e-mail
+inexistente dão a mesma resposta, e a senha é conferida mesmo sem usuário, para
+o tempo de resposta não denunciar quais e-mails existem. A funcionária recebe
+403 em financeiro, config, criação de serviço, exclusão de profissional, upload
+e adicionais — mas continua vendo agenda e clientes. Sair encerra de verdade, e
+cookie inventado não entra.
 
 ### Bloco 4 — Site do cliente ✅ concluído
 Referência: `esteticalaurafaust.ageenda.com.br`. O que ficou está em
@@ -451,9 +463,11 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 
 ### Segredos e acesso
 
-- [ ] **`ADMIN_TOKEN` vazio deixa o painel sem senha.** Hoje é assim de
-      propósito e a API avisa no boot. Nunca publicar assim — o Bloco 3
-      substitui por login de verdade.
+- [x] ~~`ADMIN_TOKEN` vazio deixava o painel sem senha.~~ Resolvido no Bloco 3b:
+      login com argon2 e sessão em cookie.
+- [ ] **Cookie de sessão só vai por HTTPS quando `NODE_ENV=production`.** Em
+      produção essa variável PRECISA estar definida, senão o cookie viaja em
+      claro. Conferir no provedor antes de publicar.
 - [ ] **A senha do Postgres local é `vitaldev`**, escrita em `server/.env`.
       É senha de desenvolvimento; em produção vem do cofre de variáveis do
       provedor, nunca de arquivo.

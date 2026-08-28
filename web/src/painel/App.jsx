@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
 import ConfigSite from './ConfigSite.jsx';
+import Entrar from './Entrar.jsx';
 import { prepararImagem } from '../shared/imagem.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, LogOut
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -105,6 +106,19 @@ const Switch = ({ on, onChange }) => (
    ══════════════════════════════════════════════ */
 
 export default function App() {
+  // `null` = ainda checando a sessão; `false` = deslogado.
+  const [sessao, setSessao] = useState(null);
+
+  useEffect(() => {
+    api.eu().then(setSessao).catch(() => setSessao(false));
+  }, []);
+
+  if (sessao === null) return <div className="p-centro"><p className="p-fraco">Carregando…</p></div>;
+  if (sessao === false) return <Entrar aoEntrar={setSessao} />;
+  return <Painel sessao={sessao} aoSair={() => setSessao(false)} />;
+}
+
+function Painel({ sessao, aoSair }) {
   const { dados, erro, recarregar } = useEstado();
   const [secao, setSecao] = useState('agenda');
   const [menuAberto, setMenuAberto] = useState(false);
@@ -137,21 +151,24 @@ export default function App() {
     catch (e) { setFalha(e.message); return false; }
   };
 
+  // Esconder o que o papel não pode é cortesia, não segurança: a rota também
+  // recusa. Um sem o outro é enganoso — ou dá erro feio, ou deixa passar.
+  const p = sessao.poderes;
   const GRUPOS = [
     { titulo: null, itens: [
       { k: 'agenda', nome: 'Calendário', icon: Calendar },
-      { k: 'financeiro', nome: 'Financeiro', icon: Wallet },
+      ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
     ] },
     { titulo: 'Cadastros', itens: [
-      { k: 'servicos', nome: 'Serviços', icon: Sparkles },
-      { k: 'equipe', nome: 'Profissionais', icon: Store },
-      { k: 'clientes', nome: 'Clientes', icon: Users },
+      ...(p.cadastros ? [{ k: 'servicos', nome: 'Serviços', icon: Sparkles }] : []),
+      ...(p.equipe ? [{ k: 'equipe', nome: 'Profissionais', icon: Store }] : []),
+      ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
     ] },
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
-      { k: 'site', nome: 'Site da cliente', icon: Globe },
+      ...(p.site ? [{ k: 'site', nome: 'Site da cliente', icon: Globe }] : []),
     ] },
-  ];
+  ].filter(g => g.itens.length);
 
   const atual = GRUPOS.flatMap(g => g.itens).find(i => i.k === secao);
   const irPara = k => { setSecao(k); setMenuAberto(false); };
@@ -189,6 +206,13 @@ export default function App() {
           </div>
         ))}
         <a className="p-nav p-nav-fim" href="/"><ExternalLink size={18} /><span>Ver o site</span></a>
+        <div className="p-eu">
+          <div className="p-eu-nome">{sessao.usuario.nome}</div>
+          <div className="p-eu-papel">{sessao.usuario.papel}</div>
+        </div>
+        <button className="p-nav" onClick={async () => { await api.sair(); aoSair(); }}>
+          <LogOut size={18} /><span>Sair</span>
+        </button>
       </nav>
 
       <main className="p-conteudo">
@@ -197,8 +221,8 @@ export default function App() {
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
-        {secao === 'financeiro' && <Financeiro dados={dados} />}
-        {secao === 'site' && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
+        {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}
+        {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
       </main>
 
       {toast && <div className="p-aviso"><Check size={17} />{toast}</div>}

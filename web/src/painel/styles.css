@@ -301,3 +301,27 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 /* Catálogo grande não pode empurrar o resto do formulário para fora da tela. */
 .chips-rolagem { max-height: 210px; overflow-y: auto; align-content: flex-start; }
+
+/* ── porta do painel ── */
+.entrar { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--porcelain); }
+.entrar-caixa {
+  width: 100%; max-width: 380px; background: var(--paper);
+  border: 1px solid var(--line); border-radius: 16px; padding: 30px 28px 28px;
+  box-shadow: 0 10px 40px -20px rgba(36, 26, 40, .35);
+}
+.entrar-caixa h1 { font-size: 23px; margin-bottom: 6px; }
+.entrar-sub { color: var(--muted); font-size: 14px; margin: 0 0 22px; line-height: 1.5; }
+.entrar-dica { display: block; font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+.entrar-erro {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
+  padding: 10px 13px; border-radius: 10px; font-size: 13.5px;
+  background: #F8E7E7; color: #8A2B2B;
+}
+
+/* quem está logado, no pé da lateral */
+.p-eu { padding: 12px 12px 6px; border-top: 1px solid rgba(251, 246, 244, .12); margin-top: 6px; }
+.p-eu-nome { font-size: 13.5px; font-weight: 600; color: var(--porcelain); }
+.p-eu-papel {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(251, 246, 244, .5); margin-top: 2px;
+}

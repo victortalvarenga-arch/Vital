@@ -62,6 +62,9 @@ escrito, não aconteceu.
   como marcador; `db.js` traduz para `$1` do Postgres.
 - Todo handler de rota assíncrono vai embrulhado em `rota()`, senão erro nele
   pendura a requisição sem resposta.
+- Rota nova do painel precisa de `exige('poder')` quando não é para todos os
+  papéis. Esconder o botão na tela não é controle de acesso — a chamada direta
+  passa por cima.
 - Nunca escreva `tenant_id` numa consulta — nem no `WHERE`, nem no `INSERT`. O
   banco filtra e preenche sozinho (Row-Level Security). Ver `ARQUITETURA.md`.
 - Código que roda fora de uma requisição HTTP (cron, seed, script) precisa de

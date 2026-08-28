@@ -20,7 +20,7 @@ flowchart TB
     subgraph back["server/ · Express + pg"]
         emp["comEmpresa()<br><b>prende a conexão a uma empresa</b>"]
         publico["/api/publico/*<br><i>aberto</i>"]
-        privado["/api/*<br><i>exige ADMIN_TOKEN</i>"]
+        privado["/api/*<br><i>exige sessão + papel</i>"]
         motor["lib/availability.js<br><b>decide se o horário está livre</b>"]
         fila["jobs/mensagens.js<br><i>node-cron</i>"]
         prov["whatsapp/<br><i>manual | meta</i>"]
@@ -353,12 +353,51 @@ novo vem agrupado em `marca`, `textos`, `vocabulario` e `exibir`.
 e o schema `plataforma` inteiro existem no esquema mas ainda não têm tela — foram
 criados cedo para não exigir migração depois.
 
-## Autenticação hoje
+## Autenticação e papéis
 
-Um `ADMIN_TOKEN` único no `.env` protege tudo sob `/api/*`; `/api/publico/*`
-fica aberto. Se o token estiver vazio, o painel roda sem senha — aceitável em
-desenvolvimento, e a API avisa no boot. Não serve para produção nem para mais de
-uma pessoa; substituir por login real é item do `ROADMAP.md`.
+Login com senha (argon2id) e sessão em cookie `httpOnly`. Três decisões e o
+motivo de cada uma:
+
+**A senha nunca é guardada** — `users.senha_hash` guarda um hash argon2id, lento
+de propósito: quem levar o banco embora não testa bilhões de senhas por segundo.
+
+**O cookie é `httpOnly`**, então o JavaScript da página não o lê e um XSS não
+consegue roubar a sessão. É por isso que o token não vai para `localStorage`.
+`sameSite: lax` corta CSRF vindo de outro site.
+
+**Sessão em tabela, não token assinado (JWT).** A Vital precisa conseguir
+*derrubar* um acesso: suspender empresa que não pagou, tirar funcionária
+demitida na hora, encerrar sessão de aparelho perdido. Token assinado vale até
+expirar, aconteça o que acontecer; linha em tabela some quando a gente apaga. O
+custo é uma consulta por requisição — barata e indexada. A tabela guarda o
+**hash** do token, nunca o token.
+
+`sessaoDe()` consulta pela conexão da requisição, não pelo pool cru: a consulta
+faz `JOIN users`, que tem RLS, e numa conexão sem empresa definida o join volta
+vazio — toda sessão pareceria inválida. Sessão de uma empresa também não vale em
+outra, o que importa no dia do subdomínio.
+
+**Primeiro acesso é aberto e se fecha sozinho.** Enquanto a empresa não tiver
+nenhum usuário, a tela oferece criar o dono; havendo um, a rota passa a recusar.
+É a única forma de a primeira pessoa entrar sem semear senha no código.
+
+### Papéis
+
+| | dono | gerente | funcionário |
+|---|---|---|---|
+| Configurar o site | sim | não | não |
+| Financeiro | sim | sim | não |
+| Cadastros (serviços) | sim | sim | não |
+| Equipe e usuários | sim | sim | não |
+| Agenda de outros | sim | sim | não |
+| Agenda e clientes | sim | sim | sim |
+
+A tabela vive em `lib/auth.js`, num objeto só, para a regra não se espalhar.
+
+**Cada regra vale na tela e na rota.** Esconder o botão evita erro feio para
+quem não pode; recusar na rota é o que impede a chamada direta. Um sem o outro
+é enganoso — e o teste pegou exatamente isso: na primeira versão a funcionária
+não via o menu do financeiro, mas acessava `/api/relatorios/resumo` à vontade.
 
 ## WhatsApp
 
