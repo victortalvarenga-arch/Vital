@@ -393,3 +393,6 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 /* as bolinhas de progresso existiam só no site; o assistente usa as mesmas */
 .cm .bolinha{width:7px; height:7px; border-radius:50%; background:var(--line); transition:.2s}
 .cm .bolinha.on{background:var(--lacquer); width:20px; border-radius:4px}
+.entrar-empresa{font-family:'Fraunces',serif; font-size:17px; margin:-8px 0 8px; color:var(--ink)}
+.entrar-troca{display:block; width:100%; margin-top:14px; padding:8px; background:none; border:none;
+  cursor:pointer; font-size:13px; color:var(--muted); text-decoration:underline}

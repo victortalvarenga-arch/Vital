@@ -538,6 +538,19 @@ Criar empresa também esquece o cache de resolução de host. Sem isso, quem esp
 o endereço antes de cadastrar guarda um 404, e o próprio site responderia "não
 existe uma agenda neste endereço" pelo primeiro minuto de vida.
 
+### A porta do painel
+
+A tela de entrada mostra **o nome da empresa** em que se está entrando. Passou a
+importar quando cada empresa ganhou endereço próprio: abrir o endereço errado e
+cair numa empresa vazia, sem entender por que a tela pede para criar uma conta,
+virou um erro fácil de cometer.
+
+Quando a empresa daquele endereço ainda não tem ninguém, a tela abre no primeiro
+acesso — mas oferece o caminho de volta para o login, e avisa que nenhuma senha
+vai funcionar ali porque a empresa está vazia. Assim que existir um usuário, o
+primeiro acesso se fecha e a troca some: oferecer um caminho que o servidor
+recusa é pior do que não oferecer.
+
 ### O preço da tela vazia, e quem paga
 
 Nascer sem nada é a decisão certa e tem um custo: a primeira tela não tem o que

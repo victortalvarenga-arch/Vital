@@ -4,6 +4,10 @@ import { TENANT_PADRAO } from './lib/tenant.js';
 import { definirSenhaApp } from './senha-app.js';
 import { hoje, addDias } from './lib/dates.js';
 import { prepararEmpresaPadrao } from './lib/provisionar.js';
+import { hashDaSenha } from './lib/auth.js';
+
+/** Senha das contas de desenvolvimento. Não vai para lugar nenhum além daqui. */
+const SENHA_DEV = 'vital1234';
 
 /**
  * Popula o banco de DESENVOLVIMENTO com um estúdio de estética de exemplo.
@@ -154,9 +158,42 @@ await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
 await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
 await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
 
-console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
-console.log('');
-console.log('  O painel agora exige login. Abra http://localhost:5173/painel.html');
-console.log('  e crie o primeiro acesso — a tela aparece sozinha enquanto não houver ninguém.');
+await contasDeDesenvolvimento();
 
+console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
+
+}
+
+/**
+ * Duas contas prontas para entrar no painel, uma de cada papel.
+ *
+ * Só em localhost, com a mesma guarda do `reset.js` — senha conhecida em script
+ * que possa rodar em produção é problema esperando acontecer. Aqui a alternativa
+ * era pior: a cada `npm run reset` os acessos sumiam e a pessoa precisava
+ * recriar o dono na mão para voltar a ver a própria tela.
+ *
+ * Em produção, quem cria o dono é `POST /api/cadastro` ou a tela de primeiro
+ * acesso — nunca um seed.
+ */
+async function contasDeDesenvolvimento() {
+  if (!/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '')) return;
+
+  const contas = [
+    { email: 'dono@vital.com', nome: 'Laura Prado', papel: 'dono', prof: null },
+    { email: 'funcionaria@vital.com', nome: 'Karen Souza', papel: 'funcionario', prof: 's3' },
+  ];
+  for (const c of contas) {
+    await db.run(
+      `INSERT INTO users (id, nome, email, senha_hash, papel, staff_id, ativo, criado_em)
+       VALUES (?,?,?,?,?,?,1,?)`,
+      uid(), c.nome, c.email, await hashDaSenha(SENHA_DEV), c.papel, c.prof, hoje()
+    );
+  }
+
+  console.log('');
+  console.log(`  Contas de desenvolvimento (senha ${SENHA_DEV} nas duas):`);
+  for (const c of contas) console.log(`    ${c.email.padEnd(24)} ${c.papel}`);
+  console.log('    Só em localhost. Em produção ninguém nasce por seed.');
+  console.log('');
+  console.log('  Painel: http://localhost:5173/painel.html');
 }

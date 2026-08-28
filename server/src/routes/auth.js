@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, uid, userOut } from '../db.js';
+import { db, uid, userOut, getConfig } from '../db.js';
 import { rota } from '../lib/rota.js';
 import {
   abrirSessao, fecharSessao, hashDaSenha, senhaConfere,
@@ -58,7 +58,11 @@ auth.get('/eu', rota(async (req, res) => {
  */
 auth.get('/precisa-configurar', rota(async (req, res) => {
   const { n } = await db.get('SELECT COUNT(*) n FROM users');
-  res.json({ precisa: n === 0 });
+  // O nome vai junto porque cada empresa vive num endereço próprio agora: sem
+  // ele, quem abre o painel não sabe em qual empresa está tentando entrar — e
+  // errar de endereço passa a ser um erro fácil de cometer.
+  const cfg = await getConfig();
+  res.json({ precisa: n === 0, empresa: cfg.nome });
 }));
 
 auth.post('/primeiro-acesso', rota(async (req, res) => {

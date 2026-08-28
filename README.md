@@ -48,16 +48,20 @@ não participa do produto. Empresa de verdade nasce vazia, por
 `POST /api/cadastro`, e é o assistente de primeira configuração que a põe de pé.
 Para ver essa experiência, use `npm run seed -- --vazio`.
 
-O `seed` não cria conta nenhuma de propósito — senha conhecida em script que
-pode rodar fora da sua máquina é problema esperando acontecer. Quem você criar
-na tela de primeiro acesso vira o dono; as demais entram pelo painel, em
-**Configurações → Acesso ao painel**.
+Contas prontas para entrar (senha `vital1234` nas duas):
 
-Para testar os dois papéis, crie uma segunda pessoa como **funcionário** e
-vincule a alguém da equipe: é o vínculo que diz ao sistema qual agenda e qual
-produção são dela.
+| E-mail | Papel | Vê |
+|---|---|---|
+| `dono@vital.com` | dono | o negócio inteiro |
+| `funcionaria@vital.com` | funcionário | a própria agenda e a própria produção |
 
-`npm run reset` apaga também os acessos, e a tela de primeiro acesso volta.
+**Só existem em localhost.** O `seed` confere a `DATABASE_URL` antes de criá-las,
+com a mesma guarda do `reset` — senha conhecida em script que rode em produção é
+problema esperando acontecer. Publicado, quem cria o dono é o cadastro ou a tela
+de primeiro acesso.
+
+Novas pessoas entram pelo painel, em **Configurações → Acesso ao painel**.
+`npm run reset` recria as duas contas acima.
 
 ## Comandos
 

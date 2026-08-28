@@ -220,6 +220,18 @@ describe('o endereço decide de quem é a requisição', () => {
   });
 });
 
+describe('a porta do painel', () => {
+  test('diz de qual empresa é, e cada endereço responde a sua', async () => {
+    // Sem o nome na tela, abrir o endereço errado e cair numa empresa vazia
+    // vira um mistério: a pessoa vê "crie o primeiro acesso" na empresa que ela
+    // jura que já configurou.
+    for (const [host, nome] of [['lume.vital.app', 'Estúdio Lume'], ['bia.vital.app', 'Salão da Bia']]) {
+      const r = await api.noHost(host)('GET', '/api/auth/precisa-configurar');
+      assert.equal(r.corpo.empresa, nome, host);
+    }
+  });
+});
+
 describe('a sessão não atravessa empresas', () => {
   test('cookie aberto numa empresa não vale na outra', async () => {
     // O dia do subdomínio é o dia em que isto importa: o cookie de quem entrou
