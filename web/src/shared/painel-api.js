@@ -54,6 +54,9 @@ const agParaTela = a => ({
   id: a.id, cliente: a.clienteId, servico: a.servicoId, prof: a.profissionalId,
   data: a.data, hora: a.hora, duracao: a.duracao, valor: a.valor,
   status: a.status, pagamento: a.pagamento, origem: a.origem,
+  // Nome e preço vêm prontos do servidor: são o que foi vendido naquele dia,
+  // não o que a tabela de preços diz hoje.
+  adicionais: a.adicionais || [],
 });
 
 export const api = {

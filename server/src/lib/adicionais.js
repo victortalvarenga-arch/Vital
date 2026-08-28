@@ -69,11 +69,32 @@ export async function gravarAdicionais(tx, agendamentoId, itens) {
   }
 }
 
-/** Extras de um agendamento, para mostrar no painel e na confirmação. */
-export async function adicionaisDoAgendamento(agendamentoId) {
+/**
+ * Junta os extras a uma lista de agendamentos já lida do banco.
+ *
+ * O painel mostra meses de agenda de uma vez; buscar os extras de cada
+ * agendamento seria uma consulta por linha. Aqui é uma consulta só, com
+ * `= ANY(?)` em vez de um `IN (?,?,?...)` de mil marcadores.
+ *
+ * Nome, preço e duração vêm de `appointment_addons`, não de `services`: são a
+ * cópia do que foi vendido naquele dia. Se a empresa mudar o preço do extra
+ * depois, o agendamento antigo continua valendo o que a cliente pagou.
+ */
+export async function comAdicionais(agendamentos) {
+  if (!agendamentos.length) return agendamentos;
+
   const linhas = await db.all(
-    'SELECT service_id, nome, preco, duracao FROM appointment_addons WHERE appointment_id = ? ORDER BY nome',
-    agendamentoId
+    `SELECT appointment_id, service_id, nome, preco, duracao
+       FROM appointment_addons WHERE appointment_id = ANY(?) ORDER BY nome`,
+    agendamentos.map(a => a.id)
   );
-  return linhas.map(l => ({ id: l.service_id, nome: l.nome, preco: l.preco, duracao: l.duracao }));
+
+  const porAgendamento = new Map();
+  for (const l of linhas) {
+    if (!porAgendamento.has(l.appointment_id)) porAgendamento.set(l.appointment_id, []);
+    porAgendamento.get(l.appointment_id).push({
+      id: l.service_id, nome: l.nome, preco: l.preco, duracao: l.duracao,
+    });
+  }
+  return agendamentos.map(a => ({ ...a, adicionais: porAgendamento.get(a.id) || [] }));
 }

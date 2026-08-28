@@ -387,9 +387,13 @@ Detalhes em `ARQUITETURA.md`.
       lista, porque escolher extras muda o que cabe na agenda
 - [x] Servidor confere a lista contra a oferta real e tira o preço do banco
 - [x] Resumo da janela mostra os extras e o total
-- [ ] Painel ainda não exibe os extras na agenda do dia nem no financeiro — o
-      `valor` total já está certo, mas o ranking por serviço credita tudo ao
-      principal. Entra no Bloco 7.
+- [x] Painel exibe os extras: sinal no bloco da agenda e lista discriminada no
+      detalhe do agendamento
+- [ ] Encaixe manual pelo painel ainda não oferece adicionais — quem marca pelo
+      balcão precisa lançar o valor na mão. Entra junto do redesenho dos
+      formulários, no Bloco 7
+- [ ] O ranking por serviço no financeiro credita o extra ao serviço principal
+      (ver Bloco 6d, mesmo problema)
 - [ ] **Falta "vender só como adicional".** Hoje um extra é um serviço normal,
       então ele também aparece sozinho na vitrine: cadastrar "depilação de
       buço" para oferecer junto da limpeza de pele coloca ela na lista da
@@ -423,7 +427,11 @@ próprio.
       não pode continuar no ar em março
 - [ ] Duração do combo soma a de todos os serviços, mesma armadilha do 6c
 - [ ] Relatório precisa saber separar o que foi vendido em combo do que foi
-      vendido avulso, senão o ticket médio mente
+      vendido avulso, senão o ticket médio mente. **Vale para os adicionais do
+      6c também**, e já vale hoje: o ranking "serviços mais vendidos" agrupa por
+      `service_id` e soma `appointments.valor`, então o preço do extra é
+      creditado ao serviço principal. O total do caixa está certo; o ranking por
+      serviço, não. Decidir se o extra vira linha própria no relatório
 - [ ] Comissão: definir como divide entre profissionais quando o combo é
       executado por mais de uma pessoa. **Decidir com você antes de codar** —
       não existe resposta técnica certa, é regra de negócio
@@ -611,8 +619,9 @@ white-label estiver de pé.
 A suíte do motor de horários saiu daqui: existe, roda com `npm test` e está
 descrita em `ARQUITETURA.md`. O que falta cobrir, em ordem de risco:
 
-- [ ] Rotas de agendamento ponta a ponta (`POST /api/publico/agendar`), inclusive
-      duas clientes disputando o mesmo horário ao mesmo tempo
-- [ ] Papéis: o que cada rota devolve para dono e para funcionário — hoje isso já
-      vazou duas vezes e foi pego por teste descartável, que se perdeu depois
+- [x] Rotas de agendamento por HTTP, com papéis: o que dono e funcionário podem
+      ler, criar, alterar e apagar
+- [ ] Duas clientes disputando o mesmo horário ao mesmo tempo (a transação já
+      existe; falta o teste que prova que ela segura)
+- [ ] Catálogo, clientes e configuração — as rotas que ainda não têm teste
 - [ ] Isolamento entre empresas (é o item já listado no Bloco 9)

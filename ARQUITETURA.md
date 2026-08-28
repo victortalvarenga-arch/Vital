@@ -57,6 +57,8 @@ horário.
 ```
 server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   db/migrations/   Esquema em migrations numeradas, versionadas em tabela.
+  src/app.js       Monta o Express: middlewares, guardas e rotas. Não sobe nada.
+  src/index.js     Roda as migrations, abre a porta, liga o cron.
   src/db.js        Pool de conexões, migrations no boot, linha ↔ objeto da API.
   src/reset.js     Zera o banco em desenvolvimento. Recusa rodar fora de localhost.
   src/senha-app.js Define a senha do papel vital_app a partir do .env (dev).
@@ -465,7 +467,16 @@ agenda ou de dinheiro precisa passar por `escopoDe`.
 ## Testes
 
 `cd server && npm test`. Roda com o `node:test` nativo — sem framework, sem
-dependência a mais.
+dependência a mais. Dois arquivos: o motor de horários, chamado direto, e as
+rotas de agendamento, faladas por HTTP.
+
+**Montar a aplicação e subir a aplicação são coisas separadas.** `app.js`
+exporta o Express montado; `index.js` roda as migrations, abre a porta e liga o
+cron. Importar `app.js` num teste não abre porta nem dispara job, então o teste
+entra pelo `fetch`, numa porta que o sistema escolhe — passando pelo middleware
+de empresa, pelo cookie de sessão e pela guarda de papel, na ordem real. Testar
+a função exportada pularia justamente as três camadas onde os vazamentos deste
+projeto apareceram.
 
 **Banco de verdade, não simulação.** O motor de horários concilia jornada,
 agendamentos e bloqueios em SQL, com RLS por baixo; um banco simulado testaria o
@@ -488,7 +499,7 @@ um com sua própria implementação da mesma regra. Há teste cruzando os três:
 que a grade oferece, o gravar tem de aceitar; o dia que o calendário promete, a
 grade tem de entregar.
 
-**A suíte foi conferida quebrando o motor de propósito.** Seis defeitos
+**A suíte foi conferida quebrando o código de propósito.** Seis defeitos
 plantados um a um — a grade ignorando bloqueio, sobreposição virando `<=`,
 cancelado voltando a ocupar, o feriado sumindo do calendário, `conflita`
 deixando de olhar bloqueio, a limpeza saindo da conta. Cinco falharam de cara; o

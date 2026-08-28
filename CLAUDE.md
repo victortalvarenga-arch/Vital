@@ -62,6 +62,12 @@ escrito, não aconteceu.
   como marcador; `db.js` traduz para `$1` do Postgres.
 - Todo handler de rota assíncrono vai embrulhado em `rota()`, senão erro nele
   pendura a requisição sem resposta.
+- Rota que grava agenda ou dinheiro passa por `escopoDe` como a que lê. Filtrar
+  só a leitura deixa a escrita aberta a quem souber o id — e id circula em link
+  e em URL.
+- Nada de `Promise.all` com várias consultas: a requisição inteira roda numa
+  conexão só, que atende uma por vez. Não ganha paralelismo e o `pg` avisa que
+  vai parar de aceitar.
 - Rota nova do painel precisa de `exige('poder')` quando não é para todos os
   papéis. Esconder o botão na tela não é controle de acesso — a chamada direta
   passa por cima.

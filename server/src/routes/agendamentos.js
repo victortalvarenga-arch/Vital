@@ -4,13 +4,29 @@ import { hoje, agora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
 import { escopoDe } from '../lib/auth.js';
-import { validarAdicionais, gravarAdicionais } from '../lib/adicionais.js';
+import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 
 export const agendamentos = Router();
 
 const STATUS = ['agendado', 'confirmado', 'concluido', 'falta', 'cancelado'];
 const FORMAS = ['pix', 'cartao', 'dinheiro', 'local'];
+
+/**
+ * Funcionário mexe na própria agenda e só nela; dono mexe em todas.
+ *
+ * A leitura já era filtrada por `escopoDe`, mas gravar não era: com o id na
+ * mão — e id de agendamento circula em link de confirmação e em URL —, quem
+ * atende podia remarcar ou cancelar a cliente de outra pessoa. Esconder a
+ * agenda alheia da tela nunca foi controle de acesso.
+ *
+ * Mesma regra de `bloqueios.js`. Se algum dia existir recepcionista, o certo é
+ * um papel novo com o poder `verDeTodos`, não afrouxar aqui.
+ */
+function podeMexer(usuario, staffId) {
+  const so = escopoDe(usuario);
+  return !so || staffId === so;
+}
 
 /* ── Disponibilidade ── */
 agendamentos.get('/horarios', rota(async (req, res) => {
@@ -46,7 +62,9 @@ agendamentos.get('/', rota(async (req, res) => {
   if (clienteId) { cond.push('client_id = ?'); args.push(clienteId); }
   const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
   const rows = await db.all(`SELECT * FROM appointments ${where} ORDER BY data, hora`, ...args);
-  res.json(rows.map(apptOut));
+  // Sem os extras, quem atende lê "Corte" e não sabe que a cliente também
+  // comprou a sobrancelha — e a duração e o valor na tela não fecham com nada.
+  res.json(await comAdicionais(rows.map(apptOut)));
 }));
 
 /**
@@ -108,6 +126,9 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
 }
 
 agendamentos.post('/', rota(async (req, res) => {
+  if (!podeMexer(req.usuario, req.body?.profissionalId)) {
+    return res.status(403).json({ erro: 'você só pode agendar na própria agenda' });
+  }
   const r = await criarAgendamento(req.body || {}, { origem: 'painel', forcar: req.body?.forcar === true });
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
   res.status(201).json(r.agendamento);
@@ -117,6 +138,13 @@ agendamentos.put('/:id', rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM appointments WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'agendamento não encontrado' });
   const b = req.body || {};
+
+  // Precisa poder no agendamento como ele está hoje e como vai ficar: sem a
+  // segunda metade, dava para empurrar a própria cliente para a agenda alheia.
+  if (!podeMexer(req.usuario, atual.staff_id)
+      || !podeMexer(req.usuario, b.profissionalId || atual.staff_id)) {
+    return res.status(403).json({ erro: 'você só pode alterar a própria agenda' });
+  }
 
   if (b.status && !STATUS.includes(b.status)) return res.status(400).json({ erro: 'status inválido' });
   if (b.pagamento?.forma && !FORMAS.includes(b.pagamento.forma)) {
@@ -156,10 +184,15 @@ agendamentos.put('/:id', rota(async (req, res) => {
   });
 
   if (resultado.erro) return res.status(409).json({ erro: resultado.erro });
-  res.json(apptOut(resultado.atualizado));
+  res.json((await comAdicionais([apptOut(resultado.atualizado)]))[0]);
 }));
 
 agendamentos.delete('/:id', rota(async (req, res) => {
+  const atual = await db.get('SELECT * FROM appointments WHERE id=?', req.params.id);
+  if (!atual) return res.status(404).json({ erro: 'agendamento não encontrado' });
+  if (!podeMexer(req.usuario, atual.staff_id)) {
+    return res.status(403).json({ erro: 'você só pode apagar da própria agenda' });
+  }
   await db.transacao(async tx => {
     await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, req.params.id);
     await tx.run('DELETE FROM appointments WHERE id=?', req.params.id);

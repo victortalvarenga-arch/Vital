@@ -76,6 +76,18 @@ export async function limpar(db) {
 }
 
 /**
+ * Zera só a agenda, preservando catálogo e equipe.
+ *
+ * Criar usuário custa um hash argon2, que é lento de propósito. Refazer a
+ * equipe a cada teste somaria segundos à suíte sem testar nada de novo.
+ */
+export async function limparAgenda(db) {
+  for (const t of ['appointment_addons', 'appointments', 'blocks', 'messages']) {
+    await db.db.run(`DELETE FROM ${t}`);
+  }
+}
+
+/**
  * Cenário mínimo e previsível.
  *
  * Números redondos de propósito: jornada das 9 às 18, serviço de 60 min sem
@@ -125,3 +137,80 @@ export const bloquear = (db, { prof = null, data, ini, fim, motivo = 'teste' }) 
      VALUES (?,?,?,?,?,?,?)`,
     `b-${data}-${ini}-${prof || 'todos'}`, prof, data, ini, fim, motivo, '2026-01-01'
   );
+
+/* ------------------------------------------------------------------ *
+ * Falar com a API de verdade
+ * ------------------------------------------------------------------ */
+
+/**
+ * Sobe a aplicação numa porta livre e devolve um cliente HTTP por pessoa.
+ *
+ * Rota é mais do que o handler: é o middleware de empresa, o cookie de sessão e
+ * a guarda de papel, nessa ordem. Testar a função exportada pularia justamente
+ * as três camadas onde os vazamentos deste projeto apareceram. Por isso aqui
+ * entra pelo `fetch`, como o navegador entraria.
+ *
+ * Porta 0 = o sistema escolhe uma livre: a suíte não briga com o `npm run dev`
+ * que pode estar rodando na 3333.
+ */
+export async function subirApi() {
+  const { app } = await import('../src/app.js');
+  const servidor = app.listen(0);
+  await new Promise(ok => servidor.once('listening', ok));
+  const base = `http://127.0.0.1:${servidor.address().port}`;
+
+  /** Um cliente HTTP que guarda o cookie de sessão, como um navegador. */
+  const cliente = () => {
+    let cookie = '';
+    return async (metodo, caminho, corpo) => {
+      const r = await fetch(base + caminho, {
+        method: metodo,
+        headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+        body: corpo === undefined ? undefined : JSON.stringify(corpo),
+      });
+      const set = r.headers.getSetCookie?.() || [];
+      if (set.length) cookie = set.map(c => c.split(';')[0]).join('; ');
+      const texto = await r.text();
+      let json;
+      try { json = texto ? JSON.parse(texto) : null; } catch { json = texto; }
+      return { status: r.status, corpo: json };
+    };
+  };
+
+  const entrar = async (email, senha) => {
+    const req = cliente();
+    const r = await req('POST', '/api/auth/login', { email, senha });
+    if (r.status !== 200) throw new Error(`login de ${email} falhou: ${JSON.stringify(r.corpo)}`);
+    return req;
+  };
+
+  return {
+    base,
+    anonimo: cliente,
+    entrar,
+    fechar: () => new Promise(ok => servidor.close(ok)),
+  };
+}
+
+export const SENHA = 'senha-de-teste-1234';
+
+/**
+ * Cria dono e funcionária vinculada a `p1`.
+ *
+ * O dono nasce pelo `/primeiro-acesso` — é o único caminho que existe para o
+ * primeiro usuário, e usá-lo aqui garante que o teste esbarra nele também.
+ */
+export async function criarEquipe(api) {
+  const dono = api.anonimo();
+  const r = await dono('POST', '/api/auth/primeiro-acesso',
+    { nome: 'Dona', email: 'dona@teste.com', senha: SENHA });
+  if (r.status !== 201) throw new Error(`primeiro acesso falhou: ${JSON.stringify(r.corpo)}`);
+
+  const nova = await dono('POST', '/api/auth/usuarios', {
+    nome: 'Ana', email: 'ana@teste.com', senha: SENHA,
+    papel: 'funcionario', profissionalId: 'p1',
+  });
+  if (nova.status !== 201) throw new Error(`criar funcionária falhou: ${JSON.stringify(nova.corpo)}`);
+
+  return { dono, ana: await api.entrar('ana@teste.com', SENHA) };
+}

@@ -342,6 +342,16 @@ function Agenda({ dados, acao, aviso, poderes }) {
                         <b>{c?.nome.split(' ')[0]}</b>
                         <span className="t">{a.hora}</span> · {s?.nome}
                         {a.pagamento.status === 'pago' && <span style={{ color: 'var(--ok)', fontWeight: 700 }}> ✓pago</span>}
+                        {/* Só o sinal de que tem extra; a lista inteira está a
+                            um toque, no detalhe. A coluna é estreita demais
+                            para caber nome de serviço em cima de nome. */}
+                        {a.adicionais.length > 0 && (
+                          <span className="appt-mais">
+                            + {a.adicionais.length === 1
+                                 ? a.adicionais[0].nome
+                                 : `${a.adicionais.length} adicionais`}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -365,9 +375,23 @@ function Agenda({ dados, acao, aviso, poderes }) {
           <Modal onClose={() => setSel(null)}>
             <div className="eyebrow">{fmtDataLonga(sel.data)} · {sel.hora}</div>
             <h2 style={{ fontSize: 26, margin: '6px 0 4px' }}>{c?.nome}</h2>
-            <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 18 }}>
+            <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: sel.adicionais.length ? 10 : 18 }}>
               {s?.nome} · {sel.duracao} min · com {p?.nome} · <b className="mono">{brl(sel.valor)}</b>
             </p>
+            {/* Quem atende precisa saber o que foi comprado junto antes de
+                começar — e o valor só fecha com o total quando os extras
+                aparecem discriminados. */}
+            {sel.adicionais.length > 0 && (
+              <div className="extras">
+                <span className="eyebrow">Comprou junto</span>
+                {sel.adicionais.map(x => (
+                  <div key={x.id} className="extras-li">
+                    <span>{x.nome}</span>
+                    <b className="mono">{brl(x.preco)}</b>
+                  </div>
+                ))}
+              </div>
+            )}
             {c?.obs && <div className="card" style={{ padding: 12, fontSize: 13, marginBottom: 16, background: '#FFFBEE', borderColor: '#EBDFAE' }}>📌 {c.obs}</div>}
 
             <label>Situação</label>
