@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, uid, staffOut, serviceOut, listarServicos, salvarVinculos, getConfig, setConfig } from '../db.js';
+import { db, uid, staffOut, serviceOut, unitOut, listarServicos, listarUnidades, salvarVinculos, getConfig, setConfig } from '../db.js';
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { adicionaisDe } from '../lib/adicionais.js';
@@ -164,10 +164,11 @@ catalogo.post('/profissionais', exige('equipe'), rota(async (req, res) => {
   if (!b.nome) return res.status(400).json({ erro: 'nome é obrigatório' });
   const id = uid();
   await db.run(
-    `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,ativo,criado_em)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,unit_id,ativo,criado_em)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
     id, b.nome, b.funcao || '', soDigitos(b.fone), b.cor || '#A32A4E',
-    +b.comissao || 0, JSON.stringify(b.jornada || {}), b.ativo === false ? 0 : 1, hoje()
+    +b.comissao || 0, JSON.stringify(b.jornada || {}),
+    await unidadeValida(b.unidadeId), b.ativo === false ? 0 : 1, hoje()
   );
   res.status(201).json(staffOut(await db.get('SELECT * FROM staff WHERE id=?', id)));
 }));
@@ -177,9 +178,11 @@ catalogo.put('/profissionais/:id', exige('equipe'), rota(async (req, res) => {
   if (!atual) return res.status(404).json({ erro: 'profissional não encontrada' });
   const b = { ...staffOut(atual), ...req.body };
   await db.run(
-    `UPDATE staff SET nome=?, funcao=?, fone=?, cor=?, comissao=?, jornada=?, ativo=? WHERE id=?`,
+    `UPDATE staff SET nome=?, funcao=?, fone=?, cor=?, comissao=?, jornada=?, unit_id=?, ativo=?
+      WHERE id=?`,
     b.nome, b.funcao, soDigitos(b.fone), b.cor, +b.comissao,
-    JSON.stringify(b.jornada || {}), b.ativo ? 1 : 0, req.params.id
+    JSON.stringify(b.jornada || {}), await unidadeValida(b.unidadeId),
+    b.ativo ? 1 : 0, req.params.id
   );
   res.json(staffOut(await db.get('SELECT * FROM staff WHERE id=?', req.params.id)));
 }));
@@ -301,3 +304,85 @@ catalogo.delete('/combos/:id', rota(async (req, res) => {
 catalogo.get('/combos/:id/profissionais', rota(async (req, res) => {
   res.json(await profissionaisDoCombo(req.params.id));
 }));
+
+/* ── unidades ────────────────────────────────────────────────────────────── *
+ *
+ * A tabela existe desde o Bloco 0 e nada a usava: uma empresa com duas lojas
+ * conseguia cadastrá-las por SQL e mais nada.
+ *
+ * **A unidade é da profissional, não do serviço.** É ela que ocupa uma cadeira
+ * num endereço, e o motor de horários já raciocina por profissional — então
+ * filtrar por unidade é filtrar quem atende, e o motor não muda uma linha. Um
+ * serviço é oferecido onde houver alguém que o faça.
+ *
+ * `unit_id` nulo quer dizer "atende em qualquer unidade", e é o estado de toda
+ * profissional que já existia. Sem isso, ligar unidades sumiria com a equipe
+ * inteira das telas de quem já usa o sistema.
+ */
+
+/** Confere que a unidade existe nesta empresa. Vazio vira nulo, não erro. */
+async function unidadeValida(id) {
+  if (!id) return null;
+  const u = await db.get('SELECT id FROM units WHERE id = ?', id);
+  return u ? u.id : null;
+}
+
+catalogo.get('/unidades', rota(async (req, res) =>
+  res.json(await listarUnidades({ somenteAtivas: req.query.ativas === '1' }))));
+
+catalogo.post('/unidades', exige('cadastros'), rota(async (req, res) => {
+  const erro = confere(req.body || {});
+  if (erro) return res.status(400).json({ erro });
+
+  const b = req.body;
+  const id = uid();
+  await db.run(
+    `INSERT INTO units (id,nome,endereco,fone,mapa,jornada,ordem,ativo,criado_em)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    id, b.nome.trim(), b.endereco || '', soDigitos(b.fone), b.mapa || '',
+    JSON.stringify(b.jornada || {}), +b.ordem || 0, b.ativo === false ? 0 : 1, hoje()
+  );
+  res.status(201).json(unitOut(await db.get('SELECT * FROM units WHERE id=?', id)));
+}));
+
+catalogo.put('/unidades/:id', exige('cadastros'), rota(async (req, res) => {
+  const atual = await db.get('SELECT * FROM units WHERE id=?', req.params.id);
+  if (!atual) return res.status(404).json({ erro: 'unidade não encontrada' });
+
+  const b = { ...unitOut(atual), ...req.body };
+  const erro = confere(b);
+  if (erro) return res.status(400).json({ erro });
+
+  await db.run(
+    `UPDATE units SET nome=?, endereco=?, fone=?, mapa=?, jornada=?, ordem=?, ativo=?
+      WHERE id=?`,
+    b.nome.trim(), b.endereco || '', soDigitos(b.fone), b.mapa || '',
+    JSON.stringify(b.jornada || {}), +b.ordem || 0, b.ativo ? 1 : 0, req.params.id
+  );
+  res.json(unitOut(await db.get('SELECT * FROM units WHERE id=?', req.params.id)));
+}));
+
+catalogo.delete('/unidades/:id', exige('cadastros'), rota(async (req, res) => {
+  const atual = await db.get('SELECT id, nome FROM units WHERE id=?', req.params.id);
+  if (!atual) return res.status(404).json({ erro: 'unidade não encontrada' });
+
+  // Agendamento antigo aponta para a unidade em que aconteceu; apagar a linha
+  // quebraria o histórico. Arquivar tira do site e preserva o passado — mesma
+  // escolha dos serviços e dos combos.
+  const equipe = await db.all('SELECT nome FROM staff WHERE unit_id = ? AND ativo = 1', req.params.id);
+  await db.run('UPDATE units SET ativo = 0 WHERE id = ?', req.params.id);
+
+  res.json({
+    ok: true, arquivada: true,
+    // Quem ficou sem casa. Não desvinculamos sozinhos: mover a equipe de
+    // endereço é decisão de quem administra, não efeito colateral de arquivar.
+    semUnidade: equipe.map(p => p.nome),
+  });
+}));
+
+/** Regras da unidade. Devolve a mensagem, ou nada quando está tudo certo. */
+function confere(b) {
+  if (String(b.nome || '').trim().length < 2) return 'informe o nome da unidade';
+  if (b.mapa && !/^https?:\/\//.test(b.mapa)) return 'o link do mapa precisa começar com http';
+  return null;
+}

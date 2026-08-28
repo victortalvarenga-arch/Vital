@@ -107,10 +107,12 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
       return { erro: 'esse horário acabou de ser ocupado', codigo: 409 };
     }
     await tx.run(
-      `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,
+      `INSERT INTO appointments (id,client_id,service_id,staff_id,unit_id,data,hora,duracao,valor,
                                  status,pag_status,pag_forma,origem,obs,criado_em)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      id, b.clienteId, b.servicoId, b.profissionalId, b.data, b.hora, duracao,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      // A unidade vem de quem atende: é ela que ocupa a cadeira num endereço.
+      // Guardar aqui congela onde aconteceu, mesmo que a pessoa mude de loja.
+      id, b.clienteId, b.servicoId, b.profissionalId, prof.unit_id, b.data, b.hora, duracao,
       valor,
       b.status || 'agendado',
       b.pagamento?.status || 'aberto', b.pagamento?.forma || 'local',
@@ -184,10 +186,10 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
         return { erro: 'esse horário acabou de ser ocupado', codigo: 409 };
       }
       await tx.run(
-        `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,
+        `INSERT INTO appointments (id,client_id,service_id,staff_id,unit_id,data,hora,duracao,valor,
                                    status,pag_status,pag_forma,origem,obs,combo_id,combo_grupo,criado_em)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        uid(), b.clienteId, item.svc.id, prof.id, b.data, item.hora, item.duracao, item.valor,
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        uid(), b.clienteId, item.svc.id, prof.id, prof.unit_id, b.data, item.hora, item.duracao, item.valor,
         'agendado', b.pagamento?.status || 'aberto', b.pagamento?.forma || 'local',
         origem, b.obs || '', combo.id, grupo, `${hoje()} ${agora()}`
       );

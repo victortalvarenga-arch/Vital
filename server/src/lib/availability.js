@@ -115,11 +115,22 @@ export async function horariosPorEquipe({ staffIds, data, duracao }) {
   return resultado;
 }
 
-/** Mesma coisa, porém para todos os profissionais habilitados no serviço. */
-export async function horariosPorServico({ servicoId, data, duracaoExtra = 0 }) {
+/**
+ * Mesma coisa, porém para todos os profissionais habilitados no serviço.
+ *
+ * `unidadeId` recorta quem atende naquele endereço. A unidade é da
+ * profissional, então filtrar por unidade é filtrar a equipe — o motor não
+ * precisa saber o que é uma unidade. Quem está sem unidade atende em qualquer
+ * uma, e é o estado de toda profissional de antes desta funcionalidade.
+ */
+export async function horariosPorServico({ servicoId, data, duracaoExtra = 0, unidadeId }) {
   const svc = await db.get('SELECT * FROM services WHERE id = ?', servicoId);
   if (!svc) return [];
-  const vinculos = await db.all('SELECT staff_id FROM service_staff WHERE service_id = ?', servicoId);
+  const vinculos = await db.all(
+    `SELECT ss.staff_id FROM service_staff ss JOIN staff s ON s.id = ss.staff_id
+      WHERE ss.service_id = ? AND (? = '' OR s.unit_id = ? OR s.unit_id IS NULL)`,
+    servicoId, unidadeId || '', unidadeId || ''
+  );
   return horariosPorEquipe({
     staffIds: vinculos.map(v => v.staff_id),
     data,
@@ -142,7 +153,7 @@ export async function horariosPorServico({ servicoId, data, duracaoExtra = 0 }) 
  * @param {number} [o.duracaoExtra]    minutos dos serviços adicionais escolhidos
  * @returns {Promise<string[]>} datas 'YYYY-MM-DD' com vaga
  */
-export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra = 0 }) {
+export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra = 0, unidadeId }) {
   const svc = await db.get('SELECT * FROM services WHERE id = ? AND ativo = 1', servicoId);
   if (!svc) return [];
 
@@ -151,8 +162,9 @@ export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra
     : await db.all(
         `SELECT s.* FROM staff s
            JOIN service_staff ss ON ss.staff_id = s.id
-          WHERE ss.service_id = ? AND s.ativo = 1`,
-        servicoId
+          WHERE ss.service_id = ? AND s.ativo = 1
+            AND (? = '' OR s.unit_id = ? OR s.unit_id IS NULL)`,
+        servicoId, unidadeId || '', unidadeId || ''
       );
 
   return diasComVagaPara({

@@ -134,7 +134,12 @@ publico.get('/horarios', rota(async (req, res) => {
   if (profissionalId) {
     return res.json({ data, horarios: await horariosLivres({ staffId: profissionalId, data, duracao }) });
   }
-  res.json({ data, porProfissional: await horariosPorServico({ servicoId, data, duracaoExtra: extras.duracao }) });
+  res.json({
+    data,
+    porProfissional: await horariosPorServico({
+      servicoId, data, duracaoExtra: extras.duracao, unidadeId: req.query.unidadeId,
+    }),
+  });
 }));
 
 /** 'a,b,c' → ['a','b','c']. Vem da query string, então tudo é texto. */
@@ -173,7 +178,10 @@ publico.get('/dias-livres', rota(async (req, res) => {
 
   res.json({
     mes,
-    dias: await diasComVaga({ servicoId, profissionalId, mes, duracaoExtra: extras.duracao }),
+    dias: await diasComVaga({
+      servicoId, profissionalId, mes, duracaoExtra: extras.duracao,
+      unidadeId: req.query.unidadeId,
+    }),
   });
 }));
 

@@ -72,6 +72,7 @@ export const api = {
       agendamentos: d.agendamentos.map(agParaTela),
       templates: d.templates,
       combos: d.combos || [],
+      unidades: d.unidades || [],
     };
   },
 
@@ -94,6 +95,12 @@ export const api = {
   }),
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
+
+  /* ── unidades ── */
+  salvarUnidade: u => u.id
+    ? req(`/unidades/${u.id}`, { method: 'PUT', body: u })
+    : req('/unidades', { method: 'POST', body: u }),
+  removerUnidade: id => req(`/unidades/${id}`, { method: 'DELETE' }),
 
   /* ── combos e promoções ── */
   combos: () => req('/combos'),

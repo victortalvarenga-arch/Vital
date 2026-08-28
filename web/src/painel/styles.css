@@ -396,3 +396,11 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .entrar-empresa{font-family:'Fraunces',serif; font-size:17px; margin:-8px 0 8px; color:var(--ink)}
 .entrar-troca{display:block; width:100%; margin-top:14px; padding:8px; background:none; border:none;
   cursor:pointer; font-size:13px; color:var(--muted); text-decoration:underline}
+
+/* ── unidades ───────────────────────────────────────────────────────────── */
+.und{gap:12px}
+.und.off{opacity:.55}
+.und-marca{width:34px; height:34px; border-radius:10px; flex:none; display:grid; place-items:center;
+  background:var(--blush); color:var(--lacquer-d)}
+.und-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+  margin-left:8px; padding:2px 7px; border-radius:6px; background:var(--line); color:var(--muted)}

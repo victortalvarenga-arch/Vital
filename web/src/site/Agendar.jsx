@@ -15,6 +15,7 @@ import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, soDigitos, ma
  */
 
 const PASSOS = [
+  { k: 'unidade', titulo: 'Onde você quer ser atendida?', ajuda: 'Escolha o endereço mais perto de você.' },
   { k: 'categoria', titulo: 'Escolha a categoria', ajuda: 'Depois você vê as opções dentro dela.' },
   { k: 'servico', titulo: 'Escolha o serviço', ajuda: 'O que você quer fazer hoje.' },
   { k: 'adicionais', titulo: 'Quer incluir algo mais?', ajuda: 'Serviços que combinam com o que você escolheu. Pode pular.' },
@@ -27,12 +28,14 @@ const PASSOS = [
 export default function Agendar({ dados, servicoInicial, categoriaInicial, comboInicial, aoFechar }) {
   const { negocio, textos, exibir, servicos, profissionais } = dados;
   const combo = (dados.combos || []).find(c => c.id === comboInicial) || null;
+  const unidades = dados.unidades || [];
   const [escolha, setEscolha] = useState(() => ({
     categoria: categoriaInicial
       || (servicoInicial ? servicos.find(x => x.id === servicoInicial)?.categoria : null)
       || null,
     servicoId: servicoInicial || null,
     comboId: comboInicial || null,
+    unidadeId: null,
     adicionaisIds: [], profissionalId: null, data: null, hora: null,
   }));
   const [confirmado, setConfirmado] = useState(null);
@@ -52,7 +55,10 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     ? { id: combo.id, nome: combo.nome, preco: combo.preco, duracao: combo.duracao,
         profissionais: combo.profissionais, ehCombo: true }
     : servicos.find(s => s.id === escolha.servicoId);
-  const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id));
+  // Quem está sem unidade atende em qualquer uma — é o estado de toda a equipe
+  // de antes de existirem unidades.
+  const daUnidade = p => !escolha.unidadeId || !p.unidadeId || p.unidadeId === escolha.unidadeId;
+  const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id) && daUnidade(p));
   const profissional = profissionais.find(p => p.id === escolha.profissionalId);
   const extras = servicos.filter(x => escolha.adicionaisIds.includes(x.id));
 
@@ -76,18 +82,21 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
    * decide, e a navegação anda por ela nos dois sentidos.
    */
   const util = useCallback(k => {
+    // Empresa de um endereço só não responde a pergunta que não tem: o passo
+    // some inteiro, e nada muda para quem sempre teve uma loja.
+    if (k === 'unidade') return unidades.length > 1;
     // No combo o pacote já está fechado: não há categoria, serviço nem extra a
     // escolher, só quem atende e quando.
     if (combo) return k === 'profissional'
       ? exibir?.escolherProfissional && equipe.length > 1
-      : ['data', 'dados', 'pronto'].includes(k);
+      : ['unidade', 'data', 'dados', 'pronto'].includes(k);
     // Continua útil quando a janela abriu por uma categoria: é para lá que o
     // "Voltar" leva, e trocar de categoria sem fechar é o caminho natural.
     if (k === 'categoria') return !servicoInicial && exibir?.categorias && categorias.length > 1;
     if (k === 'adicionais') return ofertados.length > 0;
     if (k === 'profissional') return exibir?.escolherProfissional && equipe.length > 1;
     return true;
-  }, [combo, servicoInicial, exibir, categorias.length, ofertados.length, equipe.length]);
+  }, [combo, servicoInicial, exibir, categorias.length, ofertados.length, equipe.length, unidades.length]);
 
   /**
    * A janela sempre abre no começo do fluxo.
@@ -105,6 +114,9 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
   // olhar a quantidade de serviços fazia a janela abrir num passo que util()
   // considera inválido — e aí o "Voltar" não tinha para onde ir e morria.
   const [passo, setPasso] = useState(() => {
+    // A unidade vem antes de tudo quando existe: ela recorta quem atende, e
+    // perguntá-la depois obrigaria a refazer as escolhas.
+    if (util('unidade')) return 'unidade';
     if (comboInicial) return PASSOS.find(p => util(p.k))?.k || 'data';
     return !servicoInicial && !categoriaInicial && util('categoria') ? 'categoria' : 'servico';
   });
@@ -205,6 +217,20 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
           </header>
 
           <div className="jn-corpo">
+            {passo === 'unidade' && (
+              <Opcoes
+                itens={unidades.map(u => ({ id: u.id, nome: u.nome, sub: u.endereco }))}
+                marcado={escolha.unidadeId}
+                aoEscolher={id => {
+                  // Trocar de endereço invalida quem atende e quando: a equipe
+                  // é outra. Zerar aqui evita confirmar com alguém que não
+                  // trabalha no lugar escolhido.
+                  setEscolha(e => ({ ...e, unidadeId: id, profissionalId: null, data: null, hora: null }));
+                  avancar();
+                }}
+              />
+            )}
+
             {passo === 'categoria' && (
               <Opcoes
                 itens={categorias.map(c => ({
@@ -297,7 +323,8 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
         {/* coluna 3 — o que já foi escolhido */}
         <Resumo
-          servico={servico} profissional={profissional} escolha={escolha}
+          servico={servico} profissional={profissional}
+          unidade={unidades.find(u => u.id === escolha.unidadeId)} escolha={escolha}
           extras={extras} total={total}
           aberto={resumoAberto} aoAlternar={() => setResumoAberto(v => !v)}
         />
@@ -310,7 +337,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
 /* ── resumo ── */
 
-function Resumo({ servico, profissional, escolha, extras, total, aberto, aoAlternar }) {
+function Resumo({ servico, profissional, unidade, escolha, extras, total, aberto, aoAlternar }) {
   const vazio = !servico && !profissional && !escolha.data;
   return (
     <aside className={'jn-resumo' + (aberto ? ' aberto' : '')}>
@@ -327,6 +354,7 @@ function Resumo({ servico, profissional, escolha, extras, total, aberto, aoAlter
         {profissional && <ItemResumo rotulo="Profissional" valor={profissional.nome} />}
         {!profissional && escolha.data && <ItemResumo rotulo="Profissional" valor="Qualquer um" />}
         {servico && <ItemResumo rotulo={servico.ehCombo ? 'Promoção' : 'Serviço'} valor={servico.nome} />}
+        {unidade && <ItemResumo rotulo="Onde" valor={unidade.nome} />}
         {escolha.data && (
           <ItemResumo rotulo="Data e horário" valor={`${porExtenso(escolha.data)}${escolha.hora ? ` · ${escolha.hora}` : ''}`} />
         )}
@@ -452,12 +480,13 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
         servicoId: escolha.servicoId,
         comboId: escolha.comboId || undefined,
         profissionalId: escolha.profissionalId || undefined,
+        unidadeId: escolha.unidadeId || undefined,
         adicionais: escolha.adicionaisIds,
         mes,
       });
       setComVaga(new Set(r.dias));
     } catch (e) { aviso(e.message); setComVaga(new Set()); }
-  }, [mes, escolha.servicoId, escolha.comboId, escolha.profissionalId, escolha.adicionaisIds, aviso]);
+  }, [mes, escolha.servicoId, escolha.comboId, escolha.profissionalId, escolha.unidadeId, escolha.adicionaisIds, aviso]);
 
   useEffect(() => { carregarMes(); }, [carregarMes]);
 
@@ -468,6 +497,7 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
         servicoId: escolha.servicoId,
         comboId: escolha.comboId || undefined,
         profissionalId: escolha.profissionalId || undefined,
+        unidadeId: escolha.unidadeId || undefined,
         adicionais: escolha.adicionaisIds,
         data: d,
       });

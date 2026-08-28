@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-import { db, getConfig, listarServicos, staffOut, clientOut, apptOut, templateOut, blockOut } from './db.js';
+import { db, getConfig, listarServicos, listarUnidades, staffOut, clientOut, apptOut, templateOut, blockOut } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
 import { catalogo } from './routes/catalogo.js';
 import { clientes } from './routes/clientes.js';
@@ -150,6 +150,9 @@ app.get('/api/estado', rota(async (req, res) => {
   // Vencidos junto: o painel precisa achar a promoção do ano passado para
   // reaproveitar, e é ele quem marca qual está fora do ar.
   const pacotes = await combosAtivos({ incluirVencidos: true });
+  // Arquivadas junto: a agenda antiga aponta para elas, e esconder o nome
+  // faria um atendimento do mês passado parecer sem lugar.
+  const locais = await listarUnidades();
   res.json({
     config,
     servicos,
@@ -158,6 +161,7 @@ app.get('/api/estado', rota(async (req, res) => {
     agendamentos: await comAdicionais(agenda.map(apptOut)),
     templates: modelos.map(templateOut),
     combos: pacotes,
+    unidades: locais,
     // Funcionário vê o que fecha a agenda dele: o próprio e os da empresa toda.
     bloqueios: fechados
       .filter(b => !so || !b.staff_id || b.staff_id === so)

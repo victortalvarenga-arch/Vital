@@ -88,7 +88,8 @@ web/               Vite + React, sem framework de UI. CSS à mão.
   src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css, ConfigSite.jsx (a empresa edita o site),
-                   Combos.jsx (promoções), Usuarios.jsx (acesso),
+                   Combos.jsx (promoções), Unidades.jsx (endereços),
+                   Usuarios.jsx (acesso),
                    Comecar.jsx (assistente de primeira configuração)
   src/vital/       Cadastro.jsx (empresa nova), Equipe.jsx (back-office),
                    api.js (cookie próprio), styles.css (a marca da Vital)
@@ -645,6 +646,34 @@ que deixa escolher por serviço.
 **Criar promoção não tem guarda de papel**, ao contrário do resto dos cadastros:
 foi decisão do negócio, porque é quem está no balcão que sabe qual serviço está
 parado e vale empurrar junto.
+
+## Unidades
+
+Os endereços em que a empresa atende. A tabela `units` existia desde o Bloco 0 e
+**nenhuma rota a usava**: uma empresa com duas lojas conseguia cadastrá-las por
+SQL e mais nada. É o mesmo tipo de buraco que os bloqueios de horário tinham.
+
+**A unidade é de quem atende, não do serviço.** É a profissional que ocupa uma
+cadeira num endereço; um serviço é oferecido onde houver alguém que o faça. A
+consequência boa é que o motor de horários **não mudou uma linha**: ele já
+raciocina por profissional, então filtrar por unidade virou filtrar a equipe, na
+consulta que já buscava quem faz o serviço.
+
+`staff.unit_id` nulo quer dizer **"atende em qualquer unidade"**, e é o estado de
+toda profissional que já existia. Sem isso, cadastrar a primeira unidade sumiria
+com a equipe inteira das telas de quem já usa o sistema — o tipo de estreia que
+faz a empresa desligar a funcionalidade e não voltar.
+
+O agendamento congela `unit_id` no momento da venda, a partir de quem atende:
+mover a pessoa de loja depois não reescreve onde o atendimento passado ocorreu.
+
+**Empresa de um endereço só não paga nada por isso.** Sem unidade cadastrada, o
+passo some do agendamento, o campo some da ficha da profissional, e tudo funciona
+como antes. A funcionalidade só aparece quando há o que perguntar.
+
+Arquivar uma unidade (`ativo = 0`) não apaga: a agenda antiga aponta para ela. E
+não desvincula a equipe sozinho — a resposta devolve quem ficou sem endereço,
+porque mover gente de loja é decisão de quem administra, não efeito colateral.
 
 ## O back-office da Vital
 

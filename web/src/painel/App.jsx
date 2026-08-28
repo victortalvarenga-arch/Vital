@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import Combos from './Combos.jsx';
+import Unidades from './Unidades.jsx';
 import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
@@ -12,7 +13,7 @@ import {
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag
+  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -194,6 +195,7 @@ function Painel({ sessao, aoSair }) {
       { k: 'combos', nome: 'Promoções', icon: Tag },
       ...(p.equipe ? [{ k: 'equipe', nome: 'Profissionais', icon: Store }] : []),
       ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
+      ...(p.cadastros ? [{ k: 'unidades', nome: 'Unidades', icon: MapPinIcon }] : []),
     ] },
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
@@ -255,6 +257,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
+        {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}
@@ -1009,12 +1012,13 @@ function Equipe({ dados, acao, aviso }) {
           );
         })}
       </div>
-      {edit && <EditarStaff p={edit} acao={acao} fechar={() => setEdit(null)} aviso={aviso} />}
+      {edit && <EditarStaff p={edit} unidades={dados.unidades || []} acao={acao}
+                            fechar={() => setEdit(null)} aviso={aviso} />}
     </>
   );
 }
 
-function EditarStaff({ p, acao, fechar, aviso }) {
+function EditarStaff({ p, unidades, acao, fechar, aviso }) {
   const [f, setF] = useState({ ...p, jornada: { ...p.jornada } });
   const toggleDia = d => setF(v => {
     const j = { ...v.jornada };
@@ -1032,6 +1036,19 @@ function EditarStaff({ p, acao, fechar, aviso }) {
       <div className="mrow">
         <Campo label="Nome"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
         <Campo label="Função"><input value={f.funcao} onChange={e => setF(v => ({ ...v, funcao: e.target.value }))} placeholder="O que essa pessoa faz" /></Campo>
+        {/* Só aparece quando há mais de um endereço: empresa de uma loja só não
+            deve ver um campo que não tem o que responder. */}
+        {unidades.filter(u => u.ativo).length > 0 && (
+          <Campo label="Atende na unidade">
+            <select value={f.unidadeId || ''}
+                    onChange={e => setF(v => ({ ...v, unidadeId: e.target.value || null }))}>
+              <option value="">Todas as unidades</option>
+              {unidades.filter(u => u.ativo).map(u => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
+          </Campo>
+        )}
       </div>
       <div className="mrow">
         <Campo label="WhatsApp"><input value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>

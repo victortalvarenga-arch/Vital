@@ -443,9 +443,8 @@ Integrações, Logs, Configurar App/Website).
 - [x] Bloqueio de horário na agenda (almoço, folga, feriado), integrado ao
       `availability.js`, ao calendário do site e à gravação. Funcionário fecha
       só a própria agenda; feriado da empresa é do dono. Ver `ARQUITETURA.md`.
-- [ ] Cadastro de unidades; profissional e serviço vinculados a unidade. A
-      tabela `units` existe desde o Bloco 0 e **nenhuma rota a usa** — é o mesmo
-      tipo de buraco que os bloqueios tinham antes deste bloco
+- [x] Cadastro de unidades, com a profissional vinculada ao endereço e o site
+      perguntando onde a cliente quer ser atendida. Ver `ARQUITETURA.md`
 - [ ] Cadastros redesenhados: serviços, equipe com jornada, clientes
 - [x] Financeiro: recebido, a receber, previsto do dia, ticket médio, faltas,
       ranking por serviço, comissões e formas de pagamento
