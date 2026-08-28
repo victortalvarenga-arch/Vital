@@ -10,14 +10,17 @@ flowchart TB
     subgraph nav["Navegador"]
         site["Site público<br><i>escolhe serviço e agenda</i>"]
         painel["Painel da equipe<br><i>opera o negócio</i>"]
+        vital["Página da Vital<br><i>empresa se cadastra; nós administramos</i>"]
     end
 
-    subgraph front["web/ · Vite + React · dois bundles"]
+    subgraph front["web/ · Vite + React · três bundles"]
         site2["site/<br><i>só fala com /api/publico</i>"]
-        painel2["painel/<br><i>manda token</i>"]
+        painel2["painel/<br><i>cookie da empresa</i>"]
+        vital2["vital/<br><i>cookie da plataforma</i>"]
     end
 
     subgraph back["server/ · Express + pg"]
+        semEmp["/api/cadastro · /api/plataforma<br><i>sem empresa: uma cria, a outra vê todas</i>"]
         emp["comEmpresa()<br><b>prende a conexão a uma empresa</b>"]
         publico["/api/publico/*<br><i>aberto</i>"]
         privado["/api/*<br><i>exige sessão + papel</i>"]
@@ -31,8 +34,11 @@ flowchart TB
 
     site --> site2
     painel --> painel2
+    vital --> vital2
     site2 --> emp
     painel2 --> emp
+    vital2 --> semEmp
+    semEmp --> db
     emp --> publico
     emp --> privado
     publico --> motor
@@ -45,12 +51,12 @@ flowchart TB
     prov --> wa
 ```
 
-**Site e painel são dois bundles separados**, com entradas próprias no Vite
-(`index.html` e `painel.html`). O site carrega cerca de um terço do painel e
-conversa só com `/api/publico/*`; o painel é o único que manda token. Antes os
-dois saíam do mesmo `App.jsx`, então abrir o site baixava o financeiro junto e
-levava a credencial do painel para o navegador de quem só queria marcar
-horário.
+**Cada tela é um bundle separado**, com entrada própria no Vite
+(`index.html`, `painel.html`, `vital.html`). O site carrega cerca de um terço do
+painel e conversa só com `/api/publico/*`; o painel e a página da Vital têm
+cookies de nomes diferentes e nunca se aceitam. Antes site e painel saíam do
+mesmo `App.jsx`, então abrir o site baixava o financeiro junto e levava a
+credencial do painel para o navegador de quem só queria marcar horário.
 
 ## Pastas
 
@@ -69,8 +75,8 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
                    rota.js (erro em handler async), contexto.js (conexão da
                    requisição), tenant.js (resolve a empresa + config padrão)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
-                   relatorios | uploads (imagens da empresa) | cadastro
-                   (empresa nova, a única rota sem empresa definida)
+                   relatorios | uploads (imagens da empresa) | cadastro e
+                   plataforma (as duas rotas sem empresa definida)
   test/            suíte automatizada (`npm test`), banco próprio
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
@@ -78,11 +84,14 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
 web/               Vite + React, sem framework de UI. CSS à mão.
   index.html       entrada do site da cliente
   painel.html      entrada do painel da equipe
+  vital.html       entrada da página da Vital (cadastro + back-office)
   src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css, ConfigSite.jsx (a empresa edita o site),
                    Combos.jsx (promoções), Usuarios.jsx (acesso),
                    Comecar.jsx (assistente de primeira configuração)
+  src/vital/       Cadastro.jsx (empresa nova), Equipe.jsx (back-office),
+                   api.js (cookie próprio), styles.css (a marca da Vital)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
                    imagem.js (reduz a foto antes de subir), formato.js (moeda)
 ```
@@ -134,7 +143,10 @@ perde se a API da Meta cair no meio.
 devolve tudo numa chamada. Simples e sempre correto. Se um dia ficar lento, o
 lugar de otimizar é aqui — não vale complicar antes.
 
-## As duas telas
+## As três telas
+
+Um público cada, e três bundles separados: quem abre o site não baixa o código
+do painel, e nem o da nossa página.
 
 **Site da cliente** (`web/src/site/`) — capa, logo, nome, chamada para agendar e
 os serviços por categoria, cada um com botão próprio. Mobile primeiro, porque
@@ -633,6 +645,53 @@ que deixa escolher por serviço.
 **Criar promoção não tem guarda de papel**, ao contrário do resto dos cadastros:
 foi decisão do negócio, porque é quem está no balcão que sabe qual serviço está
 parado e vale empurrar junto.
+
+## O back-office da Vital
+
+Terceiro bundle, `vital.html`, com duas coisas nossas: a página onde uma
+empresa se cadastra sozinha e o painel onde a nossa equipe vê as
+empresas-cliente. Nunca é servido no endereço de uma empresa, e a cor é fixa —
+o site e o painel aplicam a marca do negócio em runtime porque são dele; esta
+página é nossa.
+
+**A identidade da nossa equipe é outra coisa.** `plataforma.usuarios`,
+`plataforma.sessoes` e o cookie `sessao_vital` — nenhuma referência cruzada com
+`public.users`. O que separa de verdade são as tabelas: um token de uma nunca é
+encontrado na outra, então cruzar as identidades é impossível, não só proibido.
+O nome diferente do cookie compra outra coisa — que as duas sessões caibam no
+mesmo navegador. Com o mesmo nome, entrar na plataforma derrubaria em silêncio
+quem estivesse no painel de uma empresa, que é o caso normal de quem dá suporte.
+
+Dois papéis: `admin` mexe no contrato (suspender, mudar plano) e `suporte` só
+enxerga.
+
+### Ver todas as empresas sem ver o dado de nenhuma
+
+São duas verdades que puxam em direções opostas, e a saída é
+`plataforma.numeros_por_empresa()`. A aplicação conecta como `vital_app`, que o
+RLS barra — e é por isso que o isolamento funciona. Contar empresa por empresa
+com `db.comEmpresa` daria certo e não escala: quatro consultas por linha da
+tela, oitocentas idas ao banco com duzentas empresas.
+
+A função é `SECURITY DEFINER`, roda como o dono do banco e ignora o RLS. **O
+acordo é ela devolver só contagens.** Não há coluna que carregue nome, telefone
+ou e-mail de ninguém; devolver linha ali seria furar o isolamento por dentro do
+back-office, que é exatamente onde ninguém iria procurar. `search_path` fixo
+impede que alguém plante um `public` falso, e a permissão de execução é revogada
+de PUBLIC antes de ser dada a `vital_app`. Há teste que lê a assinatura da
+função e falha se aparecer coluna de dado pessoal.
+
+### Suspender
+
+Muda `status` em `plataforma.tenants`, e o efeito é imediato porque a checagem
+vive no middleware que resolve a empresa — o site e o painel dela passam a
+responder 403, e nenhuma rota nova nasce sem a verificação. Nada é apagado, e
+reativar traz tudo de volta. A ação esquece o cache de host, senão a suspensão
+só valeria depois de um minuto.
+
+Toda ação nossa sobre uma empresa vai para `plataforma.auditoria` antes de a
+resposta sair. Abrir o dado de alguém para dar suporte é legítimo; fazer isso sem
+deixar rastro, não.
 
 ## Testes
 

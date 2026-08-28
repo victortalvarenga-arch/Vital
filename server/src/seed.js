@@ -53,6 +53,11 @@ if (jaTem > 0 && !process.argv.includes('--forcar')) {
 
 const h = hoje();
 
+// `tenants.nome` é a razão social do cadastro e `config.nome` é o que aparece
+// no site. O seed mexia só no segundo, e o back-office da Vital listava o
+// estúdio como "Meu negócio" — o nome que a migration deixa.
+await db.run(`UPDATE plataforma.tenants SET nome = 'Estúdio Lume' WHERE id = ?`, TENANT_PADRAO);
+
 await setConfig({
   nome: 'Estúdio Lume',
   slogan: 'Estética & beleza · Joinville',

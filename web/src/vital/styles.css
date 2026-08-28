@@ -1,0 +1,191 @@
+/**
+ * A marca da Vital, não a de nenhuma empresa-cliente.
+ *
+ * O site e o painel aplicam a cor do negócio em runtime, porque são dele; aqui
+ * a cor é fixa e é a nossa. É a diferença que faz a página de cadastro parecer
+ * um produto e não um formulário do sistema de alguém.
+ */
+:root {
+  --v-tinta: #17141C;
+  --v-papel: #FFFFFF;
+  --v-fundo: #F6F4F8;
+  --v-linha: #E4E0EA;
+  --v-fraco: #6D6678;
+  --v-marca: #4B2E83;
+  --v-marca-clara: #F0EAFA;
+  --v-ok: #2E7D5B;
+  --v-alerta: #8A5A00;
+  --v-erro: #8A2B2B;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--v-fundo);
+  color: var(--v-tinta);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 600; }
+
+.v-pagina { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* topo */
+.v-topo {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 20px; background: var(--v-papel);
+  border-bottom: 1px solid var(--v-linha);
+}
+.v-marca {
+  font-weight: 700; font-size: 19px; letter-spacing: -.02em; color: var(--v-marca);
+}
+.v-topo-link {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer; padding: 6px 8px;
+  font: inherit; font-size: 13.5px; color: var(--v-fraco); text-decoration: none;
+}
+.v-topo-link:hover { color: var(--v-tinta); }
+
+.v-abas { display: flex; gap: 4px; }
+.v-abas button {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer; font: inherit; font-size: 13.5px;
+  color: var(--v-fraco); padding: 7px 12px; border-radius: 8px;
+}
+.v-abas button.on { background: var(--v-marca-clara); color: var(--v-marca); font-weight: 600; }
+
+/* corpo */
+.v-conteudo {
+  flex: 1; width: 100%; max-width: 1000px; margin: 0 auto; padding: 32px 20px 56px;
+  display: grid; gap: 32px; grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .v-conteudo { grid-template-columns: 1fr 420px; align-items: start; gap: 48px; }
+}
+.v-conteudo-centro { display: flex; align-items: center; justify-content: center; }
+.v-conteudo-largo { display: block; max-width: 1100px; }
+
+/* a conversa de venda */
+.v-pitch h1 { font-size: 34px; letter-spacing: -.02em; margin-bottom: 12px; }
+.v-sub { color: var(--v-fraco); margin: 0 0 18px; }
+.v-lista { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 10px; }
+.v-lista li { display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
+.v-lista svg { color: var(--v-marca); flex: none; }
+.v-nota { font-size: 13px; color: var(--v-fraco); margin: 0; }
+.v-fraco { color: var(--v-fraco); }
+
+/* caixa de formulário */
+.v-caixa {
+  background: var(--v-papel); border: 1px solid var(--v-linha); border-radius: 16px;
+  padding: 24px; width: 100%;
+}
+.v-caixa h2 { font-size: 20px; margin-bottom: 16px; }
+
+.v-campo { margin-bottom: 14px; display: flex; flex-direction: column; gap: 5px; }
+.v-campo label { font-size: 12.5px; font-weight: 600; color: var(--v-fraco); }
+.v-campo input {
+  font: inherit; padding: 10px 12px; border: 1px solid var(--v-linha);
+  border-radius: 9px; background: var(--v-papel); color: inherit; width: 100%;
+}
+.v-campo input:focus { outline: 2px solid var(--v-marca); outline-offset: -1px; }
+.v-dica { font-size: 12px; color: var(--v-fraco); }
+
+.v-endereco { font-size: 12.5px; color: var(--v-ok); display: inline-flex; align-items: center; gap: 5px; }
+.v-endereco.tomado { color: var(--v-alerta); }
+
+.v-erro {
+  font-size: 13px; color: var(--v-erro); display: flex; align-items: center; gap: 6px;
+  margin: 0 0 12px;
+}
+
+.v-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 12px 16px; border: none; border-radius: 10px;
+  background: var(--v-marca); color: #fff; font: inherit; font-weight: 600;
+  cursor: pointer; text-decoration: none; margin-top: 4px;
+}
+.v-btn:hover { filter: brightness(1.1); }
+.v-btn:disabled { opacity: .55; cursor: default; }
+
+/* confirmação do cadastro */
+.v-pronto { max-width: 440px; text-align: center; }
+.v-pronto-marca {
+  width: 58px; height: 58px; border-radius: 50%; margin: 0 auto 16px;
+  display: grid; place-items: center; background: var(--v-marca-clara); color: var(--v-marca);
+}
+
+/* números da plataforma */
+.v-numeros {
+  display: grid; gap: 12px; margin-bottom: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.v-numero {
+  background: var(--v-papel); border: 1px solid var(--v-linha); border-radius: 13px;
+  padding: 15px 17px; display: flex; flex-direction: column; gap: 2px;
+}
+.v-numero.alerta { border-color: #E4CFA0; background: #FFFCF3; }
+.v-numero-rotulo { font-size: 12px; font-weight: 600; color: var(--v-fraco);
+  text-transform: uppercase; letter-spacing: .07em; }
+.v-numero strong { font-size: 27px; font-weight: 600; letter-spacing: -.02em; }
+.v-numero-nota { font-size: 12.5px; color: var(--v-fraco); }
+
+/* lista de empresas */
+.v-tabela { display: flex; flex-direction: column; gap: 12px; }
+.v-empresa {
+  background: var(--v-papel); border: 1px solid var(--v-linha); border-radius: 13px;
+  padding: 16px 18px; display: grid; gap: 14px; align-items: center;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 780px) {
+  .v-empresa { grid-template-columns: minmax(0, 1.4fr) auto auto; }
+}
+.v-empresa.off { opacity: .6; }
+.v-empresa-id { min-width: 0; }
+.v-empresa h3 { font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.v-tag {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  background: #F3E9E9; color: var(--v-erro); padding: 2px 7px; border-radius: 5px;
+}
+.v-endereco-linha { font-size: 12.5px; color: var(--v-fraco); }
+
+.v-empresa-numeros { display: flex; gap: 20px; margin: 0; flex-wrap: wrap; }
+.v-empresa-numeros dt { font-size: 11px; color: var(--v-fraco); text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 600; }
+.v-empresa-numeros dd { margin: 0; font-size: 17px; font-weight: 600; }
+
+.v-empresa-acoes { display: flex; gap: 8px; align-items: center; }
+.v-plano {
+  font: inherit; font-size: 12.5px; font-weight: 600; text-transform: capitalize;
+  background: var(--v-marca-clara); color: var(--v-marca); border: none;
+  padding: 6px 11px; border-radius: 7px; cursor: pointer;
+}
+.v-plano:disabled { cursor: default; opacity: .8; }
+.v-acao {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px;
+  background: var(--v-papel); border: 1px solid var(--v-linha); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; color: var(--v-tinta);
+}
+.v-acao:hover { border-color: var(--v-tinta); }
+.v-empresa-nota {
+  grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--v-alerta);
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* registro */
+.v-rastro {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline;
+  background: var(--v-papel); border: 1px solid var(--v-linha); border-radius: 10px;
+  padding: 11px 14px; font-size: 13.5px;
+}
+.v-rastro-acao { font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; }
+.v-rastro-motivo { color: var(--v-fraco); font-style: italic; }
+
+/* aviso */
+.v-toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--v-tinta); color: #fff; padding: 11px 18px; border-radius: 10px;
+  display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 50;
+}
+.v-toast.erro { background: var(--v-erro); cursor: pointer; }

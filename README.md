@@ -26,6 +26,8 @@ Duas páginas, dois bundles:
 |---|---|
 | <http://localhost:5173> | Site da cliente — escolhe serviço e agenda |
 | <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
+| <http://localhost:5173/vital.html> | Página da Vital — uma empresa se cadastra aqui |
+| <http://localhost:5173/vital.html#equipe> | Back-office da Vital — nossa equipe vê as empresas |
 
 Cada empresa é resolvida pelo endereço: subdomínio (`lume.vital.app`) ou domínio
 próprio. Em `localhost` é sempre a empresa padrão, então dá para desenvolver sem

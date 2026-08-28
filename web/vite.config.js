@@ -6,18 +6,22 @@ export default defineConfig({
   plugins: [react()],
 
   /**
-   * Duas entradas, dois bundles: o site da cliente e o painel da equipe.
+   * Três entradas, três bundles, um público cada: o site de quem agenda, o
+   * painel de quem atende, e a página da Vital — onde uma empresa se cadastra
+   * e onde a nossa equipe administra a plataforma.
    *
-   * Antes os dois saíam do mesmo `App.jsx`, o que significava que abrir o site
-   * baixava o painel junto — código de financeiro e de cadastro indo para o
-   * navegador de quem só quer marcar horário. Separado, cada página carrega só
-   * o que é dela, e mexer numa não arrisca a outra.
+   * Antes site e painel saíam do mesmo `App.jsx`, o que significava que abrir o
+   * site baixava o painel junto — código de financeiro indo para o navegador de
+   * quem só quer marcar horário. Separado, cada página carrega só o que é dela,
+   * e mexer numa não arrisca a outra. O bundle da Vital nunca é servido no
+   * endereço de uma empresa.
    */
   build: {
     rollupOptions: {
       input: {
         site: resolve(import.meta.dirname, 'index.html'),
         painel: resolve(import.meta.dirname, 'painel.html'),
+        vital: resolve(import.meta.dirname, 'vital.html'),
       },
     },
   },

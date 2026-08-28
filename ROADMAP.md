@@ -469,38 +469,37 @@ empresa. Com o Bloco 2 já pronto, cadastrar empresa nova é uma linha na tabela
       endereço de ninguém e 403 para empresa suspensa. Ver `ARQUITETURA.md`
 - [x] Cadastro self-service pela API: `POST /api/cadastro` cria empresa,
       endereço e dono numa tacada, e o assistente continua no painel dela
-- [ ] **A tela do cadastro.** A rota existe e está testada; falta a página
-      pública da Vital que a chama. Ela é da nossa marca, não da empresa —
-      pertence ao mesmo bundle do Bloco 10
+- [x] **A tela do cadastro**, em `vital.html`: formulário de cinco campos, com o
+      endereço conferido enquanto se digita o nome
 - [x] Isolamento entre empresas coberto por teste automatizado — duas empresas
       de verdade, pedindo pelo id exato da outra, mais uma checagem estrutural
       de que toda tabela de negócio tem a política ligada e forçada. Achou dois
       vazamentos reais no primeiro dia: a config e o catálogo apontando sempre
       para a empresa padrão
 
-### Bloco 10 — Painel da plataforma (nosso back-office)
-Não existe hoje nenhuma versão disto. Interface só nossa, separada do painel de
-cada empresa e do site — fala com o schema `plataforma` e, quando precisa dar
-suporte, consulta o `tenant_id` de uma empresa específica.
+### Bloco 10 — Painel da plataforma ✅ concluído
+Terceiro bundle (`vital.html`), com a nossa marca. Detalhes em `ARQUITETURA.md`.
 
-- [ ] Login da nossa equipe, à parte de qualquer login de empresa
-- [ ] **Lista de empresas-cliente** com o que a gente precisa saber de relance:
-      nome, **qual plano assinou**, status, desde quando é cliente
-- [ ] **Números por empresa**: quantos clientes finais ela tem cadastrados,
-      quantos agendamentos no mês, quantos profissionais, quantos serviços.
-      Serve para dois usos diferentes — saber se ela está usando (risco de
-      cancelamento) e cobrar por faixa, se um dia o plano for por volume
-- [ ] Totais da plataforma: quantas empresas ativas, receita recorrente,
-      quantas entraram e quantas saíram no mês
-- [ ] Suspender / reativar uma empresa
-- [ ] Acesso de suporte a uma empresa específica, sempre com registro em log
-- [ ] Responsivo mobile + web; sem necessidade de app nativo (uso só interno)
-
-**O que ainda não está decidido** e precisa ser antes de construir: quais são
-os planos, o que diferencia um do outro (número de profissionais? de
-agendamentos? recursos?), e se a cobrança é por assinatura fixa ou por uso. A
-tabela `plataforma.tenants` já tem as colunas `plano` e `status` esperando essa
-definição.
+- [x] Login da nossa equipe, à parte de qualquer login de empresa: tabelas
+      próprias e cookie de outro nome, então as duas sessões convivem no mesmo
+      navegador sem se derrubar
+- [x] **Lista de empresas-cliente** com nome, endereço, plano, status e desde
+      quando
+- [x] **Números por empresa** — clientes, equipe, serviços, agendamentos do mês
+      — sem furar o isolamento: uma função do banco devolve **só contagens**
+- [x] Totais da plataforma, inclusive quantas empresas nunca tiveram um
+      agendamento, que é o número que diz se o produto pegou
+- [x] Suspender / reativar, com efeito imediato no site e no painel da empresa
+- [x] Registro de auditoria de tudo que a nossa equipe faz sobre uma empresa
+- [x] Responsivo mobile + web
+- [ ] **Receita recorrente.** Depende de haver cobrança: hoje `plano` é um texto
+      livre, sem preço nem ciclo. Entra junto do pagamento
+- [ ] **Acesso de suporte à empresa** — entrar no painel de um cliente para
+      ajudar, com registro. A auditoria já existe; falta o caminho de entrada, e
+      ele precisa ser desenhado com cuidado: é a única porta que atravessaria o
+      isolamento de propósito
+- [ ] Convidar mais gente para a equipe da Vital pela tela (o papel `suporte`
+      já existe e já é respeitado; falta o formulário)
 
 ### Bloco 11 — Apps nativos (iOS / Android)
 Por último de propósito: empacotar um site que ainda está mudando de forma

@@ -223,7 +223,11 @@ export async function subirApi() {
    * empresas pelas rotas de verdade.
    */
   const cliente = ({ host } = {}) => {
-    let cookie = '';
+    // Um pote por nome, como o navegador guarda. Guardar a string inteira e
+    // substituí-la a cada resposta fazia o último `Set-Cookie` apagar os
+    // outros — e aí duas sessões de nomes diferentes nunca coexistiam, o que
+    // parecia bug do produto e era do teste.
+    const pote = new Map();
     return (metodo, caminho, corpo) => new Promise((ok, falha) => {
       const dados = corpo === undefined ? null : JSON.stringify(corpo);
       const req = http.request({
@@ -231,12 +235,16 @@ export async function subirApi() {
         headers: {
           'content-type': 'application/json',
           ...(host ? { host } : {}),
-          ...(cookie ? { cookie } : {}),
+          ...(pote.size ? { cookie: [...pote].map(([k, v]) => `${k}=${v}`).join('; ') } : {}),
           ...(dados ? { 'content-length': Buffer.byteLength(dados) } : {}),
         },
       }, res => {
-        const set = res.headers['set-cookie'] || [];
-        if (set.length) cookie = set.map(c => c.split(';')[0]).join('; ');
+        for (const bruto of res.headers['set-cookie'] || []) {
+          const [nome, ...resto] = bruto.split(';')[0].split('=');
+          const valor = resto.join('=');
+          // Cookie limpo pelo servidor vem com valor vazio: sai do pote.
+          if (valor) pote.set(nome, valor); else pote.delete(nome);
+        }
         let texto = '';
         res.setEncoding('utf8');
         res.on('data', p => { texto += p; });

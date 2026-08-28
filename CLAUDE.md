@@ -83,6 +83,13 @@ escrito, não aconteceu.
 - Telefone é guardado só com dígitos, sem `+55`.
 - O site (`web/src/site/`) importa `shared/publico.js` e **nunca** o
   `painel-api.js`: é o que mantém a credencial do painel fora do bundle público.
+  Pelo mesmo motivo, `web/src/vital/` tem cliente de API próprio e não importa
+  nenhum dos dois — são três identidades, e misturá-las num arquivo é o começo
+  de misturá-las numa sessão.
+- Rota nova em `/api/plataforma` não pode devolver linha de tabela de negócio,
+  só contagem. Quem conta é `plataforma.numeros_por_empresa()`, que ignora o RLS
+  de propósito — devolver dado pessoal por ali fura o isolamento no lugar onde
+  ninguém iria procurar.
 - Campo novo na config não entra na vitrine sozinho — `/api/publico/vitrine`
   monta a resposta a dedo, para não publicar segredo por descuido.
 - Nada de lista fixa de categoria, ramo ou serviço no código: cada empresa tem
