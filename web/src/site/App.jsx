@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Calendar, ChevronRight, Instagram, MapPin, MessageCircle,
+  Calendar, ChevronRight, Instagram, MapPin, MessageCircle,
   Phone, TriangleAlert,
 } from 'lucide-react';
 import * as api from '../shared/publico.js';
@@ -36,7 +36,11 @@ export default function App() {
 
   return (
     <>
-      <Home dados={dados} aoAgendar={servicoId => setAgendando({ servicoId, chave: Date.now() })} />
+      <Home
+        dados={dados}
+        aoAgendar={servicoId => setAgendando({ servicoId, chave: Date.now() })}
+        aoAbrirCategoria={categoria => setAgendando({ categoria, chave: Date.now() })}
+      />
       {agendando && (
         <Agendar
           /* A chave muda a cada abertura: garante janela nova, do zero, mesmo
@@ -44,6 +48,7 @@ export default function App() {
           key={agendando.chave}
           dados={dados}
           servicoInicial={agendando.servicoId}
+          categoriaInicial={agendando.categoria}
           aoFechar={() => setAgendando(null)}
         />
       )}
@@ -121,7 +126,7 @@ const Revela = ({ children, className = '' }) => {
 
 /* ── home ── */
 
-function Home({ dados, aoAgendar }) {
+function Home({ dados, aoAgendar, aoAbrirCategoria }) {
   const { negocio, marca, textos, exibir, servicos } = dados;
 
   const categorias = useMemo(() => {
@@ -176,7 +181,7 @@ function Home({ dados, aoAgendar }) {
           <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>
           {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
           {exibir?.categorias && categorias.length > 1
-            ? <PorCategoria categorias={categorias} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />
+            ? <Categorias categorias={categorias} aoAbrir={aoAbrirCategoria} />
             : <Servicos itens={servicos} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />}
         </div>
       </section>
@@ -199,24 +204,14 @@ function Logo({ marca, nome, tamanho }) {
   );
 }
 
-function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
-  const [aberta, setAberta] = useState(null);
-
-  if (aberta) {
-    const grupo = categorias.find(c => c.nome === aberta);
-    return (
-      <>
-        <button className="volta-cat" onClick={() => setAberta(null)}>
-          <ArrowLeft size={16} /> Todas as categorias
-        </button>
-        <h3 className="cat">{grupo.nome}</h3>
-        <Servicos itens={grupo.itens} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />
-      </>
-    );
-  }
-
-  // Categoria usa a mesma grade redonda do serviço: a home inteira fala a mesma
-  // língua visual, e a foto de um dos serviços do grupo já diz o que é.
+/**
+ * Categorias na home.
+ *
+ * Tocar numa categoria abre a janela de agendamento já na lista dela. Antes a
+ * home abria os serviços do grupo, e a janela pedia o serviço de novo logo
+ * depois — a mesma lista, duas vezes, com um toque a mais no meio.
+ */
+function Categorias({ categorias, aoAbrir }) {
   return (
     <Grade>
       {categorias.map(({ nome, itens }, i) => {
@@ -224,8 +219,8 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
         return (
           <Revela key={nome} className={`atraso-${Math.min(i, 5)}`}>
             <article className="svc-item">
-              <button className="svc-circulo" onClick={() => setAberta(nome)}
-                      aria-label={`Ver ${itens.length} opções de ${nome}`}>
+              <button className="svc-circulo" onClick={() => aoAbrir(nome)}
+                      aria-label={`Agendar em ${nome}, ${itens.length} opções`}>
                 {capa
                   ? <img src={capa} alt="" loading="lazy" />
                   : <span className="svc-inicial">{nome?.[0]?.toUpperCase()}</span>}
@@ -234,7 +229,7 @@ function PorCategoria({ categorias, exibir, textos, aoAgendar }) {
               <p className="svc-meta">
                 <span className="svc-dur">{itens.length} {itens.length === 1 ? 'opção' : 'opções'}</span>
               </p>
-              <button className="b b-p b-peq svc-btn" onClick={() => setAberta(nome)}>
+              <button className="b b-p b-peq svc-btn" onClick={() => aoAbrir(nome)}>
                 Ver opções <ChevronRight size={15} />
               </button>
             </article>

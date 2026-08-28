@@ -232,12 +232,13 @@ o servidor corta em 500 caracteres em vez de recusar, porque devolver erro por
 causa de um recado longo perderia o agendamento inteiro.
 
 **A cliente escolhe a categoria antes de ver a lista.** Um estúdio com quarenta
-serviços numa página só é uma parede de texto. A home mostra as categorias na
-**mesma grade redonda** dos serviços — com a foto de um dos serviços do grupo —
-e só abre a lista depois do toque. Usar a mesma grade nos dois níveis não é
-economia de código: é a home inteira falando a mesma língua visual. A empresa
-desliga o agrupamento em Configurações → Site da cliente, se tiver poucos
-serviços.
+serviços numa página só é uma parede de texto. A home mostra só as categorias,
+na grade redonda, com a foto de um dos serviços do grupo; **tocar numa delas
+abre a janela de agendamento já na lista daquele grupo**. A home não repete
+essa lista — antes ela abria os serviços da categoria e a janela pedia o
+serviço de novo logo depois, a mesma lista duas vezes com um toque a mais no
+meio. A empresa desliga o agrupamento em Configurações → Site da cliente, se
+tiver poucos serviços.
 
 **Imagens: reduzidas no navegador, servidas pelo Express.** A foto que sai da
 câmera tem 4000px e 8 MB, e vai aparecer num quadrado de 60px. `shared/imagem.js`

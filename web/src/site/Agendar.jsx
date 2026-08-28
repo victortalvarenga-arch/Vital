@@ -24,12 +24,12 @@ const PASSOS = [
   { k: 'pronto', titulo: 'Tudo certo', ajuda: '' },
 ];
 
-export default function Agendar({ dados, servicoInicial, aoFechar }) {
+export default function Agendar({ dados, servicoInicial, categoriaInicial, aoFechar }) {
   const { negocio, textos, exibir, servicos, profissionais } = dados;
   const [escolha, setEscolha] = useState(() => ({
-    categoria: servicoInicial
-      ? (servicos.find(x => x.id === servicoInicial)?.categoria || null)
-      : null,
+    categoria: categoriaInicial
+      || (servicoInicial ? servicos.find(x => x.id === servicoInicial)?.categoria : null)
+      || null,
     servicoId: servicoInicial || null,
     adicionaisIds: [], profissionalId: null, data: null, hora: null,
   }));
@@ -63,6 +63,8 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
    * decide, e a navegação anda por ela nos dois sentidos.
    */
   const util = useCallback(k => {
+    // Continua útil quando a janela abriu por uma categoria: é para lá que o
+    // "Voltar" leva, e trocar de categoria sem fechar é o caminho natural.
     if (k === 'categoria') return !servicoInicial && exibir?.categorias && categorias.length > 1;
     if (k === 'adicionais') return ofertados.length > 0;
     if (k === 'profissional') return exibir?.escolherProfissional && equipe.length > 1;
@@ -78,10 +80,14 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
    * janela tinha continuado de onde parou.
    *
    * Clicar em "Agendar" num serviço não é jogado fora: ele já vem marcado, e
-   * a lista abre filtrada na categoria dele.
+   * a lista abre filtrada na categoria dele. Vindo de uma categoria, a janela
+   * abre direto na lista daquele grupo — a home não repete essa lista.
    */
+  // A condição precisa ser a MESMA de util('categoria'). Com uma categoria só,
+  // olhar a quantidade de serviços fazia a janela abrir num passo que util()
+  // considera inválido — e aí o "Voltar" não tinha para onde ir e morria.
   const [passo, setPasso] = useState(() =>
-    !servicoInicial && exibir?.categorias && servicos.length > 1 ? 'categoria' : 'servico');
+    !servicoInicial && !categoriaInicial && util('categoria') ? 'categoria' : 'servico');
 
   const andar = (de, direcao) => {
     let i = PASSOS.findIndex(p => p.k === de) + direcao;
