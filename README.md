@@ -31,9 +31,20 @@ Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços):
 painel → **Configurações → Site da cliente**. As imagens ficam em
 `server/uploads/`, fora do Git.
 
-Na primeira vez, o painel pede para **criar o primeiro acesso** — nome, e-mail e
-senha. Quem criar vira o dono. Essa tela some assim que existir um usuário; daí
-em diante, só quem já está dentro convida os outros.
+**O site não tem login.** A cliente informa o WhatsApp na hora de agendar e
+pronto — se já agendou antes, é reconhecida pelo número.
+
+**O painel tem.** Na primeira vez ele pede para criar o acesso — nome, e-mail e
+senha —, e quem criar vira o dono. Essa tela some assim que existir um usuário;
+daí em diante só quem já está dentro convida os outros.
+
+Contas deste ambiente de desenvolvimento (senha `vital1234` nas três):
+
+| E-mail | Papel | Vê |
+|---|---|---|
+| `dono@vital.com` | dono | tudo, inclusive o site |
+| `gerente@vital.com` | gerente | tudo menos configurar o site |
+| `funcionaria@vital.com` | funcionário | só agenda e clientes |
 
 ## Comandos
 

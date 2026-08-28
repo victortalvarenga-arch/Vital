@@ -355,6 +355,26 @@ criados cedo para não exigir migração depois.
 
 ## Autenticação e papéis
 
+**São dois logins diferentes, e é fácil confundi-los.**
+
+| | Quem | Como entra | Existe hoje? |
+|---|---|---|---|
+| **Painel** | Equipe da empresa: dono, gerente, funcionário | E-mail e senha | Sim |
+| **Site** | A cliente que agenda | Não entra: informa o WhatsApp na hora de marcar | Não há login |
+
+A cliente **não cria conta**. Ela digita o WhatsApp, e se já agendou antes o
+sistema a reconhece pelo número. É de propósito: exigir cadastro para marcar
+horário perde agendamento, e a maioria não voltaria para confirmar e-mail.
+
+**O login com Google é para a cliente, não para a equipe** — e ainda não existe
+(Bloco 5). Quando existir, será um atalho para ela ver histórico e remarcar, e
+não uma exigência: agendar só com o WhatsApp continua funcionando ao lado. A
+equipe nunca entra por Google; o painel é e-mail e senha.
+
+**Ninguém da equipe se cadastra sozinho.** O primeiro acesso cria o dono, e daí
+em diante é o dono (ou o gerente) que convida os outros. Um painel onde
+qualquer um cria conta é um painel aberto.
+
 Login com senha (argon2id) e sessão em cookie `httpOnly`. Três decisões e o
 motivo de cada uma:
 
