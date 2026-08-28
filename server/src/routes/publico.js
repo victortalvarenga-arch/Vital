@@ -4,6 +4,7 @@ import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { criarAgendamento } from './agendamentos.js';
 import { horariosLivres, horariosPorServico, diasComVaga } from '../lib/availability.js';
+import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
 
 export const publico = Router();
 
@@ -44,10 +45,11 @@ publico.get('/vitrine', rota(async (req, res) => {
     vocabulario: cfg.vocabulario,
     unidades: await listarUnidades({ somenteAtivas: true }),
     // Preço só sai se a empresa quiser mostrar — algumas preferem "sob consulta".
-    servicos: servicos.map(s => ({
+    servicos: await Promise.all(servicos.map(async s => ({
       ...s,
       preco: cfg.exibir?.preco && s.mostrarPreco ? s.preco : null,
-    })),
+      adicionais: await adicionaisDe(s.id, s.categoria),
+    }))),
     profissionais: equipe.map(staffOut)
       .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor })),
   });
@@ -69,13 +71,21 @@ publico.get('/horarios', rota(async (req, res) => {
 
   const svc = await db.get('SELECT * FROM services WHERE id=? AND ativo=1', servicoId);
   if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
-  const duracao = svc.duracao + (svc.intervalo || 0);
+
+  // Os extras entram na conta: com adicionais escolhidos, o atendimento é mais
+  // longo, e horário que caberia sozinho pode não caber mais.
+  const extras = await validarAdicionais(svc, listaDeIds(req.query.adicionais));
+  if (extras.erro) return res.status(extras.codigo).json({ erro: extras.erro });
+  const duracao = svc.duracao + (svc.intervalo || 0) + extras.duracao;
 
   if (profissionalId) {
     return res.json({ data, horarios: await horariosLivres({ staffId: profissionalId, data, duracao }) });
   }
-  res.json({ data, porProfissional: await horariosPorServico({ servicoId, data }) });
+  res.json({ data, porProfissional: await horariosPorServico({ servicoId, data, duracaoExtra: extras.duracao }) });
 }));
+
+/** 'a,b,c' → ['a','b','c']. Vem da query string, então tudo é texto. */
+const listaDeIds = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
 
 /**
  * Quais dias do mês têm vaga — o calendário usa para saber o que pintar.
@@ -90,7 +100,16 @@ publico.get('/dias-livres', rota(async (req, res) => {
     return res.status(400).json({ erro: 'informe mes=YYYY-MM' });
   }
   if (!servicoId) return res.status(400).json({ erro: 'informe servicoId' });
-  res.json({ mes, dias: await diasComVaga({ servicoId, profissionalId, mes }) });
+
+  const svc = await db.get('SELECT * FROM services WHERE id=? AND ativo=1', servicoId);
+  if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
+  const extras = await validarAdicionais(svc, listaDeIds(req.query.adicionais));
+  if (extras.erro) return res.status(extras.codigo).json({ erro: extras.erro });
+
+  res.json({
+    mes,
+    dias: await diasComVaga({ servicoId, profissionalId, mes, duracaoExtra: extras.duracao }),
+  });
 }));
 
 /**
@@ -139,7 +158,7 @@ publico.post('/agendar', rota(async (req, res) => {
 
   const r = await criarAgendamento(
     { clienteId: cliente.id, servicoId: b.servicoId, profissionalId: b.profissionalId,
-      data: b.data, hora: b.hora, obs,
+      data: b.data, hora: b.hora, obs, adicionaisIds: b.adicionaisIds,
       pagamento: { status: 'aberto', forma: b.formaPagamento || 'local' } },
     { origem: 'site' }
   );

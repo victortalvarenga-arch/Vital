@@ -532,19 +532,48 @@ function Servicos({ dados, acao, aviso }) {
           </div>
         ))}
       </div>
-      {edit && <EditarServico s={edit} staff={staff} acao={acao} fechar={() => setEdit(null)} aviso={aviso}
+      {edit && <EditarServico s={edit} staff={staff} servicos={servicos} acao={acao}
+                              fechar={() => setEdit(null)} aviso={aviso}
                               categorias={[...new Set(servicos.map(x => x.cat).filter(Boolean))].sort()} />}
     </>
   );
 }
 
-function EditarServico({ s, staff, acao, fechar, aviso, categorias = [] }) {
+function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categorias = [] }) {
   const [f, setF] = useState({ ...s });
+  const [extras, setExtras] = useState(null);        // ids marcados para ESTE serviço
+  const [extrasCat, setExtrasCat] = useState(null);  // ids marcados para a CATEGORIA
+  const [alvo, setAlvo] = useState('servico');       // qual das duas regras está editando
   const entradaFoto = useRef(null);
   const [subindo, setSubindo] = useState(false);
   const toggleProf = id => setF(v => ({ ...v, profs: v.profs.includes(id) ? v.profs.filter(x => x !== id) : [...v.profs, id] }));
+
+  // Carrega as duas regras de adicional ao abrir; sem isso não dá para saber o
+  // que já está marcado e o formulário apagaria tudo ao salvar.
+  useEffect(() => {
+    let vivo = true;
+    api.adicionais()
+      .then(r => {
+        if (!vivo) return;
+        setExtras(r.porServico[s.id] || []);
+        setExtrasCat(r.porCategoria[s.cat] || []);
+      })
+      .catch(() => { if (vivo) { setExtras([]); setExtrasCat([]); } });
+    return () => { vivo = false; };
+  }, [s.id, s.cat]);
+
+  const marcados = alvo === 'servico' ? (extras || []) : (extrasCat || []);
+  const alternarExtra = id => {
+    const proximo = marcados.includes(id) ? marcados.filter(x => x !== id) : [...marcados, id];
+    (alvo === 'servico' ? setExtras : setExtrasCat)(proximo);
+  };
+
   const salvar = async () => {
-    const ok = await acao(() => api.salvarServico(f), 'Serviço salvo');
+    const ok = await acao(async () => {
+      await api.salvarServico(f);
+      if (extras) await api.salvarAdicionaisDoServico(s.id || f.id, extras);
+      if (extrasCat && f.cat) await api.salvarAdicionaisDaCategoria(f.cat, extrasCat);
+    }, 'Serviço salvo');
     if (ok) fechar();
   };
 
@@ -604,6 +633,36 @@ function EditarServico({ s, staff, acao, fechar, aviso, categorias = [] }) {
           {staff.map(p => <button key={p.id} className={'chip' + (f.profs.includes(p.id) ? ' on' : '')} onClick={() => toggleProf(p.id)}>{p.nome.split(' ')[0]}</button>)}
         </div>
       </Campo>
+      {s.id && (
+        <Campo label="Serviços adicionais oferecidos junto">
+          <div className="add-alvo">
+            <button className={'add-aba' + (alvo === 'servico' ? ' on' : '')}
+                    onClick={() => setAlvo('servico')}>Só neste serviço</button>
+            <button className={'add-aba' + (alvo === 'categoria' ? ' on' : '')}
+                    disabled={!f.cat}
+                    onClick={() => setAlvo('categoria')}>
+              Em toda a categoria{f.cat ? ` "${f.cat}"` : ''}
+            </button>
+          </div>
+          <p className="add-ajuda">
+            {alvo === 'servico'
+              ? 'Aparece só quando a cliente escolhe este serviço.'
+              : `Aparece em todos os serviços de "${f.cat}". O site oferece a soma das duas listas.`}
+          </p>
+          {marcados === null ? <p className="add-ajuda">Carregando…</p> : (
+            <div className="chips">
+              {servicos.filter(x => x.id !== s.id).map(x => (
+                <button key={x.id}
+                        className={'chip' + (marcados.includes(x.id) ? ' on' : '')}
+                        onClick={() => alternarExtra(x.id)}>
+                  {x.nome}
+                </button>
+              ))}
+            </div>
+          )}
+        </Campo>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <Switch on={f.ativo} onChange={() => setF(v => ({ ...v, ativo: !v.ativo }))} />
         <span style={{ fontSize: 14 }}>Visível no site</span>

@@ -316,31 +316,20 @@ um token para renovar por cliente. **Caminho barato quando for a hora**: a
 empresa sobe algumas fotos pelo painel, onde o upload já existe. Fica parecido
 visualmente, sem amarrar a plataforma à Meta; só não atualiza sozinho.
 
-### Bloco 6c — Serviços adicionais
-Vender um extra junto do principal: limpeza de pele **+ depilação de nariz**.
-Sobe o ticket médio e é o tipo de coisa que a cliente aceita no momento da
-escolha, não depois.
+### Bloco 6c — Serviços adicionais ✅ concluído
+Detalhes em `ARQUITETURA.md`.
 
-Mexe no modelo de dados, então precisa de migration — e é a primeira desde que
-o esquema existe, boa hora para conferir se o runner está confortável.
-
-**Faça este bloco pensando no 6d (combos) junto.** Os dois precisam da mesma
-base: um agendamento com mais de um serviço. Modelar só para adicionais e
-descobrir depois que combo não cabe é retrabalho caro, porque a essa altura já
-existe agenda gravada.
-
-- [ ] Tabela de vínculo `service_addons` (serviço principal → serviços que
-      podem ser oferecidos como extra). Um adicional é um `service` normal,
-      não uma entidade nova — assim ele já tem preço, duração e quem executa
-- [ ] Cadastro no painel: ao editar um serviço, marcar quais outros podem ser
-      oferecidos junto
-- [ ] No site, passo de adicionais depois da escolha do serviço, com preço de
-      cada um e o total atualizando
-- [ ] A duração do agendamento passa a somar principal + adicionais, senão o
-      motor de horários reserva tempo de menos e a agenda estoura
-- [ ] Decidir como o agendamento guarda os adicionais: hoje `appointments` tem
-      um `service_id` só. Provavelmente uma tabela de itens do agendamento —
-      cuidado, isso toca relatório e comissão
+- [x] Tabelas `service_addons`, `category_addons` e `appointment_addons`, com RLS
+- [x] Adicional é um `service` comum marcado como extra — sem entidade nova
+- [x] Cadastro no painel, por serviço **e** por categoria; o site oferece a união
+- [x] Passo de adicionais no agendamento, opcional e pulável
+- [x] Duração e valor somam os extras; `/horarios` e `/dias-livres` aceitam a
+      lista, porque escolher extras muda o que cabe na agenda
+- [x] Servidor confere a lista contra a oferta real e tira o preço do banco
+- [x] Resumo da janela mostra os extras e o total
+- [ ] Painel ainda não exibe os extras na agenda do dia nem no financeiro — o
+      `valor` total já está certo, mas o ranking por serviço credita tudo ao
+      principal. Entra no Bloco 7.
 
 ### Bloco 6d — Combos e promoções
 Pacote fechado com preço melhor: "Limpeza de pele + Design de sobrancelha por

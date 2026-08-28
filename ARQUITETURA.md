@@ -118,7 +118,11 @@ os serviços por categoria, cada um com botão próprio. Mobile primeiro, porque
 quase todo agendamento sai do celular.
 
 **O agendamento é uma janela sobre a home**, não uma troca de tela — a cliente
-não perde de vista onde estava. Três colunas: em que passo está, o passo atual,
+não perde de vista onde estava. Os passos são categoria → serviço → adicionais
+→ profissional → data → dados, e **passo sem o que perguntar é pulado**: uma
+função só (`util`) decide isso, e a navegação anda por ela nos dois sentidos.
+Com três passos opcionais, decidir com `if` espalhado já tinha produzido o bug
+de "voltar" cair num passo que a ida havia pulado. Três colunas: em que passo está, o passo atual,
 e o resumo do que já escolheu com o total. O resumo não é enfeite: é ele que dá
 segurança para confirmar. No celular vira uma coluna só, com o resumo numa
 barra no rodapé que mostra o total e abre ao toque.
@@ -184,6 +188,34 @@ rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor da
 marca, para o círculo não ficar vazio e a grade não desalinhar. A seção de
 serviços é a única que usa o contêiner largo (`.env-largo`): a grade respira
 melhor, e o resto do site continua estreito, que é o que se lê bem.
+
+**Serviços adicionais: um extra vendido junto do principal.** Um adicional não
+é entidade nova — é um `service` comum, marcado como extra de outro. Assim já
+tem preço, duração, foto e quem executa, sem duplicar cadastro: depilação de
+nariz pode ser vendida sozinha e como extra da limpeza de pele, com o mesmo
+registro.
+
+A oferta vem de dois lugares e o site mostra a **união**: por serviço ("na
+limpeza de pele, ofereça buço") e por categoria ("em qualquer serviço de Unhas,
+ofereça esmaltação"). A empresa pensa dos dois jeitos, então o cadastro aceita
+os dois. Como categoria é texto livre na tabela `services`, renomear uma deixa
+as regras dela órfãs — o estrago é uma oferta que some, não dado perdido.
+
+Duas armadilhas resolvidas:
+
+- **A duração soma os extras.** Sem isso a cadeira é reservada por menos tempo
+  do que o atendimento leva e a agenda estoura em cima da próxima cliente. Por
+  isso `/publico/horarios` e `/publico/dias-livres` aceitam a lista de extras:
+  escolher adicionais muda o que cabe na agenda.
+- **Preço e disponibilidade nunca vêm do site.** A lista escolhida é conferida
+  contra a oferta real e os valores saem do banco. Sem isso, bastaria mandar o
+  id de um serviço caro como "extra" para levá-lo por outro preço.
+
+`appointments.service_id` continua sendo o serviço principal, e `valor` e
+`duracao` já somam os extras. Foi de propósito: o motor de horários lê
+`duracao` e o financeiro lê `valor`, então os dois continuam corretos sem uma
+linha de mudança. Os itens ficam em `appointment_addons`, com nome e preço
+congelados — o relatório do mês passado precisa do valor cobrado na época.
 
 **A cliente pode deixar um recado no agendamento.** Campo opcional no último
 passo, que grava em `appointments.obs` e aparece para a equipe no painel — "sou

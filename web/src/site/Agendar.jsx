@@ -15,7 +15,9 @@ import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, soDigitos, ma
  */
 
 const PASSOS = [
+  { k: 'categoria', titulo: 'Escolha a categoria', ajuda: 'Depois você vê as opções dentro dela.' },
   { k: 'servico', titulo: 'Escolha o serviço', ajuda: 'O que você quer fazer hoje.' },
+  { k: 'adicionais', titulo: 'Quer incluir algo mais?', ajuda: 'Serviços que combinam com o que você escolheu. Pode pular.' },
   { k: 'profissional', titulo: 'Escolha quem atende', ajuda: 'Você pode deixar que a gente escolha por você.' },
   { k: 'data', titulo: 'Selecione a data e horário', ajuda: 'Dias marcados têm horário disponível.' },
   { k: 'dados', titulo: 'Seus dados', ajuda: 'Só o WhatsApp, para você receber a confirmação.' },
@@ -24,9 +26,9 @@ const PASSOS = [
 
 export default function Agendar({ dados, servicoInicial, aoFechar }) {
   const { negocio, textos, exibir, servicos, profissionais } = dados;
-  const [passo, setPasso] = useState(servicoInicial ? 'profissional' : 'servico');
   const [escolha, setEscolha] = useState({
-    servicoId: servicoInicial || null, profissionalId: null, data: null, hora: null,
+    categoria: null, servicoId: servicoInicial || null, adicionaisIds: [],
+    profissionalId: null, data: null, hora: null,
   });
   const [confirmado, setConfirmado] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -36,8 +38,48 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
   const servico = servicos.find(s => s.id === escolha.servicoId);
   const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id));
   const profissional = profissionais.find(p => p.id === escolha.profissionalId);
+  const extras = servicos.filter(x => escolha.adicionaisIds.includes(x.id));
+
+  const categorias = useMemo(() => {
+    const mapa = new Map();
+    for (const x of servicos) {
+      const c = x.categoria || 'Serviços';
+      if (!mapa.has(c)) mapa.set(c, []);
+      mapa.get(c).push(x);
+    }
+    return [...mapa].map(([nome, itens]) => ({ nome, itens }));
+  }, [servicos]);
+
+  const ofertados = servicos.filter(x => servico?.adicionais?.includes(x.id));
+
+  /**
+   * Passo que não tem o que perguntar é pulado.
+   *
+   * Com três passos opcionais, decidir isso com `if` espalhado vira bug: já
+   * aconteceu de "voltar" cair num passo que a ida tinha pulado. Uma função só
+   * decide, e a navegação anda por ela nos dois sentidos.
+   */
+  const util = useCallback(k => {
+    if (k === 'categoria') return !servicoInicial && exibir?.categorias && categorias.length > 1;
+    if (k === 'adicionais') return ofertados.length > 0;
+    if (k === 'profissional') return exibir?.escolherProfissional && equipe.length > 1;
+    return true;
+  }, [servicoInicial, exibir, categorias.length, ofertados.length, equipe.length]);
+
+  const [passo, setPasso] = useState(() =>
+    servicoInicial ? 'adicionais' : (exibir?.categorias && servicos.length ? 'categoria' : 'servico'));
+
+  const andar = (de, direcao) => {
+    let i = PASSOS.findIndex(p => p.k === de) + direcao;
+    while (i > 0 && i < PASSOS.length && !util(PASSOS[i].k)) i += direcao;
+    return PASSOS[Math.max(0, Math.min(i, PASSOS.length - 1))].k;
+  };
+  const avancar = () => setPasso(p => andar(p, 1));
+
   const indice = PASSOS.findIndex(p => p.k === passo);
   const info = PASSOS[indice];
+  // As bolinhas mostram só os passos que esta cliente vai ver de fato.
+  const visiveis = PASSOS.filter(p => p.k !== 'pronto' && util(p.k));
 
   // Esc fecha, e o foco fica preso dentro da janela: quem navega por teclado
   // não deve sair para a página atrás sem perceber.
@@ -66,24 +108,24 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
     return () => clearTimeout(t);
   }, [aviso]);
 
-  // Uma pessoa só, ou a empresa não quer que a cliente escolha: pula o passo.
-  const pulaProfissional = !exibir?.escolherProfissional || equipe.length <= 1;
+  // Caiu num passo sem nada a perguntar: segue adiante sozinho.
   useEffect(() => {
-    if (passo !== 'profissional' || !servico) return;
-    if (pulaProfissional) {
+    if (passo === 'pronto' || util(passo)) return;
+    if (passo === 'profissional') {
       setEscolha(e => ({ ...e, profissionalId: equipe.length === 1 ? equipe[0].id : null }));
-      setPasso('data');
     }
-  }, [passo, servico, pulaProfissional, equipe]);
+    setPasso(p => andar(p, 1));
+  }, [passo, util, equipe]);
 
   const voltar = () => {
     if (indice <= 0) return aoFechar();
-    const anterior = PASSOS[indice - 1].k;
-    if (anterior === 'profissional' && pulaProfissional) return setPasso('servico');
-    setPasso(anterior);
+    setPasso(p => andar(p, -1));
   };
 
-  const total = servico?.preco ?? null;
+  // Preço só some quando a empresa esconde: aí não há total a mostrar.
+  const total = servico?.preco == null
+    ? null
+    : Number(servico.preco) + extras.reduce((n, x) => n + Number(x.preco || 0), 0);
 
   return (
     <div className="jn-fundo" onMouseDown={e => e.target === e.currentTarget && aoFechar()}>
@@ -92,7 +134,10 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
         {/* coluna 1 — onde estou */}
         <aside className="jn-guia">
           <div className="jn-bolinhas" aria-hidden="true">
-            {PASSOS.map((p, i) => <span key={p.k} className={'bolinha' + (i <= indice ? ' on' : '')} />)}
+            {visiveis.map(p => (
+              <span key={p.k}
+                    className={'bolinha' + (PASSOS.findIndex(x => x.k === p.k) <= indice ? ' on' : '')} />
+            ))}
           </div>
           <div className="jn-guia-meio">
             <div className="jn-guia-icone"><Clock size={30} strokeWidth={1.4} /></div>
@@ -115,14 +160,49 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
           </header>
 
           <div className="jn-corpo">
+            {passo === 'categoria' && (
+              <Opcoes
+                itens={categorias.map(c => ({
+                  id: c.nome, nome: c.nome, foto: c.itens.find(x => x.foto)?.foto,
+                  sub: `${c.itens.length} ${c.itens.length === 1 ? 'opção' : 'opções'}`,
+                }))}
+                aoEscolher={nome => {
+                  setEscolha(e => ({ ...e, categoria: nome, servicoId: null, adicionaisIds: [] }));
+                  setPasso('servico');
+                }}
+              />
+            )}
+
             {passo === 'servico' && (
               <Opcoes
-                itens={servicos.map(s => ({
+                itens={(escolha.categoria
+                  ? servicos.filter(x => (x.categoria || 'Serviços') === escolha.categoria)
+                  : servicos
+                ).map(s => ({
                   id: s.id, nome: s.nome, foto: s.foto, desc: s.descricao,
                   sub: [s.preco != null ? brl(s.preco) : 'Sob consulta',
                         exibir?.duracao ? duracaoTexto(s.duracao) : null].filter(Boolean).join(' · '),
                 }))}
-                aoEscolher={id => { setEscolha(e => ({ ...e, servicoId: id, profissionalId: null, data: null, hora: null })); setPasso('profissional'); }}
+                aoEscolher={id => {
+                  setEscolha(e => ({ ...e, servicoId: id, adicionaisIds: [], profissionalId: null, data: null, hora: null }));
+                  setPasso('adicionais');
+                }}
+              />
+            )}
+
+            {passo === 'adicionais' && (
+              <PassoAdicionais
+                ofertados={ofertados} escolhidos={escolha.adicionaisIds} exibir={exibir}
+                aoAlternar={id => setEscolha(e => ({
+                  ...e,
+                  // Mudar os extras muda a duração, e o horário escolhido pode
+                  // não caber mais: a data volta a ser perguntada.
+                  adicionaisIds: e.adicionaisIds.includes(id)
+                    ? e.adicionaisIds.filter(x => x !== id)
+                    : [...e.adicionaisIds, id],
+                  data: null, hora: null,
+                }))}
+                aoSeguir={avancar}
               />
             )}
 
@@ -155,8 +235,8 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
 
             {passo === 'pronto' && (
               <Pronto resultado={confirmado} escolha={escolha} servico={servico}
-                      profissional={profissional} negocio={negocio} textos={textos}
-                      aoFechar={aoFechar} />
+                      profissional={profissional} extras={extras} negocio={negocio}
+                      textos={textos} aoFechar={aoFechar} />
             )}
           </div>
 
@@ -171,7 +251,8 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
 
         {/* coluna 3 — o que já foi escolhido */}
         <Resumo
-          servico={servico} profissional={profissional} escolha={escolha} total={total}
+          servico={servico} profissional={profissional} escolha={escolha}
+          extras={extras} total={total}
           aberto={resumoAberto} aoAlternar={() => setResumoAberto(v => !v)}
         />
 
@@ -183,7 +264,7 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
 
 /* ── resumo ── */
 
-function Resumo({ servico, profissional, escolha, total, aberto, aoAlternar }) {
+function Resumo({ servico, profissional, escolha, extras, total, aberto, aoAlternar }) {
   const vazio = !servico && !profissional && !escolha.data;
   return (
     <aside className={'jn-resumo' + (aberto ? ' aberto' : '')}>
@@ -204,7 +285,17 @@ function Resumo({ servico, profissional, escolha, total, aberto, aoAlternar }) {
           <ItemResumo rotulo="Data e horário" valor={`${porExtenso(escolha.data)}${escolha.hora ? ` · ${escolha.hora}` : ''}`} />
         )}
 
-        {/* Serviços adicionais entram aqui no Bloco 6c. */}
+        {extras?.length > 0 && (
+          <div className="jn-item">
+            <dt>Serviços adicionais</dt>
+            {extras.map(x => (
+              <dd key={x.id} className="jn-extra">
+                {x.nome}
+                {x.preco != null && <span>{brl(x.preco)}</span>}
+              </dd>
+            ))}
+          </div>
+        )}
 
         {total != null && (
           <div className="jn-resumo-fim">
@@ -249,6 +340,57 @@ function Opcoes({ itens, aoEscolher }) {
   );
 }
 
+/**
+ * Extras oferecidos junto do serviço escolhido.
+ *
+ * Marcar é opcional e o botão de seguir fica sempre disponível: um passo que
+ * obriga a escolher algo para sair vira obstáculo, e obstáculo no meio do
+ * agendamento custa venda.
+ */
+function PassoAdicionais({ ofertados, escolhidos, exibir, aoAlternar, aoSeguir }) {
+  const soma = ofertados
+    .filter(x => escolhidos.includes(x.id))
+    .reduce((n, x) => n + Number(x.preco || 0), 0);
+
+  return (
+    <>
+      <div className="jn-opcoes">
+        {ofertados.map(x => {
+          const on = escolhidos.includes(x.id);
+          return (
+            <button key={x.id} className={'jn-opcao jn-add' + (on ? ' on' : '')}
+                    onClick={() => aoAlternar(x.id)}
+                    role="checkbox" aria-checked={on}>
+              <span className={'jn-caixa' + (on ? ' on' : '')} aria-hidden="true">
+                {on && <Check size={14} />}
+              </span>
+              {x.foto && <img className="jn-opcao-foto" src={x.foto} alt="" />}
+              <span className="jn-opcao-txt">
+                <span className="jn-opcao-nome">{x.nome}</span>
+                <span className="jn-opcao-sub">
+                  {x.preco != null ? `+ ${brl(x.preco)}` : 'Sob consulta'}
+                  {exibir?.duracao && ` · + ${duracaoTexto(x.duracao)}`}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="jn-add-pe">
+        {escolhidos.length > 0 && soma > 0 && (
+          <p className="jn-add-soma">
+            {escolhidos.length} {escolhidos.length === 1 ? 'adicional' : 'adicionais'} · + {brl(soma)}
+          </p>
+        )}
+        <button className="b b-p b-larg" onClick={aoSeguir}>
+          {escolhidos.length ? 'Continuar' : 'Continuar sem adicionais'}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function PassoData({ escolha, negocio, aoEscolher, aviso }) {
   const [mes, setMes] = useState(mesDe(hojeISO()));
   const [comVaga, setComVaga] = useState(null);
@@ -261,11 +403,12 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
       const r = await api.diasLivres({
         servicoId: escolha.servicoId,
         profissionalId: escolha.profissionalId || undefined,
+        adicionais: escolha.adicionaisIds,
         mes,
       });
       setComVaga(new Set(r.dias));
     } catch (e) { aviso(e.message); setComVaga(new Set()); }
-  }, [mes, escolha.servicoId, escolha.profissionalId, aviso]);
+  }, [mes, escolha.servicoId, escolha.profissionalId, escolha.adicionaisIds, aviso]);
 
   useEffect(() => { carregarMes(); }, [carregarMes]);
 
@@ -275,6 +418,7 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
       const r = await api.horarios({
         servicoId: escolha.servicoId,
         profissionalId: escolha.profissionalId || undefined,
+        adicionais: escolha.adicionaisIds,
         data: d,
       });
       setHoras(r.horarios
@@ -378,6 +522,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         hora: escolha.hora,
         formaPagamento,
         obs,
+        adicionaisIds: escolha.adicionaisIds,
         ...(conhecida?.cadastrada ? {} : form),
       }));
     } catch (e) { aviso(e.message); setOcupado(false); }
@@ -463,7 +608,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   );
 }
 
-function Pronto({ resultado, escolha, servico, profissional, negocio, textos, aoFechar }) {
+function Pronto({ resultado, escolha, servico, profissional, extras, negocio, textos, aoFechar }) {
   return (
     <div className="jn-pronto">
       <div className="jn-pronto-marca"><Check size={30} /></div>
@@ -474,6 +619,7 @@ function Pronto({ resultado, escolha, servico, profissional, negocio, textos, ao
       </p>
       <dl className="jn-pronto-resumo">
         <ItemResumo rotulo="Serviço" valor={servico?.nome} />
+        {extras?.length > 0 && <ItemResumo rotulo="Adicionais" valor={extras.map(x => x.nome).join(', ')} />}
         {profissional && <ItemResumo rotulo="Com" valor={profissional.nome} />}
         <ItemResumo rotulo="Quando" valor={`${porExtenso(escolha.data)} · ${escolha.hora}`} />
         {negocio.endereco && <ItemResumo rotulo="Onde" valor={negocio.endereco} />}

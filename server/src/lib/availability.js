@@ -77,11 +77,11 @@ export async function horariosLivres({ staffId, data, duracao, passo }) {
 }
 
 /** Mesma coisa, porém para todos os profissionais habilitados no serviço. */
-export async function horariosPorServico({ servicoId, data }) {
+export async function horariosPorServico({ servicoId, data, duracaoExtra = 0 }) {
   const svc = await db.get('SELECT * FROM services WHERE id = ?', servicoId);
   if (!svc) return [];
   const vinculos = await db.all('SELECT staff_id FROM service_staff WHERE service_id = ?', servicoId);
-  const duracao = svc.duracao + (svc.intervalo || 0);
+  const duracao = svc.duracao + (svc.intervalo || 0) + duracaoExtra;
 
   const resultado = [];
   for (const { staff_id: id } of vinculos) {
@@ -103,12 +103,13 @@ export async function horariosPorServico({ servicoId, data }) {
  * @param {string} o.servicoId
  * @param {string} [o.profissionalId]  vazio = qualquer pessoa que faça o serviço
  * @param {string} o.mes               'YYYY-MM'
+ * @param {number} [o.duracaoExtra]    minutos dos serviços adicionais escolhidos
  * @returns {Promise<string[]>} datas 'YYYY-MM-DD' com vaga
  */
-export async function diasComVaga({ servicoId, profissionalId, mes }) {
+export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra = 0 }) {
   const svc = await db.get('SELECT * FROM services WHERE id = ? AND ativo = 1', servicoId);
   if (!svc) return [];
-  const duracao = svc.duracao + (svc.intervalo || 0);
+  const duracao = svc.duracao + (svc.intervalo || 0) + duracaoExtra;
 
   const equipe = profissionalId
     ? await db.all('SELECT * FROM staff WHERE id = ? AND ativo = 1', profissionalId)

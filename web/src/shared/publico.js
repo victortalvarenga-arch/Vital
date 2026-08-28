@@ -27,9 +27,11 @@ export const vitrine = () => req('/vitrine');
  * Horários livres de verdade, vindos do servidor.
  * Sem `profissionalId`, devolve as opções de cada profissional do serviço.
  */
-export function horarios({ servicoId, profissionalId, data }) {
+export function horarios({ servicoId, profissionalId, adicionais, data }) {
   const q = new URLSearchParams({ servicoId, data });
   if (profissionalId) q.set('profissionalId', profissionalId);
+  // Extras mudam a duração, e duração muda o que cabe na agenda.
+  if (adicionais?.length) q.set('adicionais', adicionais.join(','));
   return req(`/horarios?${q}`);
 }
 
@@ -37,9 +39,10 @@ export function horarios({ servicoId, profissionalId, data }) {
  * Quais dias de um mês têm vaga. O calendário pinta a partir disto, numa
  * chamada só — pedir dia a dia seriam trinta.
  */
-export function diasLivres({ servicoId, profissionalId, mes }) {
+export function diasLivres({ servicoId, profissionalId, adicionais, mes }) {
   const q = new URLSearchParams({ servicoId, mes });
   if (profissionalId) q.set('profissionalId', profissionalId);
+  if (adicionais?.length) q.set('adicionais', adicionais.join(','));
   return req(`/dias-livres?${q}`);
 }
 

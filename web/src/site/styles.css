@@ -286,7 +286,10 @@ img { max-width: 100%; display: block; }
 .jn-duvida:hover { color: var(--marca); }
 
 /* coluna 2 — o passo */
-.jn-centro { display: flex; flex-direction: column; min-width: 0; }
+/* min-height: 0 é o que faz o corpo rolar em vez de transbordar. Item de grid
+   e de flex tem tamanho mínimo automático igual ao conteúdo: sem isso a coluna
+   cresce além da janela e a lista de serviços e horários aparece cortada. */
+.jn-centro { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .jn-cab {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 20px 24px; border-bottom: 1px solid var(--linha);
@@ -294,7 +297,13 @@ img { max-width: 100%; display: block; }
 .jn-cab h2 { font-size: 19px; }
 .jn-x { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; color: var(--cinza); }
 .jn-x:hover { background: var(--superficie); color: var(--texto); }
-.jn-corpo { flex: 1; overflow-y: auto; padding: 22px 24px; }
+.jn-corpo {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: 22px 24px;
+  /* No celular a rolagem interna não deve arrastar a página atrás junto. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .jn-pe { padding: 12px 24px; border-top: 1px solid var(--linha); }
 .jn-voltar {
   display: inline-flex; align-items: center; gap: 8px; color: var(--cinza);
@@ -321,6 +330,29 @@ img { max-width: 100%; display: block; }
 .jn-opcao-sub { color: var(--cinza); font-size: 13.5px; }
 .jn-opcao-desc { color: var(--cinza); font-size: 13px; line-height: 1.4; }
 .jn-opcao-seta { color: var(--fraco); flex: none; }
+
+/* adicionais: marcáveis, não navegáveis — por isso caixa em vez de seta */
+.jn-add { cursor: pointer; }
+.jn-add.on { border-color: var(--marca); background: var(--marca-clara); }
+.jn-caixa {
+  width: 22px; height: 22px; border-radius: 7px; flex: none;
+  border: 1.5px solid var(--linha); background: var(--fundo);
+  display: grid; place-items: center; color: var(--sobre-marca);
+  transition: background .15s, border-color .15s;
+}
+.jn-caixa.on { background: var(--marca); border-color: var(--marca); }
+
+.jn-add-pe {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--linha);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.jn-add-soma { font-size: 14px; color: var(--cinza); text-align: center; }
+
+.jn-extra {
+  display: flex; justify-content: space-between; gap: 10px;
+  margin: 0; font-size: 14px; font-weight: 500; padding-top: 4px;
+}
+.jn-extra span { color: var(--cinza); font-weight: 600; }
 
 /* calendário do mês */
 .cal-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
@@ -393,7 +425,10 @@ img { max-width: 100%; display: block; }
 .jn-pronto-resumo { text-align: left; margin-bottom: 20px; }
 
 /* coluna 3 — resumo do que já foi escolhido */
-.jn-resumo { background: var(--superficie); border-left: 1px solid var(--linha); display: flex; flex-direction: column; }
+.jn-resumo {
+  background: var(--superficie); border-left: 1px solid var(--linha);
+  display: flex; flex-direction: column; min-height: 0;
+}
 .jn-resumo-barra {
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 20px 22px; border-bottom: 1px solid var(--linha); cursor: default;
@@ -404,7 +439,7 @@ img { max-width: 100%; display: block; }
 }
 .jn-resumo-total { display: none; font-weight: 700; }
 .jn-resumo-seta { display: none; color: var(--fraco); }
-.jn-resumo-corpo { padding: 4px 22px 22px; overflow-y: auto; }
+.jn-resumo-corpo { padding: 4px 22px 22px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
 .jn-resumo-vazio { color: var(--fraco); font-size: 13.5px; padding-top: 14px; }
 
 .jn-item { padding: 14px 0; border-bottom: 1px solid var(--linha); }

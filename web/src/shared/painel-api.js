@@ -101,6 +101,13 @@ export const api = {
     : req('/servicos', { method: 'POST', body: servicoParaApi(s) }),
   removerServico: id => req(`/servicos/${id}`, { method: 'DELETE' }),
 
+  /* ── serviços adicionais ── */
+  adicionais: () => req('/adicionais'),
+  salvarAdicionaisDoServico: (servicoId, ids) =>
+    req(`/adicionais/servico/${servicoId}`, { method: 'PUT', body: { adicionais: ids } }),
+  salvarAdicionaisDaCategoria: (categoria, ids) =>
+    req(`/adicionais/categoria/${encodeURIComponent(categoria)}`, { method: 'PUT', body: { adicionais: ids } }),
+
   /* ── configuração do site ── */
   salvarConfig: patch => req('/config', { method: 'PUT', body: patch }),
 

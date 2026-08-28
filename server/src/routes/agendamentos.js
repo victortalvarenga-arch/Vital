@@ -3,6 +3,7 @@ import { db, uid, apptOut, staffOut } from '../db.js';
 import { hoje, agora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
+import { validarAdicionais, gravarAdicionais } from '../lib/adicionais.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 
 export const agendamentos = Router();
@@ -62,7 +63,14 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
     return { erro: 'data (YYYY-MM-DD) e hora (HH:MM) inválidas', codigo: 400 };
   }
 
-  const duracao = +b.duracao || svc.duracao + (svc.intervalo || 0);
+  // Extras conferidos contra a oferta real; preço e duração vêm do banco.
+  const extras = await validarAdicionais(svc, b.adicionaisIds);
+  if (extras.erro) return extras;
+
+  // A duração precisa somar os extras, senão a cadeira é reservada por menos
+  // tempo do que o atendimento leva e a agenda estoura em cima da próxima.
+  const duracao = +b.duracao || svc.duracao + (svc.intervalo || 0) + extras.duracao;
+  const valor = b.valor != null ? +b.valor : Number(svc.preco) + extras.preco;
 
   // Encaixe manual pode furar a jornada; agendamento pelo site, não.
   if (!forcar && !dentroDaJornada(staffOut(prof), b.data, b.hora, duracao)) {
@@ -79,18 +87,19 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
                                  status,pag_status,pag_forma,origem,obs,criado_em)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       id, b.clienteId, b.servicoId, b.profissionalId, b.data, b.hora, duracao,
-      b.valor != null ? +b.valor : svc.preco,
+      valor,
       b.status || 'agendado',
       b.pagamento?.status || 'aberto', b.pagamento?.forma || 'local',
       origem, b.obs || '', `${hoje()} ${agora()}`
     );
+    await gravarAdicionais(tx, id, extras.itens);
     return { criado: await tx.get('SELECT * FROM appointments WHERE id=?', id) };
   });
 
   if (resultado.erro) return resultado;
 
   await enfileirarConfirmacao(resultado.criado);
-  return { agendamento: apptOut(resultado.criado) };
+  return { agendamento: { ...apptOut(resultado.criado), adicionais: extras.itens } };
 }
 
 agendamentos.post('/', rota(async (req, res) => {
