@@ -107,6 +107,9 @@ export const api = {
     req(`/adicionais/servico/${servicoId}`, { method: 'PUT', body: { adicionais: ids } }),
   salvarAdicionaisDaCategoria: (categoria, ids) =>
     req(`/adicionais/categoria/${encodeURIComponent(categoria)}`, { method: 'PUT', body: { adicionais: ids } }),
+  /** Em quais categorias ESTE serviço é oferecido como extra. */
+  salvarCategoriasDoAdicional: (servicoId, categorias) =>
+    req(`/adicionais/addon/${servicoId}/categorias`, { method: 'PUT', body: { categorias } }),
 
   /* ── configuração do site ── */
   salvarConfig: patch => req('/config', { method: 'PUT', body: patch }),

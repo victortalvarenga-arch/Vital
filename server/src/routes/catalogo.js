@@ -109,6 +109,33 @@ catalogo.put('/adicionais/categoria/:nome', rota(async (req, res) => {
   res.json({ categoria, adicionais: ids });
 }));
 
+/**
+ * Em quais categorias este serviço é oferecido como extra.
+ *
+ * É a mesma tabela da rota acima, editada pelo outro lado. As duas direções
+ * existem porque a empresa pensa das duas formas: "na limpeza de pele, ofereça
+ * buço" quando está montando o serviço principal, e "ofereça buço em toda a
+ * Facial" quando está cadastrando o próprio buço.
+ */
+catalogo.put('/adicionais/addon/:id/categorias', rota(async (req, res) => {
+  const svc = await db.get('SELECT id FROM services WHERE id=?', req.params.id);
+  if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
+
+  const categorias = [...new Set(req.body?.categorias || [])].filter(Boolean);
+  await db.transacao(async tx => {
+    // Apaga só as linhas DESTE extra: outras ofertas da mesma categoria,
+    // cadastradas pelo lado do serviço principal, não podem ser perdidas.
+    await tx.run('DELETE FROM category_addons WHERE addon_id=?', req.params.id);
+    for (const cat of categorias) {
+      await tx.run(
+        'INSERT INTO category_addons (categoria, addon_id) VALUES (?,?) ON CONFLICT DO NOTHING',
+        cat, req.params.id
+      );
+    }
+  });
+  res.json({ addonId: req.params.id, categorias });
+}));
+
 /** O que o site vai oferecer para um serviço: a união das duas regras. */
 catalogo.get('/adicionais/oferta/:id', rota(async (req, res) => {
   const svc = await db.get('SELECT id, categoria FROM services WHERE id=?', req.params.id);

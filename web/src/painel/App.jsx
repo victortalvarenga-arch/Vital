@@ -541,9 +541,11 @@ function Servicos({ dados, acao, aviso }) {
 
 function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categorias = [] }) {
   const [f, setF] = useState({ ...s });
-  const [extras, setExtras] = useState(null);        // ids marcados para ESTE serviço
-  const [extrasCat, setExtrasCat] = useState(null);  // ids marcados para a CATEGORIA
-  const [alvo, setAlvo] = useState('servico');       // qual das duas regras está editando
+  // Duas direções, porque a empresa pensa das duas formas:
+  //   ofertados  → "este serviço oferece estes extras"   (editando o principal)
+  //   ondeSouExtra → "este serviço é extra nestes grupos" (editando o extra)
+  const [ofertados, setOfertados] = useState(null);
+  const [ondeSouExtra, setOndeSouExtra] = useState(null);
   const entradaFoto = useRef(null);
   const [subindo, setSubindo] = useState(false);
   const toggleProf = id => setF(v => ({ ...v, profs: v.profs.includes(id) ? v.profs.filter(x => x !== id) : [...v.profs, id] }));
@@ -555,31 +557,31 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
     api.adicionais()
       .then(r => {
         if (!vivo) return;
-        // Serviço novo ainda não tem extras próprios, mas já herda os da
-        // categoria — mostrar isso evita a impressão de que nada foi salvo.
-        setExtras(s.id ? (r.porServico[s.id] || []) : []);
-        setExtrasCat(r.porCategoria[s.cat] || []);
+        setOfertados(s.id ? (r.porServico[s.id] || []) : []);
+        // A volta: varre as categorias procurando onde este serviço aparece.
+        setOndeSouExtra(
+          Object.entries(r.porCategoria)
+            .filter(([, ids]) => ids.includes(s.id))
+            .map(([cat]) => cat)
+        );
       })
-      .catch(() => { if (vivo) { setExtras([]); setExtrasCat([]); } });
+      .catch(() => { if (vivo) { setOfertados([]); setOndeSouExtra([]); } });
     return () => { vivo = false; };
-  }, [s.id, s.cat]);
+  }, [s.id]);
 
   // Enquanto não carregou, não dá para desenhar chip desmarcado: pareceria que
-  // a empresa não tem nada cadastrado, e salvar nesse instante apagaria tudo.
-  const carregando = extras === null || extrasCat === null;
-  const marcados = alvo === 'servico' ? (extras || []) : (extrasCat || []);
-  const alternarExtra = id => {
-    const proximo = marcados.includes(id) ? marcados.filter(x => x !== id) : [...marcados, id];
-    (alvo === 'servico' ? setExtras : setExtrasCat)(proximo);
-  };
+  // a empresa não tem nada cadastrado.
+  const carregando = ofertados === null || ondeSouExtra === null;
+  const alternar = (lista, set, valor) =>
+    set(lista.includes(valor) ? lista.filter(x => x !== valor) : [...lista, valor]);
 
   const salvar = async () => {
     const ok = await acao(async () => {
       // Serviço novo só ganha id ao ser criado, e os extras precisam dele.
       const salvo = await api.salvarServico(f);
       const id = s.id || salvo?.id;
-      if (extras && id) await api.salvarAdicionaisDoServico(id, extras);
-      if (extrasCat && f.cat) await api.salvarAdicionaisDaCategoria(f.cat, extrasCat);
+      if (ofertados && id) await api.salvarAdicionaisDoServico(id, ofertados);
+      if (ondeSouExtra && id) await api.salvarCategoriasDoAdicional(id, ondeSouExtra);
     }, 'Serviço salvo');
     if (ok) fechar();
   };
@@ -640,36 +642,50 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
           {staff.map(p => <button key={p.id} className={'chip' + (f.profs.includes(p.id) ? ' on' : '')} onClick={() => toggleProf(p.id)}>{p.nome.split(' ')[0]}</button>)}
         </div>
       </Campo>
-      {servicos.length > 0 && (
-        <Campo label="Serviços adicionais oferecidos junto">
-          <div className="add-alvo">
-            <button className={'add-aba' + (alvo === 'servico' ? ' on' : '')}
-                    onClick={() => setAlvo('servico')}>Só neste serviço</button>
-            <button className={'add-aba' + (alvo === 'categoria' ? ' on' : '')}
-                    disabled={!f.cat}
-                    onClick={() => setAlvo('categoria')}>
-              Em toda a categoria{f.cat ? ` "${f.cat}"` : ''}
-            </button>
-          </div>
-          <p className="add-ajuda">
-            {alvo === 'servico'
-              ? 'Aparece só quando a cliente escolhe este serviço.'
-              : `Aparece em todos os serviços de "${f.cat}". O site oferece a soma das duas listas.`}
-            {' '}Um adicional é um serviço do seu catálogo — para oferecer
-            "depilação de buço", cadastre-a como serviço primeiro.
-          </p>
-          {carregando ? <p className="add-ajuda">Carregando…</p> : (
+      {carregando ? (
+        <Campo label="Serviços adicionais"><p className="add-ajuda">Carregando…</p></Campo>
+      ) : (
+        <>
+          <Campo label={`Adicionais oferecidos com "${f.nome || 'este serviço'}"`}>
+            <p className="add-ajuda">
+              Quem escolher este serviço no site vai poder incluir os que você
+              marcar aqui. Cada um soma o próprio preço e a própria duração.
+            </p>
             <div className="chips">
               {servicos.filter(x => x.id !== s.id).map(x => (
                 <button key={x.id}
-                        className={'chip' + (marcados.includes(x.id) ? ' on' : '')}
-                        onClick={() => alternarExtra(x.id)}>
+                        className={'chip' + (ofertados.includes(x.id) ? ' on' : '')}
+                        onClick={() => alternar(ofertados, setOfertados, x.id)}>
                   {x.nome}
                 </button>
               ))}
             </div>
-          )}
-        </Campo>
+            {ofertados.length === 0 && (
+              <p className="add-ajuda">Nenhum marcado: o passo de adicionais não aparece para este serviço.</p>
+            )}
+          </Campo>
+
+          <Campo label={`Oferecer "${f.nome || 'este serviço'}" como adicional em`}>
+            <p className="add-ajuda">
+              O caminho inverso: marque as categorias em que ele deve ser
+              oferecido como extra. Serve para o que quase nunca é vendido
+              sozinho — depilação de buço junto de qualquer facial, por exemplo.
+            </p>
+            {categorias.length === 0
+              ? <p className="add-ajuda">Cadastre uma categoria em algum serviço primeiro.</p>
+              : (
+                <div className="chips">
+                  {categorias.map(c => (
+                    <button key={c}
+                            className={'chip' + (ondeSouExtra.includes(c) ? ' on' : '')}
+                            onClick={() => alternar(ondeSouExtra, setOndeSouExtra, c)}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+          </Campo>
+        </>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>

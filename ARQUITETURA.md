@@ -207,11 +207,20 @@ Consequência a saber: **o extra também aparece sozinho na vitrine**, porque é
 um serviço como outro qualquer. Vender algo só como adicional ainda não é
 possível — está anotado no `ROADMAP.md`.
 
-A oferta vem de dois lugares e o site mostra a **união**: por serviço ("na
-limpeza de pele, ofereça buço") e por categoria ("em qualquer serviço de Unhas,
-ofereça esmaltação"). A empresa pensa dos dois jeitos, então o cadastro aceita
-os dois. Como categoria é texto livre na tabela `services`, renomear uma deixa
-as regras dela órfãs — o estrago é uma oferta que some, não dado perdido.
+A oferta vem de dois lugares e o site mostra a **união**. O cadastro é feito nas
+duas direções, porque a empresa pensa das duas formas conforme o serviço que
+tem na frente:
+
+- Editando o **principal**: "quais extras a limpeza de pele oferece".
+- Editando o **extra**: "em quais grupos a depilação de buço é oferecida".
+
+As duas escrevem na mesma tabela `category_addons`, só que por lados opostos —
+e cada uma apaga apenas as próprias linhas ao salvar, senão marcar um extra
+derrubaria os outros do mesmo grupo. A segunda direção é a que serve para o que
+quase nunca se vende sozinho, e foi a que faltava na primeira versão da tela.
+
+Como categoria é texto livre na tabela `services`, renomear uma deixa as regras
+dela órfãs — o estrago é uma oferta que some, não dado perdido.
 
 Duas armadilhas resolvidas:
 
