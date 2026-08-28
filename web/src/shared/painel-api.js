@@ -32,12 +32,14 @@ const servicoParaTela = s => ({
   preco: s.preco, duracao: s.duracao, intervalo: s.intervalo,
   ativo: s.ativo, profs: s.profissionais,
   foto: s.foto || '', mostrarPreco: s.mostrarPreco !== false,
+  somenteAdicional: !!s.somenteAdicional,
 });
 
 const servicoParaApi = s => ({
   nome: s.nome, categoria: s.cat, descricao: s.desc, preco: s.preco,
   duracao: s.duracao, intervalo: s.intervalo, ativo: s.ativo, profissionais: s.profs,
   foto: s.foto || '', mostrarPreco: s.mostrarPreco !== false,
+  somenteAdicional: !!s.somenteAdicional,
 });
 
 const clienteParaTela = c => ({
@@ -91,7 +93,11 @@ export const api = {
   /* ── agendamentos ── */
   criarAgendamento: a => req('/agendamentos', {
     method: 'POST',
-    body: { clienteId: a.cliente, servicoId: a.servico, profissionalId: a.prof, data: a.data, hora: a.hora, forcar: a.forcar },
+    body: {
+      clienteId: a.cliente, servicoId: a.servico, profissionalId: a.prof,
+      data: a.data, hora: a.hora, forcar: a.forcar,
+      adicionaisIds: a.adicionaisIds || [],
+    },
   }),
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
@@ -140,6 +146,7 @@ export const api = {
 
   /* ── serviços adicionais ── */
   adicionais: () => req('/adicionais'),
+  ofertaDeAdicionais: servicoId => req('/adicionais/oferta/' + servicoId),
   salvarAdicionaisDoServico: (servicoId, ids) =>
     req(`/adicionais/servico/${servicoId}`, { method: 'PUT', body: { adicionais: ids } }),
   salvarAdicionaisDaCategoria: (categoria, ids) =>

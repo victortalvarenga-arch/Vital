@@ -746,50 +746,203 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
   );
 }
 
+/**
+ * Encaixe manual, pelo balcão.
+ *
+ * Vendia menos que o site: nada de adicionais, nada de combos. Quem marcava por
+ * aqui lançava o valor na mão, e o que digitasse não batia com o que o site
+ * cobraria pelo mesmo atendimento — duas verdades para a mesma venda.
+ *
+ * O que continua diferente de propósito: `forcar: true`. O encaixe pode furar a
+ * jornada, porque é manual e quem está no balcão sabe o que está fazendo. O que
+ * ele **não** fura é conflito com outro atendimento — isso o servidor recusa
+ * dos dois lados.
+ */
 function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
-  const { servicos, staff, clientes, agendamentos } = dados;
-  const [f, setF] = useState({ cliente: '', servico: servicos[0].id, prof: '', data, hora: '' });
-  const svc = servicos.find(s => s.id === f.servico);
-  const profs = staff.filter(p => svc.profs.includes(p.id));
+  const { staff, clientes, agendamentos } = dados;
+  const combos = (dados.combos || []).filter(c => c.ativo && !c.vencido);
+
+  // Extra que só se vende junto não é serviço principal — nem aqui.
+  const vendaveis = dados.servicos.filter(s => s.ativo && !s.somenteAdicional);
+
+  const [tipo, setTipo] = useState('servico');       // 'servico' | 'combo'
+  const [f, setF] = useState({
+    cliente: '', servico: vendaveis[0]?.id || '', combo: combos[0]?.id || '',
+    prof: '', data, hora: '', extras: [],
+  });
+  const [ofertados, setOfertados] = useState([]);
+  const [ocupado, setOcupado] = useState(false);
+
+  const svc = vendaveis.find(s => s.id === f.servico);
+  const combo = combos.find(c => c.id === f.combo);
+  const ehCombo = tipo === 'combo';
+
+  // Quem pode executar: no combo, só quem faz o pacote inteiro.
+  const profs = ehCombo
+    ? staff.filter(p => combo?.profissionais?.includes(p.id))
+    : staff.filter(p => svc?.profs.includes(p.id));
   const prof = staff.find(p => p.id === f.prof) || profs[0];
-  const slots = prof ? horariosLivres(prof, f.data, svc.duracao, agendamentos, 0) : [];
+
+  // O que a empresa oferece de extra para este serviço. Vem do servidor: a
+  // regra é a união de "extra deste serviço" com "extra desta categoria", e
+  // refazê-la aqui seria uma segunda versão dela para divergir.
+  useEffect(() => {
+    if (ehCombo || !svc) return setOfertados([]);
+    let valeu = true;
+    api.ofertaDeAdicionais(svc.id)
+      .then(r => { if (valeu) setOfertados(r.adicionais || []); })
+      .catch(() => { if (valeu) setOfertados([]); });
+    return () => { valeu = false; };
+  }, [ehCombo, svc?.id]);
+
+  const extras = dados.servicos.filter(s => f.extras.includes(s.id));
+  const duracao = ehCombo
+    ? (combo?.duracao || 0)
+    : (svc ? svc.duracao + (svc.intervalo || 0) + extras.reduce((n, x) => n + x.duracao + (x.intervalo || 0), 0) : 0);
+  const total = ehCombo
+    ? (combo?.preco || 0)
+    : (svc ? Number(svc.preco) + extras.reduce((n, x) => n + Number(x.preco), 0) : 0);
+
+  const slots = prof && duracao ? horariosLivres(prof, f.data, duracao, agendamentos, 0) : [];
+
+  const alternarExtra = id => setF(v => ({
+    ...v,
+    extras: v.extras.includes(id) ? v.extras.filter(x => x !== id) : [...v.extras, id],
+    hora: '',   // extra muda a duração, e duração muda o que cabe
+  }));
+
+  const trocarTipo = t => {
+    setTipo(t);
+    setF(v => ({ ...v, prof: '', hora: '', extras: [] }));
+  };
 
   const salvar = async () => {
-    // `forcar: true` deixa o encaixe furar a jornada — é manual, a dona sabe o que faz.
-    const ok = await acao(() => api.criarAgendamento({
-      cliente: f.cliente, servico: svc.id, prof: prof.id, data: f.data, hora: f.hora, forcar: true,
-    }), 'Encaixe criado');
-    if (ok) fechar();
+    setOcupado(true);
+    const ok = await acao(
+      () => (ehCombo
+        ? api.agendarCombo({ clienteId: f.cliente, comboId: combo.id, profissionalId: prof.id, data: f.data, hora: f.hora })
+        : api.criarAgendamento({
+            cliente: f.cliente, servico: svc.id, prof: prof.id,
+            data: f.data, hora: f.hora, adicionaisIds: f.extras, forcar: true,
+          })),
+      ehCombo ? 'Combo agendado' : 'Encaixe criado'
+    );
+    if (ok) fechar(); else setOcupado(false);
   };
 
   return (
     <Modal onClose={fechar}>
       <h2 style={{ fontSize: 24, marginBottom: 18 }}>Novo encaixe</h2>
+
+      {combos.length > 0 && (
+        <div className="chips" style={{ marginBottom: 16 }}>
+          {[['servico', 'Serviço'], ['combo', 'Promoção']].map(([k, rotulo]) => (
+            <button key={k} type="button" className={'chip' + (tipo === k ? ' on' : '')}
+                    onClick={() => trocarTipo(k)}>{rotulo}</button>
+          ))}
+        </div>
+      )}
+
       <Campo label="Cliente">
         <select value={f.cliente} onChange={e => setF(v => ({ ...v, cliente: e.target.value }))}>
           <option value="">Selecione</option>
           {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
       </Campo>
-      <Campo label="Serviço">
-        <select value={f.servico} onChange={e => setF(v => ({ ...v, servico: e.target.value, prof: '', hora: '' }))}>
-          {servicos.map(s => <option key={s.id} value={s.id}>{s.nome} — {brl(s.preco)}</option>)}
-        </select>
-      </Campo>
+
+      {ehCombo ? (
+        <Campo label="Promoção">
+          <select value={f.combo}
+                  onChange={e => setF(v => ({ ...v, combo: e.target.value, prof: '', hora: '' }))}>
+            {combos.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.nome} — {brl(c.preco)} (economiza {brl(c.economia)})
+              </option>
+            ))}
+          </select>
+          {combo && (
+            <span className="add-ajuda" style={{ marginTop: 5, display: 'block' }}>
+              {combo.servicos.map(s => s.nome).join(' + ')} · a mesma pessoa faz tudo,
+              em sequência.
+            </span>
+          )}
+        </Campo>
+      ) : (
+        <>
+          <Campo label="Serviço">
+            <select value={f.servico}
+                    onChange={e => setF(v => ({ ...v, servico: e.target.value, prof: '', hora: '', extras: [] }))}>
+              {vendaveis.map(s => <option key={s.id} value={s.id}>{s.nome} — {brl(s.preco)}</option>)}
+            </select>
+          </Campo>
+
+          {ofertados.length > 0 && (
+            <Campo label="Incluir junto">
+              <div className="chips">
+                {ofertados.map(id => {
+                  const x = dados.servicos.find(s => s.id === id);
+                  if (!x) return null;
+                  return (
+                    <button key={id} type="button"
+                            className={'chip chip-cat' + (f.extras.includes(id) ? ' on' : '')}
+                            onClick={() => alternarExtra(id)}>
+                      {x.nome} <span className="chip-n">{brl(x.preco)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Campo>
+          )}
+        </>
+      )}
+
       <div className="mrow">
         <Campo label="Profissional">
-          <select value={prof?.id || ''} onChange={e => setF(v => ({ ...v, prof: e.target.value, hora: '' }))}>
+          <select value={prof?.id || ''}
+                  onChange={e => setF(v => ({ ...v, prof: e.target.value, hora: '' }))}>
             {profs.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
           </select>
         </Campo>
-        <Campo label="Data"><input type="date" value={f.data} onChange={e => setF(v => ({ ...v, data: e.target.value, hora: '' }))} /></Campo>
+        <Campo label="Data">
+          <input type="date" value={f.data}
+                 onChange={e => setF(v => ({ ...v, data: e.target.value, hora: '' }))} />
+        </Campo>
       </div>
+
+      {profs.length === 0 && (
+        <p className="add-ajuda">
+          {ehCombo
+            ? 'Ninguém faz todos os serviços desta promoção. Vincule alguém em Serviços.'
+            : 'Ninguém está habilitado neste serviço.'}
+        </p>
+      )}
+
       <Campo label="Horário">
         {slots.length === 0
-          ? <p style={{ fontSize: 13, color: 'var(--muted)' }}>Sem horário livre nesse dia para {prof?.nome.split(' ')[0]}.</p>
-          : <div className="chips">{slots.map(h => <button key={h} className={'chip slot' + (f.hora === h ? ' on' : '')} onClick={() => setF(v => ({ ...v, hora: h }))}>{h}</button>)}</div>}
+          ? <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+              Sem horário livre nesse dia para {prof?.nome.split(' ')[0] || 'ninguém'}.
+            </p>
+          : <div className="chips">
+              {slots.map(h => (
+                <button key={h} className={'chip slot' + (f.hora === h ? ' on' : '')}
+                        onClick={() => setF(v => ({ ...v, hora: h }))}>{h}</button>
+              ))}
+            </div>}
       </Campo>
-      <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }} disabled={!f.cliente || !f.hora} onClick={salvar}>Criar agendamento</button>
+
+      {/* O total e a duração, calculados — é o número que o balcão digitava na
+          mão e errava. */}
+      {duracao > 0 && (
+        <div className="encaixe-conta">
+          <span>{duracao} min</span>
+          <b className="mono">{brl(total)}</b>
+        </div>
+      )}
+
+      <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }}
+              disabled={ocupado || !f.cliente || !f.hora || !prof} onClick={salvar}>
+        {ocupado ? 'Criando…' : ehCombo ? 'Agendar promoção' : 'Criar agendamento'}
+      </button>
     </Modal>
   );
 }
@@ -918,7 +1071,7 @@ function Servicos({ dados, acao, aviso }) {
     <>
       <div className="head">
         <div><h2>Serviços</h2><div className="sub">{servicos.filter(s => s.ativo).length} ativos no site · preço e duração alimentam a agenda automaticamente</div></div>
-        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', cat: '', desc: '', preco: 0, duracao: 60, intervalo: 10, ativo: true, profs: [], foto: '', mostrarPreco: true })}><Plus size={16} /> Novo serviço</button>
+        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', cat: '', desc: '', preco: 0, duracao: 60, intervalo: 10, ativo: true, profs: [], foto: '', mostrarPreco: true, somenteAdicional: false })}><Plus size={16} /> Novo serviço</button>
       </div>
       <div className="card list">
         {servicos.map(s => (
@@ -1140,9 +1293,19 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
         <Switch on={f.ativo} onChange={() => setF(v => ({ ...v, ativo: !v.ativo }))} />
         <span style={{ fontSize: 14 }}>Visível no site</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <Switch on={f.mostrarPreco !== false} onChange={() => setF(v => ({ ...v, mostrarPreco: v.mostrarPreco === false }))} />
         <span style={{ fontSize: 14 }}>Mostrar o preço <span style={{ color: 'var(--muted)' }}>— desligado, aparece “Sob consulta”</span></span>
+      </div>
+      {/* Diferente de arquivar: continua ativo e continua valendo como extra.
+          O que ele deixa de ser é serviço principal. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <Switch on={!!f.somenteAdicional}
+                onChange={() => setF(v => ({ ...v, somenteAdicional: !v.somenteAdicional }))} />
+        <span style={{ fontSize: 14 }}>
+          Vender só como adicional
+          <span style={{ color: 'var(--muted)' }}> — some da vitrine, continua sendo oferecido junto de outro</span>
+        </span>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-p" style={{ flex: 1 }} disabled={!f.nome || f.profs.length === 0} onClick={salvar}>Salvar</button>

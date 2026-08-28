@@ -389,20 +389,12 @@ Detalhes em `ARQUITETURA.md`.
 - [x] Resumo da janela mostra os extras e o total
 - [x] Painel exibe os extras: sinal no bloco da agenda e lista discriminada no
       detalhe do agendamento
-- [ ] Encaixe manual pelo painel ainda não oferece adicionais — quem marca pelo
-      balcão precisa lançar o valor na mão. Entra junto do redesenho dos
-      formulários, no Bloco 7
-- [ ] O ranking por serviço no financeiro credita o extra ao serviço principal
-      (ver Bloco 6d, mesmo problema)
-- [ ] **Falta "vender só como adicional".** Hoje um extra é um serviço normal,
-      então ele também aparece sozinho na vitrine: cadastrar "depilação de
-      buço" para oferecer junto da limpeza de pele coloca ela na lista da
-      categoria também. Desligar "visível no site" não resolve — `ativo = 0`
-      já significa "arquivado", e o motor recusa arquivado como extra.
-
-      Precisa de coluna própria (algo como `services.somente_adicional`), para
-      não misturar dois sentidos no mesmo campo. Migration pequena; o efeito é
-      esconder da vitrine e continuar aceitando como extra.
+- [x] Encaixe pelo painel oferece adicionais e combos, com duração e total
+      calculados
+- [x] O ranking do financeiro atribui cada extra ao próprio serviço, sem deixar
+      de bater com o caixa
+- [x] **Vender só como adicional**: `services.somente_adicional` tira o extra da
+      vitrine e o recusa como serviço principal, sem confundir com arquivar
 
 ### Bloco 6d — Combos e promoções ✅ concluído
 Detalhes e o porquê do modelo em `ARQUITETURA.md`.
@@ -423,8 +415,7 @@ Detalhes e o porquê do modelo em `ARQUITETURA.md`.
       pessoa só, do começo ao fim
 - [ ] Encaixe de combo pelo painel (a rota `POST /agendamentos/combo` existe;
       falta o formulário)
-- [ ] Foto própria do combo — o campo existe no banco e no site, falta o upload
-      na tela de cadastro
+- [x] Foto própria do combo, com upload na tela de cadastro
 
 ### Bloco 7 — Painel da equipe
 O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no
@@ -531,17 +522,6 @@ aqui na hora em que é notada**, mesmo sem plano de conserto — achado que fica
 na conversa se perde na próxima sessão.
 
 Sai daqui quando é resolvido, ou quando vira item de um bloco.
-
-### Corretude
-
-- [ ] **O ranking por serviço credita o adicional ao serviço principal.** O
-      caixa total está certo; o "o que mais dá dinheiro" não. Combos já saem
-      certos, porque o rateio vira o `valor` de cada linha na venda — os
-      adicionais é que continuam pendurados num agendamento só. Decidir se o
-      extra vira linha própria no relatório.
-- [ ] **Encaixe pelo painel não oferece adicionais nem combos.** Quem marca pelo
-      balcão lança o valor na mão, e o que ela digitar não bate com o que o site
-      cobraria pelo mesmo atendimento.
 
 ### Cobertura de teste
 

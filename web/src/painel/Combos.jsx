@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Plus, Tag, Trash2 } from 'lucide-react';
+import { ImageOff, Plus, Tag, Trash2, Upload } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
+import { prepararImagem } from '../shared/imagem.js';
 import { brl } from '../shared/formato.js';
 
 /**
@@ -87,11 +88,12 @@ export default function Combos({ dados, acao, aviso }) {
   );
 }
 
-const vazio = () => ({ nome: '', descricao: '', preco: '', servicosIds: [], validoAte: '', ativo: true });
+const vazio = () => ({ nome: '', descricao: '', preco: '', servicosIds: [], validoAte: '', foto: '', ativo: true });
 
 const paraForm = c => ({
   id: c.id, nome: c.nome, descricao: c.descricao || '', preco: String(c.preco),
-  servicosIds: c.servicos.map(s => s.id), validoAte: c.validoAte || '', ativo: c.ativo,
+  servicosIds: c.servicos.map(s => s.id), validoAte: c.validoAte || '',
+  foto: c.foto || '', ativo: c.ativo,
 });
 
 const fora = c => !c.ativo || c.vencido;
@@ -100,7 +102,22 @@ const situacao = c => (!c.ativo ? 'arquivada' : c.vencido ? 'vencida' : '');
 function Editar({ f0, servicos, fechar, aoSalvar, aoRemover, aviso }) {
   const [f, setF] = useState(f0);
   const [ocupado, setOcupado] = useState(false);
+  const [subindo, setSubindo] = useState(false);
   const muda = patch => setF(v => ({ ...v, ...patch }));
+
+  // Mesma trilha das fotos de serviço: encolhe no navegador antes de subir, e
+  // o nome do arquivo é decidido pelo servidor.
+  const enviarFoto = async e => {
+    const arquivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!arquivo) return;
+    setSubindo(true);
+    try {
+      const { url } = await api.enviarImagem(await prepararImagem(arquivo, { largura: 900 }), 'combo');
+      muda({ foto: url });
+    } catch (erro) { aviso(erro.message); }
+    finally { setSubindo(false); }
+  };
 
   // A mesma conta que o servidor faz, para a empresa ver o resultado enquanto
   // decide o preço. Quem manda continua sendo o servidor: ele recusa pacote
@@ -189,6 +206,30 @@ function Editar({ f0, servicos, fechar, aoSalvar, aoRemover, aviso }) {
           <span className="add-ajuda" style={{ marginTop: 5 }}>
             Em branco, fica no ar até você arquivar. Com data, some do site
             sozinha no dia seguinte — promoção de Natal não pode aparecer em março.
+          </span>
+        </div>
+
+        <div className="mfield">
+          <label>Foto</label>
+          <div className="cb-foto">
+            {f.foto
+              ? <img src={f.foto} alt="" />
+              : <span className="cb-foto-vazia"><ImageOff size={18} /></span>}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <label className="btn btn-g btn-s" style={{ cursor: 'pointer' }}>
+                <Upload size={15} /> {subindo ? 'Enviando…' : f.foto ? 'Trocar' : 'Escolher'}
+                <input type="file" accept="image/*" hidden onChange={enviarFoto} disabled={subindo} />
+              </label>
+              {f.foto && (
+                <button type="button" className="btn btn-g btn-s" onClick={() => muda({ foto: '' })}>
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
+          <span className="add-ajuda" style={{ marginTop: 5 }}>
+            Sem foto, o cartão da promoção mostra só o texto — funciona, mas
+            chama menos atenção que os serviços em volta.
           </span>
         </div>
 

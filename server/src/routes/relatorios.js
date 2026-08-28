@@ -41,10 +41,40 @@ relatorios.get('/resumo', rota(async (req, res) => {
     h, ...arg
   )).v || 0;
 
+  /**
+   * O que mais dá dinheiro, por serviço.
+   *
+   * `appointments.valor` já traz os adicionais somados — foi assim de propósito,
+   * para o motor de horários e o caixa lerem um número só. O efeito colateral
+   * aparecia aqui: a limpeza de pele levava o crédito do buço vendido junto, e o
+   * ranking dizia que ela rendia mais do que rende.
+   *
+   * Cada extra passa a valer pelo próprio serviço, e o principal fica com o que
+   * sobra. A soma das linhas continua batendo com o caixa — nada foi contado
+   * duas vezes, só atribuído a quem é.
+   *
+   * Combos já saíam certos: cada parte é um agendamento com o rateio no `valor`.
+   */
   const porServico = await db.all(
-    `SELECT s.nome, COUNT(*) qtd, SUM(a.valor) total
-       FROM appointments a JOIN services s ON s.id=a.service_id
-      WHERE a.data LIKE ? AND a.status='concluido' ${meuA}
+    `WITH concluidos AS (
+       SELECT a.id, a.service_id, a.valor
+         FROM appointments a
+        WHERE a.data LIKE ? AND a.status='concluido' ${meuA}
+     ),
+     extras AS (
+       SELECT aa.appointment_id, aa.service_id, aa.preco
+         FROM appointment_addons aa JOIN concluidos c ON c.id = aa.appointment_id
+     ),
+     linhas AS (
+       SELECT c.service_id,
+              c.valor - COALESCE(
+                (SELECT SUM(e.preco) FROM extras e WHERE e.appointment_id = c.id), 0) AS valor
+         FROM concluidos c
+       UNION ALL
+       SELECT e.service_id, e.preco FROM extras e
+     )
+     SELECT s.nome, COUNT(*) qtd, SUM(l.valor) total
+       FROM linhas l JOIN services s ON s.id = l.service_id
       GROUP BY s.id, s.nome ORDER BY total DESC`,
     like, ...arg
   );

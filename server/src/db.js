@@ -251,6 +251,8 @@ export const serviceOut = (r, profs = []) => r && ({
   preco: r.preco, duracao: r.duracao, intervalo: r.intervalo, ativo: !!r.ativo,
   ordem: r.ordem, profissionais: profs,
   foto: r.foto || '', mostrarPreco: r.mostrar_preco == null ? true : !!r.mostrar_preco,
+  // Não aparece sozinho na vitrine nem pode ser o serviço principal.
+  somenteAdicional: !!r.somente_adicional,
 });
 
 export const clientOut = r => r && ({

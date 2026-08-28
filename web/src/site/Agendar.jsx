@@ -26,7 +26,10 @@ const PASSOS = [
 ];
 
 export default function Agendar({ dados, servicoInicial, categoriaInicial, comboInicial, aoFechar }) {
-  const { negocio, textos, exibir, servicos, profissionais } = dados;
+  const { negocio, textos, exibir, profissionais } = dados;
+  // Igual à home: o extra que só se vende junto não entra na escolha do
+  // serviço principal, mas continua sendo encontrado como adicional.
+  const servicos = dados.servicos.filter(s => !s.somenteAdicional);
   const combo = (dados.combos || []).find(c => c.id === comboInicial) || null;
   const unidades = dados.unidades || [];
   const [escolha, setEscolha] = useState(() => ({
@@ -60,7 +63,9 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
   const daUnidade = p => !escolha.unidadeId || !p.unidadeId || p.unidadeId === escolha.unidadeId;
   const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id) && daUnidade(p));
   const profissional = profissionais.find(p => p.id === escolha.profissionalId);
-  const extras = servicos.filter(x => escolha.adicionaisIds.includes(x.id));
+  // Da lista completa: o extra escolhido pode ser um que não se vende sozinho,
+  // e ele precisa aparecer no resumo e na confirmação como qualquer outro.
+  const extras = dados.servicos.filter(x => escolha.adicionaisIds.includes(x.id));
 
   const categorias = useMemo(() => {
     const mapa = new Map();
@@ -72,7 +77,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     return [...mapa].map(([nome, itens]) => ({ nome, itens }));
   }, [servicos]);
 
-  const ofertados = servicos.filter(x => servico?.adicionais?.includes(x.id));
+  const ofertados = dados.servicos.filter(x => servico?.adicionais?.includes(x.id));
 
   /**
    * Passo que não tem o que perguntar é pulado.

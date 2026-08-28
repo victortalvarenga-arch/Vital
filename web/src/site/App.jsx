@@ -129,8 +129,13 @@ const Revela = ({ children, className = '' }) => {
 /* ── home ── */
 
 function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
-  const { negocio, marca, textos, exibir, servicos } = dados;
+  const { negocio, marca, textos, exibir } = dados;
   const combos = dados.combos || [];
+
+  // O que se vende sozinho. Quem está marcado como "só adicional" continua
+  // vindo na resposta — o passo de extras precisa do nome e do preço — mas não
+  // ocupa lugar na vitrine nem numa categoria.
+  const servicos = dados.servicos.filter(s => !s.somenteAdicional);
 
   const categorias = useMemo(() => {
     const mapa = new Map();

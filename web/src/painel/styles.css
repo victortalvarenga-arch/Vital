@@ -442,3 +442,12 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   background:var(--blush); color:var(--lacquer-d)}
 .und-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
   margin-left:8px; padding:2px 7px; border-radius:6px; background:var(--line); color:var(--muted)}
+/* total e duração do encaixe, calculados em vez de digitados */
+.encaixe-conta{display:flex; justify-content:space-between; align-items:baseline;
+  background:var(--blush); color:var(--lacquer-d); border-radius:10px;
+  padding:9px 13px; margin-top:6px; font-size:13.5px}
+.encaixe-conta b{font-size:16px}
+.cb-foto{display:flex; align-items:center; gap:12px}
+.cb-foto img{width:84px; height:56px; object-fit:cover; border-radius:9px; flex:none}
+.cb-foto-vazia{width:84px; height:56px; border-radius:9px; flex:none; display:grid;
+  place-items:center; background:var(--line); color:var(--muted)}

@@ -647,6 +647,49 @@ que deixa escolher por serviço.
 foi decisão do negócio, porque é quem está no balcão que sabe qual serviço está
 parado e vale empurrar junto.
 
+## O que se vende junto
+
+### O extra que não se vende sozinho
+
+No Bloco 6c um adicional virou um `service` comum indicado como extra de outro —
+decisão certa: ele já tem preço, duração, foto e quem executa, sem duplicar nada.
+Faltava o outro caso. Cadastrar "depilação de buço" para oferecer junto da
+limpeza também a colocava na vitrine, na lista da categoria dela, agendável.
+
+Desligar `ativo` não resolvia: `ativo = 0` quer dizer arquivado, e o motor recusa
+arquivado como extra — a empresa perderia as duas coisas. Daí
+`services.somente_adicional`, uma coluna que responde uma pergunta só, em vez de
+dar um segundo sentido a um campo que já tem um.
+
+Ele continua chegando na vitrine, com a marca: o passo de adicionais precisa do
+nome e do preço. Quem filtra é a tela, na lista de venda. E a recusa como serviço
+principal vive na gravação, não só na tela — id de serviço circula.
+
+### O ranking deixou de creditar o extra ao principal
+
+`appointments.valor` traz os adicionais somados, de propósito: o motor de
+horários e o caixa leem um número só. O efeito colateral aparecia no "o que mais
+dá dinheiro" — a limpeza de pele levava o crédito do buço vendido junto, e o
+ranking dizia que ela rendia mais do que rende.
+
+Agora cada extra vale pelo próprio serviço e o principal fica com o que sobra. É
+atribuição, não conta nova: **a soma das linhas continua batendo com o caixa**, e
+há teste exigindo isso — sem ele, o ranking passaria a discordar do recebido sem
+ninguém perceber. Combos já saíam certos, porque cada parte é um agendamento com
+o rateio no `valor`.
+
+### O balcão vende o que o site vende
+
+O encaixe manual não oferecia adicionais nem combos: quem marcava por ali lançava
+o valor na mão, e o que digitasse não batia com o que o site cobraria pelo mesmo
+atendimento — duas verdades para a mesma venda. Agora o formulário alterna entre
+serviço e promoção, oferece os extras daquele serviço, e mostra duração e total
+calculados.
+
+O que continua diferente de propósito é o `forcar: true`: o encaixe pode furar a
+jornada, porque é manual e quem está no balcão sabe o que faz. O que ele não fura
+é conflito com outro atendimento — isso o servidor recusa dos dois lados.
+
 ## A agenda do painel
 
 **Os dias vão no eixo X, não os profissionais.** Com uma coluna por pessoa, a

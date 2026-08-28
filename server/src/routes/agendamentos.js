@@ -79,6 +79,11 @@ agendamentos.get('/', rota(async (req, res) => {
 export async function criarAgendamento(b, { origem = 'painel', forcar = false } = {}) {
   const svc = await db.get('SELECT * FROM services WHERE id=?', b.servicoId);
   if (!svc) return { erro: 'serviço não encontrado', codigo: 404 };
+  // Marcado para vender só junto de outro. A recusa vive aqui, e não só na
+  // tela: id de serviço circula, e esconder da lista nunca foi controle.
+  if (svc.somente_adicional) {
+    return { erro: `${svc.nome} só é vendido junto de outro serviço`, codigo: 409 };
+  }
   const prof = await db.get('SELECT * FROM staff WHERE id=?', b.profissionalId);
   if (!prof) return { erro: 'profissional não encontrada', codigo: 404 };
   const cli = await db.get('SELECT * FROM clients WHERE id=?', b.clienteId);
