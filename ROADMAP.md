@@ -266,11 +266,27 @@ Referência: `esteticalaurafaust.ageenda.com.br`. O que ficou está em
 vitrine não vaza cliente, financeiro, chave Pix nem telefone da equipe, que o
 mesmo horário é recusado duas vezes e que horário vendido some da grade.
 
+### Bloco 4b — Confirmar que o WhatsApp é mesmo da pessoa
+Hoje a cliente digita o número e, se houver cadastro, a tela mostra o primeiro
+nome e pede confirmação. Isso pega o erro de digitação, mas não impede quem
+quiser agendar de propósito no cadastro alheio — e expõe o primeiro nome de
+qualquer número que alguém digite.
+
+- [ ] Código de 4 dígitos por WhatsApp no primeiro agendamento de cada número
+- [ ] Decidir quando cobrar o código: toda vez encarece e atrapalha; só no
+      primeiro agendamento do número é o equilíbrio provável
+- [ ] Custa por mensagem na API oficial da Meta, e no modo manual não é
+      automático — por isso não foi feito junto do Bloco 4
+
 ### Bloco 5 — Área do cliente (login Google)
 Único bloco sem dependente: nada mais quebra se ele deslizar para depois.
 O login em si é pequeno; o custo está no vínculo de conta e nas telas.
 
 - [ ] Entrar com Google no site (escopos básicos apenas — nada de sensível)
+- [ ] **O Google resolve dois dos três dados, não os três.** Vem nome e e-mail;
+      WhatsApp e nascimento continuam sendo perguntados uma vez, porque os
+      escopos que trariam isso passam por revisão da Meta e quase sempre voltam
+      vazios. Login com Google encurta o cadastro, não o elimina.
 - [ ] Vínculo de conta: casar Google com ficha existente sem duplicar cliente
 - [ ] "Meus agendamentos": histórico, remarcar, cancelar com política
 - [ ] Primeiro acesso ainda pede telefone e nascimento uma vez

@@ -142,6 +142,15 @@ publico.post('/agendar', rota(async (req, res) => {
     if (!b.nome || b.nome.trim().length < 3) {
       return res.status(400).json({ erro: 'primeiro acesso: informe o nome completo' });
     }
+    // Nome, WhatsApp e nascimento são o mínimo que o negócio precisa: sem nome
+    // não dá para atender, sem nascimento não existe mensagem de aniversário.
+    // A conferência vive aqui também porque validação de front se contorna.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(b.nascimento || '')) {
+      return res.status(400).json({ erro: 'primeiro acesso: informe a data de nascimento' });
+    }
+    if (b.nascimento > hoje()) {
+      return res.status(400).json({ erro: 'data de nascimento no futuro' });
+    }
     const id = uid();
     await db.run(
       `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,?,?)`,

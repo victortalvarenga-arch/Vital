@@ -522,6 +522,9 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
 function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   const [fone, setFone] = useState('');
   const [conhecida, setConhecida] = useState(null);
+  // Digitou o número de outra pessoa? O agendamento cairia no cadastro dela, e
+  // o lembrete iria para o WhatsApp dela. Confirmar quem é evita isso.
+  const [souEu, setSouEu] = useState(false);
   const [form, setForm] = useState({ nome: '', nascimento: '', aceitaMensagens: true });
   const [obs, setObs] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('local');
@@ -564,7 +567,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         <label htmlFor="jn-fone">Seu WhatsApp</label>
         <input id="jn-fone" type="tel" inputMode="numeric" autoComplete="tel"
                placeholder="(47) 99999-9999" value={mascaraFone(fone)}
-               onChange={e => { setFone(e.target.value); setConhecida(null); }}
+               onChange={e => { setFone(e.target.value); setConhecida(null); setSouEu(false); }}
                onBlur={checar} />
       </div>
 
@@ -575,8 +578,20 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         </>
       )}
 
-      {conhecida?.cadastrada && (
-        <p className="ajuda">Oi de novo, {conhecida.primeiroNome}! Já temos seu cadastro.</p>
+      {conhecida?.cadastrada && !souEu && (
+        <div className="jn-confere">
+          <p>Encontramos um cadastro em <strong>{conhecida.primeiroNome}</strong>.</p>
+          <div className="jn-confere-btns">
+            <button className="b b-p b-peq" onClick={() => setSouEu(true)}>Sou eu</button>
+            <button className="b b-c b-peq" onClick={() => { setConhecida(null); setFone(''); }}>
+              Não · corrigir número
+            </button>
+          </div>
+        </div>
+      )}
+
+      {conhecida?.cadastrada && souEu && (
+        <p className="ajuda">Oi de novo, {conhecida.primeiroNome}!</p>
       )}
 
       {conhecida && !conhecida.cadastrada && (
@@ -589,13 +604,15 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
           </div>
           <div className="campo">
             <label htmlFor="jn-nasc">Nascimento</label>
-            <input id="jn-nasc" type="date" value={form.nascimento}
+            <input id="jn-nasc" type="date" required value={form.nascimento}
+                   max={hojeISO()}
                    onChange={e => setForm(f => ({ ...f, nascimento: e.target.value }))} />
+            <span className="jn-porque">Para te mandar um mimo no seu aniversário.</span>
           </div>
         </>
       )}
 
-      {conhecida && (
+      {conhecida && (conhecida.cadastrada ? souEu : true) && (
         <>
           <div className="campo">
             <label htmlFor="jn-obs">
@@ -625,7 +642,8 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
             </label>
           )}
           <button className="b b-p b-larg"
-                  disabled={ocupado || (!conhecida.cadastrada && form.nome.trim().length < 3)}
+                  disabled={ocupado || (!conhecida.cadastrada
+                    && (form.nome.trim().length < 3 || !form.nascimento))}
                   onClick={confirmar}>
             {ocupado ? 'Confirmando…' : 'Confirmar horário'}
           </button>

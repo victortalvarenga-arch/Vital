@@ -362,9 +362,22 @@ criados cedo para não exigir migração depois.
 | **Painel** | Equipe da empresa: dono e funcionário | E-mail e senha | Sim |
 | **Site** | A cliente que agenda | Não entra: informa o WhatsApp na hora de marcar | Não há login |
 
-A cliente **não cria conta**. Ela digita o WhatsApp, e se já agendou antes o
-sistema a reconhece pelo número. É de propósito: exigir cadastro para marcar
-horário perde agendamento, e a maioria não voltaria para confirmar e-mail.
+A cliente **não cria conta** — mas o primeiro agendamento **pede três dados, uma
+vez só**: nome, WhatsApp e nascimento. Sem nome não dá para atender; sem
+nascimento não existe mensagem de aniversário, que é uma das campanhas do CRM.
+Os três são exigidos no servidor também, porque validação de front se contorna.
+
+Quem já agendou antes só digita o WhatsApp e é reconhecida pelo número. É aí que
+mora o "sem burocracia": a segunda vez em diante não pede nada. Exigir conta e
+confirmação de e-mail para marcar horário perderia agendamento, e o retorno
+seria zero — a pessoa quer marcar unha, não virar usuária de um sistema.
+
+**Número errado é o risco desse desenho.** Digitar o número de outra pessoa
+levaria a agendar no cadastro dela, e o lembrete iria para o WhatsApp dela. Por
+isso, ao reconhecer um cadastro, a tela mostra o primeiro nome e pede
+confirmação — "Encontramos um cadastro em Amanda. É você?" — em vez de seguir
+em silêncio. O nome exposto é o preço de conseguir conferir; a solução completa
+é código por WhatsApp, que custa por mensagem e está anotada no `ROADMAP.md`.
 
 **O login com Google é para a cliente, não para a equipe** — e ainda não existe
 (Bloco 5). Quando existir, será um atalho para ela ver histórico e remarcar, e
