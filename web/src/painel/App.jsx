@@ -546,6 +546,9 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
   //   ondeSouExtra → "este serviço é extra nestes grupos" (editando o extra)
   const [ofertados, setOfertados] = useState(null);
   const [ondeSouExtra, setOndeSouExtra] = useState(null);
+  // Qual categoria está sendo folheada na lista de extras. Não é o que está
+  // marcado — é só o recorte visível, para não despejar o catálogo inteiro.
+  const [folheando, setFolheando] = useState(s.cat || '');
   const entradaFoto = useRef(null);
   const [subindo, setSubindo] = useState(false);
   const toggleProf = id => setF(v => ({ ...v, profs: v.profs.includes(id) ? v.profs.filter(x => x !== id) : [...v.profs, id] }));
@@ -574,6 +577,17 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
   const carregando = ofertados === null || ondeSouExtra === null;
   const alternar = (lista, set, valor) =>
     set(lista.includes(valor) ? lista.filter(x => x !== valor) : [...lista, valor]);
+
+  const candidatos = servicos.filter(x => x.id !== s.id);
+  // Serviço novo ainda não tem categoria, e a dele pode ter sido renomeada:
+  // sem esta volta, o filtro ficaria apontando para o nada e a lista vazia.
+  const catAtiva = categorias.includes(folheando) ? folheando : (categorias[0] || '');
+  const visiveisParaExtra = categorias.length > 1
+    ? candidatos.filter(x => x.cat === catAtiva)
+    : candidatos;
+  const marcadosForaDaVista = (ofertados || [])
+    .map(id => candidatos.find(x => x.id === id))
+    .filter(x => x && !visiveisParaExtra.includes(x));
 
   const salvar = async () => {
     const ok = await acao(async () => {
@@ -651,15 +665,45 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
               Quem escolher este serviço no site vai poder incluir os que você
               marcar aqui. Cada um soma o próprio preço e a própria duração.
             </p>
-            <div className="chips">
-              {servicos.filter(x => x.id !== s.id).map(x => (
-                <button key={x.id}
-                        className={'chip' + (ofertados.includes(x.id) ? ' on' : '')}
-                        onClick={() => alternar(ofertados, setOfertados, x.id)}>
-                  {x.nome}
-                </button>
-              ))}
+
+            {/* Categoria primeiro: com catálogo grande, despejar tudo de uma
+                vez vira uma parede de pílulas onde não se acha nada. */}
+            {categorias.length > 1 && (
+              <div className="chips filtro-cat">
+                {categorias.map(c => {
+                  const marcadosAqui = servicos.filter(x => x.cat === c && ofertados.includes(x.id)).length;
+                  return (
+                    <button key={c}
+                            className={'chip chip-cat' + (catAtiva === c ? ' on' : '')}
+                            onClick={() => setFolheando(c)}>
+                      {c}
+                      {marcadosAqui > 0 && <span className="chip-n">{marcadosAqui}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="chips chips-rolagem">
+              {visiveisParaExtra.length === 0
+                ? <p className="add-ajuda">Nenhum outro serviço nesta categoria.</p>
+                : visiveisParaExtra.map(x => (
+                    <button key={x.id}
+                            className={'chip' + (ofertados.includes(x.id) ? ' on' : '')}
+                            onClick={() => alternar(ofertados, setOfertados, x.id)}>
+                      {x.nome}
+                    </button>
+                  ))}
             </div>
+
+            {/* O que está marcado fora do recorte visível precisa aparecer,
+                senão some da vista e a pessoa acha que perdeu. */}
+            {marcadosForaDaVista.length > 0 && (
+              <p className="add-ajuda">
+                Também marcados em outras categorias:{' '}
+                {marcadosForaDaVista.map(x => x.nome).join(', ')}
+              </p>
+            )}
             {ofertados.length === 0 && (
               <p className="add-ajuda">Nenhum marcado: o passo de adicionais não aparece para este serviço.</p>
             )}

@@ -286,3 +286,18 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 /* ── serviços adicionais ── */
 .add-ajuda { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; line-height: 1.45; }
+
+/* Filtro de categoria: menor e mais discreto que as pílulas de escolha, para
+   ficar claro que é recorte da vista, não seleção. */
+.filtro-cat { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.chip-cat { padding: 7px 12px; font-size: 13px; min-height: 36px; gap: 6px; }
+.chip-cat.on { background: var(--blush); color: var(--lacquer-d); border-color: var(--lacquer); }
+.chip-n {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px;
+  padding: 0 5px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: var(--lacquer); color: #fff;
+}
+.chip-cat.on .chip-n { background: var(--lacquer-d); }
+
+/* Catálogo grande não pode empurrar o resto do formulário para fora da tela. */
+.chips-rolagem { max-height: 210px; overflow-y: auto; align-content: flex-start; }
