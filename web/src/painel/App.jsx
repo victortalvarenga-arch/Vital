@@ -9,7 +9,7 @@ import {
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut, KeyRound
+  Upload, Image as ImageIcon, LogOut, KeyRound, Ban
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -218,7 +218,10 @@ function Painel({ sessao, aoSair }) {
       </nav>
 
       <main className="p-conteudo">
-        {secao === 'agenda' && <Agenda dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'agenda' && (
+          <Agenda dados={{ ...dados, eu: sessao.usuario }} acao={acao}
+                  aviso={setToast} poderes={p} />
+        )}
         {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
@@ -239,13 +242,15 @@ function Painel({ sessao, aoSair }) {
 /* ── Agenda ── */
 const H_INI = 8, H_FIM = 20, PX_H = 56;
 
-function Agenda({ dados, acao, aviso }) {
+function Agenda({ dados, acao, aviso, poderes }) {
   const { staff, servicos, clientes, agendamentos } = dados;
   const [data, setData] = useState(hojeISO());
   const [sel, setSel] = useState(null);
   const [novo, setNovo] = useState(false);
+  const [bloquear, setBloquear] = useState(null);
 
   const doDia = agendamentos.filter(a => a.data === data && a.status !== 'cancelado');
+  const fechados = (dados.bloqueios || []).filter(b => b.data === data);
   const ativos = staff.filter(p => p.jornada[dow(data)]);
   const cols = ativos.length || 1;
   const receita = doDia.reduce((s, a) => s + a.valor, 0);
@@ -278,6 +283,9 @@ function Agenda({ dados, acao, aviso }) {
             {data === hojeISO() ? 'Hoje' : fmtData(data)}
           </button>
           <button className="btn btn-g btn-s" onClick={() => setData(addDias(data, 1))}><ChevronRight size={16} /></button>
+          <button className="btn btn-g btn-s" onClick={() => setBloquear({ data })}>
+            <Ban size={16} /> Bloquear
+          </button>
           <button className="btn btn-p btn-s" onClick={() => setNovo(true)}><Plus size={16} /> Encaixe</button>
         </div>
       </div>
@@ -304,6 +312,24 @@ function Agenda({ dados, acao, aviso }) {
                 </div>
                 <div className="colbody" style={{ height: (H_FIM - H_INI) * PX_H }}>
                   {Array.from({ length: H_FIM - H_INI }, (_, i) => <div key={i} className="grid-line" style={{ top: i * PX_H }} />)}
+
+                  {/* Bloqueio entra ATRÁS do agendamento: quando os dois se
+                      cruzam, o que importa ver é a cliente que já está marcada. */}
+                  {fechados.filter(b => !b.profissionalId || b.profissionalId === p.id).map(b => {
+                    const top = (toMin(b.horaIni) - H_INI * 60) / 60 * PX_H;
+                    const h = Math.max((toMin(b.horaFim) - toMin(b.horaIni)) / 60 * PX_H, 18);
+                    const meu = b.profissionalId === p.id;
+                    return (
+                      <button key={b.id + p.id} className="bloqueio"
+                              style={{ top, height: h }}
+                              title={meu ? 'Liberar este horário' : 'Fecha a empresa toda'}
+                              disabled={!meu && !poderes.verDeTodos}
+                              onClick={() => acao(() => api.removerBloqueio(b.id), 'Horário liberado')}>
+                        <span>{b.motivo || 'Bloqueado'}</span>
+                      </button>
+                    );
+                  })}
+
                   {doDia.filter(a => a.prof === p.id).map(a => {
                     const c = clientes.find(x => x.id === a.cliente);
                     const s = servicos.find(x => x.id === a.servico);
@@ -369,7 +395,111 @@ function Agenda({ dados, acao, aviso }) {
       })()}
 
       {novo && <NovoAgendamento dados={dados} acao={acao} data={data} fechar={() => setNovo(false)} aviso={aviso} />}
+      {bloquear && (
+        <BloquearHorario dados={dados} poderes={poderes} data={data} acao={acao}
+                         aviso={aviso} fechar={() => setBloquear(null)} />
+      )}
     </>
+  );
+}
+
+/**
+ * Fecha um pedaço da agenda: almoço, folga, feriado.
+ *
+ * Bloquear NÃO desmarca ninguém. Se já havia cliente no intervalo, a tela
+ * avisa e a equipe remarca à mão — cancelar sozinho o atendimento de alguém
+ * seria decidir pela empresa uma coisa que ela precisa saber que aconteceu.
+ */
+function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
+  const [f, setF] = useState({
+    // Funcionário só fecha a própria agenda; para ele o campo nem faz escolha.
+    profissionalId: poderes.verDeTodos ? '' : (dados.eu?.profissionalId || ''),
+    data, horaIni: '12:00', horaFim: '13:00', motivo: '',
+  });
+  const [ocupado, setOcupado] = useState(false);
+  const [conflitos, setConflitos] = useState(null);
+
+  const salvar = async e => {
+    e.preventDefault();
+    setOcupado(true);
+    try {
+      const r = await api.criarBloqueio(f);
+      if (r.jaAgendados?.length) {
+        // Não fecha a janela: a equipe precisa ler quem ficou no meio.
+        setConflitos(r.jaAgendados);
+        setOcupado(false);
+      } else {
+        await acao(() => Promise.resolve(), 'Horário bloqueado');
+        fechar();
+      }
+    } catch (erro) {
+      aviso(erro.message);
+      setOcupado(false);
+    }
+  };
+
+  if (conflitos) return (
+    <Modal onClose={fechar}>
+      <h2 style={{ fontSize: 22, marginBottom: 10 }}>Bloqueado, mas atenção</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
+        {conflitos.length === 1 ? 'Já havia uma cliente' : `Já havia ${conflitos.length} clientes`} nesse
+        intervalo. Ninguém foi desmarcado — combine a remarcação com {conflitos.length === 1 ? 'ela' : 'elas'}.
+      </p>
+      {conflitos.map(c => (
+        <div key={c.id} className="card" style={{ padding: '10px 14px', marginBottom: 8 }}>
+          <b className="mono">{c.hora}</b> · {c.cliente}
+        </div>
+      ))}
+      <button className="btn btn-p" style={{ width: '100%', marginTop: 10 }}
+              onClick={async () => { await acao(() => Promise.resolve(), 'Horário bloqueado'); fechar(); }}>
+        Entendi
+      </button>
+    </Modal>
+  );
+
+  return (
+    <Modal onClose={fechar}>
+      <form onSubmit={salvar}>
+        <h2 style={{ fontSize: 24, marginBottom: 6 }}>Bloquear horário</h2>
+        <p style={{ color: 'var(--muted)', fontSize: 13.5, marginBottom: 18 }}>
+          O site para de oferecer esse intervalo na hora.
+        </p>
+
+        {poderes.verDeTodos && (
+          <Campo label="Quem">
+            <select value={f.profissionalId}
+                    onChange={e => setF(v => ({ ...v, profissionalId: e.target.value }))}>
+              <option value="">A empresa toda (feriado, reforma…)</option>
+              {dados.staff.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </Campo>
+        )}
+
+        <Campo label="Dia">
+          <input type="date" required value={f.data}
+                 onChange={e => setF(v => ({ ...v, data: e.target.value }))} />
+        </Campo>
+
+        <div className="mrow">
+          <Campo label="Das"><input type="time" required value={f.horaIni}
+                 onChange={e => setF(v => ({ ...v, horaIni: e.target.value }))} /></Campo>
+          <Campo label="Até"><input type="time" required value={f.horaFim}
+                 onChange={e => setF(v => ({ ...v, horaFim: e.target.value }))} /></Campo>
+        </div>
+
+        <Campo label="Motivo (aparece só para a equipe)">
+          <input placeholder="Almoço, folga, feriado…" value={f.motivo}
+                 onChange={e => setF(v => ({ ...v, motivo: e.target.value }))} />
+        </Campo>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-p" style={{ flex: 1 }} type="submit" disabled={ocupado}>
+            {ocupado ? 'Bloqueando…' : 'Bloquear'}
+          </button>
+          <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

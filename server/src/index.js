@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-import { db, iniciarBanco, getConfig, listarServicos, staffOut, clientOut, apptOut, templateOut } from './db.js';
+import { db, iniciarBanco, getConfig, listarServicos, staffOut, clientOut, apptOut, templateOut, blockOut } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
 import { catalogo } from './routes/catalogo.js';
 import { clientes } from './routes/clientes.js';
@@ -13,6 +13,7 @@ import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
 import { uploads, PASTA as PASTA_UPLOADS } from './routes/uploads.js';
 import { auth } from './routes/auth.js';
+import { bloqueios } from './routes/bloqueios.js';
 import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { iniciarJobs } from './jobs/mensagens.js';
 import { rota } from './lib/rota.js';
@@ -82,6 +83,7 @@ app.use('/api/relatorios', exige('financeiro'), relatorios);
 app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);
+app.use('/api/bloqueios', bloqueios);
 app.use('/api/mensagens', mensagens);
 
 /**
@@ -93,7 +95,7 @@ app.get('/api/estado', rota(async (req, res) => {
   // Mesmo recorte da rota de agenda: o bootstrap não pode ser a porta dos
   // fundos que devolve o que a rota filtrada esconde.
   const so = escopoDe(req.usuario);
-  const [config, servicos, equipe, clientela, agenda, modelos] = await Promise.all([
+  const [config, servicos, equipe, clientela, agenda, modelos, fechados] = await Promise.all([
     getConfig(),
     listarServicos(),
     db.all('SELECT * FROM staff ORDER BY nome'),
@@ -102,6 +104,7 @@ app.get('/api/estado', rota(async (req, res) => {
       ? db.all('SELECT * FROM appointments WHERE data >= ? AND staff_id = ? ORDER BY data, hora', addDias(h, -120), so)
       : db.all('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora', addDias(h, -120)),
     db.all('SELECT * FROM templates ORDER BY tipo, titulo'),
+    db.all('SELECT * FROM blocks WHERE data >= ? ORDER BY data, hora_ini', addDias(h, -120)),
   ]);
   res.json({
     config,
@@ -110,6 +113,10 @@ app.get('/api/estado', rota(async (req, res) => {
     clientes: clientela.map(clientOut),
     agendamentos: agenda.map(apptOut),
     templates: modelos.map(templateOut),
+    // Funcionário vê o que fecha a agenda dele: o próprio e os da empresa toda.
+    bloqueios: fechados
+      .filter(b => !so || !b.staff_id || b.staff_id === so)
+      .map(blockOut),
   });
 }));
 

@@ -441,7 +441,9 @@ Integrações, Logs, Configurar App/Website).
 
 - [ ] Shell com navegação lateral e identidade própria (não é o site)
 - [ ] Agenda: colunas por profissional, blocos proporcionais, arrastar para remarcar
-- [ ] Bloqueio de horário na agenda (almoço, folga, feriado) integrado ao `availability.js`
+- [x] Bloqueio de horário na agenda (almoço, folga, feriado), integrado ao
+      `availability.js`, ao calendário do site e à gravação. Funcionário fecha
+      só a própria agenda; feriado da empresa é do dono. Ver `ARQUITETURA.md`.
 - [ ] Cadastro de unidades; profissional e serviço vinculados a unidade
 - [ ] Cadastros redesenhados: serviços, equipe com jornada, clientes
 - [ ] Financeiro: ticket médio, faltas, ranking, comissões

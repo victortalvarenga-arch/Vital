@@ -14,6 +14,29 @@ import { toMin, toHora, diaSemana, hoje, agora, addDias } from './dates.js';
 
 const STATUS_OCUPA = ['agendado', 'confirmado', 'concluido'];
 
+/**
+ * Bloqueios que fecham a cadeira de alguém num dia.
+ *
+ * `staff_id` nulo fecha para a equipe inteira — é como se marca feriado ou
+ * reforma, sem repetir a linha para cada profissional.
+ *
+ * Ocupação e bloqueio são coisas diferentes de propósito: um agendamento pode
+ * ser remarcado e some da agenda; um bloqueio é a empresa dizendo que ali não
+ * se atende. Misturar os dois numa tabela só faria "cancelar o almoço" virar
+ * cancelamento de atendimento no relatório.
+ */
+export async function bloqueios(staffId, data, exec = db) {
+  return exec.all(
+    `SELECT hora_ini, hora_fim, motivo FROM blocks
+      WHERE data = ? AND (staff_id = ? OR staff_id IS NULL)`,
+    data, staffId
+  );
+}
+
+/** Um intervalo cai em cima de algum bloqueio? */
+const dentroDeBloqueio = (ini, fim, lista) =>
+  lista.some(b => ini < toMin(b.hora_fim) && fim > toMin(b.hora_ini));
+
 /** Agendamentos que ocupam a cadeira de um profissional num dia. */
 export async function ocupacao(staffId, data, ignorarId = null, exec = db) {
   // IS DISTINCT FROM, e não IS NOT: o Postgres só aceita `IS NOT` com NULL,
@@ -30,10 +53,15 @@ export async function ocupacao(staffId, data, ignorarId = null, exec = db) {
 export async function conflita({ staffId, data, hora, duracao, ignorarId = null }, exec = db) {
   const ini = toMin(hora), fim = ini + duracao;
   const ocupados = await ocupacao(staffId, data, ignorarId, exec);
-  return ocupados.some(a => {
+  if (ocupados.some(a => {
     const aIni = toMin(a.hora), aFim = aIni + a.duracao;
     return ini < aFim && fim > aIni;
-  });
+  })) return true;
+
+  // Bloqueio conta como ocupado na hora de gravar, não só ao desenhar a grade:
+  // sem isto, quem tivesse a página aberta desde antes do bloqueio ainda
+  // conseguiria marcar em cima do almoço.
+  return dentroDeBloqueio(ini, fim, await bloqueios(staffId, data, exec));
 }
 
 /** Confere se o horário cabe na jornada daquele dia da semana. */
@@ -65,13 +93,14 @@ export async function horariosLivres({ staffId, data, duracao, passo }) {
   const antecedencia = (cfg.antecedenciaHoras ?? 2) * 60;
 
   const ocupados = await ocupacao(staffId, data);
+  const fechados = await bloqueios(staffId, data);
   const limite = data === hoje() ? toMin(agora()) + antecedencia : -1;
 
   const livres = [];
   for (let m = toMin(j[0]); m + duracao <= toMin(j[1]); m += grade) {
     if (m < limite) continue;
     const bate = ocupados.some(a => m < toMin(a.hora) + a.duracao && m + duracao > toMin(a.hora));
-    if (!bate) livres.push(toHora(m));
+    if (!bate && !dentroDeBloqueio(m, m + duracao, fechados)) livres.push(toHora(m));
   }
   return livres;
 }
@@ -144,6 +173,24 @@ export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra
     porStaffEData.get(chave).push(a);
   }
 
+  // Os bloqueios do mês vêm na mesma leva, pelo mesmo motivo dos agendamentos:
+  // buscar por dia seriam trinta idas ao banco para pintar uma tela.
+  const fechados = await db.all(
+    `SELECT staff_id, data, hora_ini, hora_fim FROM blocks
+      WHERE data >= ? AND data <= ?`,
+    primeiro, ultimo
+  );
+  const bloqueadosPorDia = new Map();
+  for (const b of fechados) {
+    // staff_id nulo fecha para todo mundo: entra na lista de cada profissional.
+    const alvos = b.staff_id ? [b.staff_id] : equipe.map(e => e.id);
+    for (const id of alvos) {
+      const chave = `${id}|${b.data}`;
+      if (!bloqueadosPorDia.has(chave)) bloqueadosPorDia.set(chave, []);
+      bloqueadosPorDia.get(chave).push(b);
+    }
+  }
+
   const livres = [];
   for (let dia = primeiro; dia <= ultimo; dia = addDias(dia, 1)) {
     if (dia < h || dia > limiteFuturo) continue;          // passado ou além da janela
@@ -153,10 +200,11 @@ export async function diasComVaga({ servicoId, profissionalId, mes, duracaoExtra
       const jornada = staffOut(row).jornada[String(diaSemana(dia))];
       if (!jornada) return false;
       const agenda = porStaffEData.get(`${row.id}|${dia}`) || [];
+      const fechado = bloqueadosPorDia.get(`${row.id}|${dia}`) || [];
       for (let m = toMin(jornada[0]); m + duracao <= toMin(jornada[1]); m += grade) {
         if (m < limiteHoje) continue;
         const bate = agenda.some(a => m < toMin(a.hora) + a.duracao && m + duracao > toMin(a.hora));
-        if (!bate) return true;                            // achou uma, basta
+        if (!bate && !dentroDeBloqueio(m, m + duracao, fechado)) return true;   // achou uma, basta
       }
       return false;
     });

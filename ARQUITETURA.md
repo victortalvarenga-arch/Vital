@@ -85,6 +85,21 @@ web/               Vite + React, sem framework de UI. CSS à mão.
 incluso. O negócio opera num fuso só; usar `Date` com UTC só cria bug de agenda
 virando o dia. Helpers em `server/src/lib/dates.js`.
 
+**Jornada diz quando se atende; bloqueio diz quando, excepcionalmente, não.**
+São as duas perguntas que o motor faz antes de oferecer qualquer vaga. A
+jornada é a regra semanal do profissional; `blocks` guarda a exceção — almoço,
+folga, feriado, reforma. Com `staff_id` nulo, o bloqueio fecha a equipe inteira,
+que é como se marca feriado sem repetir a linha para cada pessoa.
+
+Bloqueio e agendamento são tabelas separadas de propósito. Um agendamento pode
+ser remarcado e sai da agenda; um bloqueio é a empresa dizendo que ali não se
+atende. Guardar "almoço" como se fosse atendimento faria cancelar o almoço
+aparecer como cancelamento no relatório.
+
+**Bloquear não desmarca ninguém.** Se já havia cliente no intervalo, a rota
+devolve a lista e a tela avisa — cancelar sozinho o atendimento de alguém seria
+decidir pela empresa uma coisa que ela precisa saber que aconteceu.
+
 **Conflito de horário se valida no servidor, dentro da transação que grava.**
 `lib/availability.js` é o único lugar que decide se um horário está livre. O
 front tem uma cópia simplificada só para desenhar a grade rápido — ela nunca

@@ -62,6 +62,7 @@ export const api = {
     const d = await req('/estado');
     return {
       config: d.config,
+      bloqueios: d.bloqueios || [],
       servicos: d.servicos.map(servicoParaTela),
       staff: d.profissionais,
       clientes: d.clientes.map(clienteParaTela),
@@ -112,6 +113,11 @@ export const api = {
     ? req(`/auth/usuarios/${u.id}`, { method: 'PUT', body: u })
     : req('/auth/usuarios', { method: 'POST', body: u }),
   removerUsuario: id => req(`/auth/usuarios/${id}`, { method: 'DELETE' }),
+
+  /* ── bloqueio de horário ── */
+  bloqueios: (de, ate) => req(`/bloqueios?de=${de}&ate=${ate || de}`),
+  criarBloqueio: b => req('/bloqueios', { method: 'POST', body: b }),
+  removerBloqueio: id => req(`/bloqueios/${id}`, { method: 'DELETE' }),
 
   /* ── serviços adicionais ── */
   adicionais: () => req('/adicionais'),
