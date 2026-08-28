@@ -437,14 +437,20 @@ Horários bloqueados**, depois **Cadastros** (Serviços, Profissionais, Clientes
 Unidades, Formulários) e **Configurações** (Mensagens, Configurações,
 Integrações, Logs, Configurar App/Website).
 
-- [ ] Shell com navegação lateral e identidade própria (não é o site)
-- [ ] Agenda: colunas por profissional, blocos proporcionais, arrastar para remarcar
+- [x] Shell com navegação lateral e identidade própria — veio no Bloco 4
+- [x] Agenda com colunas por profissional e blocos proporcionais à duração
+- [ ] **Arrastar para remarcar** na agenda — hoje só pelo formulário de edição
 - [x] Bloqueio de horário na agenda (almoço, folga, feriado), integrado ao
       `availability.js`, ao calendário do site e à gravação. Funcionário fecha
       só a própria agenda; feriado da empresa é do dono. Ver `ARQUITETURA.md`.
-- [ ] Cadastro de unidades; profissional e serviço vinculados a unidade
+- [ ] Cadastro de unidades; profissional e serviço vinculados a unidade. A
+      tabela `units` existe desde o Bloco 0 e **nenhuma rota a usa** — é o mesmo
+      tipo de buraco que os bloqueios tinham antes deste bloco
 - [ ] Cadastros redesenhados: serviços, equipe com jornada, clientes
-- [ ] Financeiro: ticket médio, faltas, ranking, comissões
+- [x] Financeiro: recebido, a receber, previsto do dia, ticket médio, faltas,
+      ranking por serviço, comissões e formas de pagamento
+- [ ] Financeiro por período livre — hoje é sempre o mês inteiro — e comparação
+      com o mês anterior
 - [ ] Formulários: intake customizável por serviço (ex. anamnese de estética)
 - [ ] Integrações: chaves de API / webhooks para ferramentas externas da empresa
 - [ ] Logs: auditoria de quem fez o quê no painel
