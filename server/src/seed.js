@@ -3,11 +3,20 @@ import { db, pool, iniciarBanco, uid, setConfig, salvarVinculos } from './db.js'
 import { TENANT_PADRAO } from './lib/tenant.js';
 import { definirSenhaApp } from './senha-app.js';
 import { hoje, addDias } from './lib/dates.js';
-import { TEMPLATES_PADRAO } from './lib/templates.js';
+import { prepararEmpresaPadrao } from './lib/provisionar.js';
 
 /**
- * Popula o banco com um estúdio de exemplo. Rode com `npm run seed`.
- * É idempotente: se já houver serviços, não faz nada (use `npm run reset` para zerar).
+ * Popula o banco de DESENVOLVIMENTO com um estúdio de estética de exemplo.
+ *
+ * Nada aqui participa do produto. Empresa de verdade nasce por
+ * `lib/provisionar.js`, que instala o mínimo e nada de ramo nenhum — este
+ * arquivo existe só para haver o que olhar na tela enquanto se programa.
+ *
+ * `npm run seed --` com `--vazio` popula só o que o provisionamento normal
+ * instalaria: a config e os textos de WhatsApp, sem catálogo nem clientes. É o
+ * jeito de ver como uma empresa recém-cadastrada enxerga o sistema.
+ *
+ * É idempotente: se já houver serviços, não faz nada (use `npm run reset`).
  */
 
 await iniciarBanco();
@@ -22,6 +31,15 @@ await db.comEmpresa(TENANT_PADRAO, popular);
 await pool.end();
 
 async function popular() {
+
+// Os textos de WhatsApp não são exemplo: toda empresa nasce com eles, aqui e
+// no cadastro self-service. Vem da mesma função, para não haver duas versões.
+await prepararEmpresaPadrao(TENANT_PADRAO);
+
+if (process.argv.includes('--vazio')) {
+  console.log('Empresa vazia, como uma recém-cadastrada. Só a config e os textos.');
+  return;
+}
 
 const { n: jaTem } = await db.get('SELECT COUNT(*) n FROM services');
 if (jaTem > 0 && !process.argv.includes('--forcar')) {
@@ -135,13 +153,6 @@ await mk('c1', 'v1', 's1', -21, '09:00', 'concluido', 'pago', 'pix');
 await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
 await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
 await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
-
-for (const t of TEMPLATES_PADRAO) {
-  await db.run(
-    `INSERT INTO templates (id,chave,titulo,quando,tipo,ativo,texto) VALUES (?,?,?,?,?,1,?)`,
-    uid(), t.chave, t.titulo, t.quando, t.tipo, t.texto
-  );
-}
 
 console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
 console.log('');

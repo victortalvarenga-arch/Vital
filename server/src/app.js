@@ -12,6 +12,7 @@ import { mensagens } from './routes/mensagens.js';
 import { relatorios } from './routes/relatorios.js';
 import { uploads, PASTA as PASTA_UPLOADS } from './routes/uploads.js';
 import { auth } from './routes/auth.js';
+import { cadastro } from './routes/cadastro.js';
 import { bloqueios } from './routes/bloqueios.js';
 import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { rota } from './lib/rota.js';
@@ -83,6 +84,12 @@ app.use('/uploads', express.static(PASTA_UPLOADS, {
   index: false,
   maxAge: '7d',
 }));
+
+/**
+ * Cadastro de empresa nova. ANTES do middleware de empresa, de propósito: é a
+ * única rota que roda sem empresa definida, porque é ela que cria uma.
+ */
+app.use('/api/cadastro', cadastro);
 
 /**
  * Toda rota de dado passa por aqui antes de qualquer outra coisa: descobre a

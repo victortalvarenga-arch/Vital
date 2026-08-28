@@ -128,6 +128,13 @@ export const configPadrao = {
   /* --- identidade e contato (chaves planas: já são lidas assim em
      routes/publico.js e lib/templates.js) --- */
   nome: 'Meu negócio',
+  // O que o negócio é, em texto livre. Sai do assistente de primeira
+  // configuração e serve para sugerir vocabulário e textos — nunca para
+  // ligar ou desligar funcionalidade: ramo não é plano.
+  ramo: '',
+  // Falso até o assistente terminar. É o que decide se a primeira tela ensina
+  // o caminho ou já mostra o painel.
+  configurado: false,
   slogan: '',
   sobre: '',
   fone: '',

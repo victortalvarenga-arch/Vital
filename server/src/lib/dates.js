@@ -6,12 +6,12 @@ export const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 's
 const pad = n => String(n).padStart(2, '0');
 
 /** Data de hoje no fuso configurado (padrão America/Sao_Paulo), como 'YYYY-MM-DD'. */
-export function hoje(tz = process.env.TZ_ESTUDIO || 'America/Sao_Paulo') {
+export function hoje(tz = process.env.TZ_EMPRESA || process.env.TZ_ESTUDIO || 'America/Sao_Paulo') {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
 }
 
-/** Hora atual no fuso do estúdio, como 'HH:MM'. */
-export function agora(tz = process.env.TZ_ESTUDIO || 'America/Sao_Paulo') {
+/** Hora atual no fuso da empresa, como 'HH:MM'. */
+export function agora(tz = process.env.TZ_EMPRESA || process.env.TZ_ESTUDIO || 'America/Sao_Paulo') {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })
     .format(new Date()).replace('.', ':');
 }

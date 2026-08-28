@@ -380,3 +380,16 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .combo-conta div{display:flex; justify-content:space-between; gap:12px; padding:2px 0}
 .combo-conta.ok{background:var(--blush); color:var(--lacquer-d)}
 .combo-conta.ruim{background:#F7EFEF; color:#8A2B2B}
+
+/* ── assistente de primeira configuração ────────────────────────────────── */
+.cm{background:var(--porcelain); border-radius:20px; padding:28px 26px; width:100%; max-width:520px;
+  text-align:left; box-shadow:0 12px 40px rgba(36,26,40,.10)}
+.cm-bolinhas{display:flex; gap:6px; margin-bottom:18px}
+.cm-titulo{font-family:'Fraunces',serif; font-size:25px; font-weight:400; margin:0 0 6px}
+.cm-ajuda{font-size:13.5px; color:var(--muted); line-height:1.5; margin:0 0 20px}
+.cm-erro{font-size:13px; color:#8A2B2B; margin:0 0 10px}
+.cm-pular{display:block; margin:14px auto 0; background:none; border:none; cursor:pointer;
+  font-size:13px; color:var(--muted); text-decoration:underline; padding:6px}
+/* as bolinhas de progresso existiam só no site; o assistente usa as mesmas */
+.cm .bolinha{width:7px; height:7px; border-radius:50%; background:var(--line); transition:.2s}
+.cm .bolinha.on{background:var(--lacquer); width:20px; border-radius:4px}

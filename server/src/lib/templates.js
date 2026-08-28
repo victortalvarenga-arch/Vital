@@ -8,7 +8,7 @@ export function render(texto, vars) {
 
 export const VARIAVEIS = [
   'cliente', 'servico', 'profissional', 'data', 'hora', 'valor',
-  'estudio', 'endereco', 'link', 'dias',
+  'empresa', 'endereco', 'link', 'dias',
 ];
 
 /**
@@ -36,6 +36,10 @@ export async function variaveis({ cliente, agendamento = null }) {
     data: agendamento ? fmtData(agendamento.data) : fmtDataBR(cliente?.nascimento).slice(0, 5),
     hora: agendamento?.hora || '',
     valor: agendamento ? brl(agendamento.valor) : '',
+    empresa: cfg.nome || '',
+    // `{estudio}` era o nome desta variável quando o sistema atendia um estúdio
+    // só. Continua valendo: os textos que as empresas já escreveram estão no
+    // banco, e trocar o nome sem isto apagaria o nome delas das mensagens.
     estudio: cfg.nome || '',
     endereco: cfg.endereco || '',
     link: cfg.linkAvaliacao || '',
@@ -43,10 +47,22 @@ export async function variaveis({ cliente, agendamento = null }) {
   };
 }
 
+/**
+ * Textos que a empresa recebe prontos e edita à vontade.
+ *
+ * Eram de um estúdio de estética, no feminino e falando de esmalte: serviam a
+ * uma cliente e não serviam ao resto. Uma barbearia, uma clínica ou um petshop
+ * apagariam tudo antes do primeiro disparo — e "editável" não conserta um texto
+ * que já saiu errado por descuido.
+ *
+ * Agora são neutros em gênero e em ramo. A personalização vem da própria
+ * empresa, e o assistente de primeira configuração pode sugerir variações por
+ * ramo em cima destes.
+ */
 export const TEMPLATES_PADRAO = [
   { chave: 'confirmacao', titulo: 'Agendamento confirmado', tipo: 'auto',
-    quando: 'Assim que a cliente agenda',
-    texto: 'Oi {cliente}! 💅 Seu horário no {estudio} está confirmado:\n\n📅 {data} às {hora}\n✨ {servico} com {profissional}\n💰 {valor}\n\n📍 {endereco}\n\nQualquer imprevisto, é só chamar por aqui. Até lá!' },
+    quando: 'Assim que o horário é marcado',
+    texto: 'Oi {cliente}! Seu horário na {empresa} está confirmado:\n\n📅 {data} às {hora}\n✨ {servico} com {profissional}\n💰 {valor}\n\n📍 {endereco}\n\nQualquer imprevisto, é só chamar por aqui. Até lá!' },
 
   { chave: 'lembrete_vespera', titulo: 'Lembrete da véspera', tipo: 'auto',
     quando: 'Todo dia às 18h, para os horários de amanhã',
@@ -58,23 +74,15 @@ export const TEMPLATES_PADRAO = [
 
   { chave: 'pos_atendimento', titulo: 'Pós-atendimento', tipo: 'auto',
     quando: '1 dia depois do atendimento',
-    texto: 'Oi {cliente}, tudo bem? Como ficou o resultado do seu {servico}? 💕\n\nSe curtiu, sua avaliação no Google ajuda demais a gente: {link}\n\nE se quiser já deixar o próximo horário reservado, é só responder aqui.' },
+    texto: 'Oi {cliente}, tudo bem? Como foi o seu {servico}?\n\nSe gostou, sua avaliação no Google ajuda demais a gente: {link}\n\nE se quiser já deixar o próximo horário reservado, é só responder aqui.' },
 
   { chave: 'aniversario', titulo: 'Semana do aniversário', tipo: 'auto',
     quando: '7 dias antes do aniversário',
-    texto: 'Feliz mês de vida nova, {cliente}! 🎂✨\n\nPra comemorar, você tem *20% OFF* em qualquer serviço na semana do seu aniversário ({data}).\n\nMe chama aqui que eu já separo o melhor horário pra você.' },
+    texto: 'Feliz aniversário, {cliente}! 🎉\n\nPra comemorar, você tem *20% OFF* em qualquer serviço na semana do seu aniversário ({data}).\n\nMe chama aqui que eu já separo o melhor horário.' },
 
   { chave: 'reativacao', titulo: 'Saudade (60 dias sem voltar)', tipo: 'auto',
     quando: '60 dias após o último atendimento',
-    texto: 'Oi {cliente}, quanto tempo! 🥺 Faz {dias} dias desde seu último {servico} aqui no {estudio}.\n\nSeparei um *mimo de retorno*: 15% na sua próxima sessão. Vale pelos próximos 10 dias.\n\nQuer que eu veja um horário pra essa semana?' },
-
-  { chave: 'dia_mulher', titulo: 'Dia da Mulher · 08/03', tipo: 'campanha',
-    quando: 'Campanha sazonal',
-    texto: 'Oi {cliente}! Semana do Dia da Mulher e aqui no {estudio} quem se cuida é você 💐\n\nDe 04 a 09/03: *combo mão + pé + design* por R$ 149 (de R$ 185).\n\nSão poucos horários. Quer que eu reserve o seu?' },
-
-  { chave: 'natal', titulo: 'Natal e fim de ano', tipo: 'campanha',
-    quando: 'Campanha sazonal',
-    texto: 'Oi {cliente}, o ano tá acabando e você merece chegar linda nas festas 🎄✨\n\nAgenda de dezembro aberta — e vale-presente disponível pra dar de presente.\n\nQual semana fica melhor pra você?' },
+    texto: 'Oi {cliente}, quanto tempo! Faz {dias} dias desde o seu último {servico} na {empresa}.\n\nSeparei um desconto de retorno: 15% na próxima visita, válido pelos próximos 10 dias.\n\nQuer que eu veja um horário pra essa semana?' },
 
   { chave: 'vaga', titulo: 'Vaga de última hora', tipo: 'campanha',
     quando: 'Disparo manual quando alguém cancela',
@@ -82,5 +90,9 @@ export const TEMPLATES_PADRAO = [
 
   { chave: 'promocao', titulo: 'Promoção do mês', tipo: 'campanha',
     quando: 'Disparo manual',
-    texto: 'Oi {cliente}! Promoção da semana no {estudio} ✨\n\n{servico} por {valor} — só até sexta.\n\nQuer garantir? Me responde que eu já reservo.' },
+    texto: 'Oi {cliente}! Promoção da semana na {empresa} ✨\n\n{servico} por {valor} — só até sexta.\n\nQuer garantir? Me responde que eu já reservo.' },
+
+  { chave: 'fim_de_ano', titulo: 'Fim de ano', tipo: 'campanha',
+    quando: 'Campanha sazonal',
+    texto: 'Oi {cliente}, o ano está acabando e a agenda de dezembro já está aberta 🎄\n\nTemos também vale-presente, se quiser presentear alguém.\n\nQual semana fica melhor pra você?' },
 ];

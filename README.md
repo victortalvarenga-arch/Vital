@@ -27,6 +27,10 @@ Duas páginas, dois bundles:
 | <http://localhost:5173> | Site da cliente — escolhe serviço e agenda |
 | <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
 
+Cada empresa é resolvida pelo endereço: subdomínio (`lume.vital.app`) ou domínio
+próprio. Em `localhost` é sempre a empresa padrão, então dá para desenvolver sem
+DNS. Detalhes em `ARQUITETURA.md`.
+
 Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços):
 painel → **Configurações → Site da cliente**. Promoções (pacote de serviços com
 preço fechado) ficam em **Cadastros → Promoções**. As imagens ficam em
@@ -38,6 +42,11 @@ pronto — se já agendou antes, é reconhecida pelo número.
 **O painel tem.** Na primeira vez ele pede para criar o acesso — nome, e-mail e
 senha —, e quem criar vira o dono. Essa tela some assim que existir um usuário;
 daí em diante só quem já está dentro convida os outros.
+
+O `seed` popula um estúdio de estética de exemplo — ele é do desenvolvimento e
+não participa do produto. Empresa de verdade nasce vazia, por
+`POST /api/cadastro`, e é o assistente de primeira configuração que a põe de pé.
+Para ver essa experiência, use `npm run seed -- --vazio`.
 
 O `seed` não cria conta nenhuma de propósito — senha conhecida em script que
 pode rodar fora da sua máquina é problema esperando acontecer. Quem você criar
@@ -61,6 +70,7 @@ produção são dela.
 | `cd server && npm run reset` | Apaga tudo e popula de novo (só em localhost) |
 | `cd server && npm run senha-app` | Redefine a senha do usuário da aplicação |
 | `cd server && npm test` | Roda a suíte automatizada |
+| `cd server && npm run seed -- --vazio` | Popula como uma empresa recém-cadastrada: só config e textos |
 
 As migrations rodam sozinhas quando a API sobe.
 

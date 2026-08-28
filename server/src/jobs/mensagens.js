@@ -192,7 +192,7 @@ async function paraCadaEmpresa(nome, fn) {
 
 /** Agendadores. Roda ao subir o servidor. */
 export function iniciarJobs() {
-  const tz = process.env.TZ_ESTUDIO || 'America/Sao_Paulo';
+  const tz = process.env.TZ_EMPRESA || process.env.TZ_ESTUDIO || 'America/Sao_Paulo';
 
   cron.schedule('*/10 * * * *', () => {
     paraCadaEmpresa('fila', gerarFila).catch(e => console.error('[fila]', e.message));

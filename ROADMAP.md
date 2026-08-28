@@ -450,10 +450,15 @@ Integrações, Logs, Configurar App/Website).
 - [ ] Logs: auditoria de quem fez o quê no painel
 
 ### Bloco 8 — White-label de verdade
-- [ ] Varrer e remover vocabulário de estética do código e das telas
-- [ ] Seed genérico + seed do estúdio como exemplo
-- [ ] Assistente de primeira configuração (o negócio se cadastra e escolhe o ramo)
-- [ ] Templates de WhatsApp por ramo
+- [x] Varrer e remover vocabulário de estética do código e das telas
+- [x] Seed genérico separado do estúdio de exemplo: empresa nasce por
+      `lib/provisionar.js`, e `npm run seed -- --vazio` mostra como ela enxerga
+      o sistema no primeiro dia
+- [x] Assistente de primeira configuração: nome, ramo com vocabulário sugerido,
+      e o primeiro atendente e serviço já vinculados
+- [x] Textos de WhatsApp neutros em gênero e em ramo
+- [ ] Variações de texto por ramo em cima dos neutros — o assistente já sabe o
+      ramo, falta sugerir os textos
 
 ### Bloco 9 — Provisionamento self-service
 Antes ("multi-tenant operacional") envolvia criar arquivo e rodar migration por
@@ -462,8 +467,11 @@ empresa. Com o Bloco 2 já pronto, cadastrar empresa nova é uma linha na tabela
 
 - [x] Resolver a empresa pelo subdomínio e por domínio próprio, com 404 para
       endereço de ninguém e 403 para empresa suspensa. Ver `ARQUITETURA.md`
-- [ ] Cadastro self-service: formulário público cria a linha em `tenants` e a
-      empresa já começa a configurar sozinha
+- [x] Cadastro self-service pela API: `POST /api/cadastro` cria empresa,
+      endereço e dono numa tacada, e o assistente continua no painel dela
+- [ ] **A tela do cadastro.** A rota existe e está testada; falta a página
+      pública da Vital que a chama. Ela é da nossa marca, não da empresa —
+      pertence ao mesmo bundle do Bloco 10
 - [x] Isolamento entre empresas coberto por teste automatizado — duas empresas
       de verdade, pedindo pelo id exato da outra, mais uma checagem estrutural
       de que toda tabela de negócio tem a política ligada e forçada. Achou dois
@@ -589,7 +597,7 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       objeto (S3, R2, ou o do próprio provedor de banco). É um adaptador: só
       `routes/uploads.js` muda.
 - [ ] **Fuso do servidor.** O código trata data e hora como texto justamente
-      para não depender disso, mas os jobs de mensagem usam `TZ_ESTUDIO`.
+      para não depender disso, mas os jobs de mensagem usam `TZ_EMPRESA`.
       Conferir se o provedor roda em UTC e se a variável está definida.
 - [ ] **Os jobs de cron rodam dentro do processo da API.** Com várias
       instâncias, todas disparam a mesma fila. O `dedupe_key` evita mensagem

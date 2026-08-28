@@ -24,6 +24,17 @@ function comBanco(base, nome) {
 }
 
 /** Cria o banco de teste se não existir. Roda uma vez, antes de tudo. */
+/**
+ * Conexão de administrador, para o que a aplicação de propósito não pode.
+ *
+ * Apagar empresa é o caso: `vital_app` recebeu INSERT em `plataforma.tenants`
+ * para o cadastro self-service, e nunca DELETE — apagar empresa é operação de
+ * plataforma, com backup e registro. O teste que cria empresas precisa
+ * desfazer, e desfaz por aqui, não afrouxando a permissão da aplicação.
+ */
+let admin = null;
+export const comoAdmin = (sql, ...params) => admin.query(sql, params);
+
 async function garantirBanco() {
   const manutencao = new pg.Pool({ connectionString: comBanco(url, 'postgres'), ssl: false });
   try {
@@ -52,6 +63,8 @@ export async function prepararBanco() {
 
   process.env.DATABASE_ADMIN_URL = adminTeste;
   process.env.DATABASE_URL = appTeste;
+
+  admin = new pg.Pool({ connectionString: adminTeste, ssl: false });
 
   const db = await import('../src/db.js');
 

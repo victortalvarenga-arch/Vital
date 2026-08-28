@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import Combos from './Combos.jsx';
+import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
 import Usuarios from './Usuarios.jsx';
@@ -40,7 +41,22 @@ const diasEntre = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a +
 
 const PALETA = ['#A32A4E', '#6A57C7', '#3E7D63', '#A98243', '#C2557A', '#2F6D8C'];
 
-const CAT_COR = { 'Unhas': '#A32A4E', 'Olhar': '#6A57C7', 'Facial': '#3E7D63', 'Corpo': '#A98243' };
+/**
+ * Cor de uma categoria, deduzida do nome.
+ *
+ * Era um mapa fixo — 'Unhas', 'Olhar', 'Facial', 'Corpo' —, e categoria de fora
+ * dessa lista caía num cinza. Barbearia, clínica e petshop ficavam todas com o
+ * mesmo cinza, e cada ramo novo pedia uma linha aqui.
+ *
+ * A cor sai de um resumo do próprio nome, então é estável (a mesma categoria
+ * tem sempre a mesma cor) sem depender de ninguém cadastrar nada. A paleta é a
+ * mesma das profissionais: uma só para o painel inteiro.
+ */
+const corDaCategoria = nome => {
+  let n = 0;
+  for (const c of String(nome || '')) n = (n * 31 + c.codePointAt(0)) % 100003;
+  return PALETA[n % PALETA.length];
+};
 
 /* ─────────── estado vindo do servidor ─────────── */
 
@@ -147,6 +163,16 @@ function Painel({ sessao, aoSair }) {
     </div>
   );
   if (!dados) return <div className="p-centro"><p className="p-fraco">Carregando…</p></div>;
+
+  // Empresa recém-criada nasce sem catálogo e sem equipe, de propósito: nada de
+  // ramo nenhum entra sem alguém pedir. O preço é uma primeira tela vazia, e o
+  // assistente é o que paga esse preço — ensina o caminho em vez de mostrar
+  // dado de mentira. Só o dono vê: quem atende não configura o negócio.
+  const naoConfigurado = !dados.config.configurado
+    && dados.staff.length === 0 && dados.servicos.length === 0;
+  if (naoConfigurado && sessao.poderes.site) {
+    return <Comecar config={dados.config} aoConcluir={recarregar} />;
+  }
 
   /** Executa uma chamada de API, recarrega o estado e avisa em caso de erro. */
   const acao = async (fn, mensagem) => {
@@ -374,7 +400,7 @@ function Agenda({ dados, acao, aviso, poderes }) {
         const tplLembrete = dados.templates.find(t => t.chave === 'lembrete_dia');
         const msg = renderTemplate(tplLembrete.texto, {
           cliente: c.nome.split(' ')[0], hora: sel.hora, endereco: dados.config.endereco,
-          servico: s.nome, estudio: dados.config.nome, data: fmtData(sel.data), profissional: p.nome.split(' ')[0], valor: brl(sel.valor),
+          servico: s.nome, empresa: dados.config.nome, estudio: dados.config.nome, data: fmtData(sel.data), profissional: p.nome.split(' ')[0], valor: brl(sel.valor),
         });
         return (
           <Modal onClose={() => setSel(null)}>
@@ -709,7 +735,7 @@ function Servicos({ dados, acao, aviso }) {
       <div className="card list">
         {servicos.map(s => (
           <div key={s.id} className="li">
-            <span className="dot" style={{ background: CAT_COR[s.cat] || '#999', marginTop: 0, width: 12, height: 12 }} />
+            <span className="dot" style={{ background: corDaCategoria(s.cat), marginTop: 0, width: 12, height: 12 }} />
             <div style={{ flex: 1 }}>
               <div className="nm">{s.nome} {!s.ativo && <span className="tag" style={{ background: '#EEE', color: '#777' }}>oculto</span>}</div>
               <div className="mt"><span>{s.cat}</span><span>{s.duracao} min</span>
@@ -830,7 +856,9 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
           {/* Texto livre com sugestões, não lista fixa: cada ramo tem os
               próprios grupos, e uma lista no código só serviria a um deles. */}
           <input list="categorias-existentes" value={f.cat}
-                 placeholder="Ex.: Unhas"
+                 /* O exemplo sai do que a própria empresa já cadastrou: um
+                    exemplo escrito no código é sempre o ramo de outra pessoa. */
+                 placeholder={categorias[0] ? `Ex.: ${categorias[0]}` : 'Como você agrupa seus serviços'}
                  onChange={e => setF(v => ({ ...v, cat: e.target.value }))} />
           <datalist id="categorias-existentes">
             {categorias.map(c => <option key={c} value={c} />)}
@@ -901,7 +929,7 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
             <p className="add-ajuda">
               O caminho inverso: marque as categorias em que ele deve ser
               oferecido como extra. Serve para o que quase nunca é vendido
-              sozinho — depilação de buço junto de qualquer facial, por exemplo.
+              sozinho, e sim junto de outra coisa.
             </p>
             {categorias.length === 0
               ? <p className="add-ajuda">Cadastre uma categoria em algum serviço primeiro.</p>
@@ -1003,7 +1031,7 @@ function EditarStaff({ p, acao, fechar, aviso }) {
       <h2 style={{ fontSize: 24, marginBottom: 18 }}>{p.id ? 'Editar profissional' : 'Nova profissional'}</h2>
       <div className="mrow">
         <Campo label="Nome"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
-        <Campo label="Função"><input value={f.funcao} onChange={e => setF(v => ({ ...v, funcao: e.target.value }))} placeholder="Ex.: Cílios e sobrancelhas" /></Campo>
+        <Campo label="Função"><input value={f.funcao} onChange={e => setF(v => ({ ...v, funcao: e.target.value }))} placeholder="O que essa pessoa faz" /></Campo>
       </div>
       <div className="mrow">
         <Campo label="WhatsApp"><input value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>
@@ -1163,7 +1191,7 @@ function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
   const [sel, setSel] = useState(clientes.map(c => c.id));
   const toggle = id => setSel(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id]);
   const texto = c => renderTemplate(t.texto, {
-    cliente: c.nome.split(' ')[0], estudio: config.nome, endereco: config.endereco,
+    cliente: c.nome.split(' ')[0], empresa: config.nome, estudio: config.nome, endereco: config.endereco,
     data: fmtData(hojeISO()), hora: '15:00', servico: servicos[0].nome, valor: brl(servicos[0].preco), link: 'g.page/estudiolume', profissional: '', dias: '',
   });
   return (

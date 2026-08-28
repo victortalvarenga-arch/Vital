@@ -87,6 +87,10 @@ escrito, não aconteceu.
   monta a resposta a dedo, para não publicar segredo por descuido.
 - Nada de lista fixa de categoria, ramo ou serviço no código: cada empresa tem
   as suas. Use texto livre com sugestões do que já existe.
+- Nada de conteúdo de um ramo só no que o produto entrega — nem serviço de
+  exemplo, nem texto de mensagem, nem cor por categoria conhecida. O estúdio de
+  estética vive no `seed.js`, que é do desenvolvimento. Empresa nova nasce por
+  `lib/provisionar.js`, com o mínimo e nada de ramo nenhum.
 - Dinheiro que se divide entre pessoas se divide em centavos inteiros, e a sobra
   do arredondamento tem dono. Cada parte arredondando sozinha faz a soma não
   bater com o que a cliente pagou, e o caixa fecha torto sem explicação.

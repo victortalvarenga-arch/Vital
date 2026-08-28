@@ -63,12 +63,14 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   src/reset.js     Zera o banco em desenvolvimento. Recusa rodar fora de localhost.
   src/senha-app.js Define a senha do papel vital_app a partir do .env (dev).
   src/lib/         availability.js (horários), combos.js (pacotes e rateio),
+                   provisionar.js (empresa nova nasce aqui),
                    templates.js (mensagens),
                    dates.js (datas como texto), migrate.js (migrations),
                    rota.js (erro em handler async), contexto.js (conexão da
                    requisição), tenant.js (resolve a empresa + config padrão)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
-                   relatorios | uploads (imagens da empresa)
+                   relatorios | uploads (imagens da empresa) | cadastro
+                   (empresa nova, a única rota sem empresa definida)
   test/            suíte automatizada (`npm test`), banco próprio
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
@@ -79,7 +81,8 @@ web/               Vite + React, sem framework de UI. CSS à mão.
   src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css, ConfigSite.jsx (a empresa edita o site),
-                   Combos.jsx (promoções), Usuarios.jsx (acesso)
+                   Combos.jsx (promoções), Usuarios.jsx (acesso),
+                   Comecar.jsx (assistente de primeira configuração)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
                    imagem.js (reduz a foto antes de subir), formato.js (moeda)
 ```
@@ -510,6 +513,69 @@ não se escreve em consulta. Quem filtra é o banco.
 
 Nada disso deu erro em momento algum — o teste de isolamento é que achou, e por
 isso ele existe.
+
+## Como nasce uma empresa
+
+`lib/provisionar.js`. Antes, isso morava dentro do `seed.js`, misturado com o
+estúdio de exemplo — o que significa que empresa nova nascia com serviço de
+manicure ou não nascia.
+
+O que ela recebe: a linha em `plataforma.tenants`, o endereço (slug tirado do
+nome, com sufixo quando já existe outro igual), a config com o nome, os textos
+de WhatsApp e o dono. **Catálogo, equipe e clientes ficam de fora de propósito.**
+Serviço inventado por nós é serviço que a empresa vai ter de apagar antes de
+cadastrar o dela — e, enquanto não apagar, está no ar, no site, para agendarem.
+
+`POST /api/cadastro` é a única rota montada **antes** do middleware de empresa:
+todas as outras precisam saber de quem é a requisição antes de tocar no banco, e
+esta é a que decide isso. Ela não abre sessão — cookie é preso ao host que o
+emitiu, e um cookie de `vital.app` não chega a `lume.vital.app`. Dar domínio
+amplo ao cookie resolveria e faria o token de uma empresa trafegar pelo endereço
+de todas as outras; não vale o troco por poupar um login que a pessoa acabou de
+digitar a senha para fazer. A resposta traz o endereço do painel dela.
+
+Criar empresa também esquece o cache de resolução de host. Sem isso, quem espia
+o endereço antes de cadastrar guarda um 404, e o próprio site responderia "não
+existe uma agenda neste endereço" pelo primeiro minuto de vida.
+
+### O preço da tela vazia, e quem paga
+
+Nascer sem nada é a decisão certa e tem um custo: a primeira tela não tem o que
+mostrar, e fala em "profissional", "serviço" e "cliente" — palavras que uma
+clínica, um petshop e uma oficina não usam do mesmo jeito.
+
+`Comecar.jsx` paga esse custo. Três perguntas — nome, ramo, e o primeiro
+atendente e serviço — e nenhuma resposta é definitiva. O ramo sugere um
+vocabulário pronto, porque preencher seis campos de vocabulário à mão é coisa
+que ninguém faz, e aí o produto fala errado para sempre. A lista de ramos é
+sugestão, não escolha fechada: o campo continua sendo texto livre.
+
+O serviço criado ali já nasce vinculado a quem acabou de entrar. Serviço sem
+ninguém que o execute não aparece no site, e a empresa sairia do assistente
+achando que configurou, com a agenda vazia.
+
+O assistente aparece enquanto `config.configurado` for falso **e** não houver
+equipe nem catálogo, e só para quem pode configurar o site. `ramo` é texto livre
+guardado na config, e serve para sugerir vocabulário e textos — nunca para ligar
+ou desligar funcionalidade: ramo não é plano.
+
+### Vocabulário de estética
+
+Foi varrido do que é comportamento. O que sobrou de "unhas" e "cílios" no
+repositório está em comentário explicando história, e no `seed.js`, que é o
+estúdio de exemplo do desenvolvimento e não participa do produto.
+
+Os três achados que eram código, não texto: um mapa fixo de cor por categoria
+(`Unhas`, `Olhar`, `Facial`, `Corpo`) que deixava qualquer outro ramo cinza — a
+cor agora sai de um resumo do nome, estável e sem cadastro; a variável de fuso
+`TZ_ESTUDIO`, hoje `TZ_EMPRESA`; e a variável de mensagem `{estudio}`, hoje
+`{empresa}` — a antiga continua valendo, porque os textos que as empresas já
+escreveram estão no banco e trocar o nome sem isso apagaria o nome delas das
+mensagens.
+
+Os textos padrão de WhatsApp eram de estética, no feminino e falando de esmalte.
+Uma barbearia apagaria tudo antes do primeiro disparo, e "editável" não conserta
+um texto que já saiu errado por descuido.
 
 ## Combos e promoções
 
