@@ -277,19 +277,47 @@ qualquer número que alguém digite.
       primeiro agendamento do número é o equilíbrio provável
 - [ ] Custa por mensagem na API oficial da Meta, e no modo manual não é
       automático — por isso não foi feito junto do Bloco 4
+- [ ] **Pesar contra o Bloco 5 antes de fazer.** Quem entra com Google não
+      digita telefone, então não erra: o código por WhatsApp só é necessário
+      para quem agenda sem login. Se o Google cobrir a maioria, talvez este
+      bloco inteiro não se pague.
 
 ### Bloco 5 — Área do cliente (login Google)
 Único bloco sem dependente: nada mais quebra se ele deslizar para depois.
 O login em si é pequeno; o custo está no vínculo de conta e nas telas.
 
+**O ganho principal não é economizar campo — é a identidade.** Hoje a cliente
+se identifica digitando o WhatsApp, e digitar errado agenda no cadastro de
+outra pessoa (ver Bloco 4b). Entrando com Google, quem volta **não digita
+nada**: a conta responde quem ela é, e o número errado deixa de existir como
+problema. Isso torna o Bloco 4b desnecessário para quem usa Google — e ele
+continua valendo para quem não usa.
+
+**Oferecer no começo do agendamento, nunca barrar a entrada no site.** Exigir
+login para ver preço ou marcar horário perde cliente — é a mesma razão pela
+qual não há cadastro hoje. O desenho é: ao abrir a janela de agendamento,
+"Entrar com Google" em destaque e "continuar sem entrar" ao lado, com o mesmo
+peso visual do resto da tela.
+
+**Fluxo pretendido**
+
+| | Primeira vez | Voltando |
+|---|---|---|
+| Google traz | nome, e-mail, foto | tudo do cadastro |
+| Ainda perguntamos | WhatsApp e nascimento | nada |
+| Sem Google | WhatsApp, nome e nascimento | só o WhatsApp |
+
 - [ ] Entrar com Google no site (escopos básicos apenas — nada de sensível)
-- [ ] **O Google resolve dois dos três dados, não os três.** Vem nome e e-mail;
-      WhatsApp e nascimento continuam sendo perguntados uma vez, porque os
-      escopos que trariam isso passam por revisão da Meta e quase sempre voltam
-      vazios. Login com Google encurta o cadastro, não o elimina.
-- [ ] Vínculo de conta: casar Google com ficha existente sem duplicar cliente
+- [ ] **Google NÃO traz WhatsApp nem nascimento — conte com perguntar sempre.**
+      Existem escopos para isso (`user.phonenumbers.read`,
+      `user.birthday.read`), mas são sensíveis: passam por revisão do Google e,
+      mesmo aprovados, só devolvem o que a pessoa preencheu no perfil — quase
+      sempre vazio. Planejar como se viessem é planejar para uma tela que nunca
+      aparece.
+- [ ] Vínculo de conta: casar Google com ficha existente sem duplicar cliente.
+      A chave continua sendo o telefone; o e-mail do Google entra como segundo
+      identificador, não como substituto
 - [ ] "Meus agendamentos": histórico, remarcar, cancelar com política
-- [ ] Primeiro acesso ainda pede telefone e nascimento uma vez
 - [ ] Agendar sem login continua funcionando, lado a lado
 - [ ] LGPD: e-mail e foto entram na mesma lógica de `optin`
 
