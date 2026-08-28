@@ -36,9 +36,12 @@ export default function App() {
 
   return (
     <>
-      <Home dados={dados} aoAgendar={servicoId => setAgendando({ servicoId })} />
+      <Home dados={dados} aoAgendar={servicoId => setAgendando({ servicoId, chave: Date.now() })} />
       {agendando && (
         <Agendar
+          /* A chave muda a cada abertura: garante janela nova, do zero, mesmo
+             se um dia alguém abrir outro serviço sem fechar o anterior. */
+          key={agendando.chave}
           dados={dados}
           servicoInicial={agendando.servicoId}
           aoFechar={() => setAgendando(null)}

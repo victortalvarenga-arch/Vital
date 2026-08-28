@@ -26,10 +26,13 @@ const PASSOS = [
 
 export default function Agendar({ dados, servicoInicial, aoFechar }) {
   const { negocio, textos, exibir, servicos, profissionais } = dados;
-  const [escolha, setEscolha] = useState({
-    categoria: null, servicoId: servicoInicial || null, adicionaisIds: [],
-    profissionalId: null, data: null, hora: null,
-  });
+  const [escolha, setEscolha] = useState(() => ({
+    categoria: servicoInicial
+      ? (servicos.find(x => x.id === servicoInicial)?.categoria || null)
+      : null,
+    servicoId: servicoInicial || null,
+    adicionaisIds: [], profissionalId: null, data: null, hora: null,
+  }));
   const [confirmado, setConfirmado] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [resumoAberto, setResumoAberto] = useState(false);
@@ -66,15 +69,28 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
     return true;
   }, [servicoInicial, exibir, categorias.length, ofertados.length, equipe.length]);
 
+  /**
+   * A janela sempre abre no começo do fluxo.
+   *
+   * Antes ela pulava direto para o primeiro passo com pergunta pendente. Com
+   * serviço já escolhido, sem adicionais cadastrados e uma profissional só,
+   * isso caía no calendário com as bolinhas quase cheias — parecia que a
+   * janela tinha continuado de onde parou.
+   *
+   * Clicar em "Agendar" num serviço não é jogado fora: ele já vem marcado, e
+   * a lista abre filtrada na categoria dele.
+   */
   const [passo, setPasso] = useState(() =>
-    servicoInicial ? 'adicionais' : (exibir?.categorias && servicos.length ? 'categoria' : 'servico'));
+    !servicoInicial && exibir?.categorias && servicos.length > 1 ? 'categoria' : 'servico');
 
   const andar = (de, direcao) => {
     let i = PASSOS.findIndex(p => p.k === de) + direcao;
-    while (i > 0 && i < PASSOS.length && !util(PASSOS[i].k)) i += direcao;
-    return PASSOS[Math.max(0, Math.min(i, PASSOS.length - 1))].k;
+    while (i >= 0 && i < PASSOS.length && !util(PASSOS[i].k)) i += direcao;
+    // Chegou na ponta sem achar passo útil: fica onde está.
+    return (i < 0 || i >= PASSOS.length) ? de : PASSOS[i].k;
   };
   const avancar = () => setPasso(p => andar(p, 1));
+  const primeiroUtil = PASSOS.find(p => util(p.k))?.k;
 
   const indice = PASSOS.findIndex(p => p.k === passo);
   const info = PASSOS[indice];
@@ -118,7 +134,9 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
   }, [passo, util, equipe]);
 
   const voltar = () => {
-    if (indice <= 0) return aoFechar();
+    // No primeiro passo que esta cliente vê, "Voltar" fecha — e não tenta
+    // recuar para um passo que foi pulado.
+    if (passo === primeiroUtil) return aoFechar();
     setPasso(p => andar(p, -1));
   };
 
@@ -175,6 +193,7 @@ export default function Agendar({ dados, servicoInicial, aoFechar }) {
 
             {passo === 'servico' && (
               <Opcoes
+                marcado={escolha.servicoId}
                 itens={(escolha.categoria
                   ? servicos.filter(x => (x.categoria || 'Serviços') === escolha.categoria)
                   : servicos
@@ -317,12 +336,14 @@ const ItemResumo = ({ rotulo, valor }) => (
 
 /* ── passos ── */
 
-function Opcoes({ itens, aoEscolher }) {
+function Opcoes({ itens, aoEscolher, marcado }) {
   if (!itens.length) return <p className="jn-vazio">Nada disponível por aqui.</p>;
   return (
     <div className="jn-opcoes">
       {itens.map(o => (
-        <button key={o.id ?? 'qualquer'} className="jn-opcao" onClick={() => aoEscolher(o.id)}>
+        <button key={o.id ?? 'qualquer'}
+                className={'jn-opcao' + (marcado && o.id === marcado ? ' on' : '')}
+                onClick={() => aoEscolher(o.id)}>
           {o.foto
             ? <img className="jn-opcao-foto" src={o.foto} alt="" />
             : <span className="jn-opcao-marca" style={o.cor ? { background: o.cor } : undefined}>

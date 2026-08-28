@@ -122,7 +122,15 @@ não perde de vista onde estava. Os passos são categoria → serviço → adici
 → profissional → data → dados, e **passo sem o que perguntar é pulado**: uma
 função só (`util`) decide isso, e a navegação anda por ela nos dois sentidos.
 Com três passos opcionais, decidir com `if` espalhado já tinha produzido o bug
-de "voltar" cair num passo que a ida havia pulado. Três colunas: em que passo está, o passo atual,
+de "voltar" cair num passo que a ida havia pulado.
+
+**A janela sempre abre no começo do fluxo**, mesmo quando a cliente clicou em
+"Agendar" num serviço específico — o serviço apenas já vem marcado e a lista
+abre filtrada na categoria dele. Antes ela pulava direto para o primeiro passo
+com pergunta pendente, e sem adicionais cadastrados nem escolha de profissional
+isso caía no calendário com as bolinhas quase cheias: parecia que a janela
+tinha continuado de onde parou. A janela também remonta a cada abertura, então
+não há estado sobrando de uma escolha anterior. Três colunas: em que passo está, o passo atual,
 e o resumo do que já escolheu com o total. O resumo não é enfeite: é ele que dá
 segurança para confirmar. No celular vira uma coluna só, com o resumo numa
 barra no rodapé que mostra o total e abre ao toque.
