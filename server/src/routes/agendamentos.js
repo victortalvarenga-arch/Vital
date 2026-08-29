@@ -7,6 +7,7 @@ import { escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
 import { comboCompleto, profissionaisDoCombo, ratearCombo } from '../lib/combos.js';
+import { formsDoServico, validarRespostas, gravarRespostas, respostasDoAgendamento } from '../lib/formularios.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 
 export const agendamentos = Router();
@@ -37,6 +38,18 @@ function podeMexer(usuario, staffId) {
 }
 
 /* ── Disponibilidade ── */
+/** As respostas de um agendamento. Quem atende precisa lê-las antes de começar. */
+agendamentos.get('/:id/respostas', rota(async (req, res) => {
+  const a = await db.get('SELECT staff_id FROM appointments WHERE id=?', req.params.id);
+  if (!a) return res.status(404).json({ erro: 'agendamento não encontrado' });
+  // Ficha de saúde é dado sensível: funcionário lê a de quem ele atende, e nada
+  // mais. Mesma regra da agenda, e imposta aqui.
+  if (!podeMexer(req.usuario, a.staff_id)) {
+    return res.status(403).json({ erro: 'esta ficha não é de um atendimento seu' });
+  }
+  res.json(await respostasDoAgendamento(req.params.id));
+}));
+
 agendamentos.get('/horarios', rota(async (req, res) => {
   const { servicoId, profissionalId, data } = req.query;
   if (!data) return res.status(400).json({ erro: 'informe data=YYYY-MM-DD' });
@@ -103,6 +116,16 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
   const extras = await validarAdicionais(svc, b.adicionaisIds);
   if (extras.erro) return extras;
 
+  // Formulários que este serviço pede. Conferidos ANTES da transação: recusar
+  // por resposta faltando não pode deixar meio agendamento gravado.
+  const forms = await formsDoServico(svc.id);
+  const fichas = [];
+  for (const form of forms) {
+    const r = validarRespostas(form, (b.respostas || {})[form.id]);
+    if (r.erro) return { erro: r.erro, codigo: 400 };
+    if (r.itens.length) fichas.push({ formId: form.id, itens: r.itens });
+  }
+
   // A duração precisa somar os extras, senão a cadeira é reservada por menos
   // tempo do que o atendimento leva e a agenda estoura em cima da próxima.
   const duracao = +b.duracao || svc.duracao + (svc.intervalo || 0) + extras.duracao;
@@ -131,6 +154,9 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
       origem, b.obs || '', `${hoje()} ${agora()}`
     );
     await gravarAdicionais(tx, id, extras.itens);
+    for (const f of fichas) {
+      await gravarRespostas(tx, { ...f, agendamentoId: id, clienteId: b.clienteId });
+    }
     return { criado: await tx.get('SELECT * FROM appointments WHERE id=?', id) };
   });
 

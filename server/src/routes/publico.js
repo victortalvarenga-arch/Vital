@@ -6,6 +6,7 @@ import { criarAgendamento, criarCombo } from './agendamentos.js';
 import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara } from '../lib/availability.js';
 import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
 import { combosAtivos, comboCompleto, profissionaisDoCombo } from '../lib/combos.js';
+import { formsDoServico } from '../lib/formularios.js';
 
 export const publico = Router();
 
@@ -142,6 +143,18 @@ publico.get('/horarios', rota(async (req, res) => {
   });
 }));
 
+/**
+ * Os formulários que um serviço pede, para o site montar o passo.
+ *
+ * Aberto porque é a pergunta, não a resposta: o que a empresa vai querer saber
+ * já apareceria na tela de qualquer jeito. Resposta de ninguém sai por aqui.
+ */
+publico.get('/formularios/:servicoId', rota(async (req, res) => {
+  const svc = await db.get('SELECT id FROM services WHERE id=? AND ativo=1', req.params.servicoId);
+  if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
+  res.json(await formsDoServico(svc.id));
+}));
+
 /** 'a,b,c' → ['a','b','c']. Vem da query string, então tudo é texto. */
 const listaDeIds = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
 
@@ -248,7 +261,10 @@ publico.post('/agendar', rota(async (req, res) => {
   // é igual, para o site não ter dois caminhos de confirmação.
   const r = b.comboId
     ? await criarCombo({ ...dados, comboId: b.comboId }, { origem: 'site' })
-    : await criarAgendamento({ ...dados, servicoId: b.servicoId, adicionaisIds: b.adicionaisIds }, { origem: 'site' });
+    : await criarAgendamento(
+        { ...dados, servicoId: b.servicoId, adicionaisIds: b.adicionaisIds, respostas: b.respostas },
+        { origem: 'site' }
+      );
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
 
   res.status(201).json({

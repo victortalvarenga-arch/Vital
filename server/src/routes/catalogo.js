@@ -6,6 +6,7 @@ import { adicionaisDe } from '../lib/adicionais.js';
 import { comboCompleto, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
 import { exige, pode } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
+import { formCompleto, TIPOS_DE_CAMPO } from '../lib/formularios.js';
 
 export const catalogo = Router();
 
@@ -469,3 +470,114 @@ catalogo.get('/logs', rota(async (req, res) => {
     usuario: l.usuario_nome || 'alguém',
   })));
 }));
+
+/* ── formulários ─────────────────────────────────────────────────────────── *
+ *
+ * A empresa monta as perguntas; a cliente responde ao agendar. O porquê do
+ * modelo está em `lib/formularios.js` e na migration 012.
+ */
+
+catalogo.get('/formularios', exige('cadastros'), rota(async (req, res) => {
+  const linhas = await db.all('SELECT id FROM forms ORDER BY nome');
+  const saida = [];
+  for (const { id } of linhas) {
+    const f = await formCompleto(id);
+    // Em quais serviços ele é pedido — a empresa precisa ver isso na lista.
+    const svc = await db.all('SELECT service_id FROM form_services WHERE form_id = ?', id);
+    saida.push({ ...f, servicosIds: svc.map(s => s.service_id) });
+  }
+  res.json(saida);
+}));
+
+catalogo.post('/formularios', exige('cadastros'), rota(async (req, res) => {
+  const b = req.body || {};
+  if (String(b.nome || '').trim().length < 2) {
+    return res.status(400).json({ erro: 'informe o nome do formulário' });
+  }
+  const id = uid();
+  await db.run(
+    `INSERT INTO forms (id, nome, descricao, ativo, criado_em) VALUES (?,?,?,?,?)`,
+    id, b.nome.trim(), String(b.descricao || '').slice(0, 500),
+    b.ativo === false ? 0 : 1, hoje()
+  );
+  const erro = await salvarPerguntas(id, b.campos);
+  if (erro) return res.status(400).json({ erro });
+  await salvarServicosDoForm(id, b.servicosIds);
+
+  await req.registrar('formulario.criado', { alvoId: id, resumo: `criou o formulário ${b.nome.trim()}` });
+  res.status(201).json(await formCompleto(id));
+}));
+
+catalogo.put('/formularios/:id', exige('cadastros'), rota(async (req, res) => {
+  const atual = await db.get('SELECT * FROM forms WHERE id = ?', req.params.id);
+  if (!atual) return res.status(404).json({ erro: 'formulário não encontrado' });
+
+  const b = { nome: atual.nome, descricao: atual.descricao, ativo: !!atual.ativo, ...req.body };
+  if (String(b.nome || '').trim().length < 2) {
+    return res.status(400).json({ erro: 'informe o nome do formulário' });
+  }
+  await db.run(
+    'UPDATE forms SET nome = ?, descricao = ?, ativo = ? WHERE id = ?',
+    b.nome.trim(), String(b.descricao || '').slice(0, 500), b.ativo ? 1 : 0, req.params.id
+  );
+  if (req.body.campos) {
+    const erro = await salvarPerguntas(req.params.id, req.body.campos);
+    if (erro) return res.status(400).json({ erro });
+  }
+  if (req.body.servicosIds) await salvarServicosDoForm(req.params.id, req.body.servicosIds);
+
+  await req.registrar('formulario.alterado', { alvoId: req.params.id, resumo: `editou o formulário ${b.nome.trim()}` });
+  res.json(await formCompleto(req.params.id));
+}));
+
+catalogo.delete('/formularios/:id', exige('cadastros'), rota(async (req, res) => {
+  const alvo = await db.get('SELECT nome FROM forms WHERE id = ?', req.params.id);
+  if (!alvo) return res.status(404).json({ erro: 'formulário não encontrado' });
+
+  // Arquivar, nunca apagar: as respostas já dadas apontam para ele, e elas são
+  // o histórico do que a cliente declarou.
+  await db.run('UPDATE forms SET ativo = 0 WHERE id = ?', req.params.id);
+  await req.registrar('formulario.arquivado', { alvoId: req.params.id, resumo: `arquivou o formulário ${alvo.nome}` });
+  res.json({ ok: true, arquivado: true });
+}));
+
+/**
+ * Reescreve as perguntas do formulário.
+ *
+ * Apaga e recria em vez de casar por id: a empresa reordena e troca perguntas
+ * livremente, e casar id a id daria a ilusão de que editar o rótulo corrige o
+ * passado. Não corrige — a resposta guarda o rótulo do dia, congelado.
+ */
+async function salvarPerguntas(formId, campos) {
+  if (!Array.isArray(campos)) return null;
+
+  for (const c of campos) {
+    if (String(c.rotulo || '').trim().length < 2) return 'toda pergunta precisa de um enunciado';
+    if (!TIPOS_DE_CAMPO.includes(c.tipo)) return `tipo de pergunta desconhecido: ${c.tipo}`;
+    if (['escolha', 'multipla'].includes(c.tipo) && !(c.opcoes || []).length) {
+      return `"${c.rotulo}" precisa de ao menos uma opção`;
+    }
+  }
+
+  await db.run('DELETE FROM form_fields WHERE form_id = ?', formId);
+  for (const [i, c] of campos.entries()) {
+    await db.run(
+      `INSERT INTO form_fields (id, form_id, rotulo, ajuda, tipo, obrigatorio, opcoes, ordem)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      uid(), formId, c.rotulo.trim(), String(c.ajuda || '').slice(0, 200), c.tipo,
+      c.obrigatorio ? 1 : 0,
+      JSON.stringify((c.opcoes || []).map(o => String(o).slice(0, 80))), i
+    );
+  }
+  return null;
+}
+
+async function salvarServicosDoForm(formId, ids) {
+  await db.run('DELETE FROM form_services WHERE form_id = ?', formId);
+  for (const id of ids || []) {
+    await db.run(
+      'INSERT INTO form_services (form_id, service_id) VALUES (?,?) ON CONFLICT DO NOTHING',
+      formId, id
+    );
+  }
+}
