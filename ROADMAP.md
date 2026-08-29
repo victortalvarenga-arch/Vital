@@ -413,8 +413,7 @@ Detalhes e o porquê do modelo em `ARQUITETURA.md`.
 - [ ] Combo com mais de uma profissional: o rateio e o banco já suportam, falta
       a tela que deixa escolher quem faz cada serviço. Hoje o site vende com uma
       pessoa só, do começo ao fim
-- [ ] Encaixe de combo pelo painel (a rota `POST /agendamentos/combo` existe;
-      falta o formulário)
+- [x] Encaixe de combo pelo painel, no mesmo formulário do serviço avulso
 - [x] Foto própria do combo, com upload na tela de cadastro
 
 ### Bloco 7 — Painel da equipe
