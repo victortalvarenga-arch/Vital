@@ -21,6 +21,7 @@ const PASSOS = [
   { k: 'adicionais', titulo: 'Quer incluir algo mais?', ajuda: 'Serviços que combinam com o que você escolheu. Pode pular.' },
   { k: 'profissional', titulo: 'Escolha quem atende', ajuda: 'Você pode deixar que a gente escolha por você.' },
   { k: 'data', titulo: 'Selecione a data e horário', ajuda: 'Dias marcados têm horário disponível.' },
+  { k: 'ficha', titulo: 'Só mais algumas perguntas', ajuda: 'A equipe precisa disso para te atender com segurança.' },
   { k: 'dados', titulo: 'Seus dados', ajuda: 'Só o WhatsApp, para você receber a confirmação.' },
   { k: 'pronto', titulo: 'Tudo certo', ajuda: '' },
 ];
@@ -39,8 +40,9 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     servicoId: servicoInicial || null,
     comboId: comboInicial || null,
     unidadeId: null,
-    adicionaisIds: [], profissionalId: null, data: null, hora: null,
+    adicionaisIds: [], profissionalId: null, data: null, hora: null, respostas: {},
   }));
+  const [fichas, setFichas] = useState([]);
   const [confirmado, setConfirmado] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [resumoAberto, setResumoAberto] = useState(false);
@@ -79,6 +81,17 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
   const ofertados = dados.servicos.filter(x => servico?.adicionais?.includes(x.id));
 
+  // O que a empresa vai perguntar neste serviço. Combo não tem ficha por ora —
+  // são vários serviços, e cada um poderia pedir a sua.
+  useEffect(() => {
+    if (combo || !escolha.servicoId) return setFichas([]);
+    let valeu = true;
+    api.formularios(escolha.servicoId)
+      .then(fs => { if (valeu) setFichas(fs); })
+      .catch(() => { if (valeu) setFichas([]); });
+    return () => { valeu = false; };
+  }, [combo, escolha.servicoId]);
+
   /**
    * Passo que não tem o que perguntar é pulado.
    *
@@ -99,9 +112,11 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     // "Voltar" leva, e trocar de categoria sem fechar é o caminho natural.
     if (k === 'categoria') return !servicoInicial && exibir?.categorias && categorias.length > 1;
     if (k === 'adicionais') return ofertados.length > 0;
+    // Serviço que não pede nada não ganha um passo vazio.
+    if (k === 'ficha') return fichas.length > 0;
     if (k === 'profissional') return exibir?.escolherProfissional && equipe.length > 1;
     return true;
-  }, [combo, servicoInicial, exibir, categorias.length, ofertados.length, equipe.length, unidades.length]);
+  }, [combo, servicoInicial, exibir, categorias.length, ofertados.length, equipe.length, unidades.length, fichas.length]);
 
   /**
    * A janela sempre abre no começo do fluxo.
@@ -300,6 +315,15 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
                   setEscolha(e => ({ ...e, data, hora, profissionalId: profId ?? e.profissionalId }));
                   setPasso('dados');
                 }}
+              />
+            )}
+
+            {passo === 'ficha' && (
+              <PassoFicha
+                fichas={fichas} respostas={escolha.respostas}
+                aoMudar={(formId, lista) =>
+                  setEscolha(e => ({ ...e, respostas: { ...e.respostas, [formId]: lista } }))}
+                aoSeguir={avancar} aviso={setAviso}
               />
             )}
 
@@ -577,6 +601,105 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
   );
 }
 
+/**
+ * As perguntas que a empresa faz antes de atender.
+ *
+ * Vem depois de escolher o horário e antes de dar o WhatsApp, de propósito:
+ * quem chegou até aqui já decidiu, e responder três perguntas não faz desistir.
+ * Perguntar antes da data faria — o passo apareceria antes de a pessoa saber se
+ * existe horário para ela.
+ *
+ * A conferência de verdade é do servidor: o que falta aqui é só evitar a viagem
+ * e apontar qual pergunta ficou em branco.
+ */
+function PassoFicha({ fichas, respostas, aoMudar, aoSeguir, aviso }) {
+  const pega = (formId, campoId) =>
+    (respostas[formId] || []).find(r => r.campoId === campoId)?.valor;
+
+  const set = (formId, campoId, valor) => {
+    const atuais = (respostas[formId] || []).filter(r => r.campoId !== campoId);
+    aoMudar(formId, [...atuais, { campoId, valor }]);
+  };
+
+  const seguir = () => {
+    for (const f of fichas) {
+      for (const c of f.campos) {
+        if (!c.obrigatorio) continue;
+        const v = pega(f.id, c.id);
+        const vazio = v === undefined || v === null || v === ''
+          || (Array.isArray(v) && v.length === 0);
+        if (vazio) return aviso(`Responda "${c.rotulo}".`);
+      }
+    }
+    aoSeguir();
+  };
+
+  return (
+    <div className="jn-ficha">
+      {fichas.map(f => (
+        <section key={f.id}>
+          {f.descricao && <p className="jn-ficha-intro">{f.descricao}</p>}
+          {f.campos.map(c => (
+            <div key={c.id} className="jn-pergunta">
+              <label>
+                {c.rotulo}
+                {c.obrigatorio && <span className="jn-obrig"> *</span>}
+              </label>
+              {c.ajuda && <p className="jn-ajuda">{c.ajuda}</p>}
+
+              {c.tipo === 'longo' && (
+                <textarea rows={3} value={pega(f.id, c.id) || ''}
+                          onChange={e => set(f.id, c.id, e.target.value)} />
+              )}
+              {['texto', 'numero', 'data'].includes(c.tipo) && (
+                <input
+                  type={c.tipo === 'data' ? 'date' : c.tipo === 'numero' ? 'number' : 'text'}
+                  inputMode={c.tipo === 'numero' ? 'decimal' : undefined}
+                  value={pega(f.id, c.id) ?? ''}
+                  onChange={e => set(f.id, c.id, e.target.value)} />
+              )}
+              {c.tipo === 'sim_nao' && (
+                <div className="jn-opcoes">
+                  {[['Sim', true], ['Não', false]].map(([rotulo, v]) => (
+                    <button key={rotulo} type="button"
+                            className={'jn-op' + (pega(f.id, c.id) === v ? ' on' : '')}
+                            onClick={() => set(f.id, c.id, v)}>{rotulo}</button>
+                  ))}
+                </div>
+              )}
+              {c.tipo === 'escolha' && (
+                <div className="jn-opcoes">
+                  {c.opcoes.map(o => (
+                    <button key={o} type="button"
+                            className={'jn-op' + (pega(f.id, c.id) === o ? ' on' : '')}
+                            onClick={() => set(f.id, c.id, o)}>{o}</button>
+                  ))}
+                </div>
+              )}
+              {c.tipo === 'multipla' && (
+                <div className="jn-opcoes">
+                  {c.opcoes.map(o => {
+                    const marcadas = pega(f.id, c.id) || [];
+                    return (
+                      <button key={o} type="button"
+                              className={'jn-op' + (marcadas.includes(o) ? ' on' : '')}
+                              onClick={() => set(f.id, c.id, marcadas.includes(o)
+                                ? marcadas.filter(x => x !== o)
+                                : [...marcadas, o])}>{o}</button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      ))}
+
+      <button className="b b-p b-larg" onClick={seguir}>Continuar</button>
+    </div>
+  );
+}
+
 function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   const [fone, setFone] = useState('');
   const [conhecida, setConhecida] = useState(null);
@@ -613,6 +736,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         formaPagamento,
         obs,
         adicionaisIds: escolha.adicionaisIds,
+        respostas: escolha.respostas,
         ...(conhecida?.cadastrada ? {} : form),
       }));
     } catch (e) { aviso(e.message); setOcupado(false); }

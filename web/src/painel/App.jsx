@@ -4,6 +4,8 @@ import { brl } from '../shared/formato.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
+import Formularios from './Formularios.jsx';
+import Ficha from './Ficha.jsx';
 import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
@@ -14,7 +16,8 @@ import {
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText
+  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
+  ClipboardList
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -197,6 +200,7 @@ function Painel({ sessao, aoSair }) {
       ...(p.equipe ? [{ k: 'equipe', nome: 'Profissionais', icon: Store }] : []),
       ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
       ...(p.cadastros ? [{ k: 'unidades', nome: 'Unidades', icon: MapPinIcon }] : []),
+      ...(p.cadastros ? [{ k: 'formularios', nome: 'Formulários', icon: ClipboardList }] : []),
     ] },
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
@@ -262,6 +266,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'registro' && <Registro dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} />}
+        {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}
@@ -604,6 +609,10 @@ function Agenda({ dados, acao, aviso, poderes }) {
             {/* Quem atende precisa saber o que foi comprado junto antes de
                 começar — e o valor só fecha com o total quando os extras
                 aparecem discriminados. */}
+            {/* A ficha que ela respondeu ao agendar. Quem atende precisa ler
+                antes de começar — é para isso que ela existe. */}
+            <FichaRespondida agendamentoId={sel.id} />
+
             {sel.adicionais.length > 0 && (
               <div className="extras">
                 <span className="eyebrow">Comprou junto</span>
@@ -775,6 +784,7 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
     prof: '', data, hora: '', extras: [],
   });
   const [ofertados, setOfertados] = useState([]);
+  const [respostas, setRespostas] = useState({});
   const [ocupado, setOcupado] = useState(false);
 
   const svc = vendaveis.find(s => s.id === f.servico);
@@ -828,6 +838,7 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
         : api.criarAgendamento({
             cliente: f.cliente, servico: svc.id, prof: prof.id,
             data: f.data, hora: f.hora, adicionaisIds: f.extras, forcar: true,
+            respostas,
           })),
       ehCombo ? 'Combo agendado' : 'Encaixe criado'
     );
@@ -934,6 +945,14 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
             </div>}
       </Campo>
 
+      {/* A ficha que o serviço pede. Sem isto, um serviço com anamnese
+          obrigatória seria impossível de marcar pelo balcão: o servidor exige a
+          resposta em todo agendamento, e é assim que tem de ser. */}
+      {!ehCombo && (
+        <Ficha servicoId={svc?.id} clienteId={f.cliente} valor={respostas}
+               aoMudar={(formId, lista) => setRespostas(v => ({ ...v, [formId]: lista }))} />
+      )}
+
       {/* O total e a duração, calculados — é o número que o balcão digitava na
           mão e errava. */}
       {duracao > 0 && (
@@ -950,6 +969,42 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
     </Modal>
   );
 }
+
+/**
+ * As respostas do formulário, no detalhe do agendamento.
+ *
+ * Carregadas sob demanda, e não junto da agenda: são dado sensível, e trazê-las
+ * na listagem colocaria a ficha de saúde de todo mundo no navegador de quem só
+ * queria ver os horários do dia.
+ */
+function FichaRespondida({ agendamentoId }) {
+  const [fichas, setFichas] = useState(null);
+
+  useEffect(() => {
+    let valeu = true;
+    api.respostasDoAgendamento(agendamentoId)
+      .then(r => { if (valeu) setFichas(r); })
+      .catch(() => { if (valeu) setFichas([]); });
+    return () => { valeu = false; };
+  }, [agendamentoId]);
+
+  if (!fichas?.length) return null;
+
+  return fichas.map(f => (
+    <div key={f.id} className="extras" style={{ marginBottom: 14 }}>
+      <span className="eyebrow">{f.formulario}</span>
+      {f.respostas.map((r, i) => (
+        <div key={i} className="extras-li">
+          <span>{r.rotulo}</span>
+          <b>{formatarResposta(r.valor)}</b>
+        </div>
+      ))}
+    </div>
+  ));
+}
+
+const formatarResposta = v =>
+  v === true ? 'sim' : v === false ? 'não' : Array.isArray(v) ? v.join(', ') : String(v);
 
 /* ── Clientes ── */
 function Clientes({ dados, acao, aviso }) {

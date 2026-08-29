@@ -6,7 +6,7 @@ import { adicionaisDe } from '../lib/adicionais.js';
 import { comboCompleto, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
 import { exige, pode } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
-import { formCompleto, TIPOS_DE_CAMPO } from '../lib/formularios.js';
+import { formCompleto, formsDoServico, ultimaResposta, TIPOS_DE_CAMPO } from '../lib/formularios.js';
 
 export const catalogo = Router();
 
@@ -581,3 +581,21 @@ async function salvarServicosDoForm(formId, ids) {
     );
   }
 }
+
+/**
+ * O que a cliente respondeu da última vez neste formulário.
+ *
+ * Ficha de saúde não muda a cada visita, e obrigar a redigitar tudo faz a pessoa
+ * responder qualquer coisa para se livrar — que é pior do que não perguntar.
+ * Vem como sugestão; o que ela confirmar é o que fica gravado hoje.
+ *
+ * Só no painel, onde quem marca já escolheu a cliente numa lista. No site a
+ * pessoa só é identificada no fim, depois do formulário.
+ */
+catalogo.get('/formularios/:id/ultima/:clienteId', rota(async (req, res) => {
+  res.json({ respostas: await ultimaResposta(req.params.clienteId, req.params.id) });
+}));
+
+/** Os formulários que um serviço pede — o encaixe do painel precisa perguntar também. */
+catalogo.get('/formularios/servico/:id', rota(async (req, res) =>
+  res.json(await formsDoServico(req.params.id))));

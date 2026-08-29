@@ -442,7 +442,8 @@ Integrações, Logs, Configurar App/Website).
       ranking por serviço, comissões e formas de pagamento
 - [x] Financeiro por período livre (7 dias, 30 dias, mês, mês passado) com
       comparação com o período anterior de mesmo tamanho
-- [ ] Formulários: intake customizável por serviço (ex. anamnese de estética)
+- [x] Formulários: intake customizável por serviço, respondido no site e no
+      balcão, com a resposta presa ao atendimento. Ver `ARQUITETURA.md`
 - [ ] Integrações: chaves de API / webhooks para ferramentas externas da empresa
 - [x] Registro: quem fez o quê no painel, com o nome congelado e sem poder
       ser reescrito. Ver `ARQUITETURA.md`
@@ -534,6 +535,11 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] `logs` cresce para sempre e nada a poda. Com uma empresa movimentada são
       milhares de linhas por mês. Decidir prazo de retenção antes de virar
       problema de espaço.
+
+### Produto
+
+- [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
+      seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
 
 ### Cobertura de teste
 

@@ -50,6 +50,9 @@ export function diasLivres({ servicoId, comboId, profissionalId, unidadeId, adic
   return req(`/dias-livres?${q}`);
 }
 
+/** As perguntas que a empresa faz neste serviço. Pergunta, nunca resposta. */
+export const formularios = servicoId => req(`/formularios/${servicoId}`);
+
 /** Diz se o WhatsApp já tem cadastro — para não pedir os dados de novo. */
 export const identificar = fone => req('/identificar', { method: 'POST', body: { fone } });
 

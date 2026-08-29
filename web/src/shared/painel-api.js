@@ -97,10 +97,21 @@ export const api = {
       clienteId: a.cliente, servicoId: a.servico, profissionalId: a.prof,
       data: a.data, hora: a.hora, forcar: a.forcar,
       adicionaisIds: a.adicionaisIds || [],
+      respostas: a.respostas || {},
     },
   }),
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
+
+  /* ── formulários ── */
+  formularios: () => req('/formularios'),
+  salvarFormulario: f => f.id
+    ? req(`/formularios/${f.id}`, { method: 'PUT', body: f })
+    : req('/formularios', { method: 'POST', body: f }),
+  removerFormulario: id => req(`/formularios/${id}`, { method: 'DELETE' }),
+  formulariosDoServico: id => req(`/formularios/servico/${id}`),
+  ultimaFicha: (formId, clienteId) => req(`/formularios/${formId}/ultima/${clienteId}`),
+  respostasDoAgendamento: id => req(`/agendamentos/${id}/respostas`),
 
   /* ── registro do painel ── */
   logs: acao => req('/logs' + (acao ? `?acao=${acao}` : '')),

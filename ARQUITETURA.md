@@ -69,6 +69,7 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   src/reset.js     Zera o banco em desenvolvimento. Recusa rodar fora de localhost.
   src/senha-app.js Define a senha do papel vital_app a partir do .env (dev).
   src/lib/         availability.js (horários), combos.js (pacotes e rateio),
+                   formularios.js (intake), registro.js (auditoria do painel),
                    provisionar.js (empresa nova nasce aqui),
                    templates.js (mensagens),
                    dates.js (datas como texto), migrate.js (migrations),
@@ -90,7 +91,9 @@ web/               Vite + React, sem framework de UI. CSS à mão.
   src/painel/      App.jsx, styles.css, ConfigSite.jsx (a empresa edita o site),
                    Combos.jsx (promoções), Unidades.jsx (endereços),
                    Usuarios.jsx (acesso),
-                   Comecar.jsx (assistente de primeira configuração)
+                   Comecar.jsx (assistente de primeira configuração),
+                   Formularios.jsx (monta), Ficha.jsx (responde no balcão),
+                   Registro.jsx (quem fez o quê)
   src/vital/       Cadastro.jsx (empresa nova), Equipe.jsx (back-office),
                    api.js (cookie próprio), styles.css (a marca da Vital)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
@@ -751,6 +754,71 @@ como antes. A funcionalidade só aparece quando há o que perguntar.
 Arquivar uma unidade (`ativo = 0`) não apaga: a agenda antiga aponta para ela. E
 não desvincula a equipe sozinho — a resposta devolve quem ficou sem endereço,
 porque mover gente de loja é decisão de quem administra, não efeito colateral.
+
+## Formulários de intake
+
+Anamnese de estética, ficha de saúde da clínica, preferências do pet, dados do
+veículo na oficina. **A pergunta é linha, não coluna:** cada ramo pergunta uma
+coisa, e nenhuma delas caberia num campo que a gente escolhesse por eles.
+
+### A resposta é histórico, não cadastro
+
+Ela fica presa ao **atendimento**, não à cliente, e o rótulo vai congelado junto.
+Duas razões, e as duas doem quando ignoradas:
+
+1. A resposta muda com o tempo — "está grávida?", "usa qual medicação?" — e a que
+   importa é a do dia. Guardar só a mais recente apagaria a razão pela qual um
+   procedimento foi feito de um jeito.
+2. A pergunta em si pode mudar. Se a resposta apontasse para a pergunta viva,
+   editar o rótulo reescreveria o passado.
+
+Por isso `respostas` é JSONB com rótulo e valor, e não uma tabela de pares
+apontando para `form_fields`. E por isso editar as perguntas de um formulário
+apaga e recria as linhas: casar id a id daria a ilusão de que renomear corrige o
+histórico, e não corrige.
+
+**O rótulo gravado vem do banco, nunca do que o cliente enviou.** Sem isso,
+qualquer um escreveria a própria pergunta no prontuário de outra pessoa.
+
+**A validação acontece antes da transação.** Recusar por resposta faltando não
+pode deixar meio agendamento gravado.
+
+### Dado sensível
+
+Resposta de anamnese é dado pessoal sensível pela LGPD — saúde. Fica atrás do
+RLS, e três limites valem além dele:
+
+- A rota pública devolve **a pergunta, nunca a resposta**. O que a empresa vai
+  querer saber já apareceria na tela de qualquer jeito; o que a cliente
+  respondeu, não.
+- Quem lê a ficha é quem atende. Funcionário lê a de seus atendimentos e a rota
+  recusa o resto.
+- No painel, a ficha é carregada **sob demanda**, ao abrir o agendamento. Trazê-la
+  junto da agenda colocaria a ficha de saúde de todo mundo no navegador de quem
+  só queria ver os horários do dia.
+
+Resposta dada não se edita (`REVOKE UPDATE`): é o registro do que a cliente
+declarou naquele dia. Corrigir é responder de novo.
+
+### O balcão pergunta também
+
+O servidor exige a ficha em **todo** agendamento, inclusive o encaixe manual — e
+por isso o painel também a apresenta. A regra não podia ser afrouxada para o
+balcão: ficha que só o site preenche é ficha que metade dos atendimentos não tem.
+
+No painel a cliente já foi escolhida numa lista, então dá para trazer o que ela
+respondeu da última vez como sugestão — ficha de saúde não muda a cada visita, e
+obrigar a redigitar tudo faz a pessoa responder qualquer coisa para se livrar. A
+sugestão casa por rótulo, porque é o rótulo que a resposta guarda; pergunta
+renomeada simplesmente não sugere nada. No site isso não é possível: lá a pessoa
+só é identificada no fim, depois do formulário.
+
+### Onde o passo entra no agendamento
+
+Depois de escolher o horário, antes de dar o WhatsApp. Quem chegou até ali já
+decidiu, e responder três perguntas não faz desistir — perguntar antes da data
+faria, porque o passo apareceria antes de a pessoa saber se existe horário para
+ela. Serviço que não pede nada não ganha passo nenhum.
 
 ## O registro do painel
 
