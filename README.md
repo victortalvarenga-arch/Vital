@@ -1,8 +1,12 @@
-# Estúdio Agenda
+# Vital
 
-Site de agendamento, painel de gestão e CRM por WhatsApp. Um estúdio de estética
-é o exemplo que acompanha o projeto; o alvo é servir qualquer negócio de
-agendamento (ver `ROADMAP.md`).
+Site de agendamento, painel de gestão e CRM por WhatsApp, para vários negócios ao
+mesmo tempo. Cada empresa se cadastra sozinha, ganha o próprio endereço e a
+própria marca; o banco é um só, e o isolamento é do Postgres.
+
+O estúdio de estética que aparece ao rodar é dado de exemplo do `seed`, não o
+cliente do sistema. Como o sistema é montado: `ARQUITETURA.md`. O que ainda falta:
+`ROADMAP.md`.
 
 ## Rodar
 

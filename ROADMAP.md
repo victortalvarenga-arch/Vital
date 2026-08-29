@@ -1,21 +1,21 @@
-# Roteiro — de "Estúdio Agenda" para produto white-label
+# Roteiro
 
-O estúdio de estética é o **MVP**, não o produto. O objetivo é uma base que
-qualquer negócio de agendamento (salão, barbearia, clínica, petshop, oficina)
-consiga vestir com a própria marca sem tocar em código.
+**O negócio: a Vital desenvolve este software e vende para várias
+empresas-cliente.** Cada salão, cada barbearia é um cliente da Vital, não o
+produto final. É produto de assinatura, hospedado por nós, operado por muitos
+negócios ao mesmo tempo. Toda vez que uma decisão nova aparecer, a pergunta é
+"isso funciona para uma Vital com 200 clientes, ou só para um negócio só?" — a
+segunda resposta não serve.
 
-**O negócio por trás disto: a Vital desenvolve este software e vende para
-várias empresas-cliente** (cada salão, cada barbearia é um cliente da Vital,
-não o produto final). Não é um sistema feito sob medida para um estúdio — é
-um produto de assinatura, hospedado por nós, operado por muitos negócios ao
-mesmo tempo. Essa frase sozinha já justifica boa parte do roteiro: banco
-multiempresa (Blocos 1-2), painel só nosso para gerenciar quem assina (Bloco
-10), provisionamento sem depender de nós atendermos manualmente (Bloco 9). Toda
-vez que uma decisão nova aparecer, a pergunta é "isso funciona para uma Vital
-com 200 clientes, ou só para um estúdio só?" — a segunda resposta não serve.
+**Onde estamos.** A base multiempresa está de pé: banco isolado por
+Row-Level Security, empresa nascendo sozinha pelo cadastro, três interfaces, e o
+back-office para administrar quem assina. O que falta para virar negócio é
+cobrança — hoje `plano` é texto livre, sem preço nem ciclo.
 
 Este arquivo é o mapa de execução. Cada bloco é entregável e testável sozinho.
-Marque o que concluir; a próxima sessão retoma daqui.
+Marque o que concluir; a próxima sessão retoma daqui. As três seções do fim —
+**Achados**, **Importante para produção** e **Fora de escopo** — são listas
+vivas, e valem tanto quanto os blocos.
 
 Ainda em beta: arquitetura pode mudar sem custo de migração, porque não há
 cliente real na base. Isso vale até o dia em que houver o primeiro — dali em
@@ -80,8 +80,8 @@ que só funcione com mouse).
 **Duas áreas, dois bundles — dentro de cada empresa.** Site do cliente e painel
 da equipe deixam de compartilhar build. Vite com duas entradas (`index.html` e
 `painel.html`), pasta `shared/` para o que é comum. O site só fala com
-`/api/publico/*` e nunca carrega token — isso encerra o item 1 do CLAUDE.md, que
-hoje impede publicar na internet.
+`/api/publico/*` e nunca carrega credencial — era o que impedia publicar na
+internet. Hoje são três bundles: a página da Vital entrou no Bloco 10.
 
 **Dentro de cada empresa, vários usuários com papel — nunca "a dona loga".** A
 tabela `users` (Bloco 0) já tem a coluna `papel`; falta o significado de cada

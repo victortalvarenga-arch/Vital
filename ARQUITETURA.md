@@ -3,6 +3,53 @@
 Como o sistema é montado hoje, e por quê. Para o que ainda vai mudar, veja
 `ROADMAP.md`; para as regras de quem programa aqui, `CLAUDE.md`.
 
+**Por onde começar.** Se você nunca viu este projeto: leia *Visão geral* e
+*Decisões estruturais*, nesta ordem, e pare. Elas explicam as três telas, o
+isolamento entre empresas e por que as datas são texto — que é o que faz o resto
+do código parecer óbvio. O resto desta página é referência: leia a seção do que
+você for mexer.
+
+| Seção | Responde |
+|---|---|
+| [Visão geral](#visão-geral) | Como as peças se ligam, num diagrama |
+| [Pastas](#pastas) | Onde mora cada coisa |
+| [Decisões estruturais](#decisões-estruturais) | Por que Postgres, por que data é texto, por que três bundles |
+| [As três telas](#as-três-telas) | Site, painel e página da Vital |
+| [Banco](#banco) | Esquema, migrations e Row-Level Security |
+| [Autenticação e papéis](#autenticação-e-papéis) | Login, sessão, dono × funcionário |
+| [De quem é a requisição](#de-quem-é-a-requisição) | Como o endereço decide a empresa |
+| [Como nasce uma empresa](#como-nasce-uma-empresa) | Cadastro self-service e o assistente |
+| [Combos e promoções](#combos-e-promoções) | Pacote fechado e o rateio da comissão |
+| [O que se vende junto](#o-que-se-vende-junto) | Adicionais e o ranking do financeiro |
+| [Formulários de intake](#formulários-de-intake) | Anamnese, ficha, dado sensível |
+| [A agenda do painel](#a-agenda-do-painel) | Semana, faixas e arrastar para remarcar |
+| [Unidades](#unidades) | A empresa com mais de um endereço |
+| [O registro do painel](#o-registro-do-painel) | Quem fez o quê, dentro da empresa |
+| [O back-office da Vital](#o-back-office-da-vital) | Ver todas as empresas sem ver o dado de nenhuma |
+| [Testes](#testes) | O que a suíte cobre e como ela roda |
+| [WhatsApp](#whatsapp) | Fila, provider manual e Cloud API |
+| [LGPD](#lgpd) | Dado pessoal, optin, dado sensível |
+
+## As migrations, em uma linha cada
+
+Nunca se edita uma já aplicada — cria-se a próxima. O histórico abaixo é o que
+elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
+
+| | O que mudou |
+|---|---|
+| `001_esquema_inicial` | Todas as tabelas de negócio, em PostgreSQL |
+| `002_isolamento_por_empresa` | Row-Level Security, schema `plataforma`, papel `vital_app` |
+| `003_servicos_adicionais` | Extras por serviço e por categoria |
+| `004_sessoes` | Sessão em tabela, para dar para derrubar um acesso |
+| `005_papeis_dono_funcionario` | Só dois papéis; o meio-termo saiu |
+| `006_combos` | Pacote com preço fechado; agendamentos ligados por grupo |
+| `007_cadastro_self_service` | A aplicação passa a poder criar empresa |
+| `008_painel_da_plataforma` | Sessões da nossa equipe e a função de contagem |
+| `009_vender_so_como_adicional` | O extra que não se vende sozinho |
+| `010_registro_do_painel` | `logs`: quem fez o quê na empresa |
+| `011_registro_e_so_leitura` | `REVOKE` no registro — GRANT adiciona, nunca tira |
+| `012_formularios` | Intake: perguntas, respostas e o vínculo com serviços |
+
 ## Visão geral
 
 ```mermaid
@@ -76,8 +123,9 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
                    rota.js (erro em handler async), contexto.js (conexão da
                    requisição), tenant.js (resolve a empresa + config padrão)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
-                   relatorios | uploads (imagens da empresa) | cadastro e
-                   plataforma (as duas rotas sem empresa definida)
+                   relatorios | uploads (imagens da empresa) | bloqueios
+                   (horário fechado) | cadastro e plataforma (as duas rotas
+                   sem empresa definida)
   test/            suíte automatizada (`npm test`), banco próprio
   src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
@@ -88,7 +136,8 @@ web/               Vite + React, sem framework de UI. CSS à mão.
   vital.html       entrada da página da Vital (cadastro + back-office)
   src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
-  src/painel/      App.jsx, styles.css, ConfigSite.jsx (a empresa edita o site),
+  src/painel/      App.jsx, styles.css, Entrar.jsx (login e primeiro acesso),
+                   ConfigSite.jsx (a empresa edita o site),
                    Combos.jsx (promoções), Unidades.jsx (endereços),
                    Usuarios.jsx (acesso),
                    Comecar.jsx (assistente de primeira configuração),

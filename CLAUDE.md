@@ -1,14 +1,27 @@
-# Estúdio Agenda
+# Vital · agenda para negócios que marcam horário
 
-Sistema de agendamento, cadastro de clientes e CRM por WhatsApp. Hoje atende um
-estúdio de estética; o alvo é virar produto que a Vital vende para várias
-empresas — o plano está em `ROADMAP.md`.
+Produto multiempresa da Vital: site de agendamento, painel de gestão e CRM por
+WhatsApp. **Uma empresa se cadastra sozinha, se configura e começa a atender sem
+falar com ninguém.**
 
-Como rodar: `README.md`. Como o sistema é montado: `ARQUITETURA.md`.
+Três interfaces, um público cada — o site de quem agenda, o painel de quem
+atende, e a página da Vital, onde uma empresa nasce e onde a nossa equipe
+administra a plataforma. Todas as empresas dividem um banco só, e o isolamento é
+do Postgres (Row-Level Security), não do código das rotas.
+
+O estúdio de estética que aparece ao rodar o projeto é **dado de exemplo do
+`seed`**, não o cliente do sistema.
+
+**O que falta para virar negócio:** a Vital não consegue cobrar. `plano` é texto
+livre, sem preço nem ciclo. É o item que separa "produto pronto" de "empresa
+faturando", e está em `ROADMAP.md`.
+
+Como rodar: `README.md`. Como o sistema é montado: `ARQUITETURA.md`. Contas e
+endereços do ambiente local: `ACESSOS-DEV.md`.
 
 ## Como este repositório se documenta
 
-Quatro arquivos, quatro papéis. Todos viajam no Git, então qualquer sessão do
+Cinco arquivos, cinco papéis. Todos viajam no Git, então qualquer sessão do
 Claude Code — nesta conta ou em outra, nesta máquina ou noutra — recupera o
 contexto inteiro lendo os arquivos, sem depender de memória de conversa.
 
@@ -36,7 +49,7 @@ sessão.
 
 ### Revisar a documentação a cada tarefa
 
-**Ao terminar qualquer tarefa, reveja os quatro arquivos antes de dar a tarefa
+**Ao terminar qualquer tarefa, reveja os cinco arquivos antes de dar a tarefa
 por encerrada** — não só o que parece relacionado. Pergunte de cada um: alguma
 frase aqui ficou falsa agora?
 
