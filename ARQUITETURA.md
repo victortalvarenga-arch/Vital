@@ -752,6 +752,59 @@ Arquivar uma unidade (`ativo = 0`) não apaga: a agenda antiga aponta para ela. 
 não desvincula a equipe sozinho — a resposta devolve quem ficou sem endereço,
 porque mover gente de loja é decisão de quem administra, não efeito colateral.
 
+## O registro do painel
+
+Quem fez o quê, dentro da empresa. A plataforma tinha auditoria desde o Bloco 2;
+a empresa-cliente, nada — e com funcionários no painel, botão de excluir e
+arrastar para remarcar, "sumiu um agendamento e ninguém sabe" era questão de
+tempo. A resposta seria "não dá para saber".
+
+**Não é middleware, e isso é a decisão principal.** Gravar toda requisição de
+escrita soa mais seguro e dá um registro pior: o painel chama
+`POST /api/mensagens/gerar-fila` a cada carregamento, e a lista útil afogaria em
+ruído. Pior, o middleware só sabe `PUT /api/agendamentos/abc123` — nunca
+"cancelou o horário da Maria". Quem chama é a rota, no ponto em que já sabe o
+que mudou e consegue escrever uma frase que uma pessoa entende.
+
+O preço dessa escolha é que uma rota nova pode esquecer de registrar. É um preço
+aceitável: o registro existe para ser lido por gente, e um registro ilegível não
+é lido — logo não serve para nada.
+
+**Grava antes de a resposta sair**, na mesma conexão da requisição. Depois seria
+fora do `comEmpresa`, sem empresa definida, e o RLS recusaria — além de registrar
+coisa que talvez não tenha acontecido. E falhar ao gravar nunca derruba a
+operação: perder o histórico é ruim, fazer o cancelamento falhar porque o
+histórico falhou é pior.
+
+**O nome de quem fez fica congelado.** `user_id` referencia `users`, mas o nome
+vai copiado. Acesso se apaga — a funcionária que sai perde o login —, e o
+registro precisa continuar dizendo quem cancelou aquele horário justamente no dia
+da demissão, que é quando ele importa.
+
+**Só o que mudou entra no detalhe.** `mudancas()` compara antes e depois e devolve
+`{ campo: [antes, depois] }`. Guardar o objeto inteiro nas duas pontas encheria a
+tela de campo que não mudou, e quem abre para entender uma alteração teria de
+procurar.
+
+Funcionário vê o próprio rastro; dono vê o de todos. O recorte é imposto no
+servidor, como na agenda e no financeiro.
+
+### O registro não se reescreve
+
+`logs` recebe `SELECT` e `INSERT`, e nada mais. Corrigir uma operação é inserir a
+linha que diz o que foi corrigido, não apagar a que estava errada.
+
+Isso quase não funcionou, e o teste é que pegou. A migration 002 deixou um
+`ALTER DEFAULT PRIVILEGES ... GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES`,
+que vale para **toda tabela criada depois** — então `logs` nasceu com UPDATE e
+DELETE liberados, e o `GRANT` restrito da migration que a criou só repetiu parte
+do que ela já tinha. GRANT adiciona; nunca tira. Foi preciso um `REVOKE`
+explícito.
+
+A armadilha não é de `logs`: **qualquer tabela nova em `public` nasce com os
+quatro verbos liberados para a aplicação.** É o padrão certo para tabela de
+negócio e o errado para tabela que só cresce.
+
 ## O back-office da Vital
 
 Terceiro bundle, `vital.html`, com duas coisas nossas: a página onde uma

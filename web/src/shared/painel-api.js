@@ -102,6 +102,9 @@ export const api = {
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
 
+  /* ── registro do painel ── */
+  logs: acao => req('/logs' + (acao ? `?acao=${acao}` : '')),
+
   /* ── unidades ── */
   salvarUnidade: u => u.id
     ? req(`/unidades/${u.id}`, { method: 'PUT', body: u })
@@ -180,5 +183,11 @@ export const api = {
     req(`/mensagens/campanhas/${chave}/previa`, { method: 'POST', body: { clienteId } }),
 
   /* ── relatórios ── */
-  resumo: mes => req(`/relatorios/resumo${mes ? `?mes=${mes}` : ''}`),
+  // Aceita mês fechado ou intervalo livre. Mês continua sendo o caso comum.
+  resumo: ({ mes, de, ate } = {}) => {
+    const q = new URLSearchParams();
+    if (de && ate) { q.set('de', de); q.set('ate', ate); }
+    else if (mes) q.set('mes', mes);
+    return req('/relatorios/resumo' + (q.toString() ? `?${q}` : ''));
+  },
 };

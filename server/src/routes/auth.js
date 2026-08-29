@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db, uid, userOut, getConfig } from '../db.js';
 import { rota } from '../lib/rota.js';
+import { mudancas } from '../lib/registro.js';
 import {
   abrirSessao, fecharSessao, hashDaSenha, senhaConfere,
   NOME_COOKIE, opcoesDoCookie, exige, PODERES,
@@ -117,6 +118,11 @@ auth.post('/usuarios', exige('equipe'), rota(async (req, res) => {
     id, nome, String(email).toLowerCase().trim(), await hashDaSenha(senha),
     papel, profissionalId || null, new Date().toISOString().slice(0, 10)
   );
+  await req.registrar('acesso.criado', {
+    alvoId: id, alvoTipo: 'acesso',
+    resumo: `deu acesso de ${papel} a ${nome}`,
+    detalhe: { email: String(email).toLowerCase().trim(), papel },
+  });
   res.status(201).json(userOut(await db.get('SELECT * FROM users WHERE id = ?', id)));
 }));
 
@@ -143,6 +149,13 @@ auth.delete('/usuarios/:id', exige('equipe'), rota(async (req, res) => {
   }
 
   await db.run('DELETE FROM users WHERE id = ?', req.params.id);
+  // Tirar o acesso de alguém é a ação mais sensível do painel: quem fez fica
+  // registrado antes de a resposta sair.
+  await req.registrar('acesso.removido', {
+    alvoId: alvo.id, alvoTipo: 'acesso',
+    resumo: `removeu o acesso de ${alvo.nome}`,
+    detalhe: { email: alvo.email, papel: alvo.papel },
+  });
   res.json({ ok: true });
 }));
 
@@ -192,5 +205,15 @@ auth.put('/usuarios/:id', exige('equipe'), rota(async (req, res) => {
     await db.run('DELETE FROM sessoes WHERE user_id = ?', req.params.id);
   }
 
-  res.json(userOut(await db.get('SELECT * FROM users WHERE id = ?', req.params.id)));
+  const depois = userOut(await db.get('SELECT * FROM users WHERE id = ?', req.params.id));
+  const mudou = mudancas(userOut(alvo), depois, ['nome', 'papel', 'ativo', 'profissionalId']);
+  if (b.senha) mudou.senha = ['—', 'trocada'];
+  if (Object.keys(mudou).length) {
+    await req.registrar('acesso.alterado', {
+      alvoId: depois.id, alvoTipo: 'acesso',
+      resumo: `alterou o acesso de ${depois.nome} (${Object.keys(mudou).join(', ')})`,
+      detalhe: mudou,
+    });
+  }
+  res.json(depois);
 }));

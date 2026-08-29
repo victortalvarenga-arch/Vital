@@ -440,11 +440,12 @@ Integrações, Logs, Configurar App/Website).
 - [ ] Cadastros redesenhados: serviços, equipe com jornada, clientes
 - [x] Financeiro: recebido, a receber, previsto do dia, ticket médio, faltas,
       ranking por serviço, comissões e formas de pagamento
-- [ ] Financeiro por período livre — hoje é sempre o mês inteiro — e comparação
-      com o mês anterior
+- [x] Financeiro por período livre (7 dias, 30 dias, mês, mês passado) com
+      comparação com o período anterior de mesmo tamanho
 - [ ] Formulários: intake customizável por serviço (ex. anamnese de estética)
 - [ ] Integrações: chaves de API / webhooks para ferramentas externas da empresa
-- [ ] Logs: auditoria de quem fez o quê no painel
+- [x] Registro: quem fez o quê no painel, com o nome congelado e sem poder
+      ser reescrito. Ver `ARQUITETURA.md`
 
 ### Bloco 8 — White-label de verdade
 - [x] Varrer e remover vocabulário de estética do código e das telas
@@ -522,6 +523,17 @@ aqui na hora em que é notada**, mesmo sem plano de conserto — achado que fica
 na conversa se perde na próxima sessão.
 
 Sai daqui quando é resolvido, ou quando vira item de um bloco.
+
+### Banco
+
+- [ ] **Tabela nova em `public` nasce com UPDATE e DELETE para a aplicação**, por
+      causa do `ALTER DEFAULT PRIVILEGES` da migration 002. É o padrão certo para
+      tabela de negócio e o errado para tabela que só cresce — `logs` precisou de
+      um `REVOKE` explícito, e o teste é que pegou. Ao criar tabela de histórico,
+      lembrar de revogar.
+- [ ] `logs` cresce para sempre e nada a poda. Com uma empresa movimentada são
+      milhares de linhas por mês. Decidir prazo de retenção antes de virar
+      problema de espaço.
 
 ### Cobertura de teste
 

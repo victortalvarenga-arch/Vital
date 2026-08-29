@@ -3,6 +3,7 @@ import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
+import Registro from './Registro.jsx';
 import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
@@ -13,7 +14,7 @@ import {
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon
+  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -201,6 +202,8 @@ function Painel({ sessao, aoSair }) {
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
       ...(p.site ? [{ k: 'site', nome: 'Site da cliente', icon: Globe }] : []),
       ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
+      // Sem guarda: funcionário vê o próprio rastro, e é o servidor que recorta.
+      { k: 'registro', nome: 'Registro', icon: ScrollText },
     ] },
   ].filter(g => g.itens.length);
 
@@ -258,6 +261,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
+        {secao === 'registro' && <Registro dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}
@@ -1593,13 +1597,55 @@ function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
 }
 
 /* ── Financeiro ── */
+/**
+ * Períodos que se olha na prática.
+ *
+ * O mês fechado era o único que existia — é a pergunta do contador, não a de
+ * quem opera. "Como foi a semana" e "o feriado valeu a pena" não tinham
+ * resposta.
+ */
+const PERIODOS = [
+  { k: 'mes', rotulo: 'Este mês' },
+  { k: '7', rotulo: '7 dias' },
+  { k: '30', rotulo: '30 dias' },
+  { k: 'anterior', rotulo: 'Mês passado' },
+];
+
+function intervaloDe(k) {
+  const h = hojeISO();
+  if (k === '7' || k === '30') return { de: addDias(h, -(Number(k) - 1)), ate: h };
+  if (k === 'anterior') {
+    const d = new Date(h + 'T12:00:00');
+    const mes = new Date(Date.UTC(d.getFullYear(), d.getMonth() - 1, 1)).toISOString().slice(0, 7);
+    return { mes };
+  }
+  return { mes: h.slice(0, 7) };
+}
+
+/** Quanto subiu ou desceu em relação ao período anterior de mesmo tamanho. */
+const Variacao = ({ de, para }) => {
+  // Sem base de comparação não há porcentagem que signifique alguma coisa —
+  // "cresceu infinito" a partir de zero é ruído, não informação.
+  if (!de) return null;
+  const pct = Math.round((para - de) / de * 100);
+  const tom = pct > 0 ? 'sobe' : pct < 0 ? 'desce' : 'igual';
+  return (
+    <span className={'variacao ' + tom}>
+      {pct > 0 ? '↑' : pct < 0 ? '↓' : '='} {Math.abs(pct)}% vs. período anterior
+    </span>
+  );
+};
+
 function Financeiro({ dados }) {
   const { staff } = dados;
-  const mes = hojeISO().slice(0, 7);
+  const [periodo, setPeriodo] = useState('mes');
   const [r, setR] = useState(null);
 
   // Agregação é trabalho de banco, não de navegador: SUM/GROUP BY no servidor.
-  useEffect(() => { api.resumo(mes).then(setR).catch(() => setR(null)); }, [mes]);
+  useEffect(() => {
+    setR(null);
+    api.resumo(intervaloDe(periodo)).then(setR).catch(() => setR(null));
+  }, [periodo]);
 
   if (!r) return <div style={{ padding: 40, color: 'var(--muted)' }}>Calculando…</div>;
 
@@ -1612,10 +1658,29 @@ function Financeiro({ dados }) {
 
   return (
     <>
-      <div className="head"><div><h2>Financeiro</h2><div className="sub">Mês de {MESES[+mes.slice(5) - 1]} · {r.atendimentos} atendimentos concluídos</div></div></div>
+      <div className="head">
+        <div>
+          <h2>Financeiro</h2>
+          <div className="sub">
+            {fmtData(r.de)} a {fmtData(r.ate)} · {r.atendimentos} atendimentos concluídos
+          </div>
+        </div>
+        <div className="chips">
+          {PERIODOS.map(p => (
+            <button key={p.k} className={'chip' + (periodo === p.k ? ' on' : '')}
+                    onClick={() => setPeriodo(p.k)}>{p.rotulo}</button>
+          ))}
+        </div>
+      </div>
 
       <div className="stats" style={{ marginBottom: 18 }}>
-        <div className="card stat"><span className="eyebrow">Recebido no mês</span><span className="v">{brl(recebido)}</span></div>
+        <div className="card stat">
+          <span className="eyebrow">Recebido</span>
+          <span className="v">{brl(recebido)}</span>
+          {/* Um número sozinho não diz se está indo bem: a comparação é com o
+              mesmo tanto de dias, imediatamente antes. */}
+          <Variacao de={r.anterior.recebido} para={recebido} />
+        </div>
         <div className="card stat"><span className="eyebrow">Previsto hoje</span><span className="v">{brl(hojeReceita)}</span></div>
         <div className="card stat"><span className="eyebrow">A receber</span><span className="v" style={{ color: aberto > 0 ? 'var(--warn)' : 'inherit' }}>{brl(aberto)}</span></div>
         <div className="card stat"><span className="eyebrow">Ticket médio</span><span className="v">{brl(ticket)}</span></div>

@@ -451,3 +451,22 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cb-foto img{width:84px; height:56px; object-fit:cover; border-radius:9px; flex:none}
 .cb-foto-vazia{width:84px; height:56px; border-radius:9px; flex:none; display:grid;
   place-items:center; background:var(--line); color:var(--muted)}
+
+/* ── registro do painel ─────────────────────────────────────────────────── */
+.reg-dia{margin-bottom:20px}
+.reg-dia-t{font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 8px 2px}
+.reg{display:flex; gap:12px; align-items:baseline; background:var(--paper);
+  border:1px solid var(--line); border-left:3px solid var(--line);
+  border-radius:10px; padding:10px 13px; margin-bottom:7px}
+.reg.ruim{border-left-color:#B4483F}
+.reg.bom{border-left-color:var(--ok)}
+.reg-hora{font-size:11.5px; color:var(--muted); flex:none}
+.reg-txt{min-width:0}
+.reg-frase{margin:0; font-size:13.5px; line-height:1.45}
+.reg-detalhe{margin:3px 0 0; font-size:12px; color:var(--muted);
+  display:flex; gap:14px; flex-wrap:wrap}
+.variacao{font-size:12px; font-weight:700}
+.variacao.sobe{color:var(--ok)}
+.variacao.desce{color:#8A2B2B}
+.variacao.igual{color:var(--muted)}

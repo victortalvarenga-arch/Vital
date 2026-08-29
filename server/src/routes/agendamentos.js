@@ -4,11 +4,18 @@ import { hoje, agora, toMin, toHora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
 import { escopoDe } from '../lib/auth.js';
+import { mudancas } from '../lib/registro.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
 import { comboCompleto, profissionaisDoCombo, ratearCombo } from '../lib/combos.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 
 export const agendamentos = Router();
+
+/** Só o primeiro nome, que é como o registro fica legível. */
+const nomeDaCliente = async id => {
+  const c = id && await db.get('SELECT nome FROM clients WHERE id=?', id);
+  return c ? c.nome.split(' ')[0] : 'alguém';
+};
 
 const STATUS = ['agendado', 'confirmado', 'concluido', 'falta', 'cancelado'];
 const FORMAS = ['pix', 'cartao', 'dinheiro', 'local'];
@@ -217,6 +224,12 @@ agendamentos.post('/combo', rota(async (req, res) => {
   }
   const r = await criarCombo(req.body || {}, { origem: 'painel' });
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
+
+  await req.registrar('agendamento.combo', {
+    alvoId: r.agendamentos[0]?.id,
+    resumo: `vendeu "${r.combo.nome}" para ${await nomeDaCliente(r.agendamentos[0]?.clienteId)}`,
+    detalhe: { combo: r.combo.nome, preco: r.combo.preco, partes: r.agendamentos.length },
+  });
   res.status(201).json(r);
 }));
 
@@ -226,6 +239,11 @@ agendamentos.post('/', rota(async (req, res) => {
   }
   const r = await criarAgendamento(req.body || {}, { origem: 'painel', forcar: req.body?.forcar === true });
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
+
+  await req.registrar('agendamento.criado', {
+    alvoId: r.agendamento.id,
+    resumo: `encaixou ${await nomeDaCliente(r.agendamento.clienteId)} em ${r.agendamento.data} às ${r.agendamento.hora}`,
+  });
   res.status(201).json(r.agendamento);
 }));
 
@@ -293,7 +311,27 @@ agendamentos.put('/:id', rota(async (req, res) => {
   });
 
   if (resultado.erro) return res.status(409).json({ erro: resultado.erro });
-  res.json((await comAdicionais([apptOut(resultado.atualizado)]))[0]);
+
+  const depois = apptOut(resultado.atualizado);
+  const quem = await nomeDaCliente(depois.clienteId);
+  const mudou = mudancas(apptOut(atual), depois,
+    ['data', 'hora', 'profissionalId', 'servicoId', 'status', 'valor']);
+
+  // Três frases diferentes porque são três coisas diferentes de procurar: o
+  // horário que mudou, o dinheiro que entrou, e a cliente que não vem mais.
+  const acao = depois.status === 'cancelado' ? 'agendamento.cancelado'
+    : mudouHorario ? 'agendamento.remarcado'
+    : depois.pagamento.status === 'pago' && atual.pag_status !== 'pago' ? 'agendamento.pago'
+    : 'agendamento.alterado';
+  const resumo = {
+    'agendamento.cancelado': `cancelou o horário de ${quem} · ${atual.data} ${atual.hora}`,
+    'agendamento.remarcado': `remarcou ${quem} de ${atual.data} ${atual.hora} para ${depois.data} ${depois.hora}`,
+    'agendamento.pago': `recebeu de ${quem} em ${depois.pagamento.forma}`,
+    'agendamento.alterado': `alterou o horário de ${quem}`,
+  }[acao];
+
+  await req.registrar(acao, { alvoId: depois.id, resumo, detalhe: mudou });
+  res.json((await comAdicionais([depois]))[0]);
 }));
 
 agendamentos.delete('/:id', rota(async (req, res) => {
@@ -307,11 +345,20 @@ agendamentos.delete('/:id', rota(async (req, res) => {
     ? (await db.all('SELECT id FROM appointments WHERE combo_grupo=?', atual.combo_grupo)).map(a => a.id)
     : [atual.id];
 
+  const quem = await nomeDaCliente(atual.client_id);
   await db.transacao(async tx => {
     for (const id of alvos) {
       await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, id);
       await tx.run('DELETE FROM appointments WHERE id=?', id);
     }
+  });
+
+  // Apagar não deixa o que consultar depois: o registro é a única memória de
+  // que aquele horário existiu.
+  await req.registrar('agendamento.apagado', {
+    alvoId: atual.id,
+    resumo: `apagou o horário de ${quem} · ${atual.data} ${atual.hora}`,
+    detalhe: { data: atual.data, hora: atual.hora, valor: atual.valor, removidos: alvos.length },
   });
   res.json({ ok: true, removidos: alvos.length });
 }));

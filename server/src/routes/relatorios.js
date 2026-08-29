@@ -1,15 +1,23 @@
 import { Router } from 'express';
 import { db } from '../db.js';
-import { hoje } from '../lib/dates.js';
+import { hoje, addDias, diasEntre } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { escopoDe } from '../lib/auth.js';
 
 export const relatorios = Router();
 
-/** Resumo financeiro de um mês ('YYYY-MM'). */
+/**
+ * Resumo financeiro de um período.
+ *
+ * Aceita `de`/`ate` ('YYYY-MM-DD') ou `mes` ('YYYY-MM'), que continua valendo
+ * porque é o recorte que se olha noventa por cento das vezes. Era o único que
+ * existia, e "quanto entrou nesta semana" ou "como foi o feriado" não tinham
+ * resposta — mês fechado é a pergunta do contador, não a de quem opera.
+ */
 relatorios.get('/resumo', rota(async (req, res) => {
   const mes = req.query.mes || hoje().slice(0, 7);
-  const like = `${mes}-%`;
+  const de = req.query.de || `${mes}-01`;
+  const ate = req.query.ate || ultimoDiaDoMes(mes);
   const h = hoje();
 
   // Funcionário vê a própria produção; dono vê o negócio inteiro. O recorte
@@ -26,8 +34,8 @@ relatorios.get('/resumo', rota(async (req, res) => {
         SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos,
         SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas,
         SUM(CASE WHEN status='cancelado' THEN 1 ELSE 0 END) cancelados
-       FROM appointments WHERE data LIKE ? ${meu}`,
-    like, ...arg
+       FROM appointments WHERE data >= ? AND data <= ? ${meu}`,
+    de, ate, ...arg
   );
 
   const aReceber = (await db.get(
@@ -59,7 +67,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
     `WITH concluidos AS (
        SELECT a.id, a.service_id, a.valor
          FROM appointments a
-        WHERE a.data LIKE ? AND a.status='concluido' ${meuA}
+        WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' ${meuA}
      ),
      extras AS (
        SELECT aa.appointment_id, aa.service_id, aa.preco
@@ -76,15 +84,15 @@ relatorios.get('/resumo', rota(async (req, res) => {
      SELECT s.nome, COUNT(*) qtd, SUM(l.valor) total
        FROM linhas l JOIN services s ON s.id = l.service_id
       GROUP BY s.id, s.nome ORDER BY total DESC`,
-    like, ...arg
+    de, ate, ...arg
   );
 
   const producao = await db.all(
     `SELECT p.id, p.nome, p.comissao, COUNT(*) qtd, SUM(a.valor) producao
        FROM appointments a JOIN staff p ON p.id=a.staff_id
-      WHERE a.data LIKE ? AND a.status='concluido' ${meuA}
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' ${meuA}
       GROUP BY p.id, p.nome, p.comissao ORDER BY producao DESC`,
-    like, ...arg
+    de, ate, ...arg
   );
   const porProfissional = producao.map(r => ({
     ...r, comissaoValor: (r.producao || 0) * (r.comissao || 0) / 100,
@@ -92,14 +100,24 @@ relatorios.get('/resumo', rota(async (req, res) => {
 
   const porForma = await db.all(
     `SELECT pag_forma forma, SUM(valor) total FROM appointments
-      WHERE data LIKE ? AND pag_status='pago' ${meu}
+      WHERE data >= ? AND data <= ? AND pag_status='pago' ${meu}
       GROUP BY pag_forma ORDER BY total DESC`,
-    like, ...arg
+    de, ate, ...arg
+  );
+
+  // O mesmo tanto de dias, imediatamente antes: sem comparação, um número
+  // sozinho não diz se o mês está indo bem ou mal.
+  const dias = diasEntre(de, ate) + 1;
+  const anterior = await db.get(
+    `SELECT SUM(CASE WHEN status='concluido' AND pag_status='pago' THEN valor ELSE 0 END) recebido,
+            SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos
+       FROM appointments WHERE data >= ? AND data <= ? ${meu}`,
+    addDias(de, -dias), addDias(de, -1), ...arg
   );
 
   const recebido = g.recebido || 0;
   res.json({
-    mes,
+    mes, de, ate, dias,
     recebido,
     aReceber,
     previstoHoje,
@@ -111,8 +129,19 @@ relatorios.get('/resumo', rota(async (req, res) => {
     // A tela precisa saber que está vendo um recorte, senão o dono acha que o
     // faturamento caiu quando na verdade está olhando pelo login errado.
     somenteMeu: Boolean(so),
+    anterior: {
+      de: addDias(de, -dias), ate: addDias(de, -1),
+      recebido: anterior?.recebido || 0,
+      atendimentos: anterior?.atendimentos || 0,
+    },
   });
 }));
+
+/** Último dia de um mês 'YYYY-MM'. Em UTC, para não escorregar de fuso. */
+function ultimoDiaDoMes(mes) {
+  const [ano, m] = mes.split('-').map(Number);
+  return new Date(Date.UTC(ano, m, 0)).toISOString().slice(0, 10);
+}
 
 /** Ocupação da agenda: quanto da jornada foi vendido. Serve para decidir contratação. */
 relatorios.get('/ocupacao', rota(async (req, res) => {

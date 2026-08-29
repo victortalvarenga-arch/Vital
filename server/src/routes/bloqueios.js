@@ -77,6 +77,13 @@ bloqueios.post('/', rota(async (req, res) => {
     toMin(a.hora) < toMin(b.horaFim) && toMin(a.hora) + a.duracao > toMin(b.horaIni)
   );
 
+  await req.registrar('bloqueio.criado', {
+    alvoId: id,
+    resumo: `fechou ${b.data} das ${b.horaIni} às ${b.horaFim}`
+      + (staffId ? '' : ' para a empresa toda'),
+    detalhe: { motivo: b.motivo || '', jaAgendados: afetados.length },
+  });
+
   res.status(201).json({
     bloqueio: blockOut(await db.get('SELECT * FROM blocks WHERE id=?', id)),
     jaAgendados: afetados.map(a => ({ id: a.id, hora: a.hora, cliente: a.cliente })),
@@ -90,5 +97,9 @@ bloqueios.delete('/:id', rota(async (req, res) => {
     return res.status(403).json({ erro: 'você só pode liberar a própria agenda' });
   }
   await db.run('DELETE FROM blocks WHERE id=?', req.params.id);
+  await req.registrar('bloqueio.liberado', {
+    alvoId: alvo.id,
+    resumo: `liberou ${alvo.data} das ${alvo.hora_ini} às ${alvo.hora_fim}`,
+  });
   res.json({ ok: true });
 }));

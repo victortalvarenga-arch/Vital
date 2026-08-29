@@ -17,6 +17,7 @@ import { plataforma } from './routes/plataforma.js';
 import { bloqueios } from './routes/bloqueios.js';
 import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { rota } from './lib/rota.js';
+import { comRegistro } from './lib/registro.js';
 import { comAdicionais } from './lib/adicionais.js';
 import { combosAtivos } from './lib/combos.js';
 import { comEmpresa } from './lib/tenant.js';
@@ -103,6 +104,12 @@ app.use('/api/plataforma', plataforma);
  */
 app.use('/api', comEmpresa(db));
 app.use('/api', identificar);
+
+// `req.registrar` existe em toda rota, inclusive nas de `/api/auth` — é lá que
+// se dá e se tira acesso, a ação mais sensível do painel. Ele próprio ignora a
+// chamada quando não há usuário, então rota pública não gera registro sem
+// autor. Montado depois de `identificar`, que é quem descobre quem é.
+app.use('/api', comRegistro);
 
 /* Login e primeiro acesso: abertos, senão ninguém entra na primeira vez. */
 app.use('/api/auth', auth);

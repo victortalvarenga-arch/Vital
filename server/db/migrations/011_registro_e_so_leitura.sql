@@ -1,0 +1,22 @@
+-- 011 · O registro do painel não se reescreve.
+--
+-- A 010 concedeu só `SELECT, INSERT` em `logs` achando que isso bastava. Não
+-- bastou, e o teste pegou: a migration 002 deixou um
+--
+--     ALTER DEFAULT PRIVILEGES IN SCHEMA public
+--       GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO vital_app;
+--
+-- e ele vale para **toda tabela criada depois**, por quem o definiu. Ou seja,
+-- `logs` já nasceu com UPDATE e DELETE para a aplicação, e o GRANT explícito
+-- da 010 só repetiu parte do que ela já tinha. GRANT adiciona; nunca tira.
+--
+-- Vale registrar a armadilha, porque ela não é de `logs`: qualquer tabela nova
+-- em `public` nasce com os quatro verbos liberados para a aplicação. É o padrão
+-- certo para tabela de negócio — a aplicação precisa mesmo escrever — e o
+-- errado para tabela que só cresce.
+--
+-- Registro que se edita não é registro. Corrigir a operação é INSERIR a linha
+-- que diz o que foi corrigido, não apagar a que estava errada. Apagar histórico
+-- de uma empresa é operação de plataforma, com a credencial de administrador.
+
+REVOKE UPDATE, DELETE ON logs FROM vital_app;

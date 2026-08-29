@@ -4,13 +4,24 @@ import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { adicionaisDe } from '../lib/adicionais.js';
 import { comboCompleto, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
-import { exige } from '../lib/auth.js';
+import { exige, pode } from '../lib/auth.js';
+import { mudancas } from '../lib/registro.js';
 
 export const catalogo = Router();
 
 /* ── Configuração do negócio ── */
 catalogo.get('/config', rota(async (req, res) => res.json(await getConfig())));
-catalogo.put('/config', exige('site'), rota(async (req, res) => res.json(await setConfig(req.body || {}))));
+catalogo.put('/config', exige('site'), rota(async (req, res) => {
+  const salva = await setConfig(req.body || {});
+  // Só as seções tocadas: a config inteira no registro seria ilegível, e o que
+  // se quer saber é "quem mexeu na marca do site na terça".
+  await req.registrar('config.alterada', {
+    alvoId: 'config',
+    resumo: `mudou a configuração (${Object.keys(req.body || {}).join(', ') || 'nada'})`,
+    detalhe: { secoes: Object.keys(req.body || {}) },
+  });
+  res.json(salva);
+}));
 
 /* ── Serviços ── */
 catalogo.get('/servicos', rota(async (req, res) =>
@@ -29,6 +40,7 @@ catalogo.post('/servicos', exige('cadastros'), rota(async (req, res) => {
     b.foto || '', b.mostrarPreco === false ? 0 : 1, b.somenteAdicional ? 1 : 0
   );
   await salvarVinculos(id, b.profissionais);
+  await req.registrar('servico.criado', { alvoId: id, resumo: `criou o serviço ${b.nome}` });
   const servicos = await listarServicos();
   res.status(201).json(servicos.find(s => s.id === id));
 }));
@@ -48,17 +60,37 @@ catalogo.put('/servicos/:id', exige('cadastros'), rota(async (req, res) => {
   );
   if (req.body.profissionais) await salvarVinculos(req.params.id, req.body.profissionais);
   const servicos = await listarServicos();
-  res.json(servicos.find(s => s.id === req.params.id));
+  const depois = servicos.find(s => s.id === req.params.id);
+
+  const mudou = mudancas(serviceOut(atual), depois,
+    ['nome', 'preco', 'duracao', 'intervalo', 'categoria', 'ativo', 'somenteAdicional']);
+  if (Object.keys(mudou).length) {
+    // Preço no meio de propósito: mudança de tabela é a que mais gera pergunta
+    // depois, e a que ninguém lembra de ter feito.
+    await req.registrar('servico.alterado', {
+      alvoId: req.params.id,
+      resumo: `editou ${depois.nome} (${Object.keys(mudou).join(', ')})`,
+      detalhe: mudou,
+    });
+  }
+  res.json(depois);
 }));
 
 catalogo.delete('/servicos/:id', exige('cadastros'), rota(async (req, res) => {
+  const alvo = await db.get('SELECT nome FROM services WHERE id=?', req.params.id);
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE service_id=?', req.params.id);
   if (usos > 0) {
     // Não apaga histórico: só some do site. Relatório do mês passado precisa do nome.
     await db.run('UPDATE services SET ativo=0 WHERE id=?', req.params.id);
+    await req.registrar('servico.arquivado', {
+      alvoId: req.params.id, resumo: `arquivou o serviço ${alvo?.nome || ''}`, detalhe: { usos },
+    });
     return res.json({ ok: true, arquivado: true, motivo: `${usos} agendamentos usam este serviço` });
   }
   await db.run('DELETE FROM services WHERE id=?', req.params.id);
+  await req.registrar('servico.apagado', {
+    alvoId: req.params.id, resumo: `apagou o serviço ${alvo?.nome || ''}`,
+  });
   res.json({ ok: true });
 }));
 
@@ -191,12 +223,19 @@ catalogo.put('/profissionais/:id', exige('equipe'), rota(async (req, res) => {
 }));
 
 catalogo.delete('/profissionais/:id', exige('equipe'), rota(async (req, res) => {
+  const alvo = await db.get('SELECT nome FROM staff WHERE id=?', req.params.id);
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE staff_id=?', req.params.id);
   if (usos > 0) {
     await db.run('UPDATE staff SET ativo=0 WHERE id=?', req.params.id);
+    await req.registrar('profissional.arquivada', {
+      alvoId: req.params.id, resumo: `arquivou ${alvo?.nome || ''}`, detalhe: { usos },
+    });
     return res.json({ ok: true, arquivado: true, motivo: `${usos} agendamentos no histórico` });
   }
   await db.run('DELETE FROM staff WHERE id=?', req.params.id);
+  await req.registrar('profissional.apagada', {
+    alvoId: req.params.id, resumo: `apagou ${alvo?.nome || ''} da equipe`,
+  });
   res.json({ ok: true });
 }));
 
@@ -374,6 +413,11 @@ catalogo.delete('/unidades/:id', exige('cadastros'), rota(async (req, res) => {
   // escolha dos serviços e dos combos.
   const equipe = await db.all('SELECT nome FROM staff WHERE unit_id = ? AND ativo = 1', req.params.id);
   await db.run('UPDATE units SET ativo = 0 WHERE id = ?', req.params.id);
+  await req.registrar('unidade.arquivada', {
+    alvoId: atual.id,
+    resumo: `arquivou a unidade ${atual.nome}`,
+    detalhe: { semUnidade: equipe.map(p => p.nome) },
+  });
 
   res.json({
     ok: true, arquivada: true,
@@ -389,3 +433,39 @@ function confere(b) {
   if (b.mapa && !/^https?:\/\//.test(b.mapa)) return 'o link do mapa precisa começar com http';
   return null;
 }
+
+/* ── o registro do painel ────────────────────────────────────────────────── *
+ *
+ * Quem fez o quê, dentro da empresa. A gravação está espalhada pelas rotas que
+ * mudam alguma coisa — cada uma sabe escrever a frase que uma pessoa entende —,
+ * e a leitura é aqui.
+ */
+catalogo.get('/logs', rota(async (req, res) => {
+  const cond = [], args = [];
+
+  // Funcionário vê o próprio rastro; dono vê o de todos. Mesma regra da agenda
+  // e do financeiro — e imposta aqui, não aceita do filtro que o front mandou.
+  if (!pode(req.usuario.papel, 'verDeTodos')) {
+    cond.push('l.user_id = ?');
+    args.push(req.usuario.id);
+  }
+  if (req.query.alvoId) { cond.push('l.alvo_id = ?'); args.push(req.query.alvoId); }
+  if (req.query.acao) { cond.push('l.acao LIKE ?'); args.push(req.query.acao + '%'); }
+  if (req.query.de) { cond.push('l.criado_em >= ?'); args.push(req.query.de); }
+
+  const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
+  const linhas = await db.all(
+    `SELECT l.id, l.acao, l.alvo_tipo, l.alvo_id, l.resumo, l.detalhe,
+            l.criado_em, l.usuario_nome
+       FROM logs l ${where}
+      ORDER BY l.criado_em DESC, l.id DESC LIMIT 300`,
+    ...args
+  );
+
+  res.json(linhas.map(l => ({
+    id: Number(l.id), acao: l.acao, alvoTipo: l.alvo_tipo, alvoId: l.alvo_id,
+    resumo: l.resumo, detalhe: l.detalhe, quando: l.criado_em,
+    // Congelado no momento da ação: o acesso pode ter sido apagado desde então.
+    usuario: l.usuario_nome || 'alguém',
+  })));
+}));

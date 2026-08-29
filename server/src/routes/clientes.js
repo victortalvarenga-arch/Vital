@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db, uid, clientOut, apptOut } from '../db.js';
 import { hoje, soDigitos, diasEntre } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
+import { mudancas } from '../lib/registro.js';
 
 export const clientes = Router();
 
@@ -67,6 +68,7 @@ clientes.post('/', rota(async (req, res) => {
     id, b.nome.trim(), fone, b.nascimento || null, b.endereco || '', b.obs || '',
     b.optin === false ? 0 : 1, hoje()
   );
+  await req.registrar('cliente.criado', { alvoId: id, resumo: `cadastrou ${b.nome.trim()}` });
   res.status(201).json(await comMetricas(clientOut(await db.get('SELECT * FROM clients WHERE id=?', id))));
 }));
 
@@ -79,12 +81,29 @@ clientes.put('/:id', rota(async (req, res) => {
     b.nome, soDigitos(b.fone), b.nascimento || null, b.endereco || '', b.obs || '',
     b.optin ? 1 : 0, req.params.id
   );
-  res.json(await comMetricas(clientOut(await db.get('SELECT * FROM clients WHERE id=?', req.params.id))));
+  const depois = clientOut(await db.get('SELECT * FROM clients WHERE id=?', req.params.id));
+  // `optin` no meio: é consentimento de marketing, e quem o desligou ou ligou é
+  // exatamente o que a LGPD pede para saber.
+  const mudou = mudancas(clientOut(atual), depois, ['nome', 'fone', 'nascimento', 'endereco', 'obs', 'optin']);
+  if (Object.keys(mudou).length) {
+    await req.registrar('cliente.alterado', {
+      alvoId: depois.id,
+      resumo: `editou ${depois.nome} (${Object.keys(mudou).join(', ')})`,
+      detalhe: mudou,
+    });
+  }
+  res.json(await comMetricas(depois));
 }));
 
 clientes.delete('/:id', rota(async (req, res) => {
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE client_id=?', req.params.id);
   if (usos > 0) return res.status(409).json({ erro: `cliente tem ${usos} agendamentos; remova o histórico primeiro` });
+  const alvo = await db.get('SELECT nome, fone FROM clients WHERE id=?', req.params.id);
   await db.run('DELETE FROM clients WHERE id=?', req.params.id);
+  await req.registrar('cliente.apagado', {
+    alvoId: req.params.id,
+    resumo: `apagou a ficha de ${alvo?.nome || 'alguém'}`,
+    detalhe: { nome: alvo?.nome, fone: alvo?.fone },
+  });
   res.json({ ok: true });
 }));
