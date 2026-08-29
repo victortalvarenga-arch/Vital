@@ -6,7 +6,8 @@ agendamento (ver `ROADMAP.md`).
 
 ## Rodar
 
-Precisa de **Node 20+** e **PostgreSQL 17** rodando na máquina.
+Precisa de **Node 20+** e **PostgreSQL 17** rodando na máquina. Não precisa de
+Docker, Redis, nem conta em serviço nenhum.
 
 ```bash
 # 1. Postgres, uma vez só (Windows)
@@ -15,12 +16,40 @@ psql -U postgres -c "CREATE DATABASE vital;"
 
 # 2. O projeto
 npm install                              # concurrently, na raiz
-cp server/.env.example server/.env       # ajuste DATABASE_URL se sua senha for outra
+cp server/.env.example server/.env       # ajuste a senha do postgres em DATABASE_ADMIN_URL
 npm run setup                            # instala server/ e web/, cria e popula o banco
-npm run dev                              # API em :3333, site em :5173
+npm run dev                              # API em :3333, front em :5173
 ```
 
-Duas páginas, dois bundles:
+**A única coisa que costuma precisar de ajuste é a senha do `postgres`** em
+`DATABASE_ADMIN_URL`, dentro do `server/.env` — a que você definiu ao instalar. O
+outro usuário (`vital_app`) é criado pelo próprio `setup`, com a senha que estiver
+no `.env`; você não precisa criá-lo à mão.
+
+### Montar em outra máquina, com os mesmos dados
+
+Os passos acima bastam: o banco é reconstruído por migrations e populado pelo
+`seed`, e **o resultado é o mesmo em qualquer máquina** — mesmos serviços, mesma
+equipe, mesmas unidades, o combo, a ficha de anamnese, os adicionais e as duas
+empresas de exemplo. Não há dump para copiar nem estado que fique de fora do Git.
+
+`cd server && npm run reset` refaz esse cenário do zero a qualquer momento, e é
+o comando para voltar ao ponto de partida depois de testar coisas.
+
+O que o cenário traz, e por que cada peça está lá:
+
+| | Para quê |
+|---|---|
+| **Estúdio Lume** — 11 serviços, 3 pessoas, 6 clientes, agenda de 4 meses | Telas cheias, relatório com número |
+| **Barbearia do João** — outro ramo, outra cor, outro vocabulário | Ver o isolamento entre empresas funcionando |
+| **Duas unidades** (Centro, Zona Sul) | O passo "onde você quer ser atendida" só aparece com mais de uma. Laura fica sem unidade de propósito: é o caso de quem atende nos dois endereços |
+| **Combo "Dia de cuidado"** | Preço cheio riscado, economia calculada, rateio da comissão |
+| **Adicionais** na limpeza e no peeling | Um extra que também se vende sozinho (design de sobrancelha) e um que não (depilação de buço) |
+| **Anamnese facial**, 4 perguntas | O passo de ficha no agendamento e a resposta no painel |
+
+Contas e endereços: `ACESSOS-DEV.md`.
+
+Três páginas, três bundles — um público cada:
 
 | Endereço | O que é |
 |---|---|

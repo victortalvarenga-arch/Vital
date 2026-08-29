@@ -169,12 +169,92 @@ await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
 await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
 await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
 
+await oResto();
 await contasDeDesenvolvimento();
 await equipeDaVital();
 await segundaEmpresa();
 
 console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
 
+}
+
+/**
+ * O que o estúdio de exemplo ganhou depois que o seed foi escrito.
+ *
+ * Unidades, adicionais, combo e formulário nasceram em blocos posteriores e
+ * ficaram de fora daqui — o que significa que uma máquina nova rodava
+ * `npm run reset` e via um sistema mais pobre do que o que existe. Seed que não
+ * mostra a funcionalidade é seed que faz a pessoa achar que ela não existe.
+ */
+async function oResto() {
+  const h = hoje();
+  /* ── unidades ─────────────────────────────────────────────────────────── */
+  // Duas, para a escolha de endereço aparecer no site. Com uma só, o passo some
+  // — e some com razão, mas aí não dá para ver como é.
+  const unidades = [
+    ['u1', 'Centro', 'Rua XV de Novembro, 100 — Centro', 0],
+    ['u2', 'Zona Sul', 'Av. Beira-Rio, 900 — Boa Vista', 1],
+  ];
+  for (const [id, nome, endereco, ordem] of unidades) {
+    await db.run(
+      `INSERT INTO units (id,nome,endereco,fone,mapa,jornada,ordem,ativo,criado_em)
+       VALUES (?,?,?,?,'','{}',?,1,?)`,
+      id, nome, endereco, '4733334444', ordem, h
+    );
+  }
+  // Laura fica sem unidade de propósito: é o caso de quem atende nos dois
+  // endereços, e o que o sistema faz com `unit_id` nulo.
+  await db.run(`UPDATE staff SET unit_id = 'u1' WHERE id = 's2'`);
+  await db.run(`UPDATE staff SET unit_id = 'u2' WHERE id = 's3'`);
+
+  /* ── serviços adicionais ──────────────────────────────────────────────── */
+  // Um extra que também se vende sozinho (design de sobrancelha na limpeza) e
+  // um que não (depilação de buço) — os dois casos que o Bloco 6c precisa
+  // mostrar lado a lado.
+  await db.run(
+    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem,somente_adicional)
+     VALUES ('v12','Depilação de buço','Facial','',30,15,5,1,11,1)`
+  );
+  await salvarVinculos('v12', ['s3']);
+
+  await db.run(`INSERT INTO service_addons (service_id, addon_id) VALUES ('v10','v8')`);
+  await db.run(`INSERT INTO service_addons (service_id, addon_id) VALUES ('v10','v12')`);
+  await db.run(`INSERT INTO service_addons (service_id, addon_id) VALUES ('v11','v12')`);
+  // Por categoria: qualquer serviço de Unhas oferece a plástica dos pés.
+  await db.run(`INSERT INTO category_addons (categoria, addon_id) VALUES ('Unhas','v5')`);
+
+  /* ── combo ────────────────────────────────────────────────────────────── */
+  // Limpeza (180) + design de sobrancelha (45) = 225 avulso, por 199.
+  await db.run(
+    `INSERT INTO combos (id,nome,descricao,preco,foto,valido_ate,ativo,ordem,criado_em)
+     VALUES ('k1','Dia de cuidado','Cuide do rosto inteiro num horário só',199,'',NULL,1,0,?)`,
+    h
+  );
+  await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k1','v10',0)`);
+  await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k1','v8',1)`);
+
+  /* ── formulário ───────────────────────────────────────────────────────── */
+  await db.run(
+    `INSERT INTO forms (id,nome,descricao,ativo,criado_em)
+     VALUES ('f1','Anamnese facial','Antes de começar, precisamos saber algumas coisas.',1,?)`,
+    h
+  );
+  const perguntas = [
+    ['fq1', 'Está grávida ou amamentando?', 'sim_nao', 1, [], ''],
+    ['fq2', 'Tipo de pele', 'escolha', 1, ['Seca', 'Oleosa', 'Mista', 'Sensível'], ''],
+    ['fq3', 'Usa algum ácido ou medicação?', 'longo', 0, [], 'Isso muda o que podemos aplicar hoje.'],
+    ['fq4', 'Já teve reação a algum produto?', 'longo', 0, [], ''],
+  ];
+  for (const [i, [id, rotulo, tipo, obrig, opcoes, ajuda]] of perguntas.entries()) {
+    await db.run(
+      `INSERT INTO form_fields (id,form_id,rotulo,ajuda,tipo,obrigatorio,opcoes,ordem)
+       VALUES (?, 'f1', ?, ?, ?, ?, ?, ?)`,
+      id, rotulo, ajuda, tipo, obrig, JSON.stringify(opcoes), i
+    );
+  }
+  // Pedida nos dois faciais — a mesma ficha serve a linha inteira.
+  await db.run(`INSERT INTO form_services (form_id, service_id) VALUES ('f1','v10')`);
+  await db.run(`INSERT INTO form_services (form_id, service_id) VALUES ('f1','v11')`);
 }
 
 /** Nada de conta ou empresa de demonstração fora da máquina de quem programa. */

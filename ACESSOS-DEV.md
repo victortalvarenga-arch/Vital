@@ -75,6 +75,22 @@ outra, e é o banco que recusa, não o código da rota.
 
 ---
 
+## O que já vem populado
+
+O `seed` reproduz o mesmo cenário em qualquer máquina — não há dump para copiar
+nem estado fora do Git.
+
+| No Estúdio Lume | |
+|---|---|
+| Unidades | Centro e Zona Sul. Bia atende no Centro, Karen na Zona Sul, Laura nos dois |
+| Combo | "Dia de cuidado" — limpeza + design por R$ 199, em vez de R$ 225 |
+| Adicionais | Design de sobrancelha e depilação de buço na limpeza; plástica dos pés em toda a categoria Unhas |
+| Só como adicional | Depilação de buço — não aparece sozinha na vitrine |
+| Formulário | Anamnese facial, 4 perguntas, pedida na limpeza e no peeling |
+
+Para ver cada um funcionando: escolha "Limpeza de pele profunda" no site — ela
+puxa a unidade, os adicionais e a ficha no mesmo agendamento.
+
 ## Cadastrar uma empresa nova
 
 Em <http://localhost:5173/vital.html>. Ela nasce **vazia** — sem serviço nem

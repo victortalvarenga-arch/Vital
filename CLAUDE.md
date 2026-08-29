@@ -113,6 +113,9 @@ escrito, não aconteceu.
   depois de `prepararBanco()`. Já apagou o banco de desenvolvimento uma vez.
 - Imagem sempre passa por `shared/imagem.js` antes de subir, e o nome do
   arquivo é decidido pelo servidor, nunca pelo cliente.
+- Funcionalidade nova entra também no `seed.js`. Ele é o que uma máquina nova
+  enxerga: cenário desatualizado faz a pessoa achar que a funcionalidade não
+  existe. `npm run reset` tem de reproduzir tudo.
 - Mexeu em regra de negócio, rode `cd server && npm test`. Teste novo entra em
   `server/test/`, com banco de verdade — ver `ARQUITETURA.md`.
 - Teste verde não é prova. Antes de dar a cobertura por feita, quebre o código

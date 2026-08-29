@@ -577,9 +577,13 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] Não há como exportar os dados de uma empresa, nem para ela levar embora
       nem para backup por empresa. Vira exigência de LGPD no dia do primeiro
       cliente de verdade.
-- [ ] `npm run reset` recria as duas empresas de exemplo, mas empresas criadas
-      pelo cadastro somem. Aceitável em desenvolvimento; anotado para não
-      surpreender.
+- [ ] `npm run reset` recria o cenário inteiro de exemplo, mas empresas criadas
+      pelo cadastro self-service somem. Aceitável em desenvolvimento; anotado
+      para não surpreender.
+- [ ] O cenário do `seed` precisa acompanhar cada funcionalidade nova. Unidades,
+      combos, adicionais e formulários ficaram de fora por blocos inteiros, e
+      uma máquina nova via um sistema mais pobre do que o que existe — seed que
+      não mostra a funcionalidade faz a pessoa achar que ela não existe.
 
 ## Importante para produção
 
