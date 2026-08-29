@@ -526,6 +526,10 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Banco
 
+- [ ] **`messages.dedupe_key` é UNIQUE global, sem `tenant_id`.** Funciona hoje
+      porque os ids são aleatórios e não colidem entre empresas — mas é a única
+      restrição do sistema que atravessa a fronteira, e um `ON CONFLICT DO
+      NOTHING` em cima dela engoliria a mensagem de outra empresa em silêncio.
 - [ ] **Tabela nova em `public` nasce com UPDATE e DELETE para a aplicação**, por
       causa do `ALTER DEFAULT PRIVILEGES` da migration 002. É o padrão certo para
       tabela de negócio e o errado para tabela que só cresce — `logs` precisou de
@@ -544,8 +548,9 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 - [ ] Catálogo, clientes, config e uploads não têm teste de rota. São as que
       sobraram; agenda, combos, cadastro, plataforma e isolamento têm.
-- [ ] A fila de WhatsApp (`jobs/mensagens.js`) não tem teste nenhum, e é código
-      que roda sozinho, sem ninguém olhando.
+- [ ] `despachar()` só é testado no modo manual, que é o de hoje. O caminho da
+      Cloud API da Meta — sucesso, erro, marcação de enviado — não tem teste, e
+      precisará de um provider falso quando a conta sair.
 - [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
       que ela segura.
 

@@ -947,9 +947,17 @@ precisa de duas para aparecer.
 ## Testes
 
 `cd server && npm test`. Roda com o `node:test` nativo — sem framework, sem
-dependência a mais. Quatro arquivos: o motor de horários, chamado direto, e as
-rotas de agendamento, de combos e de isolamento entre empresas, faladas por
-HTTP.
+dependência a mais. Nove arquivos: o motor de horários e o rateio de combos,
+chamados direto; as rotas de agendamento, combos, cadastro, unidades,
+formulários, registro e plataforma, faladas por HTTP; o isolamento entre
+empresas; e a fila de WhatsApp.
+
+**A fila tem teste porque é o único código que roda sozinho e alcança gente de
+verdade.** O cron chama, e a mensagem sai para o telefone da cliente de um
+cliente nosso — um defeito ali não aparece em tela nenhuma, aparece no celular de
+alguém, e o que se manda não volta. Três garantias mandam nesses testes: não
+mandar duas vezes (o cron roda a cada dez minutos), não mandar marketing para
+quem desligou o `optin`, e não mandar lembrete para quem cancelou.
 
 **Montar a aplicação e subir a aplicação são coisas separadas.** `app.js`
 exporta o Express montado; `index.js` roda as migrations, abre a porta e liga o
