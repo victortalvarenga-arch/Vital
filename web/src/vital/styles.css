@@ -5,6 +5,13 @@
  * a cor é fixa e é a nossa. É a diferença que faz a página de cadastro parecer
  * um produto e não um formulário do sistema de alguém.
  */
+
+/* IBM Plex Sans no corpo, IBM Plex Mono no registro de auditoria — a mesma
+   origem tipográfica nas duas vozes da página, em vez de Inter (que nem
+   carregava: era declarado sem import, e a página renderizava na fonte do
+   sistema em silêncio) ao lado de uma mono de família diferente. */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 :root {
   --v-tinta: #17141C;
   --v-papel: #FFFFFF;
@@ -23,7 +30,7 @@ body {
   margin: 0;
   background: var(--v-fundo);
   color: var(--v-tinta);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;

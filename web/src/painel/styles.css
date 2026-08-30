@@ -2,7 +2,9 @@
 
 body { --ink:#241A28; --ink2:#3B2B41; --porcelain:#FBF6F4; --paper:#FFFFFF;
   --blush:#EEDBD6; --lacquer:#A32A4E; --lacquer-d:#7E1E3C; --uv:#6A57C7;
-  --gold:#A98243; --line:#E7D8D4; --muted:#806E7B; --ok:#3E7D63; --warn:#B4762A;
+  /* Era #806E7B (4,42:1 sobre --porcelain — abaixo do mínimo AA de 4,5:1
+     quando o texto muted está direto no fundo da página, não num cartão). */
+  --gold:#A98243; --line:#E7D8D4; --muted:#7A6975; --ok:#3E7D63; --warn:#B4762A;
   font-family:'Karla',system-ui,sans-serif; color:var(--ink); background:var(--porcelain);
   min-height:100vh; -webkit-font-smoothing:antialiased; }
 *{box-sizing:border-box}
@@ -157,7 +159,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .linha.meia{opacity:.4}
 
 .appt{position:absolute; border-radius:8px; padding:4px 6px; font-size:11px; line-height:1.28;
-  overflow:hidden; border:none; border-left:4px solid; color:var(--ink); text-align:left;
+  overflow:hidden; border:none; border-left:4px solid; color:var(--ink); text-align:left; /* impeccable-disable-line side-tab -- a cor é o dado (de quem é o atendimento), não enfeite; ver ARQUITETURA.md "A agenda do painel" */
   touch-action:none; cursor:grab; transition:box-shadow .12s, transform .12s}
 .appt:hover{filter:brightness(.97)}
 .appt b{font-size:12px; display:block; font-weight:700; white-space:nowrap;
@@ -457,7 +459,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .reg-dia-t{font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
   color:var(--muted); margin:0 0 8px 2px}
 .reg{display:flex; gap:12px; align-items:baseline; background:var(--paper);
-  border:1px solid var(--line); border-left:3px solid var(--line);
+  border:1px solid var(--line); border-left:3px solid var(--line); /* impeccable-disable-line side-tab -- .reg.bom/.reg.ruim recolorem esta borda para dizer se a ação foi positiva ou negativa; é o dado, não enfeite */
   border-radius:10px; padding:10px 13px; margin-bottom:7px}
 .reg.ruim{border-left-color:#B4483F}
 .reg.bom{border-left-color:var(--ok)}
