@@ -2,26 +2,105 @@
    e esta tela vira app (Capacitor) mais pra frente: nada aqui pode depender de
    mouse. As cores vêm de tema.js, a partir da config da empresa. */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --marca: #A32A4E;
-  --marca-escura: #7E1E3C;
-  --marca-clara: #F6E9ED;
-  --marca-borda: #E4C7CF;
-  /* Precisa existir aqui também: tema.js só roda depois que a vitrine responde,
-     e sem o padrão o bloco de serviços pisca sem fundo no primeiro quadro. */
-  --marca-fundo: #FBF4F6;
+  /* ── cor: a única coisa que a empresa personaliza ──
+     --marca chega em runtime, de tema.js, a partir da config da empresa. Os
+     valores abaixo são o padrão do estúdio de exemplo, e existem aqui só para
+     o primeiro quadro, antes de tema.js rodar (sem isso o bloco de serviços
+     pisca sem fundo). Nunca escreva uma cor de marca fixa em CSS novo — é
+     dado do tenant, não constante de design. */
+  --marca: #3F6350;
+  --marca-escura: #2F4A3C;
+  --marca-clara: #E8ECEA;
+  --marca-borda: #C9D3CE;
+  --marca-fundo: #F3F6F5;
   --sobre-marca: #FFFFFF;
+  /* --marca-escura é o preenchimento cheio do site (botão primário, cartão de
+     destaque, dia selecionado, selo) — não um -25% fixo: tema.js escurece
+     --marca só o quanto for preciso para ela mesma aguentar --sobre-marca-
+     escura em cima, com folga (paraTextoBranco). Metade das cores que uma
+     empresa escolhe (sálvia, pastel) não sustenta branco na própria
+     intensidade; sem isso, --marca+--sobre-marca lia como "texto preto
+     comum" nesses casos. --marca continua a cor exata da empresa, para
+     acento, borda e ícone solto. */
+  --sobre-marca-escura: #FFFFFF;
+  /* Texto/ícone sobre --marca-clara (a inicial do círculo de serviço). Em
+     modelo claro é a própria --marca (alto contraste contra um fundo quase
+     branco); em modelo escuro, tema.js recalcula para preto ou branco, porque
+     --marca-clara ali é um tom médio da mesma cor de --marca. */
+  --sobre-marca-clara: var(--marca);
+  /* --marca usada como texto puro (link em hover, foco, "obrigatório"),
+     clareada o suficiente para valer 3:1 contra --fundo quando o modelo é
+     escuro. Em modelo claro é a própria --marca, sem mudança. */
+  --marca-legivel: var(--marca);
+
+  /* ── cor: fixas, não personalizáveis ── */
   --fundo: #FFFFFF;
   --texto: #1A1A1A;
-
   --cinza: #6B6B6B;
-  --fraco: #9A9A9A;
+  --fraco: #737373;
   --linha: #E8E8E8;
   --superficie: #FAFAFA;
+
+  /* ── forma ──
+     Estes cinco (mais a tipografia abaixo) são o que separa um modelo do
+     outro — [data-template="..."], mais adiante, redefine todos. Os nomes
+     ficam (--sombra-bandeja existia antes de haver um segundo modelo); tratar
+     como "sombra do objeto", não como exclusiva da Bandeja. */
   --raio: 14px;
+  --pilula: 999px;
   --sombra: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px -16px rgba(0, 0, 0, .18);
+  /* Sombra direcional — luz vindo de um lado só, como numa bandeja de
+     tratamento fotografada em estúdio, não a claridade simétrica de um ícone
+     flutuando. Usada nos círculos de serviço, que são os "objetos" da mesa. */
+  --sombra-bandeja: -3px 10px 20px -14px rgba(37, 45, 40, .35), 0 1px 2px rgba(37, 45, 40, .06);
+  /* Mesma luz, mais perto — o objeto "levanta" da bandeja no hover. */
+  --sombra-bandeja-hover: -4px 14px 28px -14px rgba(37, 45, 40, .4), 0 2px 4px rgba(37, 45, 40, .08);
+
+  /* ── tipografia: família ──
+     --fonte-mono e --fonte-display caem para a mesma família do corpo por
+     padrão — só um modelo redefine cada uma quando tem motivo pra isso
+     (Quadro de Horários, para números; Clínica, para o nome/títulos). Os
+     outros dois continuam de uma família só, de propósito (The One-Family
+     Rule). */
+  --fonte-corpo: 'Manrope', system-ui, -apple-system, sans-serif;
+  --fonte-mono: var(--fonte-corpo);
+  --fonte-display: var(--fonte-corpo);
+
+  /* ── tipografia: escala única, por papel ──
+     Onze degraus em vez de dezessete valores soltos — cada um usado onde o
+     papel se repete (rótulo, legenda, corpo, título...), não onde um pixel
+     pareceu certo numa tela só. --t-corpo-gr é também o corpo padrão do
+     <body>; nunca a use em <input>/<select>/<textarea> — esses campos ficam
+     com 16px literal de propósito (abaixo disso o iOS aplica zoom ao focar,
+     o que quebraria a janela de agendamento no meio do fluxo). */
+  --t-rotulo: 11px;
+  --t-legenda: 12.5px;
+  --t-auxiliar: 13.5px;
+  --t-corpo-pq: 14.5px;
+  --t-corpo: 15px;
+  --t-corpo-gr: 16px;
+  --t-titulo-pq: 17px;
+  --t-titulo: 19px;
+  --t-destaque: 24px;
+  --t-secao: 26px;
+  --t-hero: 34px;
+
+  /* ── espaçamento: ritmo do layout, não alvo de toque ──
+     Nove degraus para o espaço ENTRE elementos — gap, gutter, gap de seção.
+     Alvo de toque (44/48px) é outra coisa: tamanho mínimo de área clicável,
+     não ritmo visual, e por isso continua como valor literal onde aparece. */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 20px;
+  --e-6: 24px;
+  --e-7: 32px;
+  --e-8: 40px;
+  --e-9: 52px;
 }
 
 * { box-sizing: border-box; }
@@ -30,13 +109,244 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 16px;
+  font-family: var(--fonte-corpo);
+  font-size: var(--t-corpo-gr);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background .25s ease, color .25s ease;
   /* Respeita o recorte da tela no iPhone quando virar app. */
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Números que se leem como dado, não como prosa — preço, hora, dia. Cada
+   modelo decide se --fonte-mono é diferente da do corpo (só o Quadro de
+   Horários é); os demais herdam a mesma família, sem custo. */
+.svc-preco, .destaque-valor, .destaque-cheio, .promo-preco, .promo-cheio,
+.hora, .cal-dia, .cal-mes, .jn-resumo-fim strong, .jn-item dd {
+  font-family: var(--fonte-mono);
+}
+
+/* ══ MODELOS ══════════════════════════════════════════════════════════════
+   Tudo acima e abaixo deste bloco é o esqueleto: layout, comportamento,
+   acessibilidade — compartilhado pelos quatro modelos, sem exceção. Aqui
+   embaixo é só a pele: cor de fundo/texto, forma, sombra e fonte, mais um
+   punhado de ajustes pontuais que cada modelo pede para a própria identidade
+   ficar de pé (nunca um segundo layout). `[data-template]` mora em <html>,
+   escrito por tema.js a partir de marca.template — sem ele (JS ainda não
+   rodou), o :root acima já é o padrão "bandeja", então a primeira pintura
+   nunca fica sem tema.
+
+   --marca e seus vizinhos (--marca-escura, --marca-clara, --marca-borda,
+   --marca-fundo, --sobre-marca, --sobre-marca-escura) NÃO se repetem aqui:
+   tema.js já os calcula por modelo (ver FUNDO_ESCURO em tema.js) e os grava
+   como estilo inline, que sempre vence uma regra de folha de estilo — repetir
+   os valores aqui seria escrever uma segunda fonte da verdade que o inline
+   nunca deixaria valer. */
+
+/* ── Quadro de Horários ──────────────────────────────────────────────────
+   Tese: agendar aqui é tão preciso quanto o painel de uma rodoviária bem
+   administrada. Fundo grafite, números em mono, cantos quase retos, sem
+   sombra nenhuma — a precisão vem da grade, não da luz. */
+[data-template="quadro"] {
+  --fundo: #1C1F1D;
+  --texto: #F2EFE9;
+  --cinza: #C9C2B4;
+  --fraco: #A39C90;
+  --linha: #34382F;
+  --superficie: #242825;
+
+  --raio: 6px;
+  --pilula: 6px;
+  --sombra: none;
+  /* Sem sombra nenhuma no modelo — o hover do objeto vira um contorno vivo
+     em vez de luz, porque "luz de um lado só" não existe num painel plano. */
+  --sombra-bandeja: none;
+  --sombra-bandeja-hover: 0 0 0 2px var(--marca);
+
+  --fonte-corpo: 'Archivo', system-ui, -apple-system, sans-serif;
+  --fonte-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+/* Caixa-alta só aqui: um painel de horários real escreve em maiúscula, e é a
+   única exceção à regra "sem caixa-alta" que vale para os outros modelos. */
+[data-template="quadro"] .identidade h1 { text-transform: uppercase; letter-spacing: -.01em; }
+/* .b-c usa var(--linha) como cor de fundo do botão secundário — no escuro
+   isso já basta para ler como "objeto de interface", sem precisar de sombra. */
+
+/* ── Caderneta ───────────────────────────────────────────────────────────
+   Tese: agendar aqui é escrever o compromisso na caderneta de alguém que te
+   conhece. Kraft, linhas de caderno de verdade no cabeçalho, um traço de
+   caligrafia só na confirmação — nunca no corpo, que continua limpo. */
+[data-template="caderneta"] {
+  --fundo: #F1E9DA;
+  --texto: #2B2620;
+  --cinza: #5C5140;
+  --fraco: #6E6350;
+  --linha: #DDD0B8;
+  --superficie: #E8DEC8;
+
+  --raio: 12px;
+  --sombra: 0 1px 3px rgba(43, 38, 32, .08), 0 6px 16px -10px rgba(43, 38, 32, .15);
+  --sombra-bandeja: -2px 6px 14px -10px rgba(43, 38, 32, .22);
+  --sombra-bandeja-hover: -3px 9px 20px -10px rgba(43, 38, 32, .28);
+
+  --fonte-corpo: 'Figtree', system-ui, -apple-system, sans-serif;
+}
+/* Papel pautado de verdade, só no cabeçalho — não em toda superfície clara,
+   que viraria papel de carta em vez de um traço só. */
+[data-template="caderneta"] .identidade {
+  background-image: repeating-linear-gradient(to bottom,
+    transparent, transparent 27px, var(--linha) 27px, var(--linha) 28px);
+}
+/* O único lugar com letra de mão: o momento de maior satisfação do fluxo,
+   como se alguém tivesse escrito a confirmação à mão na hora. */
+[data-template="caderneta"] .jn-pronto h3 {
+  font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; letter-spacing: 0;
+}
+
+/* ── Clínica ─────────────────────────────────────────────────────────────
+   Tese: agendar aqui parece uma clínica premium de verdade — neutro, arejado,
+   confiante. Referência original: identidade real de uma clínica de estética
+   (inspiraestetica.com.br) — fundo quase-branco, sombra ambiente bem discreta,
+   espaço generoso em vez de ornamento.
+
+   A tipografia foi corrigida depois, contra uma segunda referência real: o
+   kit de marca da Laura Faust, primeira cliente confirmada da Vital, que usa
+   exatamente este par (título fino e alto + Montserrat no corpo). Vira o
+   padrão do modelo — não só dela — porque é uma combinação genuinamente boa
+   para o registro "clínica premium", não uma imposição da marca de uma
+   cliente sobre as outras. É a segunda exceção nomeada ao One-Family Rule
+   (a primeira foi a Caveat da Caderneta): título e corpo em famílias
+   diferentes, só aqui. */
+[data-template="clinica"] {
+  --fundo: #FFFFFF;
+  --texto: #1E2023;
+  --cinza: #4B4F55;
+  --fraco: #65696F;
+  --linha: #E4E5E7;
+  --superficie: #F6F7F8;
+
+  --raio: 12px;
+  --sombra: 0 2px 8px rgba(20, 20, 25, .04), 0 16px 40px -24px rgba(20, 20, 25, .12);
+  --sombra-bandeja: 0 4px 16px -6px rgba(20, 20, 25, .14);
+  --sombra-bandeja-hover: 0 8px 28px -8px rgba(20, 20, 25, .18);
+
+  --fonte-corpo: 'Montserrat', system-ui, -apple-system, sans-serif;
+  /* Aproximação de "ALTA" (fonte da identidade dela, licença não confirmada
+     — ver DESIGN.md) — geométrica, fina, alta, sem serifa. */
+  --fonte-display: 'Tenor Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Uma banda de verdade com a cor da empresa — não o wash de --marca-fundo,
+   que é claro demais para quebrar a leitura de "página branca". Usada em
+   "Quem cuida de você" e no rodapé (Contato): intercala com o branco das
+   seções vizinhas sem precisar de foto nem de conteúdo novo. Só o próprio
+   fundo/texto muda aqui — cada seção que usa a classe ajusta os filhos que
+   tinham cor fixa (ver .equipe-item p e o bloco .rodape.bloco-cheio). */
+.bloco-cheio { background: var(--marca-escura); color: var(--sobre-marca-escura); }
+
+/* Cabeçalho de duas colunas — só a Clínica tem esta estrutura (ver
+   HeroClinica em App.jsx e a nota "Do build new site markup..." no
+   DESIGN.md: é a exceção nomeada, não um padrão para os outros modelos). */
+.clinica-hero {
+  display: grid; grid-template-columns: 1fr; gap: var(--e-8);
+  align-items: center; padding: var(--e-9) 20px;
+}
+@media (min-width: 860px) {
+  .clinica-hero { grid-template-columns: 1.05fr .95fr; gap: var(--e-9); padding: var(--e-9) 20px; }
+}
+.clinica-hero-txt { max-width: 46ch; }
+.clinica-hero-visual {
+  position: relative;
+  aspect-ratio: 4 / 5; width: 100%; border-radius: 20px; overflow: hidden;
+  background: var(--marca-fundo); box-shadow: var(--sombra);
+  display: grid; place-items: center;
+}
+.clinica-hero-visual img { width: 100%; height: 100%; object-fit: cover; }
+.clinica-hero-marca { font-size: clamp(56px, 10vw, 104px); font-weight: 700; color: var(--marca); }
+/* Só aparece com marca.capas de mais de um item — hoje, sem tela no painel
+   para cadastrar mais de uma capa, nunca renderiza de verdade. */
+.clinica-hero-pontos {
+  position: absolute; left: 50%; bottom: var(--e-4); transform: translateX(-50%);
+  display: flex; gap: 7px;
+}
+.clinica-ponto {
+  width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.55);
+  transition: background .2s; /* nunca width/height: força reflow numa lista de pontos */
+}
+.clinica-ponto.on { background: #fff; }
+@media (max-width: 859px) { .clinica-hero-visual { aspect-ratio: 16 / 10; } }
+
+/* ── seções extras da Clínica (equipe, antes/depois, avaliações, Instagram,
+   mapa) — ver Clinica.jsx. Só renderizam nesse modelo, então vivem como
+   classes soltas, sem precisar de [data-template="clinica"]: a própria
+   condição no JSX já garante que nenhum outro modelo as usa. ── */
+
+.equipe-grade {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--e-7) var(--e-5); max-width: 780px;
+}
+.equipe-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--e-2); }
+.equipe-foto {
+  width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 32px; font-weight: 700; background: var(--marca-fundo); color: var(--marca);
+  box-shadow: var(--sombra-bandeja);
+}
+.equipe-item h4 { font-size: var(--t-corpo); font-weight: 600; }
+.equipe-item p { font-size: var(--t-corpo-pq); color: var(--cinza); }
+/* Dentro da banda cheia, h4 e o círculo (que carrega a própria cor, tingida
+   por profissional) já leem bem por herança — só a função, com cor fixa
+   acima, precisa deste ajuste. */
+.bloco-cheio .equipe-item p { color: inherit; opacity: .82; }
+
+.secao-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-4); flex-wrap: wrap; }
+.secao-cab .bloco-titulo { margin-bottom: 0; }
+.em-breve {
+  font-size: var(--t-legenda); font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--fraco); border: 1px solid var(--linha); border-radius: 999px; padding: 4px 12px;
+  margin-bottom: var(--e-7); flex: none;
+}
+
+/* Antes e depois: o controle é o <input type=range> logo abaixo, visível de
+   propósito — nada escondido atrás de arrastar-e-torcer. A alça sobre a
+   imagem só acompanha visualmente. */
+.ad-slider {
+  position: relative; aspect-ratio: 16 / 9; max-width: 720px; margin-top: var(--e-6);
+  border-radius: 20px; overflow: hidden; box-shadow: var(--sombra);
+}
+.ad-lado { position: absolute; inset: 0; display: grid; place-items: center; }
+.ad-lado span {
+  font-size: var(--t-legenda); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--fraco);
+}
+.ad-antes { background: var(--superficie); }
+.ad-depois { background: var(--marca-fundo); clip-path: inset(0 0 0 var(--pos)); }
+.ad-alca {
+  position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fundo);
+  transform: translateX(-1px); pointer-events: none;
+  display: flex; align-items: center; justify-content: center; gap: 1px; color: var(--fraco);
+}
+.ad-controle { width: 100%; max-width: 720px; margin-top: var(--e-4); accent-color: var(--marca); }
+.ad-legenda { font-size: var(--t-auxiliar); color: var(--fraco); margin-top: var(--e-3); max-width: 60ch; }
+
+.vazio-cartao {
+  display: flex; flex-direction: column; align-items: center; gap: var(--e-3); text-align: center;
+  max-width: 440px; padding: var(--e-8) var(--e-6); border: 1px dashed var(--linha); border-radius: 16px;
+  color: var(--fraco); font-size: var(--t-corpo-pq);
+}
+
+.insta-painel {
+  display: flex; align-items: center; gap: var(--e-5); flex-wrap: wrap;
+  background: var(--fundo); border-radius: 20px; padding: var(--e-6) var(--e-7); box-shadow: var(--sombra);
+  color: var(--marca);
+}
+.insta-txt { flex: 1; min-width: 200px; color: var(--texto); }
+.insta-txt p { color: var(--cinza); font-size: var(--t-corpo-pq); margin-top: 4px; }
+
+.mapa-caixa {
+  aspect-ratio: 21 / 9; border-radius: 16px; overflow: hidden; box-shadow: var(--sombra);
+}
+.mapa-caixa iframe { width: 100%; height: 100%; border: 0; }
+@media (max-width: 640px) { .mapa-caixa { aspect-ratio: 4 / 3; } }
 
 h1, h2, h3, h4 { margin: 0; line-height: 1.2; letter-spacing: -.02em; font-weight: 700; }
 p { margin: 0; }
@@ -44,33 +354,41 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 a { color: inherit; }
 img { max-width: 100%; display: block; }
 
-:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--marca-legivel); outline-offset: 2px; border-radius: 4px; }
 
 .env { max-width: 640px; margin: 0 auto; padding: 0 20px; }
 /* A grade de círculos respira melhor larga; o resto do site continua estreito,
    que é o que se lê bem. */
 .env-largo { max-width: 900px; margin: 0 auto; padding: 0 20px; }
-.centro { display: grid; place-items: center; min-height: 70vh; text-align: center; padding: 24px; }
-.vazio { color: var(--fraco); font-size: 14.5px; padding: 20px 0; text-align: center; }
+.centro { display: grid; place-items: center; min-height: 70vh; text-align: center; padding: var(--e-6); }
+.vazio { color: var(--fraco); font-size: var(--t-corpo-pq); padding: var(--e-5) 0; text-align: center; }
 
 /* ── botões ── */
 .b {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px 22px; border-radius: 999px; font-size: 15px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2);
+  padding: 14px var(--e-6); border-radius: var(--pilula); font-size: var(--t-corpo); font-weight: 600;
   transition: background .15s, border-color .15s, opacity .15s;
-  /* 44px é o mínimo confortável para o dedo. */
+  /* 44px é o mínimo confortável para o dedo — alvo de toque, não ritmo. */
   min-height: 48px;
 }
-.b-p { background: var(--marca); color: var(--sobre-marca); }
-.b-p:hover { background: var(--marca-escura); }
-.b-p:disabled { background: var(--linha); color: var(--fraco); cursor: not-allowed; }
+/* --marca-escura, não --marca: o botão primário é preenchimento cheio, e boa
+   parte das cores que uma empresa escolhe (sálvia, pastel) não sustenta
+   branco na própria intensidade — --marca-escura já vem escurecida só o
+   necessário para isso (ver tema.js, paraTextoBranco). */
+.b-p { background: var(--marca-escura); color: var(--sobre-marca-escura); }
+.b-p:hover { filter: brightness(.9); }
+.b-p:disabled { background: var(--linha); color: var(--fraco); cursor: not-allowed; filter: none; }
 .b-c { border: 1px solid var(--linha); background: var(--fundo); }
-.b-c:hover { border-color: var(--marca); color: var(--marca); }
-.b-peq { padding: 10px 16px; min-height: 40px; font-size: 14px; }
+.b-c:hover { border-color: var(--marca-legivel); color: var(--marca-legivel); }
+.b-peq { padding: 10px var(--e-4); min-height: 40px; font-size: var(--t-corpo-pq); }
 .b-larg { width: 100%; }
 
-/* ── capa e identidade ── */
-.capa { position: relative; height: 260px; background: var(--marca-clara); overflow: hidden; }
+/* ── capa e identidade ──
+   A capa (quando existe) é uma peça acima do cabeçalho, não o cabeçalho em
+   si — o nome nunca depende de foto para parecer intencional. Sem capa
+   (nenhuma empresa de exemplo tem uma hoje), o cabeçalho já nasce completo
+   sobre o fundo lavado da marca. */
+.capa { position: relative; height: 260px; overflow: hidden; }
 /* Zoom lento na entrada, uma vez só. Dá vida à capa sem depender do scroll,
    que no celular engasga e embrulha o estômago de quem é sensível. */
 .capa img {
@@ -78,46 +396,81 @@ img { max-width: 100%; display: block; }
   animation: aproxima 1.4s cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes aproxima { from { transform: scale(1.08) } to { transform: none } }
-.capa-vazia { width: 100%; height: 100%; background: linear-gradient(135deg, var(--marca-clara), var(--marca-borda)); }
 /* Escurece a base da capa para o logo branco não sumir numa foto clara. */
 .capa-veu {
   position: absolute; inset: auto 0 0 0; height: 60%;
   background: linear-gradient(to bottom, transparent, rgba(0,0,0,.18));
 }
 
-.identidade { text-align: center; margin-top: -52px; position: relative; z-index: 1; padding-bottom: 44px; }
+.identidade { background: var(--marca-fundo); overflow: hidden; }
+/* A barra é fixa (position: fixed) e não empurra o conteúdo abaixo dela —
+   sem esta folga, ela cobria o topo do nome (ou da foto, na Clínica) sempre
+   que não havia a faixa .capa clássica embaixo pra absorver a sobreposição.
+   62px é a altura de .barra-in; a inset extra é o mesmo recorte de tela que
+   a barra já reserva para si. */
+.identidade-sem-capa { padding-top: calc(62px + env(safe-area-inset-top)); }
+.identidade-in {
+  text-align: left; padding: var(--e-9) 20px var(--e-8);
+  display: flex; flex-direction: column; align-items: flex-start;
+}
 .logo {
-  width: 92px; height: 92px; border-radius: 50%; margin: 0 auto 16px;
-  background: var(--fundo); border: 3px solid var(--fundo);
-  box-shadow: var(--sombra); display: grid; place-items: center; overflow: hidden;
+  width: 52px; height: 52px; border-radius: 50%; margin: 0 0 var(--e-4);
+  background: var(--fundo); border: 1px solid var(--marca-borda);
+  box-shadow: var(--sombra-bandeja); display: grid; place-items: center; overflow: hidden; flex: none;
 }
 .logo img { width: 100%; height: 100%; object-fit: cover; }
-.logo-letra { font-size: 34px; font-weight: 700; color: var(--marca); }
+.logo-letra { font-size: var(--t-titulo-pq); font-weight: 700; color: var(--marca-legivel); }
 
-.identidade h1 { font-size: 26px; text-transform: uppercase; letter-spacing: .01em; }
-.identidade .slogan { color: var(--cinza); font-size: 15px; margin-top: 6px; }
-.identidade .local {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
-  color: var(--cinza); font-size: 14px; text-decoration: none;
+/* O nome é o maior elemento de toda a página — bem maior que qualquer outro
+   degrau da escala, porque a própria empresa é o destaque do cabeçalho, não
+   uma foto que ela talvez não tenha. Fluido (clamp) para ter presença de
+   verdade em telas largas sem estourar no celular. Sem caixa-alta e alinhado
+   à esquerda: centralizado e maiúsculo lê como crachá de recepção, não como
+   nome de marca. */
+.identidade h1 {
+  font-family: var(--fonte-display);
+  font-size: clamp(38px, 5vw + 20px, 64px); line-height: .98; letter-spacing: -.03em;
+  max-width: 14ch;
 }
-.identidade .local:hover { color: var(--marca); }
-.chamada { margin: 26px 0 6px; }
+.identidade .slogan { color: var(--cinza); font-size: var(--t-titulo-pq); margin-top: var(--e-3); max-width: 32ch; }
+.identidade .local {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: var(--e-3);
+  color: var(--cinza); font-size: var(--t-corpo-pq); text-decoration: none;
+}
+.identidade .local:hover { color: var(--marca-legivel); }
+.chamada { margin-top: var(--e-7); width: 100%; max-width: 320px; }
+
+/* Um único momento autoral de entrada — o cabeçalho sobe em sequência ao
+   carregar a página, não ao rolar (já está visível). É o único lugar do
+   site com um gesto orquestrado; o resto usa o revela discreto de sempre,
+   de propósito, para não competir com esta primeira impressão. */
+@keyframes identidade-sobe { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.identidade-in > * { animation: identidade-sobe .6s cubic-bezier(.22,1,.36,1) both; }
+.identidade-in .logo { animation-delay: 0s; }
+.identidade-in h1 { animation-delay: .08s; }
+.identidade-in .slogan { animation-delay: .16s; }
+.identidade-in .local { animation-delay: .22s; }
+.identidade-in .chamada { animation-delay: .3s; }
 
 /* ── blocos ──
    A página é uma pilha de faixas, cada uma com o próprio fundo. Separa os
    assuntos sem precisar de linha divisória e dá ritmo à rolagem. */
-.bloco { padding: 52px 0; }
+.bloco { padding: var(--e-9) 0; }
 .bloco-marca { background: var(--marca-fundo); }
 .rodape { background: var(--superficie); }
 
+/* Esquerda, não centro — o cabeçalho já estabeleceu leitura à esquerda, e
+   manter isso em toda a página é o que faz ela parecer uma decisão, não um
+   modelo de site de serviço genérico com tudo simetricamente no meio. */
 .bloco-titulo {
-  font-size: 26px; text-align: center; margin-bottom: 30px; letter-spacing: -.02em;
+  font-family: var(--fonte-display);
+  font-size: clamp(24px, 2vw + 16px, 30px); text-align: left; margin-bottom: var(--e-7); letter-spacing: -.02em;
 }
 .bloco-titulo.pequeno {
-  font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--fraco); text-align: left; margin-bottom: 16px;
+  font-size: var(--t-legenda); font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--fraco); text-align: left; margin-bottom: var(--e-4);
 }
-.sobre { color: var(--cinza); font-size: 15.5px; line-height: 1.65; text-align: center; }
+.sobre { color: var(--cinza); font-size: var(--t-corpo); line-height: 1.65; text-align: left; max-width: 62ch; }
 
 /* revelar ao rolar: sutil de propósito — a página existe para agendar rápido,
    não para impressionar. Some inteiro para quem pediu menos movimento. */
@@ -147,38 +500,38 @@ img { max-width: 100%; display: block; }
 
 .barra-in {
   position: relative; display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; height: 62px;
+  gap: var(--e-3); height: 62px;
 }
 .barra-marca { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .barra-logo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex: none; }
 .barra-nome {
-  font-weight: 700; font-size: 15.5px; color: #fff;
+  font-weight: 700; font-size: var(--t-corpo); color: #fff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: color .25s ease;
 }
 .barra.firme .barra-nome { color: var(--texto); }
 
-.barra-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
+.barra-acoes { display: flex; align-items: center; gap: var(--e-2); flex: none; }
 .barra-link {
   display: inline-flex; align-items: center; gap: 7px; color: #fff;
-  font-size: 14px; font-weight: 600; text-decoration: none;
+  font-size: var(--t-corpo-pq); font-weight: 600; text-decoration: none;
   padding: 0 10px; min-height: 44px; border-radius: 10px;
   transition: color .25s ease, background .15s ease;
 }
 .barra.firme .barra-link { color: var(--cinza); }
 .barra-link:hover { background: rgba(255,255,255,.16); }
-.barra.firme .barra-link:hover { background: var(--superficie); color: var(--marca); }
+.barra.firme .barra-link:hover { background: var(--superficie); color: var(--marca-legivel); }
 @media (max-width: 520px) { .barra-link span { display: none; } }
 
 /* ── serviços ── */
-.cat { font-size: 18px; margin: 4px 0 14px; }
+.cat { font-size: var(--t-titulo); margin: 4px 0 var(--e-3); }
 /* Grade de círculos: a foto é o que se reconhece antes do nome.
    O número de colunas é decidido em Grade.jsx, para as linhas ficarem
    equilibradas; aqui só entra a aparência. */
-.grade-fora { width: 100%; --item: 150px; display: flex; flex-direction: column; gap: 24px; }
+.grade-fora { width: 100%; --item: 150px; display: flex; flex-direction: column; gap: var(--e-6); }
 /* Cada linha é montada em Grade.jsx e centralizada aqui — inclusive a última,
    que é justamente a que a quebra automática deixaria torta. */
-.grade-linha { display: flex; justify-content: center; gap: 16px; }
+.grade-linha { display: flex; justify-content: center; gap: var(--e-4); }
 .grade-inicial { flex-wrap: wrap; }
 .grade-linha > .revela { flex: 0 0 var(--item); max-width: var(--item); }
 .svc-item {
@@ -186,26 +539,28 @@ img { max-width: 100%; display: block; }
 }
 .svc-circulo {
   /* Acompanha a largura do item, com teto para não virar um disco enorme
-     quando há poucos serviços. */
+     quando há poucos serviços. Sombra direcional, não simétrica — o objeto
+     lido como se estivesse pousado numa bandeja sob luz de um lado só. */
   width: min(100%, 128px); aspect-ratio: 1;
   border-radius: 50%; overflow: hidden; padding: 0;
   background: var(--marca-clara); display: grid; place-items: center;
-  border: 3px solid var(--fundo); box-shadow: var(--sombra);
+  border: 1px solid var(--marca-borda); box-shadow: var(--sombra-bandeja);
   transition: transform .18s ease, box-shadow .18s ease;
 }
 .svc-circulo img { width: 100%; height: 100%; object-fit: cover; }
-.svc-inicial { font-size: 34px; font-weight: 700; color: var(--marca); }
-.svc-circulo:hover { transform: translateY(-3px); box-shadow: 0 10px 26px -12px rgba(0,0,0,.35); }
+.svc-inicial { font-size: var(--t-hero); font-weight: 700; color: var(--sobre-marca-clara); letter-spacing: -.01em; }
+.svc-circulo:hover { transform: translateY(-3px); box-shadow: var(--sombra-bandeja-hover); }
 
-.svc-item .svc-nome { font-weight: 600; font-size: 15px; line-height: 1.3; text-wrap: balance; }
-.svc-meta {
-  display: flex; gap: 8px; align-items: baseline; justify-content: center;
-  font-size: 13.5px; flex-wrap: wrap;
-}
-.svc-preco { font-weight: 700; }
-.sob-consulta { color: var(--cinza); font-weight: 600; }
-.svc-dur { color: var(--fraco); }
-.svc-btn { flex: none; }
+.svc-item .svc-nome { font-weight: 600; font-size: var(--t-corpo); line-height: 1.3; text-wrap: balance; }
+/* Preço e duração como etiqueta de produto: o número que importa em
+   destaque, a duração como legenda pequena e rastreada por baixo — não os
+   dois lado a lado na mesma voz, que é como uma lista de preços lê, não
+   como uma vitrine. */
+.svc-meta { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.svc-preco { font-size: var(--t-titulo-pq); font-weight: 700; color: var(--texto); }
+.sob-consulta { font-size: var(--t-corpo-pq); color: var(--cinza); font-weight: 600; }
+.svc-dur { font-size: var(--t-legenda); letter-spacing: .06em; text-transform: uppercase; color: var(--fraco); }
+.svc-btn { flex: none; margin-top: 2px; }
 
 @media (max-width: 420px) {
   .grade { gap: 20px 10px; }
@@ -216,48 +571,65 @@ img { max-width: 100%; display: block; }
    Usam a mesma grade redonda dos serviços (.svc-grade / .svc-item), para a home
    inteira falar a mesma língua visual. Só o "voltar" é próprio daqui. */
 .volta-cat {
-  display: inline-flex; align-items: center; gap: 7px; padding: 8px 0 12px;
-  color: var(--cinza); font-size: 14px; font-weight: 500; min-height: 40px;
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 0 var(--e-3);
+  color: var(--cinza); font-size: var(--t-corpo-pq); font-weight: 500; min-height: 40px;
 }
-.volta-cat:hover { color: var(--marca); }
+.volta-cat:hover { color: var(--marca-legivel); }
 
 /* ── formulário (usado dentro da janela) ── */
-.campo { margin-bottom: 14px; }
+.campo { margin-bottom: var(--e-3); }
 .campo label {
-  display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  display: block; font-size: var(--t-legenda); font-weight: 600; letter-spacing: .06em;
   text-transform: uppercase; color: var(--cinza); margin-bottom: 6px;
 }
 .campo input, .campo select {
-  width: 100%; padding: 14px; font-size: 16px; /* 16px evita o zoom do iOS */
+  width: 100%; padding: 14px; font-size: 16px; /* 16px evita o zoom do iOS — nunca var(--t-*) aqui */
   border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo);
   color: var(--texto); outline: none;
 }
 .campo input:focus, .campo select:focus {
-  border-color: var(--marca);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 15%, transparent);
+  border-color: var(--marca-legivel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca-legivel) 15%, transparent);
 }
-.ajuda { font-size: 13px; color: var(--fraco); margin: -6px 0 14px; }
+.ajuda { font-size: var(--t-auxiliar); color: var(--fraco); margin: -6px 0 var(--e-3); }
 
 /* ── rodapé ── */
 .rodape { border-top: 1px solid var(--linha); }
-.rodape-links { display: flex; flex-direction: column; gap: 12px; }
+.rodape-links { display: flex; flex-direction: column; gap: var(--e-3); }
 .rodape-link {
   display: flex; align-items: center; gap: 10px; color: var(--texto);
-  text-decoration: none; font-size: 14.5px; padding: 6px 0;
+  text-decoration: none; font-size: var(--t-corpo-pq); padding: 6px 0;
 }
-.rodape-link:hover { color: var(--marca); }
-.pagamentos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.rodape-link:hover { color: var(--marca-legivel); }
+.pagamentos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--e-4); }
 .pag {
-  font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px;
+  font-size: var(--t-legenda); font-weight: 600; padding: 5px 11px; border-radius: var(--pilula);
   background: var(--fundo); border: 1px solid var(--linha); color: var(--cinza);
 }
-.assinatura { margin-top: 22px; font-size: 12.5px; color: var(--fraco); text-align: center; }
+.assinatura { margin-top: var(--e-5); font-size: var(--t-legenda); color: var(--fraco); text-align: center; }
+
+/* Rodapé com fundo cheio (só Clínica, ver `cheio` em App.jsx) — precisa da
+   dupla classe para vencer `.rodape` (mesma especificidade, uma cor fixa
+   cada) sem depender de ordem no arquivo. Os selos de pagamento invertem
+   pra pílula clara com texto da cor da marca — o mesmo par que .destaque-selo
+   já usa num cartão cheio, não uma cor nova. */
+.rodape.bloco-cheio {
+  /* Repete fundo/texto com as duas classes — .rodape define --superficie
+     depois de .bloco-cheio no arquivo, e empataria em especificidade sozinho. */
+  background: var(--marca-escura); color: var(--sobre-marca-escura);
+  border-top-color: transparent;
+}
+.rodape.bloco-cheio .bloco-titulo.pequeno { color: inherit; opacity: .7; }
+.rodape.bloco-cheio .rodape-link { color: inherit; }
+.rodape.bloco-cheio .rodape-link:hover { color: inherit; opacity: .75; }
+.rodape.bloco-cheio .pag { background: var(--sobre-marca-escura); color: var(--marca-escura); border-color: transparent; }
+.rodape.bloco-cheio .assinatura { color: inherit; opacity: .65; }
 
 /* ══ janela de agendamento ════════════════════════════════════════ */
 
 .jn-fundo {
   position: fixed; inset: 0; z-index: 100; background: rgba(20, 20, 20, .55);
-  display: grid; place-items: center; padding: 20px;
+  display: grid; place-items: center; padding: var(--e-5);
   animation: surge .18s ease;
 }
 @keyframes surge { from { opacity: 0 } to { opacity: 1 } }
@@ -273,17 +645,17 @@ img { max-width: 100%; display: block; }
 /* coluna 1 — onde estou */
 .jn-guia {
   background: var(--superficie); border-right: 1px solid var(--linha);
-  padding: 26px 24px; display: flex; flex-direction: column; text-align: center;
+  padding: 26px var(--e-6); display: flex; flex-direction: column; text-align: center;
 }
 .jn-bolinhas { display: flex; gap: 7px; justify-content: center; }
 .bolinha { width: 7px; height: 7px; border-radius: 50%; background: var(--linha); transition: background .2s; }
 .bolinha.on { background: var(--marca); }
 .jn-guia-meio { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
 .jn-guia-icone { color: var(--cinza); display: grid; place-items: center; }
-.jn-guia h3 { font-size: 17px; }
-.jn-guia p { color: var(--cinza); font-size: 13.5px; line-height: 1.5; }
-.jn-duvida { color: var(--fraco); font-size: 13px; text-decoration: none; line-height: 1.5; }
-.jn-duvida:hover { color: var(--marca); }
+.jn-guia h3 { font-size: var(--t-titulo-pq); }
+.jn-guia p { color: var(--cinza); font-size: var(--t-auxiliar); line-height: 1.5; }
+.jn-duvida { color: var(--fraco); font-size: var(--t-auxiliar); text-decoration: none; line-height: 1.5; }
+.jn-duvida:hover { color: var(--marca-legivel); }
 
 /* coluna 2 — o passo */
 /* min-height: 0 é o que faz o corpo rolar em vez de transbordar. Item de grid
@@ -291,44 +663,53 @@ img { max-width: 100%; display: block; }
    cresce além da janela e a lista de serviços e horários aparece cortada. */
 .jn-centro { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .jn-cab {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 20px 24px; border-bottom: 1px solid var(--linha);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-3);
+  padding: var(--e-5) var(--e-6); border-bottom: 1px solid var(--linha);
 }
-.jn-cab h2 { font-size: 19px; }
+.jn-cab h2 { font-size: var(--t-titulo); }
 .jn-x { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; color: var(--cinza); }
 .jn-x:hover { background: var(--superficie); color: var(--texto); }
 .jn-corpo {
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
-  padding: 22px 24px;
+  padding: var(--e-6);
   /* No celular a rolagem interna não deve arrastar a página atrás junto. */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-.jn-pe { padding: 12px 24px; border-top: 1px solid var(--linha); }
+.jn-pe { padding: var(--e-3) var(--e-6); border-top: 1px solid var(--linha); }
 .jn-voltar {
-  display: inline-flex; align-items: center; gap: 8px; color: var(--cinza);
-  font-size: 14.5px; font-weight: 500; min-height: 44px; padding: 0 4px;
+  display: inline-flex; align-items: center; gap: var(--e-2); color: var(--cinza);
+  font-size: var(--t-corpo-pq); font-weight: 500; min-height: 44px; padding: 0 4px;
 }
-.jn-voltar:hover { color: var(--marca); }
-.jn-vazio { color: var(--fraco); font-size: 14px; text-align: center; padding: 18px 0; }
+.jn-voltar:hover { color: var(--marca-legivel); }
+.jn-vazio { color: var(--fraco); font-size: var(--t-corpo-pq); text-align: center; padding: 18px 0; }
 
 /* opções (serviço, profissional) */
-.jn-opcoes { display: flex; flex-direction: column; gap: 8px; }
+.jn-opcoes { display: flex; flex-direction: column; gap: var(--e-2); }
 .jn-opcao {
   display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
-  padding: 12px 14px; border: 1px solid var(--linha); border-radius: 12px;
+  padding: var(--e-3) 14px; border: 1px solid var(--linha); border-radius: 12px;
   background: var(--fundo); transition: border-color .15s, background .15s; min-height: 64px;
 }
 .jn-opcao:hover { border-color: var(--marca); background: var(--marca-clara); }
-.jn-opcao-foto, .jn-opcao-marca { width: 44px; height: 44px; border-radius: 10px; flex: none; object-fit: cover; }
+.jn-opcao:hover .jn-opcao-foto, .jn-opcao:hover .jn-opcao-marca { box-shadow: var(--sombra-bandeja-hover); }
+/* Redondo, com o mesmo anel e sombra direcional dos círculos de serviço da
+   home — a marca de quem/o quê é um objeto pequeno na mesma bandeja, não um
+   quadrado de sistema achando espaço numa lista. A linha em volta continua
+   flat (Float-Only-Shadow Rule); só o objeto dentro dela ganha luz. */
+.jn-opcao-foto, .jn-opcao-marca {
+  width: 44px; height: 44px; border-radius: 50%; flex: none; object-fit: cover;
+  box-shadow: var(--sombra-bandeja);
+}
 .jn-opcao-marca {
-  display: grid; place-items: center; background: var(--marca);
-  color: var(--sobre-marca); font-weight: 700; font-size: 16px;
+  display: grid; place-items: center; background: var(--marca-escura);
+  color: var(--sobre-marca-escura); font-weight: 700; font-size: var(--t-corpo-gr);
+  border: 1px solid var(--marca-borda);
 }
 .jn-opcao-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.jn-opcao-nome { font-weight: 600; font-size: 15px; }
-.jn-opcao-sub { color: var(--cinza); font-size: 13.5px; }
-.jn-opcao-desc { color: var(--cinza); font-size: 13px; line-height: 1.4; }
+.jn-opcao-nome { font-weight: 600; font-size: var(--t-corpo); }
+.jn-opcao-sub { color: var(--cinza); font-size: var(--t-auxiliar); }
+.jn-opcao-desc { color: var(--cinza); font-size: var(--t-auxiliar); line-height: 1.4; }
 .jn-opcao-seta { color: var(--fraco); flex: none; }
 
 /* adicionais: marcáveis, não navegáveis — por isso caixa em vez de seta */
@@ -337,40 +718,40 @@ img { max-width: 100%; display: block; }
 .jn-caixa {
   width: 22px; height: 22px; border-radius: 7px; flex: none;
   border: 1.5px solid var(--linha); background: var(--fundo);
-  display: grid; place-items: center; color: var(--sobre-marca);
+  display: grid; place-items: center; color: var(--sobre-marca-escura);
   transition: background .15s, border-color .15s;
 }
-.jn-caixa.on { background: var(--marca); border-color: var(--marca); }
+.jn-caixa.on { background: var(--marca-escura); border-color: var(--marca-escura); }
 
 .jn-add-pe {
-  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--linha);
+  margin-top: var(--e-5); padding-top: var(--e-4); border-top: 1px solid var(--linha);
   display: flex; flex-direction: column; gap: 10px;
 }
-.jn-add-soma { font-size: 14px; color: var(--cinza); text-align: center; }
+.jn-add-soma { font-size: var(--t-corpo-pq); color: var(--cinza); text-align: center; }
 
 .jn-extra {
   display: flex; justify-content: space-between; gap: 10px;
-  margin: 0; font-size: 14px; font-weight: 500; padding-top: 4px;
+  margin: 0; font-size: var(--t-corpo-pq); font-weight: 500; padding-top: 4px;
 }
 .jn-extra span { color: var(--cinza); font-weight: 600; }
 
 /* calendário do mês */
-.cal-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
-.cal-mes { font-size: 17px; font-weight: 700; }
+.cal-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: var(--e-4); }
+.cal-mes { font-size: var(--t-titulo-pq); font-weight: 700; }
 .cal-nav {
   display: inline-flex; align-items: center; gap: 6px; color: var(--cinza);
-  font-size: 13.5px; min-height: 40px; padding: 0 6px; border-radius: 8px;
+  font-size: var(--t-auxiliar); min-height: 40px; padding: 0 6px; border-radius: 8px;
 }
-.cal-nav:hover:not(:disabled) { color: var(--marca); }
+.cal-nav:hover:not(:disabled) { color: var(--marca-legivel); }
 .cal-nav:disabled { opacity: .35; cursor: not-allowed; }
 
-.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--e-1); }
 .cal-cab {
-  text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  text-align: center; font-size: var(--t-rotulo); text-transform: uppercase; letter-spacing: .08em;
   color: var(--fraco); padding-bottom: 6px; font-weight: 600;
 }
 .cal-dia {
-  aspect-ratio: 1; border-radius: 10px; font-size: 14.5px; font-weight: 500;
+  aspect-ratio: 1; border-radius: 10px; font-size: var(--t-corpo-pq); font-weight: 500;
   color: var(--fraco); background: var(--superficie); position: relative;
   display: grid; place-items: center; min-height: 40px;
 }
@@ -384,45 +765,52 @@ img { max-width: 100%; display: block; }
   width: 16px; height: 2.5px; border-radius: 2px; background: var(--marca);
 }
 .cal-dia.livre:hover { background: var(--marca-clara); }
-.cal-dia.on { background: var(--marca); color: var(--sobre-marca); }
-.cal-dia.on::after { background: var(--sobre-marca); }
+.cal-dia.on { background: var(--marca-escura); color: var(--sobre-marca-escura); }
+.cal-dia.on::after { background: var(--sobre-marca-escura); }
 
-.cal-horas { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--linha); }
-.cal-horas h4 { font-size: 14px; margin-bottom: 12px; text-transform: capitalize; }
-.horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.cal-horas { margin-top: var(--e-5); padding-top: var(--e-4); border-top: 1px solid var(--linha); }
+.cal-horas h4 { font-size: var(--t-corpo-pq); margin-bottom: var(--e-3); text-transform: capitalize; }
+.horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: var(--e-2); }
 .hora {
   padding: 12px 0; border-radius: 10px; border: 1px solid var(--linha);
-  background: var(--fundo); font-weight: 600; font-size: 14.5px; min-height: 46px;
+  background: var(--fundo); font-weight: 600; font-size: var(--t-corpo-pq); min-height: 46px;
 }
 .hora:hover { border-color: var(--marca); background: var(--marca-clara); }
 
 /* formulário e confirmação dentro da janela */
 .jn-form { max-width: 380px; }
 .jn-form textarea {
-  width: 100%; padding: 12px 14px; font-size: 16px; font-family: inherit;
+  width: 100%; padding: var(--e-3) 14px; font-size: 16px; font-family: inherit; /* 16px evita o zoom do iOS */
   border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo);
   color: var(--texto); outline: none; resize: vertical; line-height: 1.45;
 }
 .jn-form textarea:focus {
-  border-color: var(--marca);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 15%, transparent);
+  border-color: var(--marca-legivel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca-legivel) 15%, transparent);
 }
 .jn-opcional { color: var(--fraco); font-weight: 500; text-transform: none; letter-spacing: 0; }
-.jn-contador { display: block; text-align: right; font-size: 12px; color: var(--fraco); margin-top: 4px; }
+.jn-contador { display: block; text-align: right; font-size: var(--t-legenda); color: var(--fraco); margin-top: 4px; }
 .jn-check {
-  display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px;
-  color: var(--cinza); margin: 4px 0 16px; line-height: 1.45;
+  display: flex; gap: 10px; align-items: flex-start; font-size: var(--t-auxiliar);
+  color: var(--cinza); margin: 4px 0 var(--e-4); line-height: 1.45;
 }
 .jn-check input { width: 18px; height: 18px; margin-top: 1px; flex: none; }
 
 .jn-pronto { text-align: center; max-width: 380px; margin: 0 auto; padding-top: 10px; }
+/* O momento de maior satisfação do fluxo inteiro merecia mais que um ícone
+   cinza. Maior, com a mesma luz direcional dos objetos da bandeja, e entra
+   sozinho com um gesto pequeno — o único momento autoral desta tela, e o
+   único lugar da janela com cor cheia em vez de só acento. */
 .jn-pronto-marca {
-  width: 62px; height: 62px; border-radius: 50%; background: var(--marca-clara);
-  color: var(--marca); display: grid; place-items: center; margin: 0 auto 16px;
+  width: 76px; height: 76px; border-radius: 50%; background: var(--marca-escura);
+  color: var(--sobre-marca-escura); box-shadow: var(--sombra-bandeja);
+  display: grid; place-items: center; margin: 0 auto var(--e-5);
+  animation: pronto-entra .5s cubic-bezier(.22,1,.36,1) both;
 }
-.jn-pronto h3 { font-size: 19px; margin-bottom: 8px; }
-.jn-pronto > p { color: var(--cinza); font-size: 14.5px; margin-bottom: 20px; }
-.jn-pronto-resumo { text-align: left; margin-bottom: 20px; }
+@keyframes pronto-entra { from { opacity: 0; transform: scale(.75); } to { opacity: 1; transform: none; } }
+.jn-pronto h3 { font-size: var(--t-titulo); margin-bottom: var(--e-2); }
+.jn-pronto > p { color: var(--cinza); font-size: var(--t-corpo-pq); margin-bottom: var(--e-5); }
+.jn-pronto-resumo { text-align: left; margin-bottom: var(--e-5); }
 
 /* coluna 3 — resumo do que já foi escolhido */
 .jn-resumo {
@@ -431,33 +819,33 @@ img { max-width: 100%; display: block; }
 }
 .jn-resumo-barra {
   display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 20px 22px; border-bottom: 1px solid var(--linha); cursor: default;
+  padding: var(--e-5) 22px; border-bottom: 1px solid var(--linha); cursor: default;
 }
 .jn-resumo-titulo {
-  flex: 1; text-align: right; font-size: 11px; letter-spacing: .16em;
+  flex: 1; text-align: right; font-size: var(--t-rotulo); letter-spacing: .16em;
   text-transform: uppercase; color: var(--fraco); font-weight: 700;
 }
 .jn-resumo-total { display: none; font-weight: 700; }
 .jn-resumo-seta { display: none; color: var(--fraco); }
 .jn-resumo-corpo { padding: 4px 22px 22px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
-.jn-resumo-vazio { color: var(--fraco); font-size: 13.5px; padding-top: 14px; }
+.jn-resumo-vazio { color: var(--fraco); font-size: var(--t-auxiliar); padding-top: var(--e-4); }
 
-.jn-item { padding: 14px 0; border-bottom: 1px solid var(--linha); }
+.jn-item { padding: var(--e-4) 0; border-bottom: 1px solid var(--linha); }
 .jn-item dt {
-  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  font-size: var(--t-rotulo); letter-spacing: .1em; text-transform: uppercase;
   color: var(--fraco); font-weight: 700; margin-bottom: 4px;
 }
-.jn-item dd { margin: 0; font-size: 14.5px; font-weight: 600; }
+.jn-item dd { margin: 0; font-size: var(--t-corpo-pq); font-weight: 600; }
 .jn-resumo-fim {
   display: flex; justify-content: space-between; align-items: baseline;
-  padding-top: 16px; font-size: 14.5px;
+  padding-top: var(--e-4); font-size: var(--t-corpo-pq);
 }
-.jn-resumo-fim strong { font-size: 18px; }
+.jn-resumo-fim strong { font-size: var(--t-corpo-gr); }
 
 .jn-aviso {
   position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
-  background: #8A2B2B; color: #fff; padding: 11px 18px; border-radius: 10px;
-  font-size: 14px; max-width: 90%; z-index: 5;
+  background: #8A2B2B; color: #fff; padding: 11px var(--e-4); border-radius: 10px;
+  font-size: var(--t-corpo-pq); max-width: 90%; z-index: 5;
 }
 
 /* ── celular: uma coluna, resumo vira barra no rodapé ── */
@@ -469,17 +857,17 @@ img { max-width: 100%; display: block; }
   }
   .jn-guia { display: none; }
   .jn-centro { min-height: 0; }
-  .jn-corpo { padding: 18px 18px 22px; }
+  .jn-corpo { padding: 18px 18px var(--e-5); }
 
   .jn-resumo { border-left: 0; border-top: 1px solid var(--linha); max-height: 60vh; }
-  .jn-resumo-barra { border-bottom: 0; cursor: pointer; padding: 14px 18px; min-height: 56px; }
+  .jn-resumo-barra { border-bottom: 0; cursor: pointer; padding: var(--e-3) 18px; min-height: 56px; }
   .jn-resumo-titulo { flex: none; text-align: left; }
   .jn-resumo-total { display: block; margin-left: auto; }
   .jn-resumo-seta { display: block; transition: transform .18s; }
   .jn-resumo.aberto .jn-resumo-seta { transform: rotate(90deg); }
   /* Fechado, só a barra aparece: na tela pequena o passo atual é o que importa. */
   .jn-resumo-corpo { display: none; }
-  .jn-resumo.aberto .jn-resumo-corpo { display: block; padding: 0 18px 18px; }
+  .jn-resumo.aberto .jn-resumo-corpo { display: block; padding: 0 18px var(--e-4); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -490,46 +878,96 @@ img { max-width: 100%; display: block; }
 /* ── conferir de quem é o número ── */
 .jn-confere {
   background: var(--marca-clara); border-radius: 12px;
-  padding: 14px 16px; margin: 4px 0 16px;
+  padding: var(--e-3) var(--e-4); margin: 4px 0 var(--e-4);
 }
-.jn-confere p { font-size: 14.5px; margin-bottom: 12px; }
-.jn-confere-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-.jn-porque { display: block; font-size: 12.5px; color: var(--fraco); margin-top: 5px; }
+.jn-confere p { font-size: var(--t-corpo-pq); margin-bottom: var(--e-3); }
+.jn-confere-btns { display: flex; gap: var(--e-2); flex-wrap: wrap; }
+.jn-porque { display: block; font-size: var(--t-legenda); color: var(--fraco); margin-top: 5px; }
+
+/* ── destaque ── a promoção principal, tratada como o objeto mais bonito da
+   bandeja: campo de cor cheio (não um acento sobre fundo neutro), preço em
+   escala grande de verdade. Quando existe mais de um combo, só o primeiro
+   ganha este tratamento — os demais seguem na grade menor abaixo, que é
+   onde comparar vários itens lado a lado faz sentido. */
+.destaque {
+  display: grid; grid-template-columns: 1fr; gap: var(--e-6);
+  background: var(--marca-escura); color: var(--sobre-marca-escura);
+  border-radius: 24px; padding: var(--e-7) var(--e-6);
+  position: relative; overflow: hidden;
+}
+@media (min-width: 720px) {
+  .destaque { grid-template-columns: 1.3fr 1fr; align-items: center; padding: var(--e-8); }
+}
+.destaque-selo {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  background: var(--sobre-marca-escura); color: var(--marca-escura); font-size: var(--t-rotulo); font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: var(--pilula);
+  margin-bottom: var(--e-3);
+}
+.destaque-nome { font-size: clamp(24px, 3vw + 12px, 34px); letter-spacing: -.02em; margin-bottom: var(--e-2); }
+.destaque-itens { font-size: var(--t-corpo); opacity: .92; margin: 0 0 var(--e-2); }
+.destaque-desc { font-size: var(--t-auxiliar); opacity: .8; margin: 0 0 var(--e-5); line-height: 1.5; }
+.destaque-btn {
+  background: var(--sobre-marca-escura); color: var(--marca-escura);
+}
+.destaque-btn:hover { background: var(--sobre-marca-escura); filter: brightness(.96); }
+.destaque-preco {
+  display: flex; flex-direction: column; gap: 2px;
+  padding-top: var(--e-5); border-top: 1px solid color-mix(in srgb, var(--sobre-marca-escura) 25%, transparent);
+}
+@media (min-width: 720px) {
+  .destaque-preco { padding-top: 0; padding-left: var(--e-6); border-top: 0; border-left: 1px solid color-mix(in srgb, var(--sobre-marca-escura) 25%, transparent); }
+}
+.destaque-cheio { font-size: var(--t-corpo-pq); opacity: .75; text-decoration: line-through; }
+/* O número da promoção é o maior desta seção — é o único fato que precisa
+   convencer sozinho, sem depender de ler o resto do bloco. */
+.destaque-valor { font-size: clamp(40px, 6vw, 60px); font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 2px 0; }
+.destaque-economia { font-size: var(--t-corpo-pq); font-weight: 600; }
+.destaque-dur { font-size: var(--t-legenda); opacity: .75; margin-top: var(--e-2); }
 
 /* ── promoções ──────────────────────────────────────────────────────────── */
-.promos{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  max-width:940px; margin:0 auto}
-.promo{position:relative; display:flex; flex-direction:column; align-items:center; text-align:center;
-  background:var(--superficie); border:1px solid var(--linha); border-radius:18px; padding:22px 18px 18px;
-  height:100%}
-.promo-selo{position:absolute; top:-11px; left:50%; transform:translateX(-50%);
-  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
-  background:var(--marca); color:var(--sobre-marca); font-size:11px; font-weight:700;
-  letter-spacing:.08em; text-transform:uppercase; padding:4px 11px; border-radius:999px}
-.promo-foto{width:100%; height:132px; object-fit:cover; border-radius:12px; margin-bottom:12px}
-.promo-nome{font-size:17px; margin:4px 0 5px}
-.promo-itens{font-size:13.5px; color:var(--cinza); margin:0 0 6px; line-height:1.45}
-.promo-desc{font-size:13px; color:var(--fraco); margin:0 0 10px; line-height:1.45}
-.promo-precos{display:flex; align-items:baseline; gap:9px; margin-top:auto; padding-top:10px}
-.promo-cheio{font-size:14px; color:var(--fraco); text-decoration:line-through}
-.promo-preco{font-size:24px; font-weight:600}
-.promo-economia{font-size:12.5px; font-weight:700; color:var(--marca); margin:2px 0 0;
-  letter-spacing:.02em}
-.promo-dur{font-size:12.5px; color:var(--fraco); margin:6px 0 0}
-.promo-btn{margin-top:14px}
+.promos { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  max-width: 940px; margin: 0 auto; }
+.promo {
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: 18px; padding: var(--e-6) var(--e-4) var(--e-4);
+  height: 100%;
+  /* Repousa flat, de propósito (ver DESIGN.md, "The Float-Only-Shadow Rule") —
+     sombra só entra ao flutuar, no hover, junto com o mesmo gesto de subida
+     que os círculos de serviço já usam. */
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.promo:hover { transform: translateY(-3px); box-shadow: var(--sombra-bandeja); border-color: var(--marca-borda); }
+.promo-selo {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  background: var(--marca-escura); color: var(--sobre-marca-escura); font-size: var(--t-rotulo); font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: var(--pilula);
+}
+.promo-foto { width: 100%; height: 132px; object-fit: cover; border-radius: 12px; margin-bottom: var(--e-3); }
+.promo-nome { font-size: var(--t-titulo-pq); margin: 4px 0 5px; }
+.promo-itens { font-size: var(--t-auxiliar); color: var(--cinza); margin: 0 0 6px; line-height: 1.45; }
+.promo-desc { font-size: var(--t-auxiliar); color: var(--fraco); margin: 0 0 var(--e-3); line-height: 1.45; }
+.promo-precos { display: flex; align-items: baseline; gap: 9px; margin-top: auto; padding-top: var(--e-3); }
+.promo-cheio { font-size: var(--t-corpo-pq); color: var(--fraco); text-decoration: line-through; }
+.promo-preco { font-size: var(--t-destaque); font-weight: 600; }
+.promo-economia { font-size: var(--t-legenda); font-weight: 700; color: var(--marca-legivel); margin: 2px 0 0;
+  letter-spacing: .02em; }
+.promo-dur { font-size: var(--t-legenda); color: var(--fraco); margin: 6px 0 0; }
+.promo-btn { margin-top: var(--e-3); }
 
 /* ── ficha de intake, no agendamento ────────────────────────────────────── */
-.jn-ficha{display:flex; flex-direction:column; gap:4px}
-.jn-ficha-intro{font-size:13.5px; color:var(--cinza); margin:0 0 12px; line-height:1.5}
-.jn-pergunta{margin-bottom:16px; display:flex; flex-direction:column; gap:6px}
-.jn-pergunta label{font-size:14px; font-weight:600}
-.jn-obrig{color:var(--marca)}
-.jn-ajuda{font-size:12.5px; color:var(--fraco); margin:0; line-height:1.45}
-.jn-pergunta input, .jn-pergunta textarea{font:inherit; font-size:15px; padding:10px 12px;
-  border:1px solid var(--linha); border-radius:10px; background:var(--superficie);
-  color:inherit; width:100%}
-.jn-pergunta input:focus, .jn-pergunta textarea:focus{outline:2px solid var(--marca); outline-offset:-1px}
-.jn-opcoes{display:flex; gap:8px; flex-wrap:wrap}
-.jn-op{font:inherit; font-size:14px; padding:9px 15px; border-radius:999px; cursor:pointer;
-  border:1px solid var(--linha); background:var(--superficie); color:inherit; min-height:42px}
-.jn-op.on{background:var(--marca); color:var(--sobre-marca); border-color:var(--marca)}
+.jn-ficha { display: flex; flex-direction: column; gap: 4px; }
+.jn-ficha-intro { font-size: var(--t-auxiliar); color: var(--cinza); margin: 0 0 var(--e-3); line-height: 1.5; }
+.jn-pergunta { margin-bottom: var(--e-4); display: flex; flex-direction: column; gap: 6px; }
+.jn-pergunta label { font-size: var(--t-corpo-pq); font-weight: 600; }
+.jn-obrig { color: var(--marca-legivel); }
+.jn-ajuda { font-size: var(--t-legenda); color: var(--fraco); margin: 0; line-height: 1.45; }
+.jn-pergunta input, .jn-pergunta textarea { font: inherit; font-size: var(--t-corpo); padding: 10px var(--e-3);
+  border: 1px solid var(--linha); border-radius: 10px; background: var(--superficie);
+  color: inherit; width: 100%; }
+.jn-pergunta input:focus, .jn-pergunta textarea:focus { outline: 2px solid var(--marca-legivel); outline-offset: -1px; }
+.jn-opcoes { display: flex; gap: var(--e-2); flex-wrap: wrap; }
+.jn-op { font: inherit; font-size: var(--t-corpo-pq); padding: 9px 15px; border-radius: var(--pilula); cursor: pointer;
+  border: 1px solid var(--linha); background: var(--superficie); color: inherit; min-height: 42px; }
+.jn-op.on { background: var(--marca-escura); color: var(--sobre-marca-escura); border-color: var(--marca-escura); }

@@ -1,8 +1,14 @@
 # Acessos de desenvolvimento
 
-Tudo aqui é ficção criada pelo `npm run seed`, na sua máquina. **Nenhuma destas
+Tudo aqui é criado pelo `npm run seed`, na sua máquina. **Nenhuma destas
 contas existe em produção**: o seed confere a `DATABASE_URL` antes de criar
 qualquer uma, e não cria nada se ela não apontar para `localhost`.
+
+**Uma exceção ao "tudo é ficção":** a empresa "Laura Faust" usa o nome, a cor
+e as fotos reais da primeira cliente confirmada da Vital — ela ainda não usa
+o produto, é bancada de ensaio para o modelo Clínica antes do lançamento (ver
+PRODUCT.md, "Evidence on Hand"). As contas de login (`dono@vital.com` etc.)
+continuam sendo credenciais de desenvolvimento, não dela.
 
 `cd server && npm run reset` apaga e recria exatamente o que está nesta página.
 
@@ -16,12 +22,12 @@ qualquer uma, e não cria nada se ela não apontar para `localhost`.
 |---|---|
 | <http://localhost:5173/vital.html> | Página da Vital — onde uma empresa se cadastra |
 | <http://localhost:5173/vital.html#equipe> | Back-office da Vital — nossa equipe |
-| <http://lume.localhost:5173> | Site do Estúdio Lume |
-| <http://lume.localhost:5173/painel.html> | Painel do Estúdio Lume |
+| <http://laurafaust.localhost:5173> | Site da Laura Faust |
+| <http://laurafaust.localhost:5173/painel.html> | Painel da Laura Faust |
 | <http://barbearia.localhost:5173> | Site da Barbearia do João |
 | <http://barbearia.localhost:5173/painel.html> | Painel da Barbearia do João |
 
-`localhost:5173` sem subdomínio abre o Estúdio Lume — é a empresa padrão.
+`localhost:5173` sem subdomínio abre a Laura Faust — é a empresa padrão.
 
 **Por que `*.localhost` funciona sem configurar DNS:** o navegador resolve
 qualquer subdomínio de `localhost` para 127.0.0.1 por conta própria, e o Vite
@@ -45,10 +51,11 @@ convidar gente — crie pelo banco se precisar testar.
 
 ---
 
-## Estúdio Lume — a empresa de exemplo
+## Laura Faust — a empresa de exemplo
 
 Estética, com catálogo, clientes e agenda populados. É o cenário para olhar
-telas cheias.
+telas cheias — e a bancada de ensaio da primeira cliente real da Vital
+(nome, cor e fotos dela, catálogo e preços ainda nossos).
 
 | E-mail | Papel | Vê |
 |---|---|---|
@@ -80,7 +87,7 @@ outra, e é o banco que recusa, não o código da rota.
 O `seed` reproduz o mesmo cenário em qualquer máquina — não há dump para copiar
 nem estado fora do Git.
 
-| No Estúdio Lume | |
+| Na Laura Faust | |
 |---|---|
 | Unidades | Centro e Zona Sul. Bia atende no Centro, Karen na Zona Sul, Laura nos dois |
 | Combo | "Dia de cuidado" — limpeza + design por R$ 199, em vez de R$ 225 |

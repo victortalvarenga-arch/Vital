@@ -44,7 +44,7 @@ O que o cenário traz, e por que cada peça está lá:
 
 | | Para quê |
 |---|---|
-| **Estúdio Lume** — 11 serviços, 3 pessoas, 6 clientes, agenda de 4 meses | Telas cheias, relatório com número |
+| **Laura Faust** — 11 serviços, 3 pessoas, 6 clientes, agenda de 4 meses | Telas cheias, relatório com número — é a bancada de ensaio da primeira cliente real da Vital, com nome, cor e fotos dela mesma |
 | **Barbearia do João** — outro ramo, outra cor, outro vocabulário | Ver o isolamento entre empresas funcionando |
 | **Duas unidades** (Centro, Zona Sul) | O passo "onde você quer ser atendida" só aparece com mais de uma. Laura fica sem unidade de propósito: é o caso de quem atende nos dois endereços |
 | **Combo "Dia de cuidado"** | Preço cheio riscado, economia calculada, rateio da comissão |

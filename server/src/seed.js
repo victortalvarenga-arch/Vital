@@ -58,26 +58,50 @@ const h = hoje();
 // estúdio como "Meu negócio" — o nome que a migration deixa.
 // `slug` vira o subdomínio. A migration deixa 'default', que serve de id e não
 // serve de endereço — em desenvolvimento é por ele que se abre o site desta
-// empresa, em `lume.localhost:5173`.
+// empresa, em `laurafaust.localhost:5173`.
+//
+// Deixou de ser um estúdio fictício: é a bancada de ensaio para a PRIMEIRA
+// CLIENTE REAL da Vital (Laura Faust, estética, Joinville/SC) — nome, cor,
+// logo, contato e fotos de serviço são os dela de verdade, tirados da
+// identidade de marca e das fotos que ela mesma passou. Continua sendo
+// cenário de DESENVOLVIMENTO: ela ainda não usa o produto, só vamos lapidar
+// o modelo Clínica com o site dela até o produto estar pronto (ver
+// PRODUCT.md, "Evidence on Hand"). Empresa de verdade nasce vazia, por
+// `lib/provisionar.js` — isto nunca é copiado para lá automaticamente.
+//
+// O catálogo abaixo (nomes de serviço e preços) continua sendo aproximação
+// nossa, não a lista de preços real dela — as fotos são reais, os valores
+// não. Ajustar quando ela confirmar o menu de verdade.
 await db.run(
-  `UPDATE plataforma.tenants SET nome = 'Estúdio Lume', slug = 'lume' WHERE id = ?`,
+  `UPDATE plataforma.tenants SET nome = 'Laura Faust', slug = 'laurafaust' WHERE id = ?`,
   TENANT_PADRAO
 );
 
 await setConfig({
-  nome: 'Estúdio Lume',
-  slogan: 'Estética & beleza · Joinville',
+  nome: 'Laura Faust',
+  slogan: 'Estética e beleza · Joinville',
   fone: '47996195696',
-  endereco: 'Rua Félix Heinzelmann, 320 — Joinville/SC',
-  instagram: 'estudiolume',
-  pixChave: 'contato@estudiolume.com.br',
-  linkAvaliacao: 'https://g.page/estudiolume',
+  endereco: 'Rua Félix Heinzelmann, 139, Sala 02 — Bairro Santo Antônio, Joinville/SC',
+  instagram: 'estetica_laurafaust',
+  linkAvaliacao: 'https://g.page/estetica-laurafaust',
   whatsapp: '47996195696',
-  mapa: 'https://maps.google.com/?q=Rua+Felix+Heinzelmann+320+Joinville',
+  mapa: 'https://maps.google.com/?q=Rua+Felix+Heinzelmann+139+Santo+Antonio+Joinville',
+  sobre: 'Um espaço para você se cuidar e se sentir incrível. Estética, beleza '
+    + 'e bem-estar, com atendimento pensado para o seu tempo — sem pressa e '
+    + 'sem fórmula pronta.',
   marca: {
-    corPrimaria: '#A32A4E',
+    // Verde-sálvia da identidade de marca real dela — substitui o palpite
+    // (#3F6350) usado antes de a identidade oficial chegar.
+    corPrimaria: '#98a68c',
     corFundo: '#FFFFFF',
     corTexto: '#1A1A1A',
+    template: 'clinica',
+    logo: '/uploads/default/logo.jpg',
+    capa: '/uploads/default/capa.jpg',
+    // Duas fotos dela mesma — o cabeçalho da Clínica já sabe alternar entre
+    // várias (CarrosselHero, em App.jsx); com uma real e uma como próxima,
+    // dá pra ver o carrossel funcionando de verdade, não só a estrutura.
+    capas: ['/uploads/default/capa.jpg', '/uploads/default/profissional-laura.jpg'],
   },
   textos: {
     chamada: 'Agende seu horário',
@@ -95,7 +119,7 @@ await setConfig({
 });
 
 const staff = [
-  { id: 's1', nome: 'Laura Prado', funcao: 'Proprietária · Unhas', cor: '#A32A4E', comissao: 0, fone: '47996195696',
+  { id: 's1', nome: 'Laura Faust', funcao: 'Proprietária · Unhas', cor: '#334942', comissao: 0, fone: '47996195696',
     jornada: { 1: ['09:00', '19:00'], 2: ['09:00', '19:00'], 3: ['09:00', '19:00'], 4: ['09:00', '19:00'], 5: ['09:00', '19:00'], 6: ['08:30', '14:00'] } },
   { id: 's2', nome: 'Bia Menezes', funcao: 'Cílios e sobrancelhas', cor: '#6A57C7', comissao: 40, fone: '47988887777',
     jornada: { 2: ['10:00', '19:00'], 3: ['10:00', '19:00'], 4: ['10:00', '19:00'], 5: ['10:00', '20:00'], 6: ['09:00', '15:00'] } },
@@ -109,23 +133,28 @@ for (const p of staff) {
   );
 }
 
+// Foto real por serviço — mesmas 8 fotos que Laura passou, repetidas onde faz
+// sentido dentro da mesma categoria (duas fotos de unha cobrem cinco serviços
+// de unha, por exemplo). Nomes e preços continuam aproximação nossa: ela
+// ainda não confirmou o menu de verdade.
+const F = u => `/uploads/default/${u}`;
 const servicos = [
-  ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1']],
-  ['v2', 'Alongamento em fibra', 'Unhas', 'Alongamento F1 com acabamento em gel.', 160, 150, ['s1']],
-  ['v3', 'Manutenção de alongamento', 'Unhas', '', 110, 105, ['s1']],
-  ['v4', 'Unhas tradicionais', 'Unhas', 'Cutilagem e esmaltação tradicional.', 45, 50, ['s1']],
-  ['v5', 'Plástica dos pés', 'Unhas', 'Esfoliação, hidratação profunda e esmaltação.', 95, 70, ['s1']],
-  ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2']],
-  ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2']],
-  ['v8', 'Design de sobrancelha', 'Olhar', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2']],
-  ['v9', 'Design com henna', 'Olhar', '', 60, 45, ['s2']],
-  ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3']],
-  ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3']],
+  ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1'], F('servico-unhas-1.jpg')],
+  ['v2', 'Alongamento em fibra', 'Unhas', 'Alongamento F1 com acabamento em gel.', 160, 150, ['s1'], F('servico-unhas-2.jpg')],
+  ['v3', 'Manutenção de alongamento', 'Unhas', '', 110, 105, ['s1'], F('servico-reforco.jpg')],
+  ['v4', 'Unhas tradicionais', 'Unhas', 'Cutilagem e esmaltação tradicional.', 45, 50, ['s1'], F('servico-unhas-1.jpg')],
+  ['v5', 'Plástica dos pés', 'Unhas', 'Esfoliação, hidratação profunda e esmaltação.', 95, 70, ['s1'], F('servico-unhas-2.jpg')],
+  ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2'], F('servico-cilios-1.jpg')],
+  ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2'], F('servico-cilios-2.jpg')],
+  ['v8', 'Design de sobrancelha', 'Olhar', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
+  ['v9', 'Design com henna', 'Olhar', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
+  ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-limpeza.jpg')],
+  ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3'], F('servico-facial.jpg')],
 ];
-for (const [i, [id, nome, cat, desc, preco, dur, profs]] of servicos.entries()) {
+for (const [i, [id, nome, cat, desc, preco, dur, profs, foto]] of servicos.entries()) {
   await db.run(
-    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem) VALUES (?,?,?,?,?,?,10,1,?)`,
-    id, nome, cat, desc, preco, dur, i
+    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem,foto) VALUES (?,?,?,?,?,?,10,1,?,?)`,
+    id, nome, cat, desc, preco, dur, i, foto
   );
   await salvarVinculos(id, profs);
 }
@@ -287,7 +316,9 @@ async function segundaEmpresa() {
       endereco: 'Rua das Palmeiras, 88 — Joinville/SC',
       configurado: true,
       vocabulario: { profissional: 'barbeiro', profissionais: 'barbeiros' },
-      marca: { corPrimaria: '#1F4E5F' },
+      // Segundo modelo de exemplo — Quadro de Horários, fundo escuro, números
+      // em mono. É onde alguém vê que o site muda de verdade entre empresas.
+      marca: { corPrimaria: '#1F4E5F', template: 'quadro' },
     });
 
     await db.run(

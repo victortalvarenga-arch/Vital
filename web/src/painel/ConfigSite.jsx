@@ -61,16 +61,17 @@ export default function ConfigSite({ dados, acao, aviso }) {
               dica="Um parágrafo sobre o negócio. Deixe vazio para não mostrar." />
       </Secao>
 
-      <Secao titulo="Marca" ajuda="Cor e imagens. Mudam o site inteiro na hora.">
+      <Secao titulo="Marca" ajuda="Modelo, cor e imagens. Mudam o site inteiro na hora.">
+        <Modelo valor={cfg.marca?.template} aoMudar={v => mudar('marca.template', v)} />
         <Cor rotulo="Cor principal" valor={cfg.marca?.corPrimaria}
              aoMudar={v => mudar('marca.corPrimaria', v)}
-             dica="Usada nos botões e destaques." />
+             dica="Usada nos botões e destaques, em qualquer modelo." />
         <Imagem rotulo="Logo" uso="logo" valor={cfg.marca?.logo} largura={600}
                 aoMudar={v => mudar('marca.logo', v)} aviso={aviso}
                 dica="Quadrada fica melhor — aparece dentro de um círculo." />
         <Imagem rotulo="Capa" uso="capa" valor={cfg.marca?.capa} largura={1600}
                 aoMudar={v => mudar('marca.capa', v)} aviso={aviso}
-                dica="Faixa larga no topo. Sem capa, entra um degradê da cor principal." />
+                dica="Faixa larga no topo, opcional. Sem capa, o nome do negócio já abre a página." />
       </Secao>
 
       <Secao titulo="Textos" ajuda="As palavras dos botões e das mensagens do site.">
@@ -176,6 +177,31 @@ const Cor = ({ rotulo, valor, aoMudar, dica }) => (
     <div className="cs-cor">
       <input type="color" value={valor || '#A32A4E'} onChange={e => aoMudar(e.target.value)} />
       <input className="mono" value={valor || ''} onChange={e => aoMudar(e.target.value)} />
+    </div>
+  </Linha>
+);
+
+// Nome e descrição de cada modelo — ver DESIGN.md para a identidade completa
+// de cada um. A cor de marca é escolha da empresa em qualquer modelo; o que
+// muda aqui é forma, tipografia e sombra.
+const MODELOS = [
+  { id: 'bandeja', nome: 'Bandeja', descricao: 'Sombra suave, foto em círculo — o modelo padrão.' },
+  { id: 'quadro', nome: 'Quadro de Horários', descricao: 'Fundo escuro, números em fonte de dado, cantos retos.' },
+  { id: 'caderneta', nome: 'Caderneta', descricao: 'Papel kraft com linhas de caderno, toque de caligrafia na confirmação.' },
+  { id: 'clinica', nome: 'Clínica', descricao: 'Neutro e espaçoso, estética de clínica premium.' },
+];
+
+const Modelo = ({ valor, aoMudar }) => (
+  <Linha rotulo="Modelo do site"
+         dica="Muda a forma, a tipografia e a sombra do site inteiro — a cor acima continua sendo sua em qualquer um.">
+    <div className="chips">
+      {MODELOS.map(m => (
+        <button key={m.id} type="button" title={m.descricao}
+                className={'chip' + ((valor || 'bandeja') === m.id ? ' on' : '')}
+                onClick={() => aoMudar(m.id)}>
+          {m.nome}
+        </button>
+      ))}
     </div>
   </Linha>
 );

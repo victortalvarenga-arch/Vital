@@ -8,6 +8,7 @@ import { aplicarTema } from './tema.js';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
 import Agendar from './Agendar.jsx';
 import Grade from './Grade.jsx';
+import { SecaoEquipe, SecaoAntesDepois, SecaoAvaliacoes, SecaoInstagram, SecaoMapa } from './Clinica.jsx';
 
 export default function App() {
   const [dados, setDados] = useState(null);
@@ -16,7 +17,14 @@ export default function App() {
 
   useEffect(() => {
     api.vitrine()
-      .then(d => { setDados(d); aplicarTema(d.marca); document.title = d.negocio.nome; })
+      .then(d => {
+        setDados(d);
+        // ?template=quadro por cima da config salva — pré-visualizar um
+        // modelo sem precisar gravar nada, do painel ou de um link só seu.
+        const doLink = new URLSearchParams(location.search).get('template');
+        aplicarTema(doLink ? { ...d.marca, template: doLink } : d.marca);
+        document.title = d.negocio.nome;
+      })
       .catch(e => setErro(e.message));
   }, []);
 
@@ -24,8 +32,8 @@ export default function App() {
     <div className="centro">
       <div>
         <TriangleAlert size={32} color="var(--marca)" />
-        <h2 style={{ margin: '14px 0 8px', fontSize: 20 }}>Não consegui carregar</h2>
-        <p style={{ color: 'var(--cinza)', fontSize: 14.5, maxWidth: 340 }}>
+        <h2 style={{ margin: 'var(--e-4) 0 var(--e-2)', fontSize: 'var(--t-titulo)' }}>Não consegui carregar</h2>
+        <p style={{ color: 'var(--cinza)', fontSize: 'var(--t-corpo-pq)', maxWidth: 340 }}>
           Tente recarregar a página em instantes.
         </p>
       </div>
@@ -63,17 +71,21 @@ export default function App() {
  *
  * Sobre a foto ela é transparente, com um véu escuro por baixo do texto —
  * capa clara com texto branco seria ilegível, e não dá para saber que foto a
- * empresa vai subir. Passado o topo, vira sólida.
+ * empresa vai subir. Passado o topo, vira sólida. Sem foto de capa não há
+ * nada para flutuar sobre — a barra nasce firme, porque texto branco sobre
+ * o fundo claro do cabeçalho ficaria ilegível.
  */
-function BarraTopo({ negocio, marca, aoAgendar }) {
-  const [firme, setFirme] = useState(false);
+function BarraTopo({ negocio, marca, aoAgendar, temCapa }) {
+  const [rolou, setRolou] = useState(false);
+  const firme = !temCapa || rolou;
 
   useEffect(() => {
-    const aoRolar = () => setFirme(window.scrollY > 120);
+    if (!temCapa) return;
+    const aoRolar = () => setRolou(window.scrollY > 120);
     aoRolar();
     window.addEventListener('scroll', aoRolar, { passive: true });
     return () => window.removeEventListener('scroll', aoRolar);
-  }, []);
+  }, [temCapa]);
 
   return (
     <header className={'barra' + (firme ? ' firme' : '')}>
@@ -103,7 +115,7 @@ function BarraTopo({ negocio, marca, aoAgendar }) {
 /* ── revelar ao rolar ──────────────────────────────────────────────
    Discreto de propósito: a página existe para agendar rápido, não para
    impressionar. Quem pediu menos movimento no sistema não vê nada. */
-function useRevelar() {
+export function useRevelar() {
   const ref = useRef(null);
   useEffect(() => {
     const alvo = ref.current;
@@ -121,7 +133,7 @@ function useRevelar() {
   return ref;
 }
 
-const Revela = ({ children, className = '' }) => {
+export const Revela = ({ children, className = '' }) => {
   const ref = useRevelar();
   return <div ref={ref} className={`revela ${className}`}>{children}</div>;
 };
@@ -147,32 +159,64 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
     return [...mapa].map(([nome, itens]) => ({ nome, itens }));
   }, [servicos]);
 
+  // Clínica é o único modelo com um cabeçalho de duas colunas — o resto do
+  // esqueleto (barra, .capa como faixa solta, .identidade empilhada) é
+  // compartilhado pelos outros três de propósito. Uma estrutura por modelo
+  // só se justifica quando o próprio modelo pede uma composição diferente,
+  // não uma variação de cor — ver "Do build new site markup..." no
+  // DESIGN.md. Referência: inspiraestetica.com.br, texto de um lado, imagem
+  // grande do outro.
+  const ehClinica = marca?.template === 'clinica';
+  // A barra é fixa e, sem uma faixa de capa embaixo dela pra absorver a
+  // sobreposição, ela cobre o topo do que vier em seguida — cortava a foto
+  // ou a inicial da Clínica, e cortava o nome de qualquer empresa sem capa
+  // nos outros três modelos. Só a faixa .capa clássica (260px, bem mais alta
+  // que a barra) tem folga o bastante para a barra flutuar por cima sem
+  // esconder nada; nos outros casos, .identidade precisa da própria folga.
+  const temFaixaDeCapa = !ehClinica && !!marca?.capa;
+
   return (
     <main>
-      <BarraTopo negocio={negocio} marca={marca} aoAgendar={aoAgendar} />
+      <BarraTopo negocio={negocio} marca={marca} aoAgendar={aoAgendar}
+                 temCapa={temFaixaDeCapa} />
 
-      <div className="capa">
-        {marca?.capa ? <img src={marca.capa} alt="" /> : <div className="capa-vazia" />}
-        <div className="capa-veu" aria-hidden="true" />
-      </div>
+      {ehClinica ? (
+        <HeroClinica negocio={negocio} marca={marca} textos={textos} aoAgendar={aoAgendar} />
+      ) : (
+        <>
+          {/* A foto de capa, quando existe, é uma peça acima do cabeçalho —
+              não o cabeçalho em si. Sem foto (o caso de hoje, sem nenhuma
+              empresa com imagem enviada), o nome já nasce sobre o fundo
+              lavado da marca: nada de mancha de gradiente fingindo ser
+              imagem. */}
+          {marca?.capa && (
+            <div className="capa">
+              <img src={marca.capa} alt="" />
+              <div className="capa-veu" aria-hidden="true" />
+            </div>
+          )}
 
-      <div className="env identidade">
-        <Logo marca={marca} nome={negocio.nome} />
-        <h1>{negocio.nome}</h1>
-        {negocio.slogan && <p className="slogan">{negocio.slogan}</p>}
-        {negocio.endereco && (
-          <a className="local"
-             href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
-             target="_blank" rel="noreferrer">
-            <MapPin size={15} /> {negocio.endereco}
-          </a>
-        )}
-        <div className="chamada">
-          <button className="b b-p b-larg" onClick={() => aoAgendar(null)}>
-            <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
-          </button>
-        </div>
-      </div>
+          <div className={'identidade' + (!temFaixaDeCapa ? ' identidade-sem-capa' : '')}>
+            <div className="env identidade-in">
+              <Logo marca={marca} nome={negocio.nome} />
+              <h1>{negocio.nome}</h1>
+              {negocio.slogan && <p className="slogan">{negocio.slogan}</p>}
+              {negocio.endereco && (
+                <a className="local"
+                   href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
+                   target="_blank" rel="noreferrer">
+                  <MapPin size={15} /> {negocio.endereco}
+                </a>
+              )}
+              <div className="chamada">
+                <button className="b b-p b-larg" onClick={() => aoAgendar(null)}>
+                  <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {negocio.sobre && (
         <section className="bloco">
@@ -182,11 +226,20 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
         </section>
       )}
 
+      {/* O primeiro combo ganha o tratamento grande — campo de cor cheio, preço
+          em escala de destaque. É a promoção que a empresa mais quer empurrar
+          agora; comparar vários lado a lado é para o que sobrar, na grade
+          menor logo abaixo. */}
       {combos.length > 0 && (
         <section className="bloco">
           <div className="env-largo">
-            <Revela><h2 className="bloco-titulo">Promoções</h2></Revela>
-            <Promocoes itens={combos} exibir={exibir} aoAgendar={aoAgendarCombo} />
+            <Destaque combo={combos[0]} exibir={exibir} aoAgendar={aoAgendarCombo} />
+            {combos.length > 1 && (
+              <>
+                <h2 className="bloco-titulo" style={{ marginTop: 'var(--e-8)' }}>Mais promoções</h2>
+                <Promocoes itens={combos.slice(1)} exibir={exibir} aoAgendar={aoAgendarCombo} />
+              </>
+            )}
           </div>
         </section>
       )}
@@ -203,8 +256,93 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
         </div>
       </section>
 
-      <Rodape negocio={negocio} textos={textos} />
+      {/* O que vem daqui pra baixo é exclusivo do modelo Clínica — a
+          referência (inspiraestetica.com.br) tem essas seções, os outros
+          três modelos não pediram nenhuma delas. */}
+      {ehClinica && (
+        <>
+          <SecaoEquipe profissionais={dados.profissionais} />
+          <SecaoAntesDepois />
+          <SecaoAvaliacoes />
+          <SecaoInstagram negocio={negocio} />
+          <SecaoMapa negocio={negocio} />
+        </>
+      )}
+
+      <Rodape negocio={negocio} textos={textos} cheio={ehClinica} />
     </main>
+  );
+}
+
+/**
+ * O cabeçalho do modelo Clínica: texto de um lado, imagem grande do outro —
+ * a composição do próprio inspiraestetica.com.br, não uma variação de cor
+ * do cabeçalho dos outros três modelos.
+ *
+ * Sem `marca.capa` (nenhuma empresa de exemplo tem foto hoje), o painel
+ * visual não finge ser uma foto — vira a marca da empresa em destaque, o
+ * mesmo círculo-com-inicial que o site já usa em outros lugares quando falta
+ * imagem, só que grande. Assim que a empresa subir uma capa, a foto real
+ * ocupa o mesmo espaço sem mudar mais nada.
+ */
+function HeroClinica({ negocio, marca, textos, aoAgendar }) {
+  return (
+    <div className="identidade identidade-sem-capa">
+      <div className="env-largo clinica-hero">
+        <div className="clinica-hero-txt">
+          <h1>{negocio.nome}</h1>
+          {negocio.slogan && <p className="slogan">{negocio.slogan}</p>}
+          {negocio.endereco && (
+            <a className="local"
+               href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
+               target="_blank" rel="noreferrer">
+              <MapPin size={15} /> {negocio.endereco}
+            </a>
+          )}
+          <div className="chamada">
+            <button className="b b-p" onClick={() => aoAgendar(null)}>
+              <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
+            </button>
+          </div>
+        </div>
+        <CarrosselHero marca={marca} inicial={(negocio.nome || '?').trim()[0]?.toUpperCase()} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * O painel visual do cabeçalho — uma imagem só (ou a inicial) hoje, mas já
+ * passa sozinho para mais de uma quando `marca.capas` existir. Ainda não há
+ * tela no painel para cadastrar mais de uma capa — só a `capa` única de
+ * Configurações → Site da cliente — então isto funciona, mas ninguém
+ * consegue alimentar mais de um item nele ainda.
+ */
+function CarrosselHero({ marca, inicial }) {
+  const imagens = marca?.capas?.length ? marca.capas : (marca?.capa ? [marca.capa] : []);
+  const [i, setI] = useState(0);
+
+  useEffect(() => {
+    if (imagens.length < 2) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setInterval(() => setI(v => (v + 1) % imagens.length), 5000);
+    return () => clearInterval(t);
+  }, [imagens.length]);
+
+  return (
+    <div className="clinica-hero-visual">
+      {imagens.length > 0
+        ? <img key={i} src={imagens[i]} alt="" />
+        : <span className="clinica-hero-marca">{inicial}</span>}
+      {imagens.length > 1 && (
+        <div className="clinica-hero-pontos">
+          {imagens.map((_, idx) => (
+            <button key={idx} className={'clinica-ponto' + (idx === i ? ' on' : '')}
+                    onClick={() => setI(idx)} aria-label={`Imagem ${idx + 1} de ${imagens.length}`} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -296,6 +434,36 @@ function Servicos({ itens, exibir, textos, aoAgendar }) {
 }
 
 /**
+ * O combo principal, em destaque — campo de cor cheio da marca, preço em
+ * escala grande. É a promoção que a empresa mais quer empurrar agora, então
+ * ganha o mesmo peso visual que o cabeçalho: não é mais um cartão na grade,
+ * é a segunda coisa que a página afirma depois do próprio nome.
+ */
+function Destaque({ combo: c, exibir, aoAgendar }) {
+  return (
+    <Revela>
+      <article className="destaque">
+        <div>
+          <span className="destaque-selo"><Sparkles size={13} /> Promoção</span>
+          <h2 className="destaque-nome">{c.nome}</h2>
+          <p className="destaque-itens">{c.servicos.map(s => s.nome).join(' + ')}</p>
+          {c.descricao && <p className="destaque-desc">{c.descricao}</p>}
+          <button className="b destaque-btn" onClick={() => aoAgendar(c.id)}>
+            <Calendar size={18} /> Aproveitar
+          </button>
+        </div>
+        <div className="destaque-preco">
+          <span className="destaque-cheio">{brl(c.precoCheio)}</span>
+          <strong className="destaque-valor">{brl(c.preco)}</strong>
+          <span className="destaque-economia">economize {brl(c.economia)}</span>
+          {exibir?.duracao && <span className="destaque-dur">{duracaoTexto(c.duracao)} no total</span>}
+        </div>
+      </article>
+    </Revela>
+  );
+}
+
+/**
  * Promoções: o pacote e, ao lado, o que ele deixa de custar.
  *
  * O preço cheio riscado e o "economize" existem porque combo sem vantagem
@@ -335,10 +503,10 @@ function Promocoes({ itens, exibir, aoAgendar }) {
   );
 }
 
-function Rodape({ negocio, textos }) {
+function Rodape({ negocio, textos, cheio }) {
   const NOMES_PAG = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
   return (
-    <footer className="bloco rodape">
+    <footer className={'bloco rodape' + (cheio ? ' bloco-cheio' : '')}>
       <div className="env">
         <h2 className="bloco-titulo pequeno">Contato</h2>
         <div className="rodape-links">

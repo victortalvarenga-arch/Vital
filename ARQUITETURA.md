@@ -537,8 +537,8 @@ agenda ou de dinheiro precisa passar por `escopoDe`.
 ## De quem é a requisição
 
 `lib/tenant.js` é o único lugar que decide isso. Três caminhos, nesta ordem:
-domínio próprio (`agenda.estudiolume.com.br`), subdomínio nosso
-(`lume.vital.app`), e por último a empresa padrão — que é o caso de `localhost`
+domínio próprio (`agenda.laurafaust.com.br`), subdomínio nosso
+(`laurafaust.vital.app`), e por último a empresa padrão — que é o caso de `localhost`
 e do apex.
 
 **Endereço que nomeia empresa inexistente devolve 404, não cai no padrão.**

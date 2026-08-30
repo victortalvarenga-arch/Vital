@@ -166,7 +166,11 @@ export const configPadrao = {
     corPrimaria: '#A32A4E',
     corFundo: '#FFFFFF',
     corTexto: '#1A1A1A',
-    fonte: 'padrao',
+    // Qual dos modelos visuais do site esta empresa usa. A cor continua sendo
+    // escolha dela em qualquer modelo — o que muda é a forma, a tipografia, a
+    // sombra e o fundo neutro em volta dessa cor. Era `fonte`, sem uso nenhum
+    // no front; renomeado para o que o campo faz de verdade.
+    template: 'bandeja', // 'bandeja' | 'quadro' | 'caderneta' | 'clinica'
     logo: '',
     capa: '',
     favicon: '',
