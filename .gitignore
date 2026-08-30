@@ -5,6 +5,25 @@ dist/
 *.db-shm
 *.db-wal
 .DS_Store
+.claude
+.cursor
+.gemini
+# skills de terceiros instaladas pelo `npx skills` (mattpocock/skills) —
+# ferramenta pessoal, não faz parte do produto. Fica só nesta máquina.
+.agents
+skills-lock.json
+
+# .impeccable/design.json e config.json comitam (documentação do design
+# system); o resto é local ou cache.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+
 
 # imagens enviadas pelas empresas (não versionar)
 uploads/
+
+# material bruto que a Laura Faust passou (PDF de identidade de marca, cartão
+# de visita, fotos originais em alta resolução) — dado pessoal e de negócio de
+# uma cliente real, não pertence ao histórico do Git. As versões redimensionadas
+# que o site usa de fato ficam em server/uploads/default/ (já ignorado acima).
+img/

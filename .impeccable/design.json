@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-29T20:00:00.000Z",
+  "title": "Design System: Vital",
+  "extensions": {
+    "colorMeta": {
+      "painel-ink": { "role": "neutral", "displayName": "Aubergine Ink", "canonical": "#241A28" },
+      "painel-ink-deep": { "role": "neutral", "displayName": "Aubergine Ink, Deep", "canonical": "#3B2B41" },
+      "painel-porcelain": { "role": "neutral", "displayName": "Warm Porcelain", "canonical": "#FBF6F4" },
+      "painel-paper": { "role": "neutral", "displayName": "Paper", "canonical": "#FFFFFF" },
+      "painel-blush": { "role": "secondary", "displayName": "Blush", "canonical": "#EEDBD6" },
+      "painel-lacquer": { "role": "primary", "displayName": "Lacquer", "canonical": "#A32A4E" },
+      "painel-lacquer-deep": { "role": "primary", "displayName": "Lacquer, Deep", "canonical": "#7E1E3C" },
+      "painel-ultraviolet": { "role": "tertiary", "displayName": "Ultraviolet", "canonical": "#6A57C7" },
+      "painel-line": { "role": "neutral", "displayName": "Line", "canonical": "#E7D8D4" },
+      "painel-muted": { "role": "neutral", "displayName": "Muted", "canonical": "#7A6975" },
+      "painel-ok": { "role": "neutral", "displayName": "Ok", "canonical": "#3E7D63" },
+      "painel-warn": { "role": "neutral", "displayName": "Warn", "canonical": "#B4762A" },
+      "vital-ink": { "role": "neutral", "displayName": "Ink", "canonical": "#17141C" },
+      "vital-paper": { "role": "neutral", "displayName": "Paper", "canonical": "#FFFFFF" },
+      "vital-ground": { "role": "neutral", "displayName": "Ground", "canonical": "#F6F4F8" },
+      "vital-line": { "role": "neutral", "displayName": "Line", "canonical": "#E4E0EA" },
+      "vital-muted": { "role": "neutral", "displayName": "Muted", "canonical": "#6D6678" },
+      "vital-purple": { "role": "primary", "displayName": "Purple", "canonical": "#4B2E83" },
+      "vital-purple-soft": { "role": "primary", "displayName": "Purple, Soft", "canonical": "#F0EAFA" },
+      "vital-ok": { "role": "neutral", "displayName": "Ok", "canonical": "#2E7D5B" },
+      "vital-warn": { "role": "neutral", "displayName": "Warn", "canonical": "#8A5A00" },
+      "vital-error": { "role": "neutral", "displayName": "Error", "canonical": "#8A2B2B" },
+      "site-tenant-accent": { "role": "primary", "displayName": "Tenant Accent (runtime; seed default: Sage) ", "canonical": "#3F6350" },
+      "site-tenant-accent-deep": { "role": "primary", "displayName": "Tenant Accent, Deep (runtime)", "canonical": "#2F4A3C" },
+      "site-tenant-accent-soft": { "role": "primary", "displayName": "Tenant Accent, Soft (runtime)", "canonical": "#E8ECEA" },
+      "site-tenant-accent-border": { "role": "primary", "displayName": "Tenant Accent, Border (runtime)", "canonical": "#C9D3CE" },
+      "site-tenant-tint": { "role": "primary", "displayName": "Tenant Tint (static fallback)", "canonical": "#F3F6F5" },
+      "site-on-accent": { "role": "neutral", "displayName": "On-Accent", "canonical": "#FFFFFF" },
+      "site-ground": { "role": "neutral", "displayName": "Ground", "canonical": "#FFFFFF" },
+      "site-ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1A1A1A" },
+      "site-gray": { "role": "neutral", "displayName": "Gray", "canonical": "#6B6B6B" },
+      "site-muted": { "role": "neutral", "displayName": "Muted", "canonical": "#737373" },
+      "site-line": { "role": "neutral", "displayName": "Line", "canonical": "#E8E8E8" },
+      "site-surface": { "role": "neutral", "displayName": "Surface", "canonical": "#FAFAFA" }
+    },
+    "typographyMeta": {
+      "painel-display": { "displayName": "Fraunces (variable)", "purpose": "Headlines, stat numbers, wizard title — the 'headline' number, not the 'coordinate' number." },
+      "painel-body": { "displayName": "Karla", "purpose": "Body copy, buttons, form labels." },
+      "painel-mono": { "displayName": "IBM Plex Mono", "purpose": "Times, log timestamps, slot labels — any scannable number." },
+      "vital-body": { "displayName": "IBM Plex Sans", "purpose": "All text. Replaced Inter this pass — a deliberate identity decision (shares an origin with the audit-trail mono, and Inter was flagged as an unexamined default), not the earlier bug fix that only added the missing @import." },
+      "vital-mono": { "displayName": "IBM Plex Mono", "purpose": "Audit-trail action label. Now the same type family as vital-body." },
+      "site-body": { "displayName": "Manrope", "purpose": "All text including headings; hierarchy from size/weight/tracking, not a font pairing. Replaced Inter this pass to keep the single-family system while losing the generic-default read." },
+      "site-rotulo": { "displayName": "Manrope — Rótulo", "purpose": "Smallest uppercase labels: weekday header, summary label, item captions." },
+      "site-legenda": { "displayName": "Manrope — Legenda", "purpose": "Meta/caption text: field labels, struck-through prices, footnotes." },
+      "site-auxiliar": { "displayName": "Manrope — Auxiliar", "purpose": "Secondary body: helper copy, descriptions, guide-column paragraphs." },
+      "site-corpo-pq": { "displayName": "Manrope — Corpo pequeno", "purpose": "Small UI text: most button/label/value text that isn't the primary name." },
+      "site-corpo": { "displayName": "Manrope — Corpo", "purpose": "Primary names: service name, option name, slogan, header brand name." },
+      "site-titulo-pq": { "displayName": "Manrope — Título pequeno", "purpose": "Sub-headings: guide-column step name, month name, promo name." },
+      "site-titulo": { "displayName": "Manrope — Título", "purpose": "Step titles: booking-window header, category name, confirmation heading." },
+      "site-destaque": { "displayName": "Manrope — Destaque", "purpose": "The one emphasized number on the page: a promo's discounted price." },
+      "site-secao": { "displayName": "Manrope — Seção", "purpose": "Section titles: company name, 'Nossos serviços'-style headings." },
+      "site-hero": { "displayName": "Manrope — Hero", "purpose": "The largest mark on the page: logo initial, service-circle initial." }
+    },
+    "shadows": [
+      { "name": "site-ambient", "value": "0 1px 2px rgba(0,0,0,.04), 0 8px 24px -16px rgba(0,0,0,.18)", "purpose": "Ownerless ambient light — booking window, header logo mark. No implied direction." },
+      { "name": "site-bandeja", "value": "-3px 10px 20px -14px rgba(37,45,40,.35), 0 1px 2px rgba(37,45,40,.06)", "purpose": "Directional light, brand-ink tinted — service circles and promo cards at rest/hover-start. Part of the 'A Bandeja' thesis: each service is an object on a lit tray, not an icon floating in space." },
+      { "name": "site-bandeja-hover", "value": "-4px 14px 28px -14px rgba(37,45,40,.4), 0 2px 4px rgba(37,45,40,.08)", "purpose": "Same light, closer — the object lifts off the tray on hover." },
+      { "name": "site-window", "value": "0 24px 70px -20px rgba(0,0,0,.5)", "purpose": "The booking window, the only modal-scale surface on site." },
+      { "name": "painel-sticky", "value": "0 8px 30px -14px rgba(0,0,0,.5)", "purpose": "The sticky config-save bar and toast." },
+      { "name": "painel-modal", "value": "0 8px 30px -12px rgba(0,0,0,.45)", "purpose": "The floating alert/notice card." },
+      { "name": "vital-none", "value": "none", "purpose": "Vital uses no shadow vocabulary at rest or floating — depth is a border + surface-step relationship only. See DESIGN.md Elevation & Depth." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": ".12s–.25s ease", "purpose": "Shared instinct across all three systems for hover/press/focus transitions — short, no bounce, no scale." },
+      { "name": "site-cover-zoom", "value": "1.4s cubic-bezier(.22,1,.36,1), scale(1.08) to none, once", "purpose": "Slow zoom-in on the site's cover photo on first paint, not scroll-driven." },
+      { "name": "site-reveal", "value": ".55s ease/cubic-bezier(.22,1,.36,1), translateY(18px) to none, opacity 0 to 1", "purpose": "Scroll-reveal on site sections; fully disabled under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "painel-shell", "value": "900px" },
+      { "name": "painel-mobile-agenda", "value": "820px" },
+      { "name": "vital-two-column", "value": "900px" },
+      { "name": "site-window-stack", "value": "860px" },
+      { "name": "site-narrow-tweak", "value": "420px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Painel — Primary Button",
+      "kind": "button",
+      "refersTo": "painel-button-primary",
+      "description": "Pill-shaped lacquer button, the default call to action across the operator panel.",
+      "html": "<button class=\"ds-p-btn-primary\">Salvar</button>",
+      "css": ".ds-p-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 18px; border-radius: 999px; font-family: 'Karla', system-ui, sans-serif; font-size: 14px; font-weight: 600; background: #A32A4E; color: #fff; transition: background .16s; } .ds-p-btn-primary:hover { background: #7E1E3C; } .ds-p-btn-primary:focus-visible { outline: 2px solid #6A57C7; outline-offset: 2px; } .ds-p-btn-primary:disabled { background: #E7D8D4; color: #806E7B; cursor: not-allowed; }"
+    },
+    {
+      "name": "Painel — Chip",
+      "kind": "chip",
+      "refersTo": "painel-chip",
+      "description": "Toggleable pill used for staff, weekday, and category selection lists.",
+      "html": "<button class=\"ds-p-chip ds-p-chip-on\">Terça</button>",
+      "css": ".ds-p-chip { display: inline-flex; align-items: center; justify-content: center; padding: 10px 15px; min-height: 42px; border-radius: 999px; border: 1px solid #E7D8D4; background: #FFFFFF; font-family: 'Karla', system-ui, sans-serif; font-size: 14px; font-weight: 600; color: #241A28; transition: background .14s, border-color .14s, color .14s; } .ds-p-chip:hover { border-color: #241A28; } .ds-p-chip-on { background: #241A28; color: #FBF6F4; border-color: #241A28; }"
+    },
+    {
+      "name": "Painel — Card",
+      "kind": "card",
+      "refersTo": "painel-card",
+      "description": "Flat paper surface at rest, no shadow — depth comes from the porcelain page background beneath it.",
+      "html": "<div class=\"ds-p-card\"><strong>Cliente</strong><p>Amanda Souza</p></div>",
+      "css": ".ds-p-card { background: #FFFFFF; border: 1px solid #E7D8D4; border-radius: 16px; padding: 16px 18px; font-family: 'Karla', system-ui, sans-serif; color: #241A28; } .ds-p-card strong { font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 17px; } .ds-p-card p { margin: 4px 0 0; font-size: 13.5px; color: #7A6975; }"
+    },
+    {
+      "name": "Painel — Input",
+      "kind": "input",
+      "refersTo": "painel-input",
+      "description": "Text field shared across the panel's forms and modals.",
+      "html": "<input class=\"ds-p-input\" placeholder=\"Nome da cliente\" />",
+      "css": ".ds-p-input { font-family: 'Karla', system-ui, sans-serif; font-size: 14px; color: #241A28; background: #FFFFFF; border: 1px solid #E7D8D4; border-radius: 10px; padding: 10px 12px; width: 100%; outline: none; } .ds-p-input:focus { border-color: #A32A4E; box-shadow: 0 0 0 3px rgba(163,42,78,.12); }"
+    },
+    {
+      "name": "Vital — Primary Button",
+      "kind": "button",
+      "refersTo": "vital-button-primary",
+      "description": "Full-width purple button used on the signup form and back-office actions.",
+      "html": "<button class=\"ds-v-btn-primary\">Cadastrar minha empresa</button>",
+      "css": ".ds-v-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 16px; border-radius: 10px; font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; font-weight: 600; background: #4B2E83; color: #fff; transition: filter .15s; } .ds-v-btn-primary:hover { filter: brightness(1.1); } .ds-v-btn-primary:disabled { opacity: .55; cursor: default; }"
+    },
+    {
+      "name": "Vital — Card",
+      "kind": "card",
+      "refersTo": "vital-card",
+      "description": "Bordered, shadowless surface — Vital's only depth device is the paper-on-ground color step.",
+      "html": "<div class=\"ds-v-card\"><strong>Laura Faust</strong><p>laurafaust.vital.app · plano trial</p></div>",
+      "css": ".ds-v-card { background: #FFFFFF; border: 1px solid #E4E0EA; border-radius: 13px; padding: 16px 18px; font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #17141C; } .ds-v-card strong { font-size: 16px; } .ds-v-card p { margin: 4px 0 0; font-size: 12.5px; color: #6D6678; }"
+    },
+    {
+      "name": "Site — Primary Button",
+      "kind": "button",
+      "refersTo": "site-button-primary",
+      "description": "Pill button in the tenant's own accent color — shown here with the seed default; the real value is injected per tenant at runtime. Hover text color is computed separately from the base color's on-accent value (--sobre-marca-escura), not inherited, because darkening can flip which text color has better contrast.",
+      "html": "<button class=\"ds-s-btn-primary\">Agendar horário</button>",
+      "css": ".ds-s-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; min-height: 48px; border-radius: 999px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 600; background: #3F6350; color: #FFFFFF; transition: background .15s; } .ds-s-btn-primary:hover { background: #2F4A3C; color: #FFFFFF; } .ds-s-btn-primary:disabled { background: #E8E8E8; color: #737373; cursor: not-allowed; }"
+    },
+    {
+      "name": "Site — Promo Card",
+      "kind": "card",
+      "refersTo": "site-promo-card",
+      "description": "Flat at rest per the Float-Only-Shadow Rule; lifts with the directional 'bandeja' shadow and a tenant-accent border on hover, the same gesture the service-photo circle uses.",
+      "html": "<div class=\"ds-s-promo\"><span class=\"ds-s-promo-selo\">Promoção</span><strong class=\"ds-s-promo-nome\">Dia de cuidado</strong><span class=\"ds-s-promo-preco\">R$ 199</span></div>",
+      "css": ".ds-s-promo { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; background: #FAFAFA; border: 1px solid #E8E8E8; border-radius: 18px; padding: 24px 16px 16px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; } .ds-s-promo:hover { transform: translateY(-3px); box-shadow: -3px 10px 20px -14px rgba(37,45,40,.35), 0 1px 2px rgba(37,45,40,.06); border-color: #C9D3CE; } .ds-s-promo-selo { position: absolute; top: -11px; background: #3F6350; color: #FFFFFF; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; } .ds-s-promo-nome { font-size: 17px; margin-top: 12px; } .ds-s-promo-preco { font-size: 24px; font-weight: 600; margin-top: 8px; }"
+    },
+    {
+      "name": "Site — Destaque",
+      "kind": "custom",
+      "refersTo": "site-destaque",
+      "description": "The featured combo: a full color-committed block, not a card in a grid. The one place on site where color owns a whole region instead of accenting a neutral one. Price set at the fluid destaque size — the single fact the block has to prove on its own.",
+      "html": "<article class=\"ds-s-destaque\"><div><span class=\"ds-s-destaque-selo\">Promoção</span><h2 class=\"ds-s-destaque-nome\">Dia de cuidado</h2><p class=\"ds-s-destaque-itens\">Limpeza de pele profunda + Design de sobrancelha</p><button class=\"ds-s-destaque-btn\">Aproveitar</button></div><div class=\"ds-s-destaque-preco\"><span class=\"ds-s-destaque-cheio\">R$ 225</span><strong class=\"ds-s-destaque-valor\">R$ 199</strong><span class=\"ds-s-destaque-economia\">economize R$ 26</span></div></article>",
+      "css": ".ds-s-destaque { display: grid; grid-template-columns: 1.3fr 1fr; align-items: center; gap: 24px; background: #3F6350; color: #FFFFFF; border-radius: 24px; padding: 40px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; } .ds-s-destaque-selo { display: inline-flex; background: #FFFFFF; color: #3F6350; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; margin-bottom: 12px; } .ds-s-destaque-nome { font-size: 30px; letter-spacing: -.02em; margin: 0 0 8px; } .ds-s-destaque-itens { font-size: 15px; opacity: .92; margin: 0 0 20px; } .ds-s-destaque-btn { background: #FFFFFF; color: #3F6350; border: none; border-radius: 999px; padding: 14px 24px; font-weight: 600; font-size: 15px; cursor: pointer; } .ds-s-destaque-preco { display: flex; flex-direction: column; gap: 2px; padding-left: 24px; border-left: 1px solid rgba(255,255,255,.25); } .ds-s-destaque-cheio { font-size: 14.5px; opacity: .75; text-decoration: line-through; } .ds-s-destaque-valor { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 2px 0; } .ds-s-destaque-economia { font-size: 14.5px; font-weight: 600; }"
+    },
+    {
+      "name": "Site — Card",
+      "kind": "card",
+      "refersTo": "site-card",
+      "description": "Bordered option row used inside the booking window for services and professionals.",
+      "html": "<button class=\"ds-s-card\"><span class=\"ds-s-card-title\">Limpeza de pele</span><span class=\"ds-s-card-sub\">60 min · R$ 120</span></button>",
+      "css": ".ds-s-card { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; padding: 12px 14px; min-height: 64px; border: 1px solid #E8E8E8; border-radius: 12px; background: #FFFFFF; transition: border-color .15s, background .15s; } .ds-s-card:hover { border-color: #3F6350; background: #E8ECEA; } .ds-s-card-title { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 15px; color: #1A1A1A; } .ds-s-card-sub { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 13.5px; color: #6B6B6B; }"
+    },
+    {
+      "name": "Site — Input",
+      "kind": "input",
+      "refersTo": "site-input",
+      "description": "Text field inside the booking window; font-size fixed at 16px specifically to defeat iOS auto-zoom on focus.",
+      "html": "<input class=\"ds-s-input\" placeholder=\"Seu WhatsApp\" />",
+      "css": ".ds-s-input { width: 100%; padding: 14px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 16px; border: 1px solid #E8E8E8; border-radius: 12px; background: #FFFFFF; color: #1A1A1A; outline: none; } .ds-s-input:focus { border-color: #3F6350; box-shadow: 0 0 0 3px rgba(63,99,80,.15); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Two Ledgers and a Canvas",
+    "overview": "Vital is not one interface wearing three skins — it is three coherent, independently-evolved visual systems, each serving a public that never sees the other two. The product's own architecture forces this: site, painel and vital.html are separate Vite bundles, separate CSS files, separate audiences, and the codebase already gives two of the three systems descriptive token names (porcelain, lacquer, blush, ink) that read like they were designed on purpose, not defaulted into.\n\nTwo of the three are ledgers — fixed, opinionated, unapologetically branded design languages that exist regardless of which tenant is using the product. The Atelier Ledger (painel) is warm, serif-headlined, porcelain-and-lacquer, built for a person who opens it fifty times a day from a phone at the counter. The Plain Ledger (vital.html) is the same record-keeping instinct with the warmth stripped out — purple, IBM Plex Sans paired with the IBM Plex Mono of its own audit trail, mostly borders, because this is where the Vital team administers other people's businesses and the tone is administrative trust, not hospitality.\n\nThe third is The Blank Canvas (site) — the one system in the product whose primary color is not a design decision at all. --marca arrives at runtime from the tenant's own config; the system's real signature is everything that doesn't change: the pill-shaped buttons, the circular photo grid, the 14px corner radius, the slow zoom-in on the cover photo, and now Manrope carrying that warmth in type instead of the Inter it shipped with. Site is the only surface designed to be worn by a color it doesn't choose.\n\nWithin that canvas, site's composition now carries a second, more specific thesis: A Bandeja (the tray). Mood-referenced from a real neighborhood esthetics studio's Instagram rather than the category's own cliché (cream ground, elegant serif, gold accent), each service reads as an object resting on a lit surface, not an icon on a card. The header no longer depends on a cover photo for impact — it didn't have one in the environment this was built in, and needed to work without one first — and the service circles carry a directional, brand-ink-tinted shadow instead of the system's ambient one.",
+    "keyCharacteristics": [
+      "Three separate token vocabularies, never shared, never crossing bundle boundaries",
+      "Two fixed brands (painel, Vital) built for operators; one adaptive shell (site) built to disappear behind whichever tenant is using it",
+      "lucide-react is the one true cross-cutting convention across all three bundles",
+      "Componentry is refined and comedido everywhere — short transitions, no scale/bounce, shallow functional shadow",
+      "No system uses Inter — painel (Fraunces/Karla), Vital (IBM Plex Sans/Mono) and site (Manrope) each committed to a face Inter's ubiquity doesn't carry"
+    ],
+    "rules": [
+      { "name": "The Named-Twin Rule", "body": "--p-marca, --p-escuro and --p-linha in painel are exact aliases of --lacquer, --ink and --line — not a second palette.", "section": "colors" },
+      { "name": "The Unused-Token Rule", "body": "--gold in painel is declared and never used. Give it a real job before designing with it.", "section": "colors" },
+      { "name": "The Injectable-Accent Rule", "body": "Site's tenant-accent tokens are runtime data, not design constants — never hardcode a specific hex for 'the site's brand color'.", "section": "colors" },
+      { "name": "The Muted-Text Floor", "body": "painel's --muted and site's --fraco were both darkened once already to clear WCAG AA (4.42:1 to 4.77:1, and 2.81:1 to 4.74:1). Don't re-lighten either without re-checking contrast against every background it's used on.", "section": "colors" },
+      { "name": "The Two-Number Rule", "body": "In painel, set a number in Fraunces when it's a headline and in IBM Plex Mono when it's a coordinate someone scans against others.", "section": "typography" },
+      { "name": "The One-Plex Rule", "body": "Vital's body and mono are both IBM Plex now. Don't introduce a third, unrelated family for a new role — extend within Plex Sans's weight range first.", "section": "typography" },
+      { "name": "The One-Family Rule", "body": "Site deliberately uses Manrope alone, for every role. Don't add a second family for 'more personality' — the tenant's injected accent color is where per-client personality already lives.", "section": "typography" },
+      { "name": "The Float-Only-Shadow Rule", "body": "On site and painel, shadow appears only on elements that float above the base layer (modals, sticky bars, toasts, photo circles). A card at rest never carries one. Vital carries none at all, ever.", "section": "elevation" },
+      { "name": "The On-Accent-Deep Rule", "body": "Text on --marca-escura uses --sobre-marca-escura, computed separately from --sobre-marca. Darkening a tenant color for hover can flip which text color has better contrast — sampling found roughly a quarter of the color space affected, blues especially. Never assume a derived shade inherits its base color's on-top text choice.", "section": "colors" },
+      { "name": "The Sixteen-Sixty Rule", "body": "--t-corpo-gr (16px) is a token; the literal 16px forced onto every real <input>/<select>/<textarea> is not, on purpose — that number exists to stop iOS auto-zoom, not to express hierarchy, and tying it to a retunable token would silently reopen that bug.", "section": "typography" },
+      { "name": "The Rhythm-Isn't-Sizing Rule", "body": "Site's nine-step spacing scale (--e-1 4px through --e-9 52px) covers rhythm between elements. Touch targets (40/44/46/48/56/64px min-height) stay literal on purpose — they're an accessibility constant, not a statement about air between things.", "section": "layout" },
+      { "name": "The No-Photo-Required Rule", "body": "Site's header composition must look finished with zero uploaded images — no tenant in this product's dev environment has one. The header's typographic treatment is identical whether marca.capa exists or not; a cover photo, when present, renders as a strip above the header, never as its load-bearing backdrop.", "section": "layout" },
+      { "name": "The Bandeja-Shadow Rule", "body": "--sombra-bandeja / --sombra-bandeja-hover are directional and brand-ink-tinted, reserved for the service-circle/promo-card 'object on a tray' material. --sombra stays the system's ownerless ambient shadow for everything else that floats. Don't swap one for the other as a generic strength dial.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the three token vocabularies fully separate — a decision made for one surface carries no default authority over the other two.",
+      "Do treat --marca and its derived shades on site as runtime data, always with a static fallback for pre-hydration paint.",
+      "Do use --sobre-marca-escura, not --sobre-marca, for text on any surface colored with --marca-escura.",
+      "Do reach for site's --t-* and --e-* tokens first for new site typography or spacing; a new literal should be the exception, not the default.",
+      "Do use IBM Plex Mono for any new scannable number on painel or Vital; use the surface's display or body font for headline numbers.",
+      "Do keep shadow reserved for floating elements on site and painel, and keep Vital flat.",
+      "Do use lucide-react, inline, for any new icon in any of the three bundles."
+    ],
+    "donts": [
+      "Don't reuse painel's --lacquer value for Vital's accent or vice versa — they're independently-maintained tokens that happen to be close today.",
+      "Don't give a Vital button or card a pill radius or a drop shadow — both are confirmed painel/site signatures Vital doesn't share.",
+      "Don't re-lighten painel's --muted or site's --fraco without re-checking WCAG contrast — both were corrected once already to clear AA.",
+      "Don't assume painel or Vital have a spacing scale — they still don't, on purpose; only site does now.",
+      "Don't fold site's touch-target min-heights (40/44/46/48/56/64px) into the --e-* spacing scale — they're accessibility constants, not rhythm.",
+      "Don't repeat painel's .btn-wa hardcoded WhatsApp-green pattern for anything other than an actual WhatsApp affordance.",
+      "Don't reach for Inter, Roboto, Geist, Plus Jakarta Sans, or Space Grotesk as a default for a new surface — none of the three existing systems uses any of them, on purpose."
+    ]
+  }
+}

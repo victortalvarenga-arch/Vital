@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#1f9d55",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-08-29T17:59:03.147Z",
+        "reason": "Documented sanctioned exception in DESIGN.md Components > Buttons: .btn-wa borrows WhatsApp's own brand green deliberately, the one hardcoded off-palette color in the system."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#187f44",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-08-29T17:59:07.503Z",
+        "reason": "Documented sanctioned exception in DESIGN.md Components > Buttons: .btn-wa:hover, same WhatsApp-brand exception as #1f9d55."
+      },
+      {
+        "rule": "overused-font",
+        "value": "fraunces",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-08-29T18:01:54.470Z",
+        "reason": "Same as Fraunces (font-family form) — this is the Google Fonts @import match for the identical, already-documented choice."
+      }
+    ]
+  }
+}
