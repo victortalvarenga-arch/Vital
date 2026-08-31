@@ -281,7 +281,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
-        {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} />}
+        {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} poderes={p} />}
         {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'usuarios' && p.equipe && (
           <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} />
@@ -1696,13 +1696,17 @@ const Variacao = ({ de, para }) => {
   );
 };
 
-function Financeiro({ dados }) {
+function Financeiro({ dados, poderes }) {
   const { staff } = dados;
   // Escala mais deslocamento, em vez de uma lista fixa de recortes: assim
   // "semana passada" e "março do ano passado" são a mesma mecânica, e não
   // dois botões que alguém teria de lembrar de criar.
   const [escala, setEscala] = useState('mes');
   const [desloc, setDesloc] = useState(0);
+  // Quem o dono está olhando. '' é a empresa inteira. O servidor ignora este
+  // parâmetro para funcionário — esconder os chips é conveniência, não
+  // controle de acesso.
+  const [quem, setQuem] = useState('');
   const [r, setR] = useState(null);
   const [falhou, setFalhou] = useState(false);
 
@@ -1714,13 +1718,13 @@ function Financeiro({ dados }) {
     let vivo = true;
     setR(null);
     setFalhou(false);
-    api.resumo({ de, ate })
+    api.resumo({ de, ate, profissionalId: quem || undefined })
       .then(x => { if (vivo) setR(x); })
       // Falha precisa parecer falha: caindo em `setR(null)`, sessão expirada
       // virava um "Calculando…" eterno, sem nada no console.
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [de, ate]);
+  }, [de, ate, quem]);
 
   if (falhou) {
     return (
@@ -1767,6 +1771,19 @@ function Financeiro({ dados }) {
         </div>
       </div>
 
+      {poderes.verDeTodos && (
+        <div className="fin-filtro">
+          <div className="chips chips-rolagem">
+            <button className={'chip' + (quem === '' ? ' on' : '')}
+                    onClick={() => setQuem('')}>A empresa toda</button>
+            {staff.filter(p => p.ativo).map(p => (
+              <button key={p.id} className={'chip' + (quem === p.id ? ' on' : '')}
+                      onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="stats" style={{ marginBottom: 18 }}>
         <div className="card stat">
           <span className="eyebrow">Recebido</span>
@@ -1804,7 +1821,11 @@ function Financeiro({ dados }) {
 
         <div className="card" style={{ padding: 18 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Comissões do período</div>
-          {staff.map(p => {
+          {/* `r.profissionalId` é quem está no recorte, seja por escolha do dono
+              ou por papel. Listar a equipe inteira mostrava a colega com
+              "produziu R$ 0,00" para quem não pode ver a produção dela — e zero
+              não é "não sei", é uma afirmação falsa. */}
+          {staff.filter(p => !r.profissionalId || p.id === r.profissionalId).map(p => {
             const prod = producaoPor[p.id] || 0;
             return (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>

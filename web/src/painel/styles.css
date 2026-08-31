@@ -648,3 +648,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .bl-rodape .btn{margin-left:0; width:100%}
   .bl-item{flex-direction:column; align-items:stretch}
 }
+
+/* Filtro por profissional do Financeiro. Linha própria, e não junto da escala
+   no cabeçalho: são duas perguntas diferentes — "que período" e "de quem" —, e
+   empilhá-las na mesma linha fazia as duas parecerem uma lista de abas só. */
+.fin-filtro{margin-bottom:14px}
