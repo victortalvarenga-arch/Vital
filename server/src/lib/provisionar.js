@@ -51,23 +51,29 @@ async function slugLivre(desejado) {
  * @param {string} o.nome    como o negócio se chama
  * @param {string} [o.ramo]  texto livre; guardado na config para o assistente
  * @param {string} [o.slug]  endereço desejado; sai do nome quando não vem
+ * @param {string} [o.id]    id fixo em vez de sorteado — só para o seed. Uma
+ *                           empresa cujo id vira nome de pasta em disco ou
+ *                           prefixo de bucket (fotos já redimensionadas antes
+ *                           do script rodar) precisa da mesma pasta a cada
+ *                           `npm run reset`; um id sorteado a deixaria órfã
+ *                           toda vez. Auto-cadastro nunca passa isto.
  * @param {string} [o.origem] de onde veio: 'auto-cadastro', 'seed', 'suporte'
  */
-export async function provisionarEmpresa({ nome, ramo = '', slug, plano = 'gratuito', origem = 'auto-cadastro' }) {
+export async function provisionarEmpresa({ nome, ramo = '', slug, id, plano = 'gratuito', origem = 'auto-cadastro' }) {
   const limpo = String(nome || '').trim();
   if (limpo.length < 2) return { erro: 'informe o nome do negócio' };
 
   const desejado = slug ? slugDe(slug) : slugDe(limpo);
   const enderecoLivre = await slugLivre(desejado);
 
-  const id = uid();
+  const idFinal = id || uid();
   await db.run(
     `INSERT INTO plataforma.tenants (id, slug, nome, dominio, config, plano, status, ativo, criado_em)
      VALUES (?,?,?,'',?,?,'ativa',1,?)`,
-    id, enderecoLivre, limpo, JSON.stringify({ nome: limpo, ramo }), plano, hoje()
+    idFinal, enderecoLivre, limpo, JSON.stringify({ nome: limpo, ramo }), plano, hoje()
   );
 
-  await db.comEmpresa(id, async () => {
+  await db.comEmpresa(idFinal, async () => {
     // Os textos prontos são neutros de gênero e de ramo — ver `templates.js`.
     for (const t of TEMPLATES_PADRAO) {
       await db.run(
@@ -81,7 +87,7 @@ export async function provisionarEmpresa({ nome, ramo = '', slug, plano = 'gratu
   // deixava rastro nenhum — nem o auto-cadastro, nem nada. `usuario_id` fica
   // nulo porque não foi a nossa equipe que fez: foi ela mesma.
   await registrar({
-    usuarioId: null, tenantId: id, acao: 'empresa_criada',
+    usuarioId: null, tenantId: idFinal, acao: 'empresa_criada',
     detalhe: { nome: limpo, ramo, slug: enderecoLivre, origem },
   });
 
@@ -89,7 +95,7 @@ export async function provisionarEmpresa({ nome, ramo = '', slug, plano = 'gratu
   // endereço recém-criado responderia 404 até o cache vencer.
   esquecerCacheDeEmpresas();
 
-  return { id, slug: enderecoLivre, nome: limpo };
+  return { id: idFinal, slug: enderecoLivre, nome: limpo };
 }
 
 /**

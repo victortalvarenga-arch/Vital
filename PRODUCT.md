@@ -116,14 +116,18 @@ onboarding) está certa antes de vender para outras estéticas.
 agora usa a identidade real dela como bancada de ensaio.** Antes o exemplo se
 chamava "Estúdio Lume", inteiramente inventado; deixou de existir com esse
 nome. `seed.js` grava o nome, a cor da marca (`#98a68c`), o logo, a capa e
-fotos de serviço reais dela — tudo em `server/uploads/default/`, veio de um
-material de identidade que ela mesma forneceu. **O catálogo de serviços
-(nomes e preços) continua aproximação nossa**, não confirmado por ela; as
-fotos são reais, os valores não. Isso **continua sendo dado de
-desenvolvimento**, nunca o cadastro dela de verdade: quando ela começar a
-usar o produto de fato, nasce por `POST /api/cadastro`/`provisionar.js`,
-separado deste tenant de exemplo, do jeito que qualquer empresa nasce — o
-seed não vira o cadastro dela sozinho, é só o ensaio que vem antes.
+fotos de serviço reais dela — tudo em `server/uploads/laurafaust/` (ou no
+bucket R2, sob o mesmo prefixo, quando configurado — ver ARQUITETURA.md,
+"Imagens"), veio de um material de identidade que ela mesma forneceu. **O
+catálogo de serviços (nomes e preços) continua aproximação nossa**, não
+confirmado por ela; as fotos são reais, os valores não. Isso **continua sendo
+dado de desenvolvimento**, nunca o cadastro dela de verdade: ela nasce pelo
+mesmo caminho de uma empresa de verdade (`provisionarEmpresa`), só com id
+fixo em vez de sorteado — não é mais a empresa padrão que qualquer
+`localhost` sem subdomínio abre, é `laurafaust.localhost`, como qualquer
+outra. Quando ela começar a usar o produto de fato, o cadastro dela de
+verdade nasce por `POST /api/cadastro`, separado deste tenant de ensaio — o
+seed não vira o cadastro dela sozinho.
 
 **Ainda nenhum depoimento, logo de cliente ou número de uso deve ser
 fabricado** em nenhuma superfície — a primeira cliente real ainda não

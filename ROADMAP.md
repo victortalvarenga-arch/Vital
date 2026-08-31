@@ -571,6 +571,11 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e ConfigSite
       já saíram; falta separar o resto — e o obstáculo é que os ajudantes
       (`Modal`, `Campo`, formatadores) moram lá dentro.
+- [ ] **`npm run seed -- --forcar` provavelmente quebra hoje.** Reinsere tudo
+      com os mesmos ids fixos (`v1`, `s1`, o tenant `laurafaust`...) sem
+      limpar antes — a segunda passada esbarra em PK duplicada. Não notado
+      porque `npm run reset` (que limpa o schema antes) é o caminho de
+      verdade; `--forcar` sozinho não tem teste nem uso conhecido.
 
 ### Operação
 

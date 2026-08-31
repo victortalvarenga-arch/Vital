@@ -7,8 +7,12 @@ qualquer uma, e não cria nada se ela não apontar para `localhost`.
 **Uma exceção ao "tudo é ficção":** a empresa "Laura Faust" usa o nome, a cor
 e as fotos reais da primeira cliente confirmada da Vital — ela ainda não usa
 o produto, é bancada de ensaio para o modelo Clínica antes do lançamento (ver
-PRODUCT.md, "Evidence on Hand"). As contas de login (`dono@vital.com` etc.)
-continuam sendo credenciais de desenvolvimento, não dela.
+PRODUCT.md, "Evidence on Hand"). Nasce pelo mesmo caminho de uma empresa de
+verdade (`provisionarEmpresa`, como a Barbearia), só com id fixo
+(`laurafaust`) em vez de sorteado — as fotos já resolvidas em disco/bucket
+precisam de uma pasta estável entre um `npm run reset` e outro. As contas de
+login (`dono@vital.com` etc.) continuam sendo credenciais de desenvolvimento,
+não dela.
 
 `cd server && npm run reset` apaga e recria exatamente o que está nesta página.
 
@@ -27,7 +31,9 @@ continuam sendo credenciais de desenvolvimento, não dela.
 | <http://barbearia.localhost:5173> | Site da Barbearia do João |
 | <http://barbearia.localhost:5173/painel.html> | Painel da Barbearia do João |
 
-`localhost:5173` sem subdomínio abre a Laura Faust — é a empresa padrão.
+`localhost:5173` sem subdomínio abre a empresa padrão — vazia, sem catálogo
+nem marca, o mesmo estado de uma recém-cadastrada. Laura Faust tem endereço
+próprio, como qualquer empresa: só abre em `laurafaust.localhost:5173`.
 
 **Por que `*.localhost` funciona sem configurar DNS:** o navegador resolve
 qualquer subdomínio de `localhost` para 127.0.0.1 por conta própria, e o Vite

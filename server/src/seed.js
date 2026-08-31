@@ -38,6 +38,9 @@ async function popular() {
 
 // Os textos de WhatsApp não são exemplo: toda empresa nasce com eles, aqui e
 // no cadastro self-service. Vem da mesma função, para não haver duas versões.
+// `default`/TENANT_PADRAO fica só nisto — o fallback de verdade vazio para
+// quem abre `localhost` sem subdomínio, do jeito que o CLAUDE.md sempre disse
+// que devia ser. Laura Faust não mora mais aqui: ver `primeiraClienteReal()`.
 await prepararEmpresaPadrao(TENANT_PADRAO);
 
 if (process.argv.includes('--vazio')) {
@@ -45,177 +48,189 @@ if (process.argv.includes('--vazio')) {
   return;
 }
 
-const { n: jaTem } = await db.get('SELECT COUNT(*) n FROM services');
-if (jaTem > 0 && !process.argv.includes('--forcar')) {
+// `plataforma.tenants` é a única tabela sem RLS (ver ARQUITETURA.md) — dá
+// para checar se já rodou sem precisar de contexto de empresa nenhum.
+const jaTem = await db.get(`SELECT 1 FROM plataforma.tenants WHERE id = 'laurafaust'`);
+if (jaTem && !process.argv.includes('--forcar')) {
   console.log('Banco já populado. Use `npm run reset` para recomeçar do zero.');
   return;
 }
 
-const h = hoje();
-
-// `tenants.nome` é a razão social do cadastro e `config.nome` é o que aparece
-// no site. O seed mexia só no segundo, e o back-office da Vital listava o
-// estúdio como "Meu negócio" — o nome que a migration deixa.
-// `slug` vira o subdomínio. A migration deixa 'default', que serve de id e não
-// serve de endereço — em desenvolvimento é por ele que se abre o site desta
-// empresa, em `laurafaust.localhost:5173`.
-//
-// Deixou de ser um estúdio fictício: é a bancada de ensaio para a PRIMEIRA
-// CLIENTE REAL da Vital (Laura Faust, estética, Joinville/SC) — nome, cor,
-// logo, contato e fotos de serviço são os dela de verdade, tirados da
-// identidade de marca e das fotos que ela mesma passou. Continua sendo
-// cenário de DESENVOLVIMENTO: ela ainda não usa o produto, só vamos lapidar
-// o modelo Clínica com o site dela até o produto estar pronto (ver
-// PRODUCT.md, "Evidence on Hand"). Empresa de verdade nasce vazia, por
-// `lib/provisionar.js` — isto nunca é copiado para lá automaticamente.
-//
-// O catálogo abaixo (nomes de serviço e preços) continua sendo aproximação
-// nossa, não a lista de preços real dela — as fotos são reais, os valores
-// não. Ajustar quando ela confirmar o menu de verdade.
-await db.run(
-  `UPDATE plataforma.tenants SET nome = 'Laura Faust', slug = 'laurafaust' WHERE id = ?`,
-  TENANT_PADRAO
-);
-
-// Onde as fotos do cenário moram. `uploads/` não é versionado — é pasta de
-// arquivo enviado por empresa, não de código —, então numa máquina recém
-// clonada elas não existem e o site nasce com buracos.
-//
-// Com `UPLOADS_BASE_URL` apontando para um bucket público, o seed grava a URL
-// de lá e qualquer máquina nasce completa, sem nada para copiar à mão. Sem a
-// variável, cai no caminho local de sempre, que serve a quem tem os arquivos
-// em disco. A pasta por empresa é a mesma dos dois lados — `uploads.js` grava
-// em `/uploads/<empresa>/`, e é isso que o bucket espelha.
-const BASE_UPLOADS = (process.env.UPLOADS_BASE_URL || '/uploads').replace(/\/+$/, '');
-const F = u => `${BASE_UPLOADS}/${TENANT_PADRAO}/${u}`;
-
-await setConfig({
-  nome: 'Laura Faust',
-  slogan: 'Estética e beleza · Joinville',
-  fone: '47996195696',
-  endereco: 'Rua Félix Heinzelmann, 139, Sala 02 — Bairro Santo Antônio, Joinville/SC',
-  instagram: 'estetica_laurafaust',
-  linkAvaliacao: 'https://g.page/estetica-laurafaust',
-  whatsapp: '47996195696',
-  mapa: 'https://maps.google.com/?q=Rua+Felix+Heinzelmann+139+Santo+Antonio+Joinville',
-  sobre: 'Um espaço para você se cuidar e se sentir incrível. Estética, beleza '
-    + 'e bem-estar, com atendimento pensado para o seu tempo — sem pressa e '
-    + 'sem fórmula pronta.',
-  marca: {
-    // Verde-sálvia da identidade de marca real dela — substitui o palpite
-    // (#3F6350) usado antes de a identidade oficial chegar.
-    corPrimaria: '#98a68c',
-    corFundo: '#FFFFFF',
-    corTexto: '#1A1A1A',
-    template: 'clinica',
-    logo: F('logo.jpg'),
-    capa: F('capa.jpg'),
-    // Duas fotos dela mesma — o cabeçalho da Clínica já sabe alternar entre
-    // várias (CarrosselHero, em App.jsx); com uma real e uma como próxima,
-    // dá pra ver o carrossel funcionando de verdade, não só a estrutura.
-    capas: [F('capa.jpg'), F('profissional-laura.jpg')],
-  },
-  textos: {
-    chamada: 'Agende seu horário',
-    botaoAgendar: 'Agendar',
-  },
-  janelaDias: 30,            // quantos dias à frente o site deixa agendar
-  antecedenciaHoras: 2,      // mínimo entre agora e o horário agendado
-  passoAgenda: 30,           // granularidade da grade, em minutos
-  horaLembreteVespera: '18:00',
-  horasAvisoNoDia: 3,
-  horaPosAtendimento: '11:00',
-  horaCampanha: '10:00',
-  diasAntesAniversario: 7,
-  diasReativacao: 60,
-});
-
-const staff = [
-  { id: 's1', nome: 'Laura Faust', funcao: 'Proprietária · Unhas', cor: '#334942', comissao: 0, fone: '47996195696',
-    jornada: { 1: ['09:00', '19:00'], 2: ['09:00', '19:00'], 3: ['09:00', '19:00'], 4: ['09:00', '19:00'], 5: ['09:00', '19:00'], 6: ['08:30', '14:00'] } },
-  { id: 's2', nome: 'Bia Menezes', funcao: 'Cílios e sobrancelhas', cor: '#6A57C7', comissao: 40, fone: '47988887777',
-    jornada: { 2: ['10:00', '19:00'], 3: ['10:00', '19:00'], 4: ['10:00', '19:00'], 5: ['10:00', '20:00'], 6: ['09:00', '15:00'] } },
-  { id: 's3', nome: 'Karen Souza', funcao: 'Estética facial', cor: '#3E7D63', comissao: 45, fone: '47977776666',
-    jornada: { 1: ['13:00', '19:00'], 3: ['13:00', '19:00'], 5: ['13:00', '19:00'] } },
-];
-for (const p of staff) {
-  await db.run(
-    `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`,
-    p.id, p.nome, p.funcao, p.fone, p.cor, p.comissao, JSON.stringify(p.jornada), h
-  );
-}
-
-// Foto real por serviço — mesmas 8 fotos que Laura passou, repetidas onde faz
-// sentido dentro da mesma categoria (duas fotos de unha cobrem cinco serviços
-// de unha, por exemplo). Nomes e preços continuam aproximação nossa: ela
-// ainda não confirmou o menu de verdade.
-const servicos = [
-  ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1'], F('servico-unhas-1.jpg')],
-  ['v2', 'Alongamento em fibra', 'Unhas', 'Alongamento F1 com acabamento em gel.', 160, 150, ['s1'], F('servico-unhas-2.jpg')],
-  ['v3', 'Manutenção de alongamento', 'Unhas', '', 110, 105, ['s1'], F('servico-reforco.jpg')],
-  ['v4', 'Unhas tradicionais', 'Unhas', 'Cutilagem e esmaltação tradicional.', 45, 50, ['s1'], F('servico-unhas-1.jpg')],
-  ['v5', 'Plástica dos pés', 'Unhas', 'Esfoliação, hidratação profunda e esmaltação.', 95, 70, ['s1'], F('servico-unhas-2.jpg')],
-  ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2'], F('servico-cilios-1.jpg')],
-  ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2'], F('servico-cilios-2.jpg')],
-  ['v8', 'Design de sobrancelha', 'Olhar', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
-  ['v9', 'Design com henna', 'Olhar', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
-  ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-limpeza.jpg')],
-  ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3'], F('servico-facial.jpg')],
-];
-for (const [i, [id, nome, cat, desc, preco, dur, profs, foto]] of servicos.entries()) {
-  await db.run(
-    `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem,foto) VALUES (?,?,?,?,?,?,10,1,?,?)`,
-    id, nome, cat, desc, preco, dur, i, foto
-  );
-  await salvarVinculos(id, profs);
-}
-
-const clientes = [
-  ['c1', 'Amanda Ribeiro', '47991234567', '1994-09-02', 'Rua das Palmeiras, 210 — Costa e Silva', 'Prefere tons nude.', -240],
-  ['c2', 'Juliana Kruger', '47992345678', '1988-03-05', 'Av. Getúlio Vargas, 1180 — Anita Garibaldi', '', -180],
-  ['c3', 'Patrícia Lemos', '47993456789', '1999-12-19', 'Rua Blumenau, 45 — América', 'Alergia a acetona.', -95],
-  ['c4', 'Camila Fontes', '47994567890', '1991-06-11', 'Rua Iririú, 903 — Iririú', '', -400],
-  ['c5', 'Renata Alves', '47995678901', '2001-01-27', 'Rua Dona Francisca, 2200 — Santo Antônio', '', -30],
-  ['c6', 'Débora Nunes', '47996789012', '1985-08-30', 'Rua São Paulo, 77 — Bucarein', 'Sempre atrasa 10 min.', -520],
-];
-for (const [id, nome, fone, nasc, end, obs, d] of clientes) {
-  await db.run(
-    `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,1,?)`,
-    id, nome, fone, nasc, end, obs, addDias(h, d)
-  );
-}
-
-const mk = async (cli, svc, prof, dia, hora, status, pagStatus, forma) => {
-  const s = await db.get('SELECT * FROM services WHERE id=?', svc);
-  await db.run(
-    `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_forma,origem,criado_em)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,'site',?)`,
-    uid(), cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
-    status, pagStatus, forma, h
-  );
-};
-await mk('c1', 'v1', 's1', 0, '09:00', 'concluido', 'pago', 'pix');
-await mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
-await mk('c3', 'v4', 's1', 0, '11:00', 'confirmado', 'aberto', 'local');
-await mk('c5', 'v10', 's3', 0, '14:00', 'agendado', 'aberto', 'local');
-await mk('c4', 'v2', 's1', 0, '14:30', 'confirmado', 'pago', 'cartao');
-await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'aberto', 'local');
-await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
-await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
-await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
-await mk('c5', 'v9', 's2', 2, '11:00', 'agendado', 'aberto', 'local');
-await mk('c1', 'v1', 's1', -21, '09:00', 'concluido', 'pago', 'pix');
-await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
-await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
-await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
-
-await oResto();
-await contasDeDesenvolvimento();
+await primeiraClienteReal();
 await equipeDaVital();
 await segundaEmpresa();
 
-console.log(`Banco populado: ${servicos.length} serviços, ${staff.length} profissionais, ${clientes.length} clientes.`);
+console.log('Banco populado.');
 
+}
+
+/**
+ * A PRIMEIRA CLIENTE REAL da Vital — Laura Faust, estética, Joinville/SC (ver
+ * PRODUCT.md, "Evidence on Hand"). Nome, cor da marca, logo, contato e fotos
+ * de serviço são os dela de verdade, tirados da identidade que ela mesma
+ * passou; o catálogo abaixo (nomes de serviço e preços) continua aproximação
+ * nossa, não a lista de preços real dela — ajustar quando ela confirmar o
+ * menu de verdade.
+ *
+ * Nasce pelo mesmo caminho de uma empresa de verdade, `provisionarEmpresa` —
+ * só com **id fixo** (`'laurafaust'`) em vez de sorteado, porque as fotos já
+ * foram redimensionadas (e, opcionalmente, sobem para um bucket — ver
+ * `subir-uploads-r2.js`) sob esse prefixo antes deste script rodar; um id
+ * sorteado a cada `npm run reset` deixaria essas fotos órfãs toda vez.
+ *
+ * Continua sendo dado de DESENVOLVIMENTO: ela ainda não usa o produto, só
+ * vamos lapidar o modelo Clínica com o site dela até o produto estar pronto.
+ * Quando ela começar a usar de fato, o cadastro dela de verdade nasce por
+ * `POST /api/cadastro` como o de qualquer empresa — este tenant de ensaio não
+ * vira aquele sozinho.
+ */
+async function primeiraClienteReal() {
+  const h = hoje();
+
+  const nova = await provisionarEmpresa({
+    id: 'laurafaust', nome: 'Laura Faust', ramo: 'Estética', slug: 'laurafaust', origem: 'seed',
+  });
+
+  // Onde as fotos do cenário moram. `uploads/` não é versionado — é pasta de
+  // arquivo enviado por empresa, não de código —, então numa máquina recém
+  // clonada elas não existem e o site nasce com buracos.
+  //
+  // Com `UPLOADS_BASE_URL` apontando para um bucket público, o seed grava a
+  // URL de lá e qualquer máquina nasce completa, sem nada para copiar à mão.
+  // Sem a variável, cai no caminho local de sempre, que serve a quem tem os
+  // arquivos em disco. A pasta por empresa é a mesma dos dois lados —
+  // `uploads.js` grava em `/uploads/<empresa>/`, e é isso que o bucket
+  // espelha.
+  const BASE_UPLOADS = (process.env.UPLOADS_BASE_URL || '/uploads').replace(/\/+$/, '');
+  const F = u => `${BASE_UPLOADS}/${nova.id}/${u}`;
+
+  await db.comEmpresa(nova.id, async () => {
+    await setConfig({
+      nome: 'Laura Faust',
+      slogan: 'Estética e beleza · Joinville',
+      fone: '47996195696',
+      endereco: 'Rua Félix Heinzelmann, 139, Sala 02 — Bairro Santo Antônio, Joinville/SC',
+      instagram: 'estetica_laurafaust',
+      linkAvaliacao: 'https://g.page/estetica-laurafaust',
+      whatsapp: '47996195696',
+      mapa: 'https://maps.google.com/?q=Rua+Felix+Heinzelmann+139+Santo+Antonio+Joinville',
+      sobre: 'Um espaço para você se cuidar e se sentir incrível. Estética, beleza '
+        + 'e bem-estar, com atendimento pensado para o seu tempo — sem pressa e '
+        + 'sem fórmula pronta.',
+      marca: {
+        // Verde-sálvia da identidade de marca real dela.
+        corPrimaria: '#98a68c',
+        corFundo: '#FFFFFF',
+        corTexto: '#1A1A1A',
+        template: 'clinica',
+        logo: F('logo.jpg'),
+        capa: F('capa.jpg'),
+        // Duas fotos dela mesma — o cabeçalho da Clínica já sabe alternar
+        // entre várias (CarrosselHero, em App.jsx); com uma real e uma como
+        // próxima, dá pra ver o carrossel funcionando de verdade, não só a
+        // estrutura.
+        capas: [F('capa.jpg'), F('profissional-laura.jpg')],
+      },
+      textos: {
+        chamada: 'Agende seu horário',
+        botaoAgendar: 'Agendar',
+      },
+      configurado: true,
+      janelaDias: 30,            // quantos dias à frente o site deixa agendar
+      antecedenciaHoras: 2,      // mínimo entre agora e o horário agendado
+      passoAgenda: 30,           // granularidade da grade, em minutos
+      horaLembreteVespera: '18:00',
+      horasAvisoNoDia: 3,
+      horaPosAtendimento: '11:00',
+      horaCampanha: '10:00',
+      diasAntesAniversario: 7,
+      diasReativacao: 60,
+    });
+
+    const staff = [
+      { id: 's1', nome: 'Laura Faust', funcao: 'Proprietária · Unhas', cor: '#334942', comissao: 0, fone: '47996195696',
+        jornada: { 1: ['09:00', '19:00'], 2: ['09:00', '19:00'], 3: ['09:00', '19:00'], 4: ['09:00', '19:00'], 5: ['09:00', '19:00'], 6: ['08:30', '14:00'] } },
+      { id: 's2', nome: 'Bia Menezes', funcao: 'Cílios e sobrancelhas', cor: '#6A57C7', comissao: 40, fone: '47988887777',
+        jornada: { 2: ['10:00', '19:00'], 3: ['10:00', '19:00'], 4: ['10:00', '19:00'], 5: ['10:00', '20:00'], 6: ['09:00', '15:00'] } },
+      { id: 's3', nome: 'Karen Souza', funcao: 'Estética facial', cor: '#3E7D63', comissao: 45, fone: '47977776666',
+        jornada: { 1: ['13:00', '19:00'], 3: ['13:00', '19:00'], 5: ['13:00', '19:00'] } },
+    ];
+    for (const p of staff) {
+      await db.run(
+        `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`,
+        p.id, p.nome, p.funcao, p.fone, p.cor, p.comissao, JSON.stringify(p.jornada), h
+      );
+    }
+
+    // Foto real por serviço — mesmas 8 fotos que Laura passou, repetidas onde
+    // faz sentido dentro da mesma categoria (duas fotos de unha cobrem cinco
+    // serviços de unha, por exemplo). Nomes e preços continuam aproximação
+    // nossa: ela ainda não confirmou o menu de verdade.
+    const servicos = [
+      ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1'], F('servico-unhas-1.jpg')],
+      ['v2', 'Alongamento em fibra', 'Unhas', 'Alongamento F1 com acabamento em gel.', 160, 150, ['s1'], F('servico-unhas-2.jpg')],
+      ['v3', 'Manutenção de alongamento', 'Unhas', '', 110, 105, ['s1'], F('servico-reforco.jpg')],
+      ['v4', 'Unhas tradicionais', 'Unhas', 'Cutilagem e esmaltação tradicional.', 45, 50, ['s1'], F('servico-unhas-1.jpg')],
+      ['v5', 'Plástica dos pés', 'Unhas', 'Esfoliação, hidratação profunda e esmaltação.', 95, 70, ['s1'], F('servico-unhas-2.jpg')],
+      ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2'], F('servico-cilios-1.jpg')],
+      ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2'], F('servico-cilios-2.jpg')],
+      ['v8', 'Design de sobrancelha', 'Olhar', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
+      ['v9', 'Design com henna', 'Olhar', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
+      ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-limpeza.jpg')],
+      ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3'], F('servico-facial.jpg')],
+    ];
+    for (const [i, [id, nome, cat, desc, preco, dur, profs, foto]] of servicos.entries()) {
+      await db.run(
+        `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem,foto) VALUES (?,?,?,?,?,?,10,1,?,?)`,
+        id, nome, cat, desc, preco, dur, i, foto
+      );
+      await salvarVinculos(id, profs);
+    }
+
+    const clientes = [
+      ['c1', 'Amanda Ribeiro', '47991234567', '1994-09-02', 'Rua das Palmeiras, 210 — Costa e Silva', 'Prefere tons nude.', -240],
+      ['c2', 'Juliana Kruger', '47992345678', '1988-03-05', 'Av. Getúlio Vargas, 1180 — Anita Garibaldi', '', -180],
+      ['c3', 'Patrícia Lemos', '47993456789', '1999-12-19', 'Rua Blumenau, 45 — América', 'Alergia a acetona.', -95],
+      ['c4', 'Camila Fontes', '47994567890', '1991-06-11', 'Rua Iririú, 903 — Iririú', '', -400],
+      ['c5', 'Renata Alves', '47995678901', '2001-01-27', 'Rua Dona Francisca, 2200 — Santo Antônio', '', -30],
+      ['c6', 'Débora Nunes', '47996789012', '1985-08-30', 'Rua São Paulo, 77 — Bucarein', 'Sempre atrasa 10 min.', -520],
+    ];
+    for (const [id, nome, fone, nasc, end, obs, d] of clientes) {
+      await db.run(
+        `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,1,?)`,
+        id, nome, fone, nasc, end, obs, addDias(h, d)
+      );
+    }
+
+    const mk = async (cli, svc, prof, dia, hora, status, pagStatus, forma) => {
+      const s = await db.get('SELECT * FROM services WHERE id=?', svc);
+      await db.run(
+        `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_forma,origem,criado_em)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,'site',?)`,
+        uid(), cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
+        status, pagStatus, forma, h
+      );
+    };
+    await mk('c1', 'v1', 's1', 0, '09:00', 'concluido', 'pago', 'pix');
+    await mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
+    await mk('c3', 'v4', 's1', 0, '11:00', 'confirmado', 'aberto', 'local');
+    await mk('c5', 'v10', 's3', 0, '14:00', 'agendado', 'aberto', 'local');
+    await mk('c4', 'v2', 's1', 0, '14:30', 'confirmado', 'pago', 'cartao');
+    await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'aberto', 'local');
+    await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
+    await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
+    await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
+    await mk('c5', 'v9', 's2', 2, '11:00', 'agendado', 'aberto', 'local');
+    await mk('c1', 'v1', 's1', -21, '09:00', 'concluido', 'pago', 'pix');
+    await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
+    await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
+    await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
+
+    await oResto();
+    await contasDeDesenvolvimento();
+  });
+
+  console.log(`  Primeira cliente: ${nova.nome} · ${nova.slug}.localhost:5173`);
 }
 
 /**
@@ -378,7 +393,7 @@ async function contasDeDesenvolvimento() {
   if (!ehLocal()) return;
 
   const contas = [
-    { email: 'dono@vital.com', nome: 'Laura Prado', papel: 'dono', prof: null },
+    { email: 'dono@vital.com', nome: 'Laura Faust', papel: 'dono', prof: 's1' },
     { email: 'funcionaria@vital.com', nome: 'Karen Souza', papel: 'funcionario', prof: 's3' },
   ];
   for (const c of contas) {
@@ -394,7 +409,7 @@ async function contasDeDesenvolvimento() {
   for (const c of contas) console.log(`    ${c.email.padEnd(24)} ${c.papel}`);
   console.log('    Só em localhost. Em produção ninguém nasce por seed.');
   console.log('');
-  console.log('  Painel: http://localhost:5173/painel.html');
+  console.log('  Painel: http://laurafaust.localhost:5173/painel.html');
 }
 
 /**
