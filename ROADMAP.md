@@ -126,12 +126,12 @@ empresa certa.
 runtime a partir da config da empresa. Um CSS, N marcas. Nada de rebuild por
 cliente.
 
-**Imagens em disco no MVP, uma pasta por empresa — repensar junto com a nuvem.**
-`server/uploads/<slug>/` servido como estático funciona enquanto for um único
-processo com disco persistente. No dia em que o Bloco 1 definir onde o Node
-roda, vale conferir se esse provedor mantém disco entre deploys; se não mantiver,
-a imagem vai direto para storage de objeto (S3, R2, ou o storage do próprio
-provedor de banco) nesse mesmo bloco, não depois.
+**Imagens em disco por padrão, bucket R2 quando configurado — decidido.**
+`server/uploads/<slug>/` servido como estático continua sendo o caminho sem
+nenhuma credencial de nuvem (desenvolvimento). `routes/uploads.js` já tem o
+adaptador para um bucket compatível com S3 (Cloudflare R2); falta só ativar
+as variáveis no ambiente de deploy — ver "Hospedagem", acima, e
+ARQUITETURA.md, "Imagens".
 
 **Vocabulário é configurável.** "Profissional" vira o que o negócio chamar
 (barbeiro, terapeuta, mecânico). Nome de tabela continua em inglês; o que muda é
@@ -660,12 +660,16 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 
 ### Hospedagem
 
-- [ ] **`server/uploads/<empresa>/` só funciona com disco que persiste.** Já
-      está implementado e funcionando local (Bloco 6). Vercel apaga o disco a
-      cada deploy — lá, as imagens da empresa sumiriam no deploy seguinte. Antes
-      de publicar, ou escolher hospedagem com disco, ou trocar por storage de
-      objeto (S3, R2, ou o do próprio provedor de banco). É um adaptador: só
-      `routes/uploads.js` muda.
+- [ ] **O adaptador para storage de objeto (R2) já existe; falta ativá-lo para
+      o deploy de verdade.** `server/uploads/<empresa>/` em disco só funciona
+      com hospedagem que persiste — Vercel apaga o disco a cada deploy, e lá
+      as imagens da empresa sumiriam no deploy seguinte. `routes/uploads.js`
+      já sabe gravar direto num bucket R2 quando `R2_ACCOUNT_ID` e as outras
+      três variáveis existem (ver ARQUITETURA.md, "Imagens"); sem elas, cai
+      para disco, que é o caso de hoje em desenvolvimento. Falta: criar o
+      token de escrita no bucket de produção, preencher as quatro variáveis
+      no ambiente de deploy, e rodar `npm run uploads:subir` para levar o que
+      já está em disco (as fotos da Laura Faust) para lá antes de publicar.
 - [ ] **Fuso do servidor.** O código trata data e hora como texto justamente
       para não depender disso, mas os jobs de mensagem usam `TZ_EMPRESA`.
       Conferir se o provedor roda em UTC e se a variável está definida.

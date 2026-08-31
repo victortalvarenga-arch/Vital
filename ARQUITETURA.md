@@ -350,8 +350,23 @@ controle.
 
 O nome do arquivo é **sempre gerado no servidor**: nome vindo do cliente é
 caminho para `../../` e para sobrescrever arquivo de outra empresa. Cada empresa
-tem sua pasta em `server/uploads/<tenant>/`, então apagar tudo de um cliente que
-saiu é apagar uma pasta.
+tem sua pasta em `server/uploads/<tenant>/` (disco) ou seu prefixo
+`<tenant>/` (bucket) — mesma estrutura nos dois destinos, então apagar tudo de
+um cliente que saiu é apagar uma pasta ou um prefixo.
+
+**Disco por padrão, bucket quando configurado.** `POST /api/uploads`
+(`routes/uploads.js`) grava em `server/uploads/<tenant>/` sempre que
+`R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET` não
+existirem todas as quatro no ambiente — é o caso de `npm run dev` numa máquina
+sem nenhuma credencial de nuvem, e o único motivo de o produto ainda depender
+de disco persistir entre deploys (ver ROADMAP.md, "Hospedagem"). Com as quatro
+presentes, `lib/r2.js` sobe direto para o bucket (R2 fala o protocolo do S3,
+via `@aws-sdk/client-s3`) e a rota devolve `UPLOADS_BASE_URL/<tenant>/<arquivo>`
+em vez de `/uploads/<tenant>/<arquivo>` — o resto do sistema não distingue os
+dois: é sempre uma URL absoluta ou relativa que vai direto num `<img src>`.
+`npm run uploads:subir` faz a migração de uma vez só do que já está em disco
+para o bucket, na mesma chave — existe porque o adaptador só cobre o que sobe
+*depois* de configurado.
 
 **A vitrine publica campos escolhidos a dedo, não a config inteira.** Na config
 também moram horários de disparo de mensagem e chave Pix; `/api/publico/vitrine`
