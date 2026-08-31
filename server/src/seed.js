@@ -77,6 +77,18 @@ await db.run(
   TENANT_PADRAO
 );
 
+// Onde as fotos do cenário moram. `uploads/` não é versionado — é pasta de
+// arquivo enviado por empresa, não de código —, então numa máquina recém
+// clonada elas não existem e o site nasce com buracos.
+//
+// Com `UPLOADS_BASE_URL` apontando para um bucket público, o seed grava a URL
+// de lá e qualquer máquina nasce completa, sem nada para copiar à mão. Sem a
+// variável, cai no caminho local de sempre, que serve a quem tem os arquivos
+// em disco. A pasta por empresa é a mesma dos dois lados — `uploads.js` grava
+// em `/uploads/<empresa>/`, e é isso que o bucket espelha.
+const BASE_UPLOADS = (process.env.UPLOADS_BASE_URL || '/uploads').replace(/\/+$/, '');
+const F = u => `${BASE_UPLOADS}/${TENANT_PADRAO}/${u}`;
+
 await setConfig({
   nome: 'Laura Faust',
   slogan: 'Estética e beleza · Joinville',
@@ -96,12 +108,12 @@ await setConfig({
     corFundo: '#FFFFFF',
     corTexto: '#1A1A1A',
     template: 'clinica',
-    logo: '/uploads/default/logo.jpg',
-    capa: '/uploads/default/capa.jpg',
+    logo: F('logo.jpg'),
+    capa: F('capa.jpg'),
     // Duas fotos dela mesma — o cabeçalho da Clínica já sabe alternar entre
     // várias (CarrosselHero, em App.jsx); com uma real e uma como próxima,
     // dá pra ver o carrossel funcionando de verdade, não só a estrutura.
-    capas: ['/uploads/default/capa.jpg', '/uploads/default/profissional-laura.jpg'],
+    capas: [F('capa.jpg'), F('profissional-laura.jpg')],
   },
   textos: {
     chamada: 'Agende seu horário',
@@ -137,7 +149,6 @@ for (const p of staff) {
 // sentido dentro da mesma categoria (duas fotos de unha cobrem cinco serviços
 // de unha, por exemplo). Nomes e preços continuam aproximação nossa: ela
 // ainda não confirmou o menu de verdade.
-const F = u => `/uploads/default/${u}`;
 const servicos = [
   ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1'], F('servico-unhas-1.jpg')],
   ['v2', 'Alongamento em fibra', 'Unhas', 'Alongamento F1 com acabamento em gel.', 160, 150, ['s1'], F('servico-unhas-2.jpg')],
