@@ -190,7 +190,7 @@ Three independent palettes. None is a variant of another — treat a color reque
 - **Ultraviolet** (`#6A57C7`): reserved for one job — the keyboard focus ring (`:focus-visible`) and the CRM automation bell. Never used as a button color.
 - **Line** (`#E7D8D4`): every border, divider, and disabled-state fill in the system.
 - **Muted** (`#7A6975`, corrected from `#806E7B`): secondary text — labels, timestamps, helper copy. The original value read 4.42:1 against `--porcelain`, just under WCAG AA's 4.5:1 for normal text when muted copy sits directly on the page background rather than on a `--paper` card; this value clears 4.77:1 there.
-- **Ok** (`#3E7D63`) / **Warn** (`#B4762A`): status-only. Paid/positive and pending/attention, never decorative.
+- **Ok** (`#3E7D63`) / **Warn** (`#B4762A`) / **Erro** (`#8A2B2B`): status-only. Paid/positive, pending/attention, and failed/destructive — never decorative. `--erro` completes the trio; it existed as a bare literal in eleven places (the delete button on six screens, the failure toast, the no-show tag, a falling variation) before it had a name, and the Vital bundle had already named the same value `--v-erro`. Same value as before, only christened — and `.btn-erro` now carries it, so a destructive button is a class, not an inline style repeated per screen.
 
 **The Named-Twin Rule.** `--p-marca`, `--p-escuro` and `--p-linha` (defined for the shell) are exact aliases of `--lacquer`, `--ink` and `--line`. They are not a second palette — don't invent a divergent value for one while leaving the other unchanged.
 

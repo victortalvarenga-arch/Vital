@@ -166,7 +166,7 @@ function Editar({ u, fechar, aoSalvar, aoArquivar, aviso }) {
           </button>
           <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
           {aoArquivar && (
-            <button className="btn btn-g" type="button" style={{ color: '#8A2B2B' }}
+            <button className="btn btn-g btn-erro" type="button"
                     title="Tirar do ar" onClick={aoArquivar}>
               <Trash2 size={16} />
             </button>

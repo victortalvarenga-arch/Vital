@@ -4,6 +4,7 @@ import { hoje, agora, addDias, toMin, toHora, diasEntre } from '../lib/dates.js'
 import { render, variaveis } from '../lib/templates.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
 import { TENANT_PADRAO } from '../lib/tenant.js';
+import { fecharAtendimentos } from './fechamento.js';
 
 /**
  * Duas rotinas separadas, de propósito:
@@ -202,6 +203,18 @@ export function iniciarJobs() {
     paraCadaEmpresa('despacho', despachar).catch(e => console.error('[despacho]', e.message));
   }, { timezone: tz });
 
+  // Fechamento: de 5 em 5 minutos o que já terminou vira atendimento feito.
+  // Frequente de propósito — "passou a hora, entrou no caixa" precisa valer
+  // durante o dia, não só no fim dele, senão o Resumo do balcão fica velho.
+  cron.schedule('*/5 * * * *', () => {
+    paraCadaEmpresa('fechamento', fecharAtendimentos).catch(e => console.error('[fechamento]', e.message));
+  }, { timezone: tz });
+
+  // Uma passada ao subir, como a fila. Sem isto, todo reinício deixa o caixa
+  // parado até o próximo tique — e um deploy no meio da tarde faria o balcão
+  // olhar para número velho sem entender por quê.
+  paraCadaEmpresa('fechamento inicial', fecharAtendimentos)
+    .catch(e => console.error('[fechamento inicial]', e.message));
   paraCadaEmpresa('fila inicial', gerarFila).catch(e => console.error('[fila inicial]', e.message));
   console.log(`[jobs] ativos · fuso ${tz} · provider ${process.env.WHATSAPP_PROVIDER || 'manual'}`);
 }

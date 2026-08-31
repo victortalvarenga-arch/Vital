@@ -100,6 +100,17 @@ export const api = {
       respostas: a.respostas || {},
     },
   }),
+  // Lista um intervalo qualquer, direto do servidor. `/estado` só carrega 120
+  // dias para trás — a tela de Atendimentos precisa alcançar mais fundo que
+  // isso sem devolver vazio como se não houvesse nada.
+  listarAgendamentos: ({ de, ate, profissionalId, status } = {}) => {
+    const q = new URLSearchParams();
+    if (de) q.set('de', de);
+    if (ate) q.set('ate', ate);
+    if (profissionalId) q.set('profissionalId', profissionalId);
+    if (status) q.set('status', status);
+    return req('/agendamentos' + (q.toString() ? `?${q}` : '')).then(l => l.map(agParaTela));
+  },
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
 
@@ -156,7 +167,11 @@ export const api = {
   /* ── bloqueio de horário ── */
   bloqueios: (de, ate) => req(`/bloqueios?de=${de}&ate=${ate || de}`),
   criarBloqueio: b => req('/bloqueios', { method: 'POST', body: b }),
-  removerBloqueio: id => req(`/bloqueios/${id}`, { method: 'DELETE' }),
+  // `serie` apaga todas as ocorrências que nasceram da mesma criação. Sem ele,
+  // sai só a data pedida — desmarcar uma terça no meio de uma folga semanal é
+  // o caso normal.
+  removerBloqueio: (id, { serie = false } = {}) =>
+    req(`/bloqueios/${id}${serie ? '?serie=1' : ''}`, { method: 'DELETE' }),
 
   /* ── serviços adicionais ── */
   adicionais: () => req('/adicionais'),
@@ -195,10 +210,14 @@ export const api = {
 
   /* ── relatórios ── */
   // Aceita mês fechado ou intervalo livre. Mês continua sendo o caso comum.
-  resumo: ({ mes, de, ate } = {}) => {
+  // `profissionalId` recorta numa pessoa. Só vale para quem já vê todo mundo:
+  // o servidor ignora o parâmetro para funcionário, que continua preso ao
+  // próprio escopo.
+  resumo: ({ mes, de, ate, profissionalId } = {}) => {
     const q = new URLSearchParams();
     if (de && ate) { q.set('de', de); q.set('ate', ate); }
     else if (mes) q.set('mes', mes);
+    if (profissionalId) q.set('profissionalId', profissionalId);
     return req('/relatorios/resumo' + (q.toString() ? `?${q}` : ''));
   },
 };

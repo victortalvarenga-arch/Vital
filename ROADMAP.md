@@ -544,6 +544,28 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
       seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
 
+- [ ] **O fechamento automático pode mandar mensagem para quem não veio.** Se
+      ninguém marcar a falta, o sistema conclui o atendimento e a cliente
+      recebe "como foi seu atendimento?" no dia seguinte às 11h. Hoje o que
+      segura isso é a atendente corrigir durante o dia, mais o fato de o
+      atendimento fantasma ficar parado no caixa. Quando o webhook de resposta
+      do WhatsApp existir, dá para fechar automaticamente só quem respondeu
+      "SIM" — aí o `confirmado` passa a significar algo.
+
+- [ ] **A Agenda ainda recorta em 8h–20h.** O Resumo passou a esticar a grade
+      pelo que existe no dia (`faixaDeHoras`, em `shared/tempo.js`), mas
+      `App.jsx` continua com `H_INI`/`H_FIM` fixos em dez lugares, e o
+      atendimento às 7h some do mesmo jeito que sumia lá. Não foi feito junto
+      porque ali as constantes também alimentam `ondeCaiu`, que traduz a
+      posição do ponteiro em horário no arrastar-para-remarcar — mexer nelas
+      sem cuidado desalinha o solto do agarrado.
+
+- [ ] **Três vermelhos claros sem nome.** `#F8E7E7`, `#F7EFEF` e `#F3E6E6` são
+      o fundo suave do mesmo estado de erro, em valores quase iguais e
+      escritos à mão. `--erro` acabou de nascer para o tom forte; falta
+      decidir se os três viram um `--erro-claro` só — o que muda pixel em três
+      telas, e por isso não entrou junto.
+
 - [ ] **Antes e depois não tem tela no painel.** `config.antesDepois` existe e o
       site já renderiza, mas só o `seed` consegue preencher — para qualquer
       empresa que não seja a Laura, a seção fica em "Em breve" para sempre.

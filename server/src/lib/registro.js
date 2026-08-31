@@ -40,6 +40,31 @@ export function comRegistro(req, res, next) {
 }
 
 /**
+ * Registra algo que o sistema fez sozinho, sem ninguém ter clicado.
+ *
+ * `user_id` fica nulo e o nome vira "sistema": o dono precisa conseguir
+ * separar, na mesma lista, o que uma pessoa decidiu do que o relógio fez —
+ * senão o fechamento automático apareceria como se alguém tivesse marcado
+ * atendimento por atendimento.
+ *
+ * Precisa rodar dentro de `db.comEmpresa`, como todo código de cron.
+ */
+export async function registrarDoSistema(acao, dados = {}) {
+  try {
+    await db.run(
+      `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
+       VALUES (NULL,?,?,?,?,?,?)`,
+      'sistema', acao,
+      dados.alvoTipo || acao.split('.')[0], String(dados.alvoId || ''),
+      String(dados.resumo || '').slice(0, 300),
+      JSON.stringify(dados.detalhe || {})
+    );
+  } catch (erro) {
+    console.error('[registro] não consegui gravar:', erro.message);
+  }
+}
+
+/**
  * O que mudou entre dois estados, só nos campos que interessam.
  *
  * Guardar o objeto inteiro antes e depois encheria o registro de campo que não

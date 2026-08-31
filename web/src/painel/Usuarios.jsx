@@ -194,7 +194,7 @@ function EditarUsuario({ u, staff, eu, aoSalvar, aoRemover, fechar }) {
           </button>
           <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
           {!novo && !souEu && (
-            <button className="btn btn-g" type="button" style={{ color: '#8A2B2B' }}
+            <button className="btn btn-g btn-erro" type="button"
                     title="Apagar acesso" onClick={() => aoRemover(u)}>
               <Trash2 size={16} />
             </button>

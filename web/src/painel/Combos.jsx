@@ -246,7 +246,7 @@ function Editar({ f0, servicos, fechar, aoSalvar, aoRemover, aviso }) {
           </button>
           <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
           {aoRemover && (
-            <button className="btn btn-g" type="button" style={{ color: '#8A2B2B' }}
+            <button className="btn btn-g btn-erro" type="button"
                     title="Tirar do ar" onClick={aoRemover}>
               <Trash2 size={16} />
             </button>

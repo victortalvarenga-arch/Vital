@@ -4,7 +4,12 @@ body { --ink:#241A28; --ink2:#3B2B41; --porcelain:#FBF6F4; --paper:#FFFFFF;
   --blush:#EEDBD6; --lacquer:#A32A4E; --lacquer-d:#7E1E3C; --uv:#6A57C7;
   /* Era #806E7B (4,42:1 sobre --porcelain — abaixo do mínimo AA de 4,5:1
      quando o texto muted está direto no fundo da página, não num cartão). */
+  /* --erro fecha a trinca de estado com --ok e --warn. O valor aparecia solto
+     em onze lugares (botao de excluir de seis telas, aviso de falha, tag de
+     falta, variacao que desce) sem nunca ter ganhado nome; o bundle da Vital
+     ja o nomeava como --v-erro. Mesmo valor de antes, so batizado. */
   --gold:#A98243; --line:#E7D8D4; --muted:#7A6975; --ok:#3E7D63; --warn:#B4762A;
+  --erro:#8A2B2B;
   font-family:'Karla',system-ui,sans-serif; color:var(--ink); background:var(--porcelain);
   min-height:100vh; -webkit-font-smoothing:antialiased; }
 *{box-sizing:border-box}
@@ -119,7 +124,10 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   background:var(--ink); color:var(--porcelain); font-size:14px; z-index:60;
   box-shadow:0 8px 30px -12px rgba(0,0,0,.45);
 }
-.p-aviso.erro{ background:#8A2B2B; color:#fff; }
+.p-aviso.erro{ background:var(--erro); color:#fff; }
+/* Excluir, em qualquer tela. Era `style={{color:"#8A2B2B"}}` colado em seis
+   lugares — o mesmo botao, escrito seis vezes. */
+.btn-erro{ color:var(--erro); }
 
 .head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:22px}
 .head h2{font-size:30px}
@@ -376,7 +384,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .entrar-erro {
   display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
   padding: 10px 13px; border-radius: 10px; font-size: 13.5px;
-  background: #F8E7E7; color: #8A2B2B;
+  background: #F8E7E7; color: var(--erro);
 }
 
 /* quem está logado, no pé da lateral */
@@ -409,14 +417,15 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bloqueio {
   position: absolute; left: 2px; right: 2px; z-index: 1;
   border-radius: 8px; padding: 4px 8px; text-align: left; overflow: hidden;
-  /* Listrado para não se confundir com atendimento: cor sozinha diria pouco
-     num painel que já usa uma cor por profissional. */
+  /* Vermelho e listrado. A listra separa de um atendimento (o painel já usa
+     uma cor por profissional, então cor sozinha diria pouco); o vermelho diz
+     "aqui não entra ninguém" na única leitura que não precisa de legenda. */
   background: repeating-linear-gradient(45deg,
-    rgba(128,110,123,.16) 0 6px, rgba(128,110,123,.07) 6px 12px);
-  border: 1px dashed var(--line);
-  color: var(--muted); font-size: 11.5px; font-weight: 600;
+    rgba(138,43,43,.20) 0 6px, rgba(138,43,43,.08) 6px 12px);
+  border: 1px dashed rgba(138,43,43,.55);
+  color: var(--erro); font-size: 11.5px; font-weight: 600;
 }
-.bloqueio:hover:not(:disabled) { border-color: var(--muted); color: var(--ink); }
+.bloqueio:hover:not(:disabled) { border-color: var(--erro); border-style: solid; }
 .bloqueio:disabled { cursor: default; }
 .bloqueio span { display: block; line-height: 1.25; }
 
@@ -435,7 +444,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .combo-conta{border-radius:12px; padding:11px 13px; margin-bottom:16px; font-size:13.5px}
 .combo-conta div{display:flex; justify-content:space-between; gap:12px; padding:2px 0}
 .combo-conta.ok{background:var(--blush); color:var(--lacquer-d)}
-.combo-conta.ruim{background:#F7EFEF; color:#8A2B2B}
+.combo-conta.ruim{background:#F7EFEF; color:var(--erro)}
 
 /* ── assistente de primeira configuração ────────────────────────────────── */
 .cm{background:var(--porcelain); border-radius:20px; padding:28px 26px; width:100%; max-width:520px;
@@ -443,7 +452,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cm-bolinhas{display:flex; gap:6px; margin-bottom:18px}
 .cm-titulo{font-family:'Fraunces',serif; font-size:25px; font-weight:400; margin:0 0 6px}
 .cm-ajuda{font-size:13.5px; color:var(--muted); line-height:1.5; margin:0 0 20px}
-.cm-erro{font-size:13px; color:#8A2B2B; margin:0 0 10px}
+.cm-erro{font-size:13px; color:var(--erro); margin:0 0 10px}
 .cm-pular{display:block; margin:14px auto 0; background:none; border:none; cursor:pointer;
   font-size:13px; color:var(--muted); text-decoration:underline; padding:6px}
 /* as bolinhas de progresso existiam só no site; o assistente usa as mesmas */
@@ -486,7 +495,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   display:flex; gap:14px; flex-wrap:wrap}
 .variacao{font-size:12px; font-weight:700}
 .variacao.sobe{color:var(--ok)}
-.variacao.desce{color:#8A2B2B}
+.variacao.desce{color:var(--erro)}
 .variacao.igual{color:var(--muted)}
 
 /* ── formulários ────────────────────────────────────────────────────────── */
@@ -521,3 +530,121 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .ficha-t{font-size:12px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
   color:var(--muted); margin-bottom:8px}
 .ficha-obrig{color:var(--lacquer)}
+
+/* ── Resumo e Financeiro: controles de período e estados de espera ── */
+.rs-controles{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.rs-nav{display:flex; align-items:center; gap:6px}
+.rs-colunas{display:grid; gap:12px}
+/* Enquanto o número não chega, o traço segura o espaço — sem isto os cartões
+   pulam de altura a cada troca de período. */
+.rs-esperando{color:var(--line)}
+.rs-vazio{font-size:13px; color:var(--muted); margin:0}
+.rs-falha{background:#F8E7E7; color:var(--erro); border-radius:10px;
+  padding:12px 16px; font-size:13.5px; margin-bottom:18px}
+.rs-pos{width:18px; color:var(--muted); font-size:13px}
+.rs-av-pq{width:30px; height:30px; font-size:11px}
+.eq-av{width:20px; height:20px; font-size:9px}
+.eq-nome{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+@media (max-width: 720px){
+  /* Duas colunas de cartão não cabem no celular, e o painel abre do balcão
+     tanto quanto do telefone. */
+  .rs-colunas{grid-template-columns:1fr !important}
+  .rs-controles{width:100%; justify-content:space-between}
+}
+
+/* ── Agendamentos: a lista onde a exceção se corrige ── */
+.ag-filtros{display:flex; flex-direction:column; gap:10px; margin-bottom:16px}
+.ag-tabela-env{padding:0; overflow-x:auto}
+.ag-tabela{width:100%; border-collapse:collapse; font-size:13.5px}
+.ag-tabela th{text-align:left; font-size:var(--t-rotulo,11px); letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); font-weight:700;
+  padding:12px 14px; border-bottom:1px solid var(--line); white-space:nowrap}
+.ag-tabela td{padding:11px 14px; border-bottom:1px solid var(--line)}
+.ag-tabela tr:last-child td{border-bottom:0}
+.ag-tabela .num{text-align:right}
+.ag-quando{white-space:nowrap; color:var(--muted)}
+.ag-quando b{color:var(--ink); font-weight:600}
+/* Faltou ou cancelou continua na lista, mas apagado: sai do caixa e do CRM, e
+   a linha precisa dizer isso sem que ninguém leia o rótulo. */
+.ag-fora td{opacity:.55}
+.ag-acoes{display:flex; gap:6px; justify-content:flex-end}
+.ag-estado{display:inline-block; padding:3px 10px; border-radius:999px;
+  font-size:12px; font-weight:600; white-space:nowrap}
+.ag-estado.aguarda{background:var(--blush); color:var(--lacquer-d)}
+.ag-estado.feito{background:#E4F0EA; color:var(--ok)}
+.ag-estado.ruim{background:#F3E6E6; color:var(--erro)}
+
+@media (max-width: 720px){
+  .ag-tabela th, .ag-tabela td{padding:10px 9px}
+  .ag-acoes{gap:4px}
+}
+
+/* ── Horários fechados ── */
+.bl-form{padding:0; margin-bottom:16px; overflow:hidden}
+/* Três passos numerados: escolher quando, por quanto tempo, de quem. É a ordem
+   em que a pessoa pensa, e numerar evita que o terceiro campo pareça opcional. */
+.bl-passo{display:flex; gap:14px; padding:18px; border-bottom:1px solid var(--line)}
+.bl-num-passo{flex:none; width:24px; height:24px; border-radius:999px; display:grid;
+  place-items:center; background:var(--ink); color:var(--porcelain);
+  font-size:12px; font-weight:700}
+.bl-passo-corpo{flex:1; min-width:0}
+.bl-titulo{display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700;
+  margin-bottom:12px}
+
+.bl-dias{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px}
+.bl-dia{font:inherit; font-size:13px; cursor:pointer; min-width:46px; min-height:40px;
+  border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink)}
+.bl-dia:hover{border-color:var(--ink)}
+.bl-dia.on{background:var(--ink); color:var(--porcelain); border-color:var(--ink)}
+
+/* `flex-wrap` e largura mínima nos campos de hora: sem isso o input[type=time]
+   encolhia até cortar os dígitos quando a coluna ficava estreita. */
+.bl-horas{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px}
+.bl-horas label{display:flex; align-items:center; gap:7px; color:var(--muted)}
+.bl-horas input[type=time]{min-width:112px}
+.bl-horas input[type=date]{min-width:150px}
+.bl-horas input, .bl-horas select{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px;
+  padding:9px 11px; outline:none; font:inherit; font-size:16px; color:var(--ink)}
+.bl-motivo-campo{flex:1; min-width:200px}
+.bl-num{width:66px; text-align:center}
+
+.bl-faixas{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+.bl-faixa{display:inline-flex; align-items:center; gap:8px; font-size:13px;
+  background:var(--blush); color:var(--lacquer-d); border-radius:999px; padding:6px 8px 6px 14px}
+.bl-faixa button{border:0; background:none; cursor:pointer; color:inherit; opacity:.7;
+  display:grid; place-items:center; width:24px; height:24px; border-radius:999px}
+.bl-faixa button:hover{opacity:1; background:rgba(0,0,0,.08)}
+
+.bl-rodape{display:flex; align-items:center; gap:14px; padding:16px 18px; flex-wrap:wrap}
+.bl-previa{font-size:13px; color:var(--muted)}
+.bl-rodape .btn{margin-left:auto}
+
+/* Conflito não é erro: o bloqueio foi criado. É aviso de que alguém precisa ser
+   remarcada à mão — por isso fica em --warn, e não em --erro. */
+.bl-conflito{display:flex; gap:12px; align-items:flex-start; margin-bottom:16px;
+  background:#FBF1E3; color:#6B4A18; border-radius:10px; padding:14px 16px; font-size:13.5px}
+.bl-conflito ul{margin:6px 0 0; padding-left:18px}
+.bl-conflito .btn{margin-left:auto; flex:none}
+
+.bl-item{display:flex; align-items:center; gap:14px; padding:14px 18px; margin-bottom:10px}
+.bl-item-info{flex:1; min-width:0}
+.bl-quando{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:14.5px}
+.bl-quando .mono{color:var(--muted); font-size:13px}
+.bl-selo{display:inline-flex; align-items:center; gap:4px; background:var(--blush);
+  color:var(--lacquer-d); border-radius:999px; padding:2px 9px; font-size:11.5px; font-weight:700}
+.bl-quem{font-size:13px; color:var(--muted); margin-top:3px}
+.bl-motivo{font-style:italic}
+.bl-datas{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
+.bl-data{display:inline-flex; align-items:center; gap:5px; font:inherit; font-size:12px;
+  cursor:pointer; background:var(--porcelain); border:1px solid var(--line);
+  border-radius:999px; padding:5px 10px; color:var(--muted); min-height:32px}
+.bl-data:hover{border-color:var(--erro); color:var(--erro)}
+
+@media (max-width: 720px){
+  .bl-passo{padding:14px}
+  .bl-horas{gap:8px}
+  .bl-rodape .btn{margin-left:0; width:100%}
+  .bl-item{flex-direction:column; align-items:stretch}
+}

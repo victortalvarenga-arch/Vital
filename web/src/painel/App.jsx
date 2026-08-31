@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
-import { hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
+import { emFaixas, hojeISO, iniciais, intervaloDo, toHora, toMin } from '../shared/tempo.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
+import Agendamentos from './Agendamentos.jsx';
+import Bloqueios from './Bloqueios.jsx';
 import Formularios from './Formularios.jsx';
 import Ficha from './Ficha.jsx';
 import Comecar from './Comecar.jsx';
@@ -19,7 +21,7 @@ import {
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
   Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
-  ClipboardList, LayoutDashboard,
+  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard,
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -189,6 +191,8 @@ function Painel({ sessao, aoSair }) {
     { titulo: null, itens: [
       { k: 'resumo', nome: 'Resumo', icon: LayoutDashboard },
       { k: 'agenda', nome: 'Calendário', icon: Calendar },
+      { k: 'agendamentos', nome: 'Agendamentos', icon: ClipboardCheck },
+      { k: 'bloqueios', nome: 'Horários fechados', icon: CalendarOff },
       ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
     ] },
     { titulo: 'Cadastros', itens: [
@@ -267,6 +271,12 @@ function Painel({ sessao, aoSair }) {
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
+        {secao === 'agendamentos' && (
+          <Agendamentos dados={dados} acao={acao} poderes={p} />
+        )}
+        {secao === 'bloqueios' && (
+          <Bloqueios dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} poderes={p} />
+        )}
         {secao === 'registro' && <Registro dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} />}
         {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
@@ -303,44 +313,6 @@ function semanaDe(iso) {
   return Array.from({ length: 7 }, (_, i) => addDias(segunda, i));
 }
 
-/**
- * Distribui lado a lado o que se sobrepõe no mesmo dia.
- *
- * Com profissionais nas colunas, dois atendimentos nunca colidiam: cada pessoa
- * tinha a sua faixa. Com os dias nas colunas, tudo que acontece às 10h no mesmo
- * dia disputa o mesmo espaço — e empilhar um por cima do outro esconderia
- * atendimento, que é o pior defeito que uma agenda pode ter.
- *
- * O algoritmo é o de calendário: agrupa quem se cruza, e dentro do grupo cada
- * um entra na primeira faixa livre. A largura é dividida pelo tamanho do grupo,
- * então dois atendimentos simultâneos ficam com metade cada.
- */
-function emFaixas(itens) {
-  const ordenados = [...itens].sort((a, b) => a.ini - b.ini || a.fim - b.fim);
-  const saida = [];
-  let grupo = [], fimDoGrupo = -1;
-
-  const fechar = () => {
-    const ultimoDaFaixa = [];
-    for (const it of grupo) {
-      let f = ultimoDaFaixa.findIndex(fim => fim <= it.ini);
-      if (f === -1) f = ultimoDaFaixa.length;
-      ultimoDaFaixa[f] = it.fim;
-      it.faixa = f;
-    }
-    for (const it of grupo) it.faixas = ultimoDaFaixa.length;
-    saida.push(...grupo);
-    grupo = []; fimDoGrupo = -1;
-  };
-
-  for (const it of ordenados) {
-    if (grupo.length && it.ini >= fimDoGrupo) fechar();
-    grupo.push(it);
-    fimDoGrupo = Math.max(fimDoGrupo, it.fim);
-  }
-  if (grupo.length) fechar();
-  return saida;
-}
 
 /**
  * Em que dia e hora o ponteiro está, dentro da grade.
@@ -379,13 +351,22 @@ function Agenda({ dados, acao, aviso, poderes }) {
   const [novo, setNovo] = useState(false);
   const [bloquear, setBloquear] = useState(null);
   const [arrasto, setArrasto] = useState(null);
+  // Quem a dona está olhando. '' é a semana inteira, de todo mundo. Funcionário
+  // não tem a escolha — o servidor já entrega só a agenda dele.
+  const [quem, setQuem] = useState('');
 
   const passo = dados.config.passoAgenda || 30;
   const semana = useMemo(() => semanaDe(ancora), [ancora]);
   const de = semana[0], ate = semana[6];
 
-  const daSemana = agendamentos.filter(a => a.data >= de && a.data <= ate && a.status !== 'cancelado');
-  const fechados = (dados.bloqueios || []).filter(b => b.data >= de && b.data <= ate);
+  const daSemana = agendamentos
+    .filter(a => a.data >= de && a.data <= ate && a.status !== 'cancelado')
+    .filter(a => !quem || a.prof === quem);
+  // Bloqueio sem dono fecha a empresa toda: continua aparecendo mesmo com uma
+  // pessoa escolhida, porque fecha a agenda dela também.
+  const fechados = (dados.bloqueios || [])
+    .filter(b => b.data >= de && b.data <= ate)
+    .filter(b => !quem || !b.profissionalId || b.profissionalId === quem);
   const receita = daSemana.reduce((s, a) => s + a.valor, 0);
   const hoje = hojeISO();
   const diaParaAcao = semana.includes(hoje) ? hoje : semana[0];
@@ -477,6 +458,16 @@ function Agenda({ dados, acao, aviso, poderes }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {poderes.verDeTodos && (
+            <div className="chips chips-rolagem">
+              <button className={'chip' + (quem === '' ? ' on' : '')}
+                      onClick={() => setQuem('')}>Todos</button>
+              {staff.filter(p => p.ativo).map(p => (
+                <button key={p.id} className={'chip' + (quem === p.id ? ' on' : '')}
+                        onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
+              ))}
+            </div>
+          )}
           <button className="btn btn-g btn-s" onClick={() => setAncora(addDias(ancora, -7))}
                   aria-label="Semana anterior"><ChevronLeft size={16} /></button>
           <button className="btn btn-g btn-s" style={{ minWidth: 172 }} onClick={() => setAncora(hoje)}>
@@ -646,7 +637,7 @@ function Agenda({ dados, acao, aviso, poderes }) {
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <a className="btn btn-wa" href={waLink(c.fone, msg)} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> Avisar no WhatsApp</a>
-              <button className="btn btn-g" onClick={() => excluir(sel.id)} style={{ color: '#8A2B2B' }}><Trash2 size={16} /> Excluir</button>
+              <button className="btn btn-g btn-erro" onClick={() => excluir(sel.id)}><Trash2 size={16} /> Excluir</button>
             </div>
           </Modal>
         );
@@ -1084,7 +1075,7 @@ function Clientes({ dados, acao, aviso }) {
                     <span className="mono" style={{ fontSize: 12, color: 'var(--muted)', width: 84 }}>{fmtDataLonga(a.data)}</span>
                     <span style={{ flex: 1, fontSize: 14 }}>{s?.nome}</span>
                     <span className="mono" style={{ fontSize: 13 }}>{brl(a.valor)}</span>
-                    {a.status === 'falta' && <span className="tag" style={{ background: '#F3E6E6', color: '#8A2B2B' }}>faltou</span>}
+                    {a.status === 'falta' && <span className="tag" style={{ background: '#F3E6E6', color: 'var(--erro)' }}>faltou</span>}
                   </div>
                 );
               })}
@@ -1370,7 +1361,7 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-p" style={{ flex: 1 }} disabled={!f.nome || f.profs.length === 0} onClick={salvar}>Salvar</button>
-        {s.id && <button className="btn btn-g" style={{ color: '#8A2B2B' }} onClick={async () => { await acao(() => api.removerServico(s.id), 'Serviço removido'); fechar(); }}><Trash2 size={16} /></button>}
+        {s.id && <button className="btn btn-g btn-erro" onClick={async () => { await acao(() => api.removerServico(s.id), 'Serviço removido'); fechar(); }}><Trash2 size={16} /></button>}
       </div>
     </Modal>
   );
@@ -1488,7 +1479,7 @@ function EditarStaff({ p, unidades, acao, fechar, aviso }) {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-p" style={{ flex: 1 }} disabled={!f.nome} onClick={salvar}>Salvar</button>
-        {p.id && <button className="btn btn-g" style={{ color: '#8A2B2B' }} onClick={async () => { await acao(() => api.removerProfissional(p.id), 'Profissional removida'); fechar(); }}><Trash2 size={16} /></button>}
+        {p.id && <button className="btn btn-g btn-erro" onClick={async () => { await acao(() => api.removerProfissional(p.id), 'Profissional removida'); fechar(); }}><Trash2 size={16} /></button>}
       </div>
     </Modal>
   );
@@ -1661,22 +1652,34 @@ function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
  * quem opera. "Como foi a semana" e "o feriado valeu a pena" não tinham
  * resposta.
  */
-const PERIODOS = [
-  { k: 'mes', rotulo: 'Este mês' },
-  { k: '7', rotulo: '7 dias' },
-  { k: '30', rotulo: '30 dias' },
-  { k: 'anterior', rotulo: 'Mês passado' },
+const ESCALAS = [
+  { k: 'dia', rotulo: 'Dia' },
+  { k: 'semana', rotulo: 'Semana' },
+  { k: 'mes', rotulo: 'Mês' },
 ];
 
-function intervaloDe(k) {
-  const h = hojeISO();
-  if (k === '7' || k === '30') return { de: addDias(h, -(Number(k) - 1)), ate: h };
-  if (k === 'anterior') {
-    const d = new Date(h + 'T12:00:00');
-    const mes = new Date(Date.UTC(d.getFullYear(), d.getMonth() - 1, 1)).toISOString().slice(0, 7);
-    return { mes };
+const DIAS_SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const MES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const MES_PQ = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const comoData = iso => new Date(iso + 'T12:00:00');
+
+/** O período por extenso, do jeito que se diz em voz alta. */
+function periodoPorExtenso(escala, de, ate, hoje) {
+  const d = comoData(de);
+  if (escala === 'dia') {
+    const nome = `${DIAS_SEM[d.getDay()]}, ${d.getDate()} de ${MES_PQ[d.getMonth()]}`;
+    if (de === hoje) return `hoje · ${nome}`;
+    return nome;
   }
-  return { mes: h.slice(0, 7) };
+  if (escala === 'semana') {
+    const f = comoData(ate);
+    // Semana que atravessa o mês precisa dizer os dois, senão "30 a 5" mente.
+    return d.getMonth() === f.getMonth()
+      ? `${d.getDate()} a ${f.getDate()} de ${MES_PQ[d.getMonth()]}`
+      : `${d.getDate()} de ${MES_PQ[d.getMonth()]} a ${f.getDate()} de ${MES_PQ[f.getMonth()]}`;
+  }
+  return `${MES_EXT[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
 /** Quanto subiu ou desceu em relação ao período anterior de mesmo tamanho. */
@@ -1695,18 +1698,41 @@ const Variacao = ({ de, para }) => {
 
 function Financeiro({ dados }) {
   const { staff } = dados;
-  const [periodo, setPeriodo] = useState('mes');
+  // Escala mais deslocamento, em vez de uma lista fixa de recortes: assim
+  // "semana passada" e "março do ano passado" são a mesma mecânica, e não
+  // dois botões que alguém teria de lembrar de criar.
+  const [escala, setEscala] = useState('mes');
+  const [desloc, setDesloc] = useState(0);
   const [r, setR] = useState(null);
+  const [falhou, setFalhou] = useState(false);
+
+  const hoje = hojeISO();
+  const { de, ate } = intervaloDo(escala, desloc);
 
   // Agregação é trabalho de banco, não de navegador: SUM/GROUP BY no servidor.
   useEffect(() => {
+    let vivo = true;
     setR(null);
-    api.resumo(intervaloDe(periodo)).then(setR).catch(() => setR(null));
-  }, [periodo]);
+    setFalhou(false);
+    api.resumo({ de, ate })
+      .then(x => { if (vivo) setR(x); })
+      // Falha precisa parecer falha: caindo em `setR(null)`, sessão expirada
+      // virava um "Calculando…" eterno, sem nada no console.
+      .catch(() => { if (vivo) setFalhou(true); });
+    return () => { vivo = false; };
+  }, [de, ate]);
 
+  if (falhou) {
+    return (
+      <div className="rs-falha" style={{ margin: 24 }}>
+        Não deu para carregar os números deste período. Se você ficou muito tempo
+        com a tela aberta, a sessão pode ter expirado — recarregue a página.
+      </div>
+    );
+  }
   if (!r) return <div style={{ padding: 40, color: 'var(--muted)' }}>Calculando…</div>;
 
-  const recebido = r.recebido, aberto = r.aReceber, hojeReceita = r.previstoHoje;
+  const recebido = r.recebido, aberto = r.aReceber;
   const ticket = r.ticketMedio, faltas = r.faltas;
   const rank = r.porServico.map(s => [s.nome, s.total]);
   const max = rank[0]?.[1] || 1;
@@ -1719,14 +1745,25 @@ function Financeiro({ dados }) {
         <div>
           <h2>Financeiro</h2>
           <div className="sub">
-            {fmtData(r.de)} a {fmtData(r.ate)} · {r.atendimentos} atendimentos concluídos
+            {periodoPorExtenso(escala, r.de, r.ate, hoje)} · {r.atendimentos} atendimentos concluídos
           </div>
         </div>
-        <div className="chips">
-          {PERIODOS.map(p => (
-            <button key={p.k} className={'chip' + (periodo === p.k ? ' on' : '')}
-                    onClick={() => setPeriodo(p.k)}>{p.rotulo}</button>
-          ))}
+        <div className="rs-controles">
+          <div className="chips">
+            {ESCALAS.map(e => (
+              <button key={e.k} className={'chip' + (escala === e.k ? ' on' : '')}
+                      onClick={() => { setEscala(e.k); setDesloc(0); }}>{e.rotulo}</button>
+            ))}
+          </div>
+          <div className="rs-nav">
+            <button className="btn btn-g btn-s" title="Período anterior"
+                    onClick={() => setDesloc(d => d - 1)}><ChevronLeft size={15} /></button>
+            {desloc !== 0 && (
+              <button className="btn btn-g btn-s" onClick={() => setDesloc(0)}>Agora</button>
+            )}
+            <button className="btn btn-g btn-s" title="Período seguinte"
+                    onClick={() => setDesloc(d => d + 1)}><ChevronRight size={15} /></button>
+          </div>
         </div>
       </div>
 
@@ -1738,10 +1775,15 @@ function Financeiro({ dados }) {
               mesmo tanto de dias, imediatamente antes. */}
           <Variacao de={r.anterior.recebido} para={recebido} />
         </div>
-        <div className="card stat"><span className="eyebrow">Previsto hoje</span><span className="v">{brl(hojeReceita)}</span></div>
-        <div className="card stat"><span className="eyebrow">A receber</span><span className="v" style={{ color: aberto > 0 ? 'var(--warn)' : 'inherit' }}>{brl(aberto)}</span></div>
+        {/* Do período, não de hoje: com escala de dia e semana, "previsto
+            hoje" ao lado de "recebido na semana passada" eram dois recortes
+            diferentes no mesmo cartão. */}
+        <div className="card stat"><span className="eyebrow">Previsto</span><span className="v">{brl(r.previsto)}</span></div>
+        {/* Este continua ancorado em hoje de propósito — é a dívida em aberto
+            acumulada, não algo que o período recorte. O rótulo diz isso. */}
+        <div className="card stat"><span className="eyebrow">A receber, até hoje</span><span className="v" style={{ color: aberto > 0 ? 'var(--warn)' : 'inherit' }}>{brl(aberto)}</span></div>
         <div className="card stat"><span className="eyebrow">Ticket médio</span><span className="v">{brl(ticket)}</span></div>
-        <div className="card stat"><span className="eyebrow">Faltas no mês</span><span className="v">{faltas}</span></div>
+        <div className="card stat"><span className="eyebrow">Faltas</span><span className="v">{faltas}</span></div>
       </div>
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
@@ -1757,11 +1799,11 @@ function Financeiro({ dados }) {
               </div>
             </div>
           ))}
-          {rank.length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Sem atendimentos concluídos neste mês ainda.</p>}
+          {rank.length === 0 && <p className="rs-vazio">Sem atendimentos concluídos neste período.</p>}
         </div>
 
         <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Comissões do mês</div>
+          <div className="eyebrow" style={{ marginBottom: 14 }}>Comissões do período</div>
           {staff.map(p => {
             const prod = producaoPor[p.id] || 0;
             return (

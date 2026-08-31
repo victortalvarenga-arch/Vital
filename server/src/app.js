@@ -21,6 +21,7 @@ import { comRegistro } from './lib/registro.js';
 import { comAdicionais } from './lib/adicionais.js';
 import { combosAtivos } from './lib/combos.js';
 import { comEmpresa } from './lib/tenant.js';
+import { fecharAtendimentos } from './jobs/fechamento.js';
 
 /**
  * Monta a aplicação Express, sem subir nada.
@@ -136,6 +137,23 @@ app.use('/api/mensagens', mensagens);
  */
 app.get('/api/estado', rota(async (req, res) => {
   const h = hoje();
+
+  // Fecha o que já terminou antes de montar a resposta. O cron sozinho deixava
+  // até cinco minutos de defasagem, e é justamente na tela que a pessoa abre
+  // para saber "como está o meu dia" que número velho incomoda.
+  //
+  // Escrever dentro de um GET não é bonito, e por isso está aqui e não num
+  // middleware: este GET é o "abrir o painel", não uma leitura qualquer. É
+  // idempotente (sem nada pendente, é um SELECT que volta vazio) e nunca
+  // derruba o carregamento — painel que não abre é pior que caixa defasado.
+  //
+  // O cron continua existindo, e não é redundância: o pós-atendimento e a
+  // reativação precisam rodar mesmo na semana em que ninguém abre o painel.
+  try {
+    await fecharAtendimentos();
+  } catch (erro) {
+    console.error('[fechamento no bootstrap]', erro.message);
+  }
   // Mesmo recorte da rota de agenda: o bootstrap não pode ser a porta dos
   // fundos que devolve o que a rota filtrada esconde.
   const so = escopoDe(req.usuario);

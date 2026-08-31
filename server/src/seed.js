@@ -254,6 +254,27 @@ async function primeiraClienteReal() {
  */
 async function oResto() {
   const h = hoje();
+
+  /* ── horários fechados ────────────────────────────────────────────────── */
+  // Dois casos, porque são as duas formas de fechar a agenda e elas se parecem
+  // pouco: o almoço avulso de amanhã, e as férias que se repetem por três
+  // semanas (uma linha por ocorrência, ligadas por `serie` — ver migration
+  // 013). Sem os dois no seed, a tela de Horários fechados nasce vazia numa
+  // máquina nova e a repetição parece não existir.
+  await db.run(
+    `INSERT INTO blocks (id,staff_id,data,hora_ini,hora_fim,motivo,criado_em)
+     VALUES (?,?,?,?,?,?,?)`,
+    uid(), 's2', addDias(h, 1), '12:00', '13:30', 'Almoço', h
+  );
+  const ferias = uid();
+  for (let i = 0; i < 3; i++) {
+    await db.run(
+      `INSERT INTO blocks (id,staff_id,data,hora_ini,hora_fim,motivo,serie,criado_em)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      uid(), 's3', addDias(h, 14 + i * 7), '09:00', '19:00', 'Férias', ferias, h
+    );
+  }
+
   /* ── unidades ─────────────────────────────────────────────────────────── */
   // Duas, para a escolha de endereço aparecer no site. Com uma só, o passo some
   // — e some com razão, mas aí não dá para ver como é.

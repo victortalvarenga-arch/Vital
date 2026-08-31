@@ -49,6 +49,7 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `010_registro_do_painel` | `logs`: quem fez o quê na empresa |
 | `011_registro_e_so_leitura` | `REVOKE` no registro — GRANT adiciona, nunca tira |
 | `012_formularios` | Intake: perguntas, respostas e o vínculo com serviços |
+| `013_bloqueio_repetido` | `serie` em `blocks`: férias de três semanas são três linhas |
 
 ## Visão geral
 
@@ -165,6 +166,19 @@ Bloqueio e agendamento são tabelas separadas de propósito. Um agendamento pode
 ser remarcado e sai da agenda; um bloqueio é a empresa dizendo que ali não se
 atende. Guardar "almoço" como se fosse atendimento faria cancelar o almoço
 aparecer como cancelamento no relatório.
+
+**A tela monta antes de criar, e manda as datas prontas.** O primeiro desenho
+pedia uma data e uma repetição, e não dava conta do caso mais comum: "fecho
+segunda e quarta, das 8 às 10, pelas próximas seis semanas" — eram dois
+bloqueios criados separadamente, com a conta do calendário feita de cabeça duas
+vezes. Hoje se monta uma lista de faixas (dias da semana + horas), a repetição
+vale para o conjunto, e só então se cria.
+
+Por isso o `POST` aceita `datas: [...]` além de `data` + `repetir`: o calendário
+já foi calculado na tela para a pessoa conferir na prévia, e refazer a conta no
+servidor seria uma segunda versão da mesma regra, livre para divergir do que ela
+viu antes de clicar. O servidor valida cada data, recusa a criação inteira se
+uma estiver torta (metade gravada seria pior que nada) e descarta repetidas.
 
 **Bloquear não desmarca ninguém.** Se já havia cliente no intervalo, a rota
 devolve a lista e a tela avisa — cancelar sozinho o atendimento de alguém seria
@@ -883,6 +897,97 @@ Depois de escolher o horário, antes de dar o WhatsApp. Quem chegou até ali já
 decidiu, e responder três perguntas não faz desistir — perguntar antes da data
 faria, porque o passo apareceria antes de a pessoa saber se existe horário para
 ela. Serviço que não pede nada não ganha passo nenhum.
+
+## Horários fechados
+
+Almoço, folga, feriado, férias, reforma. É o outro lado da jornada: a jornada
+diz quando se atende em geral, o bloqueio diz quando, excepcionalmente, não se
+atende — e o motor consulta os dois antes de oferecer qualquer vaga.
+`staff_id` nulo fecha para a empresa inteira, que é como se marca feriado sem
+repetir a linha para cada pessoa.
+
+**Repetir cria uma linha por data, não uma regra de recorrência.** A
+alternativa seria guardar "toda terça, por 3 semanas" numa coluna e o motor
+expandir isso ao montar a grade. Foi descartada por três motivos:
+
+1. `lib/availability.js` é o código mais testado do projeto e o que decide se
+   uma cliente consegue marcar. Um erro ali não aparece como erro — aparece
+   como horário oferecido que não existe.
+2. **Cancelar uma ocorrência só é o caso normal.** "Viajo três semanas, mas na
+   segunda eu volto para atender a Dona Marta" precisa apagar uma terça sem
+   desfazer as outras duas. Com regra, isso vira uma tabela de exceções à
+   regra.
+3. Conflito com agendamento existente se confere por data. Com regra, a
+   conferência teria de expandir antes — o mesmo trabalho, num lugar onde
+   esquecer passa calado.
+
+O custo é escrever N linhas; para um mês de férias são vinte e poucas. A coluna
+`serie` (migration 013) é só o laço que liga as irmãs, para "apagar as três
+semanas" ser um comando e não três. `?serie=1` no DELETE apaga o grupo — e a
+rota confere que o laço existe antes, senão pedir série num bloqueio avulso
+rodaria `WHERE serie IS NULL` e levaria junto todo avulso da empresa.
+
+**A tela monta antes de criar, e manda as datas prontas.** O primeiro desenho
+pedia uma data e uma repetição, e não dava conta do caso mais comum: "fecho
+segunda e quarta, das 8 às 10, pelas próximas seis semanas" — eram dois
+bloqueios criados separadamente, com a conta do calendário feita de cabeça duas
+vezes. Hoje se monta uma lista de faixas (dias da semana + horas), a repetição
+vale para o conjunto, e só então se cria.
+
+Por isso o `POST` aceita `datas: [...]` além de `data` + `repetir`: o calendário
+já foi calculado na tela para a pessoa conferir na prévia, e refazer a conta no
+servidor seria uma segunda versão da mesma regra, livre para divergir do que ela
+viu antes de clicar. O servidor valida cada data, recusa a criação inteira se
+uma estiver torta (metade gravada seria pior que nada) e descarta repetidas.
+
+**Bloquear não desmarca ninguém.** Se já havia cliente no intervalo, a resposta
+devolve quem é, em todas as datas da repetição, e a tela avisa. Furar a agenda
+de alguém em silêncio seria pior que o conflito.
+
+## Quem veio, quem faltou
+
+**Passou a hora do fim, o atendimento vira concluído e pago, sozinho.** Um cron
+a cada quinze minutos (`jobs/fechamento.js`) fecha o que ficou em `agendado` ou
+`confirmado` depois do horário. A exceção — falta e cancelamento — é que se
+registra, pela tela **Atendimentos**.
+
+**Por que o padrão é "veio".** Quase toda cliente aparece. Exigir um clique por
+atendimento fazia registrar a *regra* muitas vezes ao dia para que a *exceção*
+ficasse implícita, que é o inverso do que sai barato num balcão cheio. E o custo
+de esquecer era invisível: `concluido` comanda o dinheiro, a mensagem de
+pós-atendimento, o `{{ultimo_atendimento}}` dos modelos e a reativação. Sem
+ninguém marcar, o CRM inteiro parava — sem erro, sem log, sem sintoma.
+
+**O pagamento entra junto, e isso é uma troca consciente.** Dinheiro passa a
+aparecer no caixa sem ninguém ter confirmado que entrou. Em troca, o caso comum
+não custa clique nenhum. A forma fica em `local` — o padrão da coluna, que quer
+dizer "pago no balcão" e é exatamente o que se sabe quando ninguém informou
+nada; chutar pix ou cartão seria inventar dado.
+
+**O caminho de volta desfaz tudo.** Marcar falta ou cancelado tira do
+`recebido`, tira da divisão por forma de pagamento, e faz a cliente deixar de
+contar como atendida para o CRM. Cancelar ainda devolve o horário: nem `falta`
+nem `cancelado` estão em `STATUS_OCUPA`, então o encaixe de outra cliente passa
+a caber ali.
+
+Um detalhe que só aparece quando se olha: `porForma` filtrava apenas por
+`pag_status='pago'`, sem olhar o status. Um atendimento fechado como pago e
+depois corrigido para falta continuava somando lá, e a divisão por forma passava
+a discordar do recebido logo acima. Hoje as duas consultas pedem
+`status='concluido'`.
+
+**Quatro estados na tela, cinco no banco.** A tela **Agendamentos** mostra
+agendado, atendido, faltou e cancelado. `confirmado` continua existindo — é o
+que a resposta da cliente no WhatsApp vai gravar —, mas para quem opera é a
+mesma coisa que `agendado`: tem hora marcada e ainda não foi atendida. Duas abas
+dizendo isso seriam duas abas para conferir toda vez. A aba "Agendado" pede os
+dois status ao servidor, e a linha de um confirmado aparece como "Agendado".
+
+**O rastro é a contrapartida.** O fechamento automático grava uma linha em
+`logs` como `sistema`, com `user_id` nulo — sem isso o dono veria faturamento
+aparecer sem autor. E toda correção feita à mão passa pelo `PUT` de sempre, que
+registra quem fez, quando, e de qual estado para qual. É o que torna aceitável
+o sistema mexer no caixa por conta própria: nada acontece sem ficar escrito.
 
 ## O registro do painel
 

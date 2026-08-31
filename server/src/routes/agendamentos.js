@@ -81,6 +81,18 @@ agendamentos.get('/', rota(async (req, res) => {
   if (ate) { cond.push('data <= ?'); args.push(ate); }
   if (profissionalId) { cond.push('staff_id = ?'); args.push(profissionalId); }
   if (clienteId) { cond.push('client_id = ?'); args.push(clienteId); }
+  // Aceita mais de um separado por vírgula: para quem opera, "agendado" e
+  // "confirmado" são o mesmo estado — alguém tem hora marcada e ainda não foi
+  // atendido. A distinção existe no banco porque o WhatsApp vai usá-la; na
+  // tela, seriam duas abas dizendo a mesma coisa.
+  //
+  // Só os status que existem passam. Sem a conferência, `?status=x` devolveria
+  // lista vazia como se fosse resposta legítima.
+  const pedidos = String(req.query.status || '').split(',').filter(s => STATUS.includes(s));
+  if (pedidos.length) {
+    cond.push(`status IN (${pedidos.map(() => '?').join(',')})`);
+    args.push(...pedidos);
+  }
   const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
   const rows = await db.all(`SELECT * FROM appointments ${where} ORDER BY data, hora`, ...args);
   // Sem os extras, quem atende lê "Corte" e não sabe que a cliente também

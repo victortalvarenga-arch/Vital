@@ -1,167 +1,188 @@
 import { useEffect, useState } from 'react';
-import { Check, Clock, Trophy, X } from 'lucide-react';
+import { Clock, Trophy } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
-import { hojeISO, iniciais, toMin } from '../shared/tempo.js';
+import { emFaixas, faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
 
 /**
  * Resumo: a tela que abre primeiro no painel.
  *
- * Tudo aqui vem do que `/api/estado` já carrega — nenhuma rota nova. O único
- * pedido extra é o ranking do mês, que reaproveita a mesma
- * `/api/relatorios/resumo` que o Financeiro já chama.
+ * Responde uma pergunta só: **como está o meu dia agora.** Sem seletor de
+ * período, de propósito — semana, mês e comparação com o período anterior são
+ * a pergunta do Financeiro, e duas telas respondendo a mesma coisa é o começo
+ * de duas respostas diferentes.
  *
- * Dia fixo em hoje, sem seletor de período: essa tela responde "como está o
- * meu dia agora", não "como foi o mês" — isso já é o Financeiro. O ranking é
- * a única peça que olha pra trás (mês até hoje), porque só o dia de hoje deixa
- * a comparação entre profissionais rasa demais para servir de alguma coisa.
+ * Os números vêm de `/api/relatorios/resumo`, a mesma fonte do Financeiro, em
+ * vez de somados aqui a partir de `dados.agendamentos`. Não é sobre hoje caber
+ * na memória (cabe): é que a conta de "recebido" e "ticket médio" já existe no
+ * servidor, recortada por `escopoDe` — refazê-la no navegador seria a segunda
+ * versão da mesma regra, livre para divergir.
+ *
+ * Nada aqui é editável. É a versão de relance da Agenda, não uma segunda
+ * forma de mexer nela.
  */
-export default function Resumo({ dados, acao, aviso, poderes }) {
+export default function Resumo({ dados, poderes }) {
   const { staff, clientes, servicos, agendamentos } = dados;
   const hoje = hojeISO();
 
-  const deHoje = agendamentos.filter(a => a.data === hoje);
-  const ativosHoje = deHoje.filter(a => a.status !== 'cancelado');
-  const concluidos = deHoje.filter(a => a.status === 'concluido').length;
-  const faltas = deHoje.filter(a => a.status === 'falta').length;
-  const cancelados = deHoje.filter(a => a.status === 'cancelado').length;
+  // Quem o dono está olhando. '' é a empresa inteira. O funcionário não tem
+  // essa escolha — e o servidor ignora o parâmetro para ele de qualquer jeito,
+  // então esconder o seletor é conveniência, não controle de acesso.
+  const [quem, setQuem] = useState('');
+  const [r, setR] = useState(null);
+  const [falhou, setFalhou] = useState(false);
 
-  // Mesma dupla que o Financeiro calcula pra qualquer período — aqui só de/ate
-  // são o dia de hoje: recebido é o que já entrou, previsto é o dia inteiro,
-  // pago ou não.
-  const recebido = ativosHoje
-    .filter(a => a.status === 'concluido' && a.pagamento.status === 'pago')
-    .reduce((s, a) => s + a.valor, 0);
-  const previsto = ativosHoje.reduce((s, a) => s + a.valor, 0);
+  useEffect(() => {
+    let vivo = true;
+    setR(null);
+    setFalhou(false);
+    api.resumo({ de: hoje, ate: hoje, profissionalId: quem || undefined })
+      .then(x => { if (vivo) setR(x); })
+      // Falha precisa parecer falha. Antes isto caía em `setR(null)`, que é o
+      // mesmo estado de "carregando" — sessão expirada virava um "Calculando…"
+      // eterno, sem nada no console.
+      .catch(() => { if (vivo) setFalhou(true); });
+    return () => { vivo = false; };
+  }, [hoje, quem]);
+
+  const doDia = agendamentos
+    .filter(a => a.data === hoje && a.status !== 'cancelado')
+    .filter(a => !quem || a.prof === quem);
 
   const agora = new Date();
   const minAgora = agora.getHours() * 60 + agora.getMinutes();
-  const proximos = ativosHoje
+  // Só o que ainda não terminou: passou a hora de fim, sai da lista sozinho.
+  const proximos = doDia
     .filter(a => (a.status === 'agendado' || a.status === 'confirmado')
       && toMin(a.hora) + a.duracao > minAgora)
     .sort((a, b) => a.hora.localeCompare(b.hora))
-    .slice(0, 5);
+    .slice(0, 6);
 
-  // Funcionário vê só a própria coluna — mesmo recorte que o resto do painel
-  // já aplica (escopoDe, no servidor). Dono vê todo mundo, lado a lado.
+  // Funcionário vê só a própria coluna — mesmo recorte que o servidor já
+  // aplica em `escopoDe`. Dono vê todo mundo, lado a lado.
   const colunas = poderes.verDeTodos
-    ? staff.filter(p => p.ativo)
+    ? staff.filter(p => p.ativo && (!quem || p.id === quem))
     : staff.filter(p => p.id === dados.eu?.profissionalId);
 
-  const mudarStatus = (id, status) =>
-    acao(() => api.atualizarAgendamento(id, { status }), 'Agendamento atualizado');
-  const excluir = id => {
-    if (!confirm('Excluir este atendimento?')) return;
-    acao(() => api.removerAgendamento(id), 'Agendamento removido');
-  };
+  // Rótulo honesto: "Recebido" sozinho, filtrado numa pessoa, faria o dono ler
+  // o número dela como o da empresa.
+  const doFiltro = quem && staff.find(p => p.id === quem);
+  const meu = !poderes.verDeTodos;
+  const dono = rotulo => (meu ? `Seu ${rotulo.toLowerCase()}`
+    : doFiltro ? `${rotulo} · ${doFiltro.nome.split(' ')[0]}` : rotulo);
 
   return (
     <>
       <div className="head">
         <div>
           <h2>Resumo</h2>
-          <div className="sub">{fmtHoje(hoje)}</div>
+          <div className="sub">{doDiaPorExtenso(hoje)}</div>
         </div>
+        {poderes.verDeTodos && (
+          <div className="chips chips-rolagem">
+            <button type="button" className={'chip' + (quem === '' ? ' on' : '')}
+                    onClick={() => setQuem('')}>Todos</button>
+            {staff.filter(p => p.ativo).map(p => (
+              <button key={p.id} type="button"
+                      className={'chip' + (quem === p.id ? ' on' : '')}
+                      onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {falhou && (
+        <div className="rs-falha">
+          Não deu para carregar os números de hoje. Se você ficou muito tempo
+          com a tela aberta, a sessão pode ter expirado — recarregue a página.
+        </div>
+      )}
+
+      {/* Cada rótulo diz de quem é o número: para o dono é a empresa, para o
+          funcionário é a produção dele. Mesma palavra com dois significados
+          numa tela de dinheiro é o que faz alguém desconfiar do sistema. */}
       <div className="stats" style={{ marginBottom: 18 }}>
-        <div className="card stat">
-          <span className="eyebrow">Recebido hoje</span>
-          <span className="v">{brl(recebido)}</span>
-        </div>
-        <div className="card stat">
-          <span className="eyebrow">Previsto hoje</span>
-          <span className="v">{brl(previsto)}</span>
-        </div>
-        <div className="card stat">
-          <span className="eyebrow">Atendimentos hoje</span>
-          <span className="v">{deHoje.length}</span>
-        </div>
-        <div className="card stat">
-          <span className="eyebrow">Concluídos</span>
-          <span className="v">{concluidos}</span>
-        </div>
-        <div className="card stat">
-          <span className="eyebrow">Faltas / cancelados</span>
-          <span className="v">{faltas} / {cancelados}</span>
-        </div>
+        <Numero rotulo={dono('Recebido')} valor={r && brl(r.recebido)} />
+        <Numero rotulo={dono('Previsto')} valor={r && brl(r.previsto)} />
+        <Numero rotulo="Ticket médio" valor={r && brl(r.ticketMedio)} />
+        <Numero rotulo="Atendimentos" valor={r && r.agendados} />
+        <Numero rotulo="Concluídos" valor={r && r.atendimentos} />
+        <Numero rotulo="Faltas / cancelados" valor={r && `${r.faltas} / ${r.cancelados}`} />
       </div>
 
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: poderes.verDeTodos ? '1.1fr 1fr' : '1fr' }}>
+      <div className="rs-colunas" style={{ gridTemplateColumns: poderes.verDeTodos ? '1.1fr 1fr' : '1fr' }}>
         <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Próximos atendimentos</div>
-          {proximos.length === 0 && (
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Nada agendado pro resto do dia.</p>
-          )}
-          <div className="list">
-            {proximos.map(a => {
-              const c = clientes.find(x => x.id === a.cliente);
-              const s = servicos.find(x => x.id === a.servico);
-              const p = staff.find(x => x.id === a.prof);
-              return (
-                <div key={a.id} className="li">
-                  <div className="avatar" style={{ background: p?.cor || '#999' }}>
-                    {p ? iniciais(p.nome) : '?'}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="nm">{c?.nome}</div>
-                    <div className="mt">
-                      <span><Clock size={12} style={{ verticalAlign: -2 }} /> {a.hora}</span>
-                      <span>{s?.nome}</span>
-                      {!poderes.verDeTodos ? null : <span>{p?.nome.split(' ')[0]}</span>}
+            <div className="eyebrow" style={{ marginBottom: 14 }}>Próximos atendimentos</div>
+            {proximos.length === 0 && (
+              <p className="rs-vazio">Nada agendado pro resto do dia.</p>
+            )}
+            <div className="list">
+              {proximos.map(a => {
+                const c = clientes.find(x => x.id === a.cliente);
+                const s = servicos.find(x => x.id === a.servico);
+                const p = staff.find(x => x.id === a.prof);
+                return (
+                  <div key={a.id} className="li">
+                    <div className="avatar" style={{ background: p?.cor || '#999' }}>
+                      {p ? iniciais(p.nome) : '?'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="nm">{c?.nome}</div>
+                      <div className="mt">
+                        <span><Clock size={12} style={{ verticalAlign: -2 }} /> {a.hora}</span>
+                        <span>{s?.nome}</span>
+                        {poderes.verDeTodos && <span>{p?.nome.split(' ')[0]}</span>}
+                      </div>
                     </div>
                   </div>
-                  <button className="btn btn-g btn-s" title="Concluir"
-                          onClick={() => mudarStatus(a.id, 'concluido')}>
-                    <Check size={15} />
-                  </button>
-                  <button className="btn btn-g btn-s" title="Excluir" style={{ color: '#8A2B2B' }}
-                          onClick={() => excluir(a.id)}>
-                    <X size={15} />
-                  </button>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 
-        {poderes.verDeTodos && <RankingDoMes staff={staff} />}
+        {poderes.verDeTodos && <Ranking staff={staff} r={r} falhou={falhou} />}
       </div>
 
       <div style={{ marginTop: 12 }}>
         <div className="eyebrow" style={{ marginBottom: 14 }}>
           {poderes.verDeTodos ? 'Como está o dia, por profissional' : 'Como está o meu dia'}
         </div>
-        <TimelineDoDia colunas={colunas} agendamentos={ativosHoje} clientes={clientes} servicos={servicos} />
+        <TimelineDoDia colunas={colunas} agendamentos={doDia}
+                       clientes={clientes} servicos={servicos} />
       </div>
     </>
   );
 }
 
-/**
- * Ranking dos profissionais no mês — a única peça do Resumo que busca dado
- * novo (o resto vem pronto de `dados`). Mesma rota que o Financeiro chama,
- * sem parâmetro: o servidor já assume "mês atual até hoje" nesse caso.
- */
-function RankingDoMes({ staff }) {
-  const [r, setR] = useState(null);
-  useEffect(() => { api.resumo().then(setR).catch(() => setR(null)); }, []);
+/** Um número do topo. Enquanto o período não chega, ocupa o mesmo espaço. */
+const Numero = ({ rotulo, valor }) => (
+  <div className="card stat">
+    <span className="eyebrow">{rotulo}</span>
+    <span className="v">{valor == null ? <span className="rs-esperando">—</span> : valor}</span>
+  </div>
+);
 
+/**
+ * Quem produziu hoje. Do dia, como todo o resto da tela — comparação entre
+ * profissionais ao longo do mês é do Financeiro, onde há escala de período.
+ */
+function Ranking({ staff, r, falhou }) {
   return (
     <div className="card" style={{ padding: 18 }}>
       <div className="eyebrow" style={{ marginBottom: 14 }}>
-        <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do mês
+        <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do dia
       </div>
-      {!r && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Calculando…</p>}
+      {falhou && <p className="rs-vazio">Não deu para carregar.</p>}
+      {!falhou && !r && <p className="rs-vazio">Calculando…</p>}
       {r && r.porProfissional.length === 0 && (
-        <p style={{ fontSize: 13, color: 'var(--muted)' }}>Sem atendimentos concluídos neste mês ainda.</p>
+        <p className="rs-vazio">Nenhum atendimento concluído hoje ainda.</p>
       )}
       {r && r.porProfissional.map((linha, i) => {
         const p = staff.find(x => x.id === linha.id);
         return (
           <div key={linha.id} className="li" style={{ padding: '9px 0' }}>
-            <span className="mono" style={{ width: 18, color: 'var(--muted)', fontSize: 13 }}>{i + 1}º</span>
-            <div className="avatar" style={{ background: p?.cor || '#999', width: 30, height: 30, fontSize: 11 }}>
+            <span className="mono rs-pos">{i + 1}º</span>
+            <div className="avatar rs-av-pq" style={{ background: p?.cor || '#999' }}>
               {iniciais(linha.nome)}
             </div>
             <div style={{ flex: 1, fontSize: 13.5 }}>{linha.nome.split(' ')[0]}
@@ -174,28 +195,32 @@ function RankingDoMes({ staff }) {
   );
 }
 
-const H_INI = 8, H_FIM = 20, PX_H = 34, TOPO = 8;
+const PX_H = 34, TOPO = 8;
 const MIN_POR_PX = 60 / PX_H;
 
 /**
- * Grade de hoje, uma coluna por profissional — a "timeline do dia".
+ * Grade de um dia, uma coluna por profissional.
  *
- * Coluna por pessoa foi tentado e descartado na Agenda semanal (virava sete
- * toques pra ver a semana inteira). Aqui não tem esse problema: é um dia só,
- * e comparar quem está ocupado agora é exatamente o que a coluna resolve.
- *
- * Não é editável — sem arrastar, sem clique pra abrir detalhe. É a versão
+ * Não é editável — sem arrastar, sem clique para abrir detalhe. É a versão
  * "de relance" da Agenda, não uma segunda forma de mexer na agenda.
  */
 function TimelineDoDia({ colunas, agendamentos, clientes, servicos }) {
   if (colunas.length === 0) {
-    return <p style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum profissional ativo.</p>;
+    return <p className="rs-vazio">Nenhum profissional ativo.</p>;
   }
+
+  // A grade se estica para caber o que existe, em vez de recortar em 8h–20h:
+  // quem marcava às 7h ficava com `top` negativo e sumia atrás do
+  // `overflow: hidden` da moldura, enquanto os contadores lá em cima
+  // continuavam contando o atendimento invisível.
+  const [H_INI, H_FIM] = faixaDeHoras(agendamentos);
+  const altura = (H_FIM - H_INI) * PX_H + TOPO * 2;
+
   return (
     <div className="eq-timeline">
       <div className="eq-horas">
         <div className="eq-horas-topo" />
-        <div className="eq-horas-corpo" style={{ height: (H_FIM - H_INI) * PX_H + TOPO * 2 }}>
+        <div className="eq-horas-corpo" style={{ height: altura }}>
           {Array.from({ length: H_FIM - H_INI + 1 }, (_, i) => (
             <span key={i} className="eq-hlabel" style={{ top: TOPO + i * PX_H }}>
               {String(H_INI + i).padStart(2, '0')}:00
@@ -205,33 +230,39 @@ function TimelineDoDia({ colunas, agendamentos, clientes, servicos }) {
       </div>
       <div className="eq-cols">
         {colunas.map(p => {
-          const meus = agendamentos.filter(a => a.prof === p.id);
+          // Dois atendimentos no mesmo horário dividem a largura da coluna. O
+          // de baixo ficava escondido, e horário ocupado que parece livre é o
+          // pior erro que esta tela pode cometer. Acontece de verdade: marcar
+          // falta libera o horário no servidor, e a falta continua desenhada.
+          const meus = emFaixas(agendamentos
+            .filter(a => a.prof === p.id)
+            .map(a => ({ a, ini: toMin(a.hora), fim: toMin(a.hora) + a.duracao })));
           return (
             <div key={p.id} className="eq-col">
               <div className="eq-colhead">
-                <span className="avatar" style={{ background: p.cor, width: 20, height: 20, fontSize: 9 }}>
+                <span className="avatar eq-av" style={{ background: p.cor }}>
                   {iniciais(p.nome)}
                 </span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.nome.split(' ')[0]}
-                </span>
+                <span className="eq-nome">{p.nome.split(' ')[0]}</span>
               </div>
-              <div className="eq-colbody" style={{ height: (H_FIM - H_INI) * PX_H + TOPO * 2 }}>
+              <div className="eq-colbody" style={{ height: altura }}>
                 {Array.from({ length: (H_FIM - H_INI) * 2 + 1 }, (_, i) => (
                   <div key={i} className={'linha' + (i % 2 ? ' meia' : '')}
                        style={{ top: TOPO + i * PX_H / 2 }} />
                 ))}
-                {meus.map(a => {
+                {meus.map(({ a, ini, fim, faixa, faixas }) => {
                   const c = clientes.find(x => x.id === a.cliente);
                   const s = servicos.find(x => x.id === a.servico);
-                  const ini = toMin(a.hora), fim = ini + a.duracao;
+                  const largura = 100 / faixas;
                   return (
                     <div key={a.id}
                          className={'appt' + (a.status === 'concluido' ? ' done' : '') + (a.status === 'falta' ? ' falta' : '')}
                          style={{
                            top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
                            height: Math.max((fim - ini) / MIN_POR_PX - 2, 22),
-                           left: 3, right: 3, width: 'auto',
+                           left: `calc(${faixa * largura}% + 3px)`,
+                           width: `calc(${largura}% - 6px)`,
+                           right: 'auto',
                            background: (p.cor || '#999') + '1f',
                            borderLeftColor: p.cor || '#999',
                          }}>
@@ -251,7 +282,8 @@ function TimelineDoDia({ colunas, agendamentos, clientes, servicos }) {
 
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const fmtHoje = iso => {
+
+const doDiaPorExtenso = iso => {
   const d = new Date(iso + 'T12:00:00');
   return `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]}`;
 };

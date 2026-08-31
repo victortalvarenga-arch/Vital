@@ -23,7 +23,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
   // Funcionário vê a própria produção; dono vê o negócio inteiro. O recorte
   // entra em TODAS as consultas — deixar uma de fora vazaria o faturamento da
   // empresa numa linha só.
-  const so = escopoDe(req.usuario);
+  //
+  // `profissionalId` deixa quem vê tudo olhar uma pessoa de cada vez. Ele só
+  // vale para quem já podia ver todo mundo: para o funcionário, `escopoDe`
+  // continua mandando e o parâmetro é ignorado — senão bastaria adivinhar um
+  // id na barra de endereço para ler o faturamento da colega.
+  const escopo = escopoDe(req.usuario);
+  const so = escopo || (req.query.profissionalId || null);
   const meu = so ? 'AND staff_id = ?' : '';
   const meuA = so ? 'AND a.staff_id = ?' : '';
   const arg = so ? [so] : [];
@@ -33,7 +39,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
         SUM(CASE WHEN status='concluido' AND pag_status='pago' THEN valor ELSE 0 END) recebido,
         SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos,
         SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas,
-        SUM(CASE WHEN status='cancelado' THEN 1 ELSE 0 END) cancelados
+        SUM(CASE WHEN status='cancelado' THEN 1 ELSE 0 END) cancelados,
+        -- Do período, não de hoje: previstoHoje responde "quanto ainda entra
+        -- hoje" e não serve a quem está olhando a semana passada. Cancelado
+        -- fica de fora dos dois: não é dinheiro que se espera nem
+        -- atendimento que ocupou alguém.
+        SUM(CASE WHEN status<>'cancelado' THEN valor ELSE 0 END) previsto,
+        SUM(CASE WHEN status<>'cancelado' THEN 1 ELSE 0 END) agendados
        FROM appointments WHERE data >= ? AND data <= ? ${meu}`,
     de, ate, ...arg
   );
@@ -98,9 +110,14 @@ relatorios.get('/resumo', rota(async (req, res) => {
     ...r, comissaoValor: (r.producao || 0) * (r.comissao || 0) / 100,
   }));
 
+  // `status='concluido'` junto, e não só `pag_status='pago'`: um atendimento
+  // que entrou como pago e depois virou falta continuava somando aqui, e a
+  // divisão por forma passava a discordar do recebido logo acima. Com o
+  // fechamento automático isso deixou de ser hipótese — é o caminho normal de
+  // quem corrige um no-show.
   const porForma = await db.all(
     `SELECT pag_forma forma, SUM(valor) total FROM appointments
-      WHERE data >= ? AND data <= ? AND pag_status='pago' ${meu}
+      WHERE data >= ? AND data <= ? AND pag_status='pago' AND status='concluido' ${meu}
       GROUP BY pag_forma ORDER BY total DESC`,
     de, ate, ...arg
   );
@@ -124,11 +141,20 @@ relatorios.get('/resumo', rota(async (req, res) => {
     atendimentos: g.atendimentos || 0,
     faltas: g.faltas || 0,
     cancelados: g.cancelados || 0,
+    previsto: g.previsto || 0,
+    agendados: g.agendados || 0,
     ticketMedio: g.atendimentos ? recebido / g.atendimentos : 0,
     porServico, porProfissional, porForma,
     // A tela precisa saber que está vendo um recorte, senão o dono acha que o
     // faturamento caiu quando na verdade está olhando pelo login errado.
-    somenteMeu: Boolean(so),
+    //
+    // `escopo`, não `so`: um dono que escolheu ver uma pessoa não está limitado
+    // pelo papel dele, está filtrando de propósito. Confundir os dois faria a
+    // tela avisar "você só vê o seu" para quem vê tudo.
+    somenteMeu: Boolean(escopo),
+    // Quem está no recorte, seja por papel ou por escolha. `null` = a empresa
+    // inteira.
+    profissionalId: so || null,
     anterior: {
       de: addDias(de, -dias), ate: addDias(de, -1),
       recebido: anterior?.recebido || 0,
