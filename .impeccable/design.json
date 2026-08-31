@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-29T20:00:00.000Z",
+  "generatedAt": "2026-08-31T13:00:00.000Z",
   "title": "Design System: Vital",
   "extensions": {
     "colorMeta": {
@@ -26,12 +26,13 @@
       "vital-ok": { "role": "neutral", "displayName": "Ok", "canonical": "#2E7D5B" },
       "vital-warn": { "role": "neutral", "displayName": "Warn", "canonical": "#8A5A00" },
       "vital-error": { "role": "neutral", "displayName": "Error", "canonical": "#8A2B2B" },
-      "site-tenant-accent": { "role": "primary", "displayName": "Tenant Accent (runtime; seed default: Sage) ", "canonical": "#3F6350" },
-      "site-tenant-accent-deep": { "role": "primary", "displayName": "Tenant Accent, Deep (runtime)", "canonical": "#2F4A3C" },
-      "site-tenant-accent-soft": { "role": "primary", "displayName": "Tenant Accent, Soft (runtime)", "canonical": "#E8ECEA" },
-      "site-tenant-accent-border": { "role": "primary", "displayName": "Tenant Accent, Border (runtime)", "canonical": "#C9D3CE" },
-      "site-tenant-tint": { "role": "primary", "displayName": "Tenant Tint (static fallback)", "canonical": "#F3F6F5" },
+      "site-tenant-accent": { "role": "primary", "displayName": "Tenant Accent (runtime; configPadrao default: a rose)", "canonical": "#A32A4E" },
+      "site-tenant-accent-deep": { "role": "primary", "displayName": "Tenant Accent, Deep (runtime; the site's full-fill background)", "canonical": "#A32A4E" },
+      "site-tenant-accent-soft": { "role": "primary", "displayName": "Tenant Accent, Soft (runtime)", "canonical": "#F6E9ED" },
+      "site-tenant-accent-border": { "role": "primary", "displayName": "Tenant Accent, Border (runtime)", "canonical": "#E4C7CF" },
+      "site-tenant-tint": { "role": "primary", "displayName": "Tenant Tint (runtime)", "canonical": "#FBF4F6" },
       "site-on-accent": { "role": "neutral", "displayName": "On-Accent", "canonical": "#FFFFFF" },
+      "site-on-accent-deep": { "role": "neutral", "displayName": "On-Accent, Deep (full-fill pair text)", "canonical": "#FFFFFF" },
       "site-ground": { "role": "neutral", "displayName": "Ground", "canonical": "#FFFFFF" },
       "site-ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1A1A1A" },
       "site-gray": { "role": "neutral", "displayName": "Gray", "canonical": "#6B6B6B" },
@@ -132,9 +133,9 @@
       "name": "Site — Primary Button",
       "kind": "button",
       "refersTo": "site-button-primary",
-      "description": "Pill button in the tenant's own accent color — shown here with the seed default; the real value is injected per tenant at runtime. Hover text color is computed separately from the base color's on-accent value (--sobre-marca-escura), not inherited, because darkening can flip which text color has better contrast.",
+      "description": "Pill button using the site's full-fill pair — shown here with the system default; the real value is injected per tenant at runtime. Background is --marca-escura (the tenant color darkened only as far as it takes to hold white text, via paraTextoBranco — an already-dark accent like this default comes back unchanged), never the plain --marca. Hover is a brightness filter on the same fill, not a second computed color.",
       "html": "<button class=\"ds-s-btn-primary\">Agendar horário</button>",
-      "css": ".ds-s-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; min-height: 48px; border-radius: 999px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 600; background: #3F6350; color: #FFFFFF; transition: background .15s; } .ds-s-btn-primary:hover { background: #2F4A3C; color: #FFFFFF; } .ds-s-btn-primary:disabled { background: #E8E8E8; color: #737373; cursor: not-allowed; }"
+      "css": ".ds-s-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; min-height: 48px; border-radius: 999px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 600; background: #A32A4E; color: #FFFFFF; transition: filter .15s; } .ds-s-btn-primary:hover { filter: brightness(.9); } .ds-s-btn-primary:disabled { background: #E8E8E8; color: #737373; filter: none; cursor: not-allowed; }"
     },
     {
       "name": "Site — Promo Card",
@@ -142,15 +143,23 @@
       "refersTo": "site-promo-card",
       "description": "Flat at rest per the Float-Only-Shadow Rule; lifts with the directional 'bandeja' shadow and a tenant-accent border on hover, the same gesture the service-photo circle uses.",
       "html": "<div class=\"ds-s-promo\"><span class=\"ds-s-promo-selo\">Promoção</span><strong class=\"ds-s-promo-nome\">Dia de cuidado</strong><span class=\"ds-s-promo-preco\">R$ 199</span></div>",
-      "css": ".ds-s-promo { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; background: #FAFAFA; border: 1px solid #E8E8E8; border-radius: 18px; padding: 24px 16px 16px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; } .ds-s-promo:hover { transform: translateY(-3px); box-shadow: -3px 10px 20px -14px rgba(37,45,40,.35), 0 1px 2px rgba(37,45,40,.06); border-color: #C9D3CE; } .ds-s-promo-selo { position: absolute; top: -11px; background: #3F6350; color: #FFFFFF; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; } .ds-s-promo-nome { font-size: 17px; margin-top: 12px; } .ds-s-promo-preco { font-size: 24px; font-weight: 600; margin-top: 8px; }"
+      "css": ".ds-s-promo { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; background: #FAFAFA; border: 1px solid #E8E8E8; border-radius: 18px; padding: 24px 16px 16px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; } .ds-s-promo:hover { transform: translateY(-3px); box-shadow: -3px 10px 20px -14px rgba(37,45,40,.35), 0 1px 2px rgba(37,45,40,.06); border-color: #E4C7CF; } .ds-s-promo-selo { position: absolute; top: -11px; background: #A32A4E; color: #FFFFFF; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; } .ds-s-promo-nome { font-size: 17px; margin-top: 12px; } .ds-s-promo-preco { font-size: 24px; font-weight: 600; margin-top: 8px; }"
     },
     {
       "name": "Site — Destaque",
       "kind": "custom",
       "refersTo": "site-destaque",
-      "description": "The featured combo: a full color-committed block, not a card in a grid. The one place on site where color owns a whole region instead of accenting a neutral one. Price set at the fluid destaque size — the single fact the block has to prove on its own.",
+      "description": "The featured combo: a full color-committed block, not a card in a grid, using the same full-fill pair as the primary button (--marca-escura / --sobre-marca-escura), never the plain accent. The one place on site where color owns a whole region instead of accenting a neutral one. Price set at the fluid destaque size — the single fact the block has to prove on its own.",
       "html": "<article class=\"ds-s-destaque\"><div><span class=\"ds-s-destaque-selo\">Promoção</span><h2 class=\"ds-s-destaque-nome\">Dia de cuidado</h2><p class=\"ds-s-destaque-itens\">Limpeza de pele profunda + Design de sobrancelha</p><button class=\"ds-s-destaque-btn\">Aproveitar</button></div><div class=\"ds-s-destaque-preco\"><span class=\"ds-s-destaque-cheio\">R$ 225</span><strong class=\"ds-s-destaque-valor\">R$ 199</strong><span class=\"ds-s-destaque-economia\">economize R$ 26</span></div></article>",
-      "css": ".ds-s-destaque { display: grid; grid-template-columns: 1.3fr 1fr; align-items: center; gap: 24px; background: #3F6350; color: #FFFFFF; border-radius: 24px; padding: 40px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; } .ds-s-destaque-selo { display: inline-flex; background: #FFFFFF; color: #3F6350; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; margin-bottom: 12px; } .ds-s-destaque-nome { font-size: 30px; letter-spacing: -.02em; margin: 0 0 8px; } .ds-s-destaque-itens { font-size: 15px; opacity: .92; margin: 0 0 20px; } .ds-s-destaque-btn { background: #FFFFFF; color: #3F6350; border: none; border-radius: 999px; padding: 14px 24px; font-weight: 600; font-size: 15px; cursor: pointer; } .ds-s-destaque-preco { display: flex; flex-direction: column; gap: 2px; padding-left: 24px; border-left: 1px solid rgba(255,255,255,.25); } .ds-s-destaque-cheio { font-size: 14.5px; opacity: .75; text-decoration: line-through; } .ds-s-destaque-valor { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 2px 0; } .ds-s-destaque-economia { font-size: 14.5px; font-weight: 600; }"
+      "css": ".ds-s-destaque { display: grid; grid-template-columns: 1.3fr 1fr; align-items: center; gap: 24px; background: #A32A4E; color: #FFFFFF; border-radius: 24px; padding: 40px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; } .ds-s-destaque-selo { display: inline-flex; background: #FFFFFF; color: #A32A4E; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; margin-bottom: 12px; } .ds-s-destaque-nome { font-size: 30px; letter-spacing: -.02em; margin: 0 0 8px; } .ds-s-destaque-itens { font-size: 15px; opacity: .92; margin: 0 0 20px; } .ds-s-destaque-btn { background: #FFFFFF; color: #A32A4E; border: none; border-radius: 999px; padding: 14px 24px; font-weight: 600; font-size: 15px; cursor: pointer; } .ds-s-destaque-preco { display: flex; flex-direction: column; gap: 2px; padding-left: 24px; border-left: 1px solid rgba(255,255,255,.25); } .ds-s-destaque-cheio { font-size: 14.5px; opacity: .75; text-decoration: line-through; } .ds-s-destaque-valor { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 2px 0; } .ds-s-destaque-economia { font-size: 14.5px; font-weight: 600; }"
+    },
+    {
+      "name": "Site — Full-Bleed Band (Clínica only)",
+      "kind": "custom",
+      "refersTo": "site-bloco-cheio",
+      "description": "A section whose entire background is the full-fill accent pair, not a wash — used on Clínica's 'Quem cuida de você' and the footer's 'Contato' only, opt-in per section (see The One-Fill-Doesn't-Repeat-Everywhere Rule). Exists because Clínica's neutrals are white/light-gray throughout and read as all-white without at least one true full-color section.",
+      "html": "<footer class=\"ds-s-cheio\"><h2 class=\"ds-s-cheio-titulo\">Contato</h2><a class=\"ds-s-cheio-link\">Rua Félix Heinzelmann, 139 — Joinville/SC</a><span class=\"ds-s-cheio-pag\">Pix</span></footer>",
+      "css": ".ds-s-cheio { background: #A32A4E; color: #FFFFFF; padding: 40px 24px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; } .ds-s-cheio-titulo { font-size: 12.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .7; margin: 0 0 16px; } .ds-s-cheio-link { display: block; color: inherit; text-decoration: none; font-size: 14.5px; padding: 6px 0; } .ds-s-cheio-pag { display: inline-block; margin-top: 16px; background: #FFFFFF; color: #A32A4E; font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; }"
     },
     {
       "name": "Site — Card",
@@ -158,7 +167,7 @@
       "refersTo": "site-card",
       "description": "Bordered option row used inside the booking window for services and professionals.",
       "html": "<button class=\"ds-s-card\"><span class=\"ds-s-card-title\">Limpeza de pele</span><span class=\"ds-s-card-sub\">60 min · R$ 120</span></button>",
-      "css": ".ds-s-card { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; padding: 12px 14px; min-height: 64px; border: 1px solid #E8E8E8; border-radius: 12px; background: #FFFFFF; transition: border-color .15s, background .15s; } .ds-s-card:hover { border-color: #3F6350; background: #E8ECEA; } .ds-s-card-title { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 15px; color: #1A1A1A; } .ds-s-card-sub { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 13.5px; color: #6B6B6B; }"
+      "css": ".ds-s-card { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; padding: 12px 14px; min-height: 64px; border: 1px solid #E8E8E8; border-radius: 12px; background: #FFFFFF; transition: border-color .15s, background .15s; } .ds-s-card:hover { border-color: #A32A4E; background: #F6E9ED; } .ds-s-card-title { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 15px; color: #1A1A1A; } .ds-s-card-sub { font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 13.5px; color: #6B6B6B; }"
     },
     {
       "name": "Site — Input",
@@ -166,7 +175,7 @@
       "refersTo": "site-input",
       "description": "Text field inside the booking window; font-size fixed at 16px specifically to defeat iOS auto-zoom on focus.",
       "html": "<input class=\"ds-s-input\" placeholder=\"Seu WhatsApp\" />",
-      "css": ".ds-s-input { width: 100%; padding: 14px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 16px; border: 1px solid #E8E8E8; border-radius: 12px; background: #FFFFFF; color: #1A1A1A; outline: none; } .ds-s-input:focus { border-color: #3F6350; box-shadow: 0 0 0 3px rgba(63,99,80,.15); }"
+      "css": ".ds-s-input { width: 100%; padding: 14px; font-family: 'Manrope', system-ui, -apple-system, sans-serif; font-size: 16px; border: 1px solid #E8E8E8; border-radius: 12px; background: #FFFFFF; color: #1A1A1A; outline: none; } .ds-s-input:focus { border-color: #A32A4E; box-shadow: 0 0 0 3px rgba(163,42,78,.15); }"
     }
   ],
   "narrative": {
@@ -188,16 +197,18 @@
       { "name": "The One-Plex Rule", "body": "Vital's body and mono are both IBM Plex now. Don't introduce a third, unrelated family for a new role — extend within Plex Sans's weight range first.", "section": "typography" },
       { "name": "The One-Family Rule", "body": "Site deliberately uses Manrope alone, for every role. Don't add a second family for 'more personality' — the tenant's injected accent color is where per-client personality already lives.", "section": "typography" },
       { "name": "The Float-Only-Shadow Rule", "body": "On site and painel, shadow appears only on elements that float above the base layer (modals, sticky bars, toasts, photo circles). A card at rest never carries one. Vital carries none at all, ever.", "section": "elevation" },
-      { "name": "The On-Accent-Deep Rule", "body": "Text on --marca-escura uses --sobre-marca-escura, computed separately from --sobre-marca. Darkening a tenant color for hover can flip which text color has better contrast — sampling found roughly a quarter of the color space affected, blues especially. Never assume a derived shade inherits its base color's on-top text choice.", "section": "colors" },
+      { "name": "The On-Accent-Deep Rule", "body": "Every solid-fill surface on site (primary button, Destaque, selos, selected states, the confirmation mark) uses --marca-escura background with --sobre-marca-escura text, never the plain --marca/--sobre-marca pair. --marca-escura is not a fixed -25% shade — paraTextoBranco() darkens the tenant color only as far as it takes for the color itself to hold white at >=4.5:1, so an already-dark accent (most blues, greens) comes back nearly unchanged, while a light one (a sage, a pastel) darkens for real. Never assume a derived shade inherits its base color's on-top text choice; --sobre-marca-escura is its own contraste() call.", "section": "colors" },
       { "name": "The Sixteen-Sixty Rule", "body": "--t-corpo-gr (16px) is a token; the literal 16px forced onto every real <input>/<select>/<textarea> is not, on purpose — that number exists to stop iOS auto-zoom, not to express hierarchy, and tying it to a retunable token would silently reopen that bug.", "section": "typography" },
       { "name": "The Rhythm-Isn't-Sizing Rule", "body": "Site's nine-step spacing scale (--e-1 4px through --e-9 52px) covers rhythm between elements. Touch targets (40/44/46/48/56/64px min-height) stay literal on purpose — they're an accessibility constant, not a statement about air between things.", "section": "layout" },
       { "name": "The No-Photo-Required Rule", "body": "Site's header composition must look finished with zero uploaded images — no tenant in this product's dev environment has one. The header's typographic treatment is identical whether marca.capa exists or not; a cover photo, when present, renders as a strip above the header, never as its load-bearing backdrop.", "section": "layout" },
-      { "name": "The Bandeja-Shadow Rule", "body": "--sombra-bandeja / --sombra-bandeja-hover are directional and brand-ink-tinted, reserved for the service-circle/promo-card 'object on a tray' material. --sombra stays the system's ownerless ambient shadow for everything else that floats. Don't swap one for the other as a generic strength dial.", "section": "elevation" }
+      { "name": "The Bandeja-Shadow Rule", "body": "--sombra-bandeja / --sombra-bandeja-hover are directional and brand-ink-tinted, reserved for the service-circle/promo-card 'object on a tray' material. --sombra stays the system's ownerless ambient shadow for everything else that floats. Don't swap one for the other as a generic strength dial.", "section": "elevation" },
+      { "name": "The One-Fill-Doesn't-Repeat-Everywhere Rule", "body": ".bloco-cheio (a full-bleed section in the full-fill accent pair, used on Clinica's 'Quem cuida de voce' and footer) is opt-in per section, not a model-wide background swap. Clinica earned it because its own neutrals are white/light-gray throughout and read as all-white without at least one true full-color section; the other three models don't share that problem and weren't asked for it.", "section": "colors" }
     ],
     "dos": [
       "Do keep the three token vocabularies fully separate — a decision made for one surface carries no default authority over the other two.",
       "Do treat --marca and its derived shades on site as runtime data, always with a static fallback for pre-hydration paint.",
       "Do use --sobre-marca-escura, not --sobre-marca, for text on any surface colored with --marca-escura.",
+      "Do use the --marca-escura/--sobre-marca-escura pair, not --marca/--sobre-marca, for any new solid-fill site surface (a filled button, a filled badge, a selected state); reserve the plain pair for a thin accent that was never going to hold text at its own intensity.",
       "Do reach for site's --t-* and --e-* tokens first for new site typography or spacing; a new literal should be the exception, not the default.",
       "Do use IBM Plex Mono for any new scannable number on painel or Vital; use the surface's display or body font for headline numbers.",
       "Do keep shadow reserved for floating elements on site and painel, and keep Vital flat.",

@@ -597,6 +597,12 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       limpar antes — a segunda passada esbarra em PK duplicada. Não notado
       porque `npm run reset` (que limpa o schema antes) é o caminho de
       verdade; `--forcar` sozinho não tem teste nem uso conhecido.
+- [ ] **O fallback estático de `--marca` em `web/src/site/styles.css` (`#3F6350`,
+      sálvia) não bate com o padrão de verdade de uma empresa nova**
+      (`configPadrao.marca.corPrimaria`, `#A32A4E`, em `server/src/lib/tenant.js`).
+      Cosmético — só pinta um quadro antes de `tema.js` rodar, ninguém fica
+      olhando pra ele — mas achado ao revisar `DESIGN.md`: os dois deveriam
+      ser o mesmo valor e não são. Alinhar quando alguém mexer nesse trecho.
 
 ### Operação
 
