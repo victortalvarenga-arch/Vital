@@ -183,6 +183,15 @@ export const configPadrao = {
     rodape: '',
   },
 
+  // Casos de antes e depois do site: `{ antes, depois, titulo }`, cada um com
+  // duas URLs de imagem. Vazio por padrão, e é isso que mantém a seção num
+  // estado vazio honesto — empresa nova não nasce com resultado de ninguém.
+  //
+  // São fotos de rosto de cliente, o dado mais sensível que este produto
+  // publica. Só entram com autorização de imagem por escrito, e a empresa
+  // responde por isso — ver LGPD em `ARQUITETURA.md`.
+  antesDepois: [],
+
   // O que o negócio chama cada coisa. Sem isto, white-label para na cor e não
   // chega na linguagem: quem tem barbearia não fala "profissional".
   vocabulario: {

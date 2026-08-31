@@ -85,6 +85,11 @@ publico.get('/vitrine', rota(async (req, res) => {
     },
     marca: cfg.marca,
     textos: cfg.textos,
+    // Só as três chaves de cada caso, montadas a dedo como o resto desta
+    // resposta: campo novo na config não vaza para a vitrine por descuido.
+    antesDepois: (cfg.antesDepois || [])
+      .filter(c => c?.antes && c?.depois)
+      .map(c => ({ antes: c.antes, depois: c.depois, titulo: c.titulo || '' })),
     exibir: cfg.exibir,
     vocabulario: cfg.vocabulario,
     unidades: await listarUnidades({ somenteAtivas: true }),

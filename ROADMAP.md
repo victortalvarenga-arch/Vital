@@ -544,6 +544,20 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
       seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
 
+- [ ] **Antes e depois não tem tela no painel.** `config.antesDepois` existe e o
+      site já renderiza, mas só o `seed` consegue preencher — para qualquer
+      empresa que não seja a Laura, a seção fica em "Em breve" para sempre.
+      Falta em `ConfigSite.jsx` um editor de pares de imagem (dois `Imagem` e um
+      título por caso, com remover e reordenar). É o que separa isto de ser
+      funcionalidade de verdade em vez de vitrine de uma empresa só.
+
+- [ ] **Foto de antes e depois é o dado mais sensível que o produto publica** —
+      rosto de cliente, num site aberto. Hoje nada no sistema registra que
+      existe autorização de imagem: é combinado fora dele. Quando a tela do
+      painel for feita, ela precisa pedir o aceite junto, com data e quem
+      autorizou, senão a empresa publica achando que pode. Ver LGPD em
+      `ARQUITETURA.md`.
+
 ### Cobertura de teste
 
 - [ ] Catálogo, clientes, config e uploads não têm teste de rota. São as que

@@ -262,7 +262,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
       {ehClinica && (
         <>
           <SecaoEquipe profissionais={dados.profissionais} />
-          <SecaoAntesDepois />
+          <SecaoAntesDepois casos={dados.antesDepois} />
           <SecaoAvaliacoes />
           <SecaoInstagram negocio={negocio} />
           <SecaoMapa negocio={negocio} />

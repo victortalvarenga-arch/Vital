@@ -131,6 +131,17 @@ async function primeiraClienteReal() {
         // estrutura.
         capas: [F('capa.jpg'), F('profissional-laura.jpg')],
       },
+      // Caso real de limpeza de pele, do acervo da Laura. As duas fotos são do
+      // rosto de um cliente dela — só ficam no ar enquanto houver autorização
+      // de imagem assinada; sem isso, esvaziar este array e a seção volta
+      // sozinha ao "Em breve".
+      antesDepois: [
+        {
+          titulo: 'Limpeza de pele profunda',
+          antes: F('antes-1.jpg'),
+          depois: F('depois-1.jpg'),
+        },
+      ],
       textos: {
         chamada: 'Agende seu horário',
         botaoAgendar: 'Agendar',

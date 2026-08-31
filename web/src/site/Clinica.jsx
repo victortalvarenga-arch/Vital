@@ -47,21 +47,43 @@ export function SecaoEquipe({ profissionais }) {
    arrastar com teclado, mouse ou dedo. Os dois lados são só um rótulo e uma
    cor lavada, nunca uma foto: nada aqui pode parecer um caso real. */
 
-export function SecaoAntesDepois() {
+export function SecaoAntesDepois({ casos = [] }) {
   const [pos, setPos] = useState(50);
+  const [i, setI] = useState(0);
+  const caso = casos[i];
+
   return (
     <section className="bloco bloco-marca">
       <div className="env-largo">
         <Revela>
           <div className="secao-cab">
             <h2 className="bloco-titulo">Antes e depois</h2>
-            <span className="em-breve">Em breve</span>
+            {!caso && <span className="em-breve">Em breve</span>}
           </div>
         </Revela>
+
+        {casos.length > 1 && (
+          <Revela>
+            <div className="ad-casos">
+              {casos.map((c, n) => (
+                <button key={n} type="button"
+                        className={'ad-caso' + (n === i ? ' on' : '')}
+                        onClick={() => { setI(n); setPos(50); }}>
+                  {c.titulo || `Caso ${n + 1}`}
+                </button>
+              ))}
+            </div>
+          </Revela>
+        )}
+
         <Revela>
           <div className="ad-slider" style={{ '--pos': `${pos}%` }}>
-            <div className="ad-lado ad-antes"><span>Antes</span></div>
-            <div className="ad-lado ad-depois"><span>Depois</span></div>
+            <div className="ad-lado ad-antes">
+              {caso ? <img src={caso.antes} alt="Antes do atendimento" /> : <span>Antes</span>}
+            </div>
+            <div className="ad-lado ad-depois">
+              {caso ? <img src={caso.depois} alt="Depois do atendimento" /> : <span>Depois</span>}
+            </div>
             <div className="ad-alca" style={{ left: `${pos}%` }} aria-hidden="true">
               <ChevronLeft size={12} /><ChevronRight size={12} />
             </div>
@@ -70,8 +92,11 @@ export function SecaoAntesDepois() {
                    className="ad-controle" aria-label="Arrastar para comparar antes e depois" />
           </div>
         </Revela>
+
         <p className="ad-legenda">
-          Fotos reais de clientes, sempre com autorização, entram aqui assim que o primeiro caso estiver pronto para mostrar.
+          {caso
+            ? `${caso.titulo ? caso.titulo + '. ' : ''}Resultado real, publicado com autorização da cliente. Cada pele responde de um jeito.`
+            : 'Fotos reais de clientes, sempre com autorização, entram aqui assim que o primeiro caso estiver pronto para mostrar.'}
         </p>
       </div>
     </section>

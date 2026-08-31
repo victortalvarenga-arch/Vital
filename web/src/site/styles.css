@@ -309,11 +309,30 @@ body {
 /* Antes e depois: o controle é o <input type=range> logo abaixo, visível de
    propósito — nada escondido atrás de arrastar-e-torcer. A alça sobre a
    imagem só acompanha visualmente. */
+/* 4/3 e não 16/9: foto de rosto é quase quadrada, e o panorâmico cortava a
+   testa e o queixo justamente onde está o resultado. */
 .ad-slider {
-  position: relative; aspect-ratio: 16 / 9; max-width: 720px; margin-top: var(--e-6);
+  position: relative; aspect-ratio: 4 / 3; max-width: 720px; margin-top: var(--e-6);
   border-radius: 20px; overflow: hidden; box-shadow: var(--sombra);
 }
 .ad-lado { position: absolute; inset: 0; display: grid; place-items: center; }
+/* Os dois lados precisam recortar igual, senão arrastar a alça parece mover a
+   foto em vez de revelar a outra. */
+.ad-lado img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+
+.ad-casos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--e-5); }
+.ad-caso {
+  font: inherit; font-size: var(--t-auxiliar); cursor: pointer;
+  background: var(--fundo); color: var(--texto);
+  border: 1px solid var(--linha); border-radius: 999px;
+  padding: 8px 16px; min-height: 40px;
+}
+/* --marca-escura, não --marca: mesmo motivo do botão primário logo abaixo —
+   é preenchimento cheio, e cor pastel não aguenta branco na própria
+   intensidade. */
+.ad-caso.on {
+  background: var(--marca-escura); color: var(--sobre-marca-escura); border-color: var(--marca-escura);
+}
 .ad-lado span {
   font-size: var(--t-legenda); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--fraco);
