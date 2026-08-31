@@ -29,6 +29,132 @@
         ],
         "createdAt": "2026-08-29T18:01:54.470Z",
         "reason": "Same as Fraunces (font-family form) — this is the Google Fonts @import match for the identical, already-documented choice."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "caveat",
+        "createdAt": "2026-08-31T17:31:18.308Z",
+        "reason": "Agent: One-Mark Rule exception ja documentada em DESIGN.md - unico uso, .jn-pronto h3 do modelo Caderneta"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "32px",
+        "createdAt": "2026-08-31T17:31:18.380Z",
+        "reason": "Agent: tamanho fixo do Caveat (.jn-pronto h3), par da mesma excecao acima"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "56px",
+        "createdAt": "2026-08-31T17:31:39.847Z",
+        "reason": "Agent: minimo do clamp() fluido da inicial gigante do hero Clinica (.clinica-hero-marca), sem foto de capa"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "38px",
+        "createdAt": "2026-08-31T17:31:39.917Z",
+        "reason": "Agent: minimo do clamp() fluido do nome da empresa (.identidade h1), documentado no proprio comentario do CSS"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "30px",
+        "createdAt": "2026-08-31T17:31:39.997Z",
+        "reason": "Agent: maximo do clamp() fluido do titulo de secao (.bloco-titulo), mesma familia de 3 tamanhos fluidos do site"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "28px",
+        "createdAt": "2026-08-31T17:31:40.064Z",
+        "reason": "Agent: reducao de --t-hero (34px) so em @media(max-width:420px) para a inicial do circulo de servico nao estourar no celular"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "40px",
+        "createdAt": "2026-08-31T17:31:40.129Z",
+        "reason": "Agent: minimo do clamp() fluido do preco em destaque (.destaque-valor), o unico numero que precisa convencer sozinho"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, .55)",
+        "createdAt": "2026-08-31T17:31:52.350Z",
+        "reason": "Agent: selo Antes/Depois sobre foto de rosto - preto fixo translucido, precisa se sustentar sobre qualquer tom de pele, cor de marca clara sumiria"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, .12)",
+        "createdAt": "2026-08-31T17:31:52.420Z",
+        "reason": "Agent: sombra dupla da alca do comparador antes/depois, flutua sobre foto (nao sobre --fundo do site), documentado no CSS"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, .3)",
+        "createdAt": "2026-08-31T17:31:52.495Z",
+        "reason": "Agent: segunda camada da mesma sombra dupla da alca do comparador antes/depois"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, .35)",
+        "createdAt": "2026-08-31T17:31:52.564Z",
+        "reason": "Agent: sombra da bolinha de arrastar do comparador antes/depois, preto fixo por flutuar sobre foto"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, .4)",
+        "createdAt": "2026-08-31T17:31:52.633Z",
+        "reason": "Agent: sombra da bolinha do comparador no estado ativo (arrastando)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,.18)",
+        "createdAt": "2026-08-31T17:31:52.725Z",
+        "reason": "Agent: veu escuro na base da capa, para o logo branco nao sumir em foto clara - documentado no CSS"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,.42)",
+        "createdAt": "2026-08-31T17:31:52.802Z",
+        "reason": "Agent: veu da barra fixa sobre a capa, garante leitura do nome/logo branco seja qual for a foto"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,.3)",
+        "createdAt": "2026-08-31T17:31:52.871Z",
+        "reason": "Agent: sombra da barra fixa quando firme (rolou), preto fixo por ser elevacao sobre foto/pagina, nao acento de marca"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "4px",
+        "createdAt": "2026-08-31T17:32:01.750Z",
+        "reason": "Agent: raio do anel de foco global (:focus-visible), utilitario de acessibilidade, nao decisao de forma de componente"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "8px",
+        "createdAt": "2026-08-31T17:32:01.820Z",
+        "reason": "Agent: botao de navegacao do calendario (.cal-nav), unico uso, alvo de icone pequeno"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px",
+        "createdAt": "2026-08-31T17:32:01.889Z",
+        "reason": "Agent: arredonda so as pontas da barrinha de 2.5px sob o dia livre do calendario - decorativo, nao forma de cartao"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "24px",
+        "createdAt": "2026-08-31T17:32:01.959Z",
+        "reason": "Agent: cartao grande do combo em destaque (.destaque), unico uso, o objeto mais vistoso da pagina"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "18px",
+        "createdAt": "2026-08-31T17:32:02.029Z",
+        "reason": "Agent: cartao de promocao secundaria (.promo), unico uso, entre --raio (14px) e o raio do destaque (24px)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#999",
+        "createdAt": "2026-08-31T18:07:57.503Z",
+        "reason": "Agent: fallback de cor quando profissional nao tem staff.cor definido - mesmo padrao ja usado em Agenda (App.jsx), so reaproveitado em Resumo.jsx"
       }
     ]
   }
