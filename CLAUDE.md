@@ -10,7 +10,11 @@ administra a plataforma. Todas as empresas dividem um banco só, e o isolamento 
 do Postgres (Row-Level Security), não do código das rotas.
 
 O estúdio de estética que aparece ao rodar o projeto é **dado de exemplo do
-`seed`**, não o cliente do sistema.
+`seed`**, não o cliente do sistema. Mas o nome, a cor e as fotos são de uma
+pessoa real — a primeira cliente da Vital, ainda pré-lançamento. Trate como
+dado de gente, não como texto de teste: nada disso vai para o produto, para
+empresa nova, nem para print público. Contexto em `PRODUCT.md`; endereços e
+contas em `ACESSOS-DEV.md`.
 
 **O que falta para virar negócio:** a Vital não consegue cobrar. `plano` é texto
 livre, sem preço nem ciclo. É o item que separa "produto pronto" de "empresa

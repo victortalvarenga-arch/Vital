@@ -35,7 +35,13 @@ no `.env`; você não precisa criá-lo à mão.
 Os passos acima bastam: o banco é reconstruído por migrations e populado pelo
 `seed`, e **o resultado é o mesmo em qualquer máquina** — mesmos serviços, mesma
 equipe, mesmas unidades, o combo, a ficha de anamnese, os adicionais e as duas
-empresas de exemplo. Não há dump para copiar nem estado que fique de fora do Git.
+empresas de exemplo. Não há dump de banco para copiar.
+
+**As fotos são a exceção.** Elas não cabem no Git — `server/uploads/` é pasta
+de arquivo enviado por empresa — e vivem num bucket público, apontado por
+`UPLOADS_BASE_URL` no `server/.env`. Com a variável preenchida, máquina nova
+nasce com o site completo; sem ela, nasce sem imagem nenhuma. O endereço do
+bucket está em `ACESSOS-DEV.md`.
 
 `cd server && npm run reset` refaz esse cenário do zero a qualquer momento, e é
 o comando para voltar ao ponto de partida depois de testar coisas.
