@@ -80,6 +80,15 @@ escrito, não aconteceu.
   correspondente. Já aconteceu de `.chip` sumir numa divisão de arquivo: os
   botões viraram texto solto, o clique continuou funcionando e a tela parecia
   quebrada sem nenhum erro no console.
+- **`className` nunca começa com `ad-`, nem se chama `banner`, `anuncio`,
+  `patrocinado` ou `sponsor`.** Bloqueador de anúncio esconde por nome de
+  classe, e as listas de filtro pegam qualquer coisa com cara de propaganda.
+  O antes/depois da Clínica usava `ad-slider` (de *antes-depois*) e sumia da
+  tela em todo navegador com extensão de cupom ou bloqueador — `display: none`
+  vindo de folha de estilo do navegador, que o JavaScript da página não
+  enxerga, então nada aparece no console e a varredura de CSS não acha regra
+  nenhuma. Hoje se chama `comparar`. Ao depurar "sumiu e não sei por quê",
+  abra uma janela sem extensões antes de procurar no código.
 - Nunca edite uma migration já aplicada — crie a próxima.
 - Todo acesso ao banco é assíncrono (`await db.get/all/run`). Consultas usam `?`
   como marcador; `db.js` traduz para `$1` do Postgres.

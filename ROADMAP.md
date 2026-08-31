@@ -551,6 +551,13 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       título por caso, com remover e reordenar). É o que separa isto de ser
       funcionalidade de verdade em vez de vitrine de uma empresa só.
 
+- [ ] **Imagem que falha no site não deixa rastro nenhum.** Nenhum `<img>` do
+      bundle tem `onError`, então URL quebrada vira caixa vazia — no antes e
+      depois é pior, porque os rótulos "Antes"/"Depois" dão lugar à foto e não
+      sobra nem texto. Indistinguível de seção sem conteúdo, tanto para quem
+      visita quanto para quem está depurando. Um `onError` que volte ao rótulo
+      resolveria os dois casos.
+
 - [ ] **Foto de antes e depois é o dado mais sensível que o produto publica** —
       rosto de cliente, num site aberto. Hoje nada no sistema registra que
       existe autorização de imagem: é combinado fora dele. Quando a tela do

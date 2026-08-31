@@ -44,8 +44,12 @@ export function SecaoEquipe({ profissionais }) {
 
 /* ── antes e depois ──
    O controle é um <input type="range"> de verdade, não um enfeite — dá pra
-   arrastar com teclado, mouse ou dedo. Os dois lados são só um rótulo e uma
-   cor lavada, nunca uma foto: nada aqui pode parecer um caso real. */
+   arrastar com teclado, mouse ou dedo.
+
+   Sem caso cadastrado, os dois lados são só um rótulo e uma cor lavada: nada
+   aqui pode parecer um caso real que não existe. Com caso, são as fotos que a
+   empresa cadastrou — sempre de gente de verdade, sempre com autorização de
+   imagem, e é a empresa que responde por isso. */
 
 export function SecaoAntesDepois({ casos = [] }) {
   const [pos, setPos] = useState(50);
@@ -64,10 +68,10 @@ export function SecaoAntesDepois({ casos = [] }) {
 
         {casos.length > 1 && (
           <Revela>
-            <div className="ad-casos">
+            <div className="comparar-casos">
               {casos.map((c, n) => (
                 <button key={n} type="button"
-                        className={'ad-caso' + (n === i ? ' on' : '')}
+                        className={'comparar-caso' + (n === i ? ' on' : '')}
                         onClick={() => { setI(n); setPos(50); }}>
                   {c.titulo || `Caso ${n + 1}`}
                 </button>
@@ -77,23 +81,39 @@ export function SecaoAntesDepois({ casos = [] }) {
         )}
 
         <Revela>
-          <div className="ad-slider" style={{ '--pos': `${pos}%` }}>
-            <div className="ad-lado ad-antes">
+          <div className="comparar" style={{ '--pos': `${pos}%` }}>
+            <div className="comparar-lado comparar-antes">
               {caso ? <img src={caso.antes} alt="Antes do atendimento" /> : <span>Antes</span>}
+              {caso && <span className="comparar-tag">Antes</span>}
             </div>
-            <div className="ad-lado ad-depois">
+            <div className="comparar-lado comparar-depois">
               {caso ? <img src={caso.depois} alt="Depois do atendimento" /> : <span>Depois</span>}
+              {caso && <span className="comparar-tag comparar-tag-d">Depois</span>}
             </div>
-            <div className="ad-alca" style={{ left: `${pos}%` }} aria-hidden="true">
-              <ChevronLeft size={12} /><ChevronRight size={12} />
+
+            {/* A linha divisória e a alça são só desenho — `pointer-events:
+                none` deixa o clique atravessar até o input, que é quem de fato
+                move. Sem isso, arrastar pegando na bolinha (o gesto mais
+                óbvio) seria o único que não funcionaria. */}
+            <div className="comparar-alca" aria-hidden="true">
+              <span className="comparar-bolinha">
+                <ChevronLeft size={16} strokeWidth={2.5} />
+                <ChevronRight size={16} strokeWidth={2.5} />
+              </span>
             </div>
+
+            {/* O <input type="range"> continua sendo o controle de verdade,
+                agora esticado por cima da imagem inteira e invisível: o dedo
+                arrasta em qualquer ponto, o teclado anda com as setas e o
+                leitor de tela anuncia um slider. Fazer isso com pointerdown
+                à mão custaria as três coisas. */}
             <input type="range" min={0} max={100} value={pos}
                    onChange={e => setPos(+e.target.value)}
-                   className="ad-controle" aria-label="Arrastar para comparar antes e depois" />
+                   className="comparar-controle" aria-label="Arrastar para comparar antes e depois" />
           </div>
         </Revela>
 
-        <p className="ad-legenda">
+        <p className="comparar-legenda">
           {caso
             ? `${caso.titulo ? caso.titulo + '. ' : ''}Resultado real, publicado com autorização da cliente. Cada pele responde de um jeito.`
             : 'Fotos reais de clientes, sempre com autorização, entram aqui assim que o primeiro caso estiver pronto para mostrar.'}

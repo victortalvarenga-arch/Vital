@@ -311,17 +311,17 @@ body {
    imagem só acompanha visualmente. */
 /* 4/3 e não 16/9: foto de rosto é quase quadrada, e o panorâmico cortava a
    testa e o queixo justamente onde está o resultado. */
-.ad-slider {
+.comparar {
   position: relative; aspect-ratio: 4 / 3; max-width: 720px; margin-top: var(--e-6);
   border-radius: 20px; overflow: hidden; box-shadow: var(--sombra);
 }
-.ad-lado { position: absolute; inset: 0; display: grid; place-items: center; }
+.comparar-lado { position: absolute; inset: 0; display: grid; place-items: center; }
 /* Os dois lados precisam recortar igual, senão arrastar a alça parece mover a
    foto em vez de revelar a outra. */
-.ad-lado img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.comparar-lado img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 
-.ad-casos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--e-5); }
-.ad-caso {
+.comparar-casos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--e-5); }
+.comparar-caso {
   font: inherit; font-size: var(--t-auxiliar); cursor: pointer;
   background: var(--fundo); color: var(--texto);
   border: 1px solid var(--linha); border-radius: 999px;
@@ -330,22 +330,81 @@ body {
 /* --marca-escura, não --marca: mesmo motivo do botão primário logo abaixo —
    é preenchimento cheio, e cor pastel não aguenta branco na própria
    intensidade. */
-.ad-caso.on {
+.comparar-caso.on {
   background: var(--marca-escura); color: var(--sobre-marca-escura); border-color: var(--marca-escura);
 }
-.ad-lado span {
+.comparar-lado span {
   font-size: var(--t-legenda); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--fraco);
 }
-.ad-antes { background: var(--superficie); }
-.ad-depois { background: var(--marca-fundo); clip-path: inset(0 0 0 var(--pos)); }
-.ad-alca {
-  position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fundo);
-  transform: translateX(-1px); pointer-events: none;
-  display: flex; align-items: center; justify-content: center; gap: 1px; color: var(--fraco);
+.comparar-antes { background: var(--superficie); }
+.comparar-depois { background: var(--marca-fundo); clip-path: inset(0 0 0 var(--pos)); }
+/* Rótulo de canto: diz qual lado é qual sem depender de legenda embaixo. Preto
+   translúcido, não cor de marca — precisa se sustentar sobre foto de qualquer
+   tom, e cor de empresa clara (sálvia, pastel) sumiria em pele clara. */
+.comparar-lado .comparar-tag {
+  position: absolute; bottom: var(--e-4); left: var(--e-4); z-index: 2;
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: #fff; background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px);
+  padding: 5px 11px; border-radius: var(--pilula); pointer-events: none;
 }
-.ad-controle { width: 100%; max-width: 720px; margin-top: var(--e-4); accent-color: var(--marca); }
-.ad-legenda { font-size: var(--t-auxiliar); color: var(--fraco); margin-top: var(--e-3); max-width: 60ch; }
+.comparar-lado .comparar-tag-d { left: auto; right: var(--e-4); }
+
+/* Linha divisória e alça. Branco fixo, não token: isto flutua sobre a foto de
+   uma cliente, não sobre o fundo do site — em modelo escuro (Quadro) um
+   --fundo grafite desapareceria na sombra da pele. A sombra dupla é o que
+   mantém a linha visível tanto sobre pele clara quanto sobre cabelo escuro. */
+.comparar-alca {
+  position: absolute; top: 0; bottom: 0; left: var(--pos); width: 3px;
+  margin-left: -1.5px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .12), 0 0 14px rgba(0, 0, 0, .3);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 3;
+}
+.comparar-bolinha {
+  flex: none; width: 46px; height: 46px; border-radius: var(--pilula);
+  background: #fff; color: #1A1A1A;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .35);
+}
+/* As duas setas apontando para fora — é o desenho que diz "puxe para os
+   lados" sem precisar de texto. O ícone do lucide tem folga interna, então
+   sem o encolhimento elas ficariam longe demais uma da outra; encostar
+   demais, por outro lado, funde as duas num losango. */
+.comparar-bolinha svg:first-child { margin-right: -3px; }
+.comparar-bolinha svg:last-child { margin-left: -3px; }
+
+/* Retorno ao apontar e ao arrastar: sem isto a alça parece decoração até a
+   pessoa tentar. Some para quem pediu menos movimento no sistema. */
+.comparar-bolinha { transition: transform .18s ease, box-shadow .18s ease; }
+.comparar:hover .comparar-bolinha { transform: scale(1.06); }
+.comparar:has(.comparar-controle:active) .comparar-bolinha {
+  transform: scale(.94); box-shadow: 0 1px 6px rgba(0, 0, 0, .4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .comparar-bolinha { transition: none; }
+  .comparar:hover .comparar-bolinha,
+  .comparar:has(.comparar-controle:active) .comparar-bolinha { transform: none; }
+}
+
+/* O controle cobre a imagem inteira e é invisível: quem aparece é a alça
+   acima. `appearance: none` tira a pista e o polegar nativos, que no Firefox
+   apareceriam mesmo com a opacidade zerada em alguns temas. */
+.comparar-controle {
+  position: absolute; inset: 0; z-index: 4;
+  width: 100%; height: 100%; margin: 0; padding: 0;
+  opacity: 0; cursor: ew-resize;
+  appearance: none; -webkit-appearance: none; background: transparent;
+}
+.comparar-controle::-webkit-slider-thumb { -webkit-appearance: none; width: 46px; height: 100%; }
+.comparar-controle::-moz-range-thumb { width: 46px; height: 100%; border: 0; opacity: 0; }
+
+/* Teclado: sem isto o foco fica invisível, porque o input que recebe o foco é
+   o transparente. O anel vai na bolinha, que é o que a pessoa enxerga. */
+.comparar:has(.comparar-controle:focus-visible) .comparar-bolinha {
+  outline: 3px solid var(--marca-escura); outline-offset: 3px;
+}
+.comparar-legenda { font-size: var(--t-auxiliar); color: var(--fraco); margin-top: var(--e-3); max-width: 60ch; }
 
 .vazio-cartao {
   display: flex; flex-direction: column; align-items: center; gap: var(--e-3); text-align: center;
