@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
+import { hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
@@ -10,6 +11,7 @@ import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
 import Usuarios from './Usuarios.jsx';
+import Resumo from './Resumo.jsx';
 import { prepararImagem } from '../shared/imagem.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
@@ -17,7 +19,7 @@ import {
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
   Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
-  ClipboardList
+  ClipboardList, LayoutDashboard,
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -28,17 +30,12 @@ import {
 
 /* ─────────── utilidades ─────────── */
 const uid = () => Math.random().toString(36).slice(2, 9);
-
-const toMin = h => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
-const toHora = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const addDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dow = iso => new Date(iso + 'T12:00:00').getDay();
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const fmtData = iso => { const d = new Date(iso + 'T12:00:00'); return `${DIAS[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()]}`; };
 const fmtDataLonga = iso => { const d = new Date(iso + 'T12:00:00'); return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; };
-const iniciais = n => n.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
 const soDigitos = s => (s || '').replace(/\D/g, '');
 const fmtFone = s => { const d = soDigitos(s).slice(0, 11); if (d.length <= 2) return d; if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; };
 const waLink = (fone, texto) => `https://wa.me/55${soDigitos(fone)}?text=${encodeURIComponent(texto)}`;
@@ -144,7 +141,7 @@ export default function App() {
 
 function Painel({ sessao, aoSair }) {
   const { dados, erro, recarregar } = useEstado();
-  const [secao, setSecao] = useState('agenda');
+  const [secao, setSecao] = useState('resumo');
   const [menuAberto, setMenuAberto] = useState(false);
   const [toast, setToast] = useState(null);
   const [falha, setFalha] = useState(null);
@@ -190,6 +187,7 @@ function Painel({ sessao, aoSair }) {
   const p = sessao.poderes;
   const GRUPOS = [
     { titulo: null, itens: [
+      { k: 'resumo', nome: 'Resumo', icon: LayoutDashboard },
       { k: 'agenda', nome: 'Calendário', icon: Calendar },
       ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
     ] },
@@ -257,6 +255,10 @@ function Painel({ sessao, aoSair }) {
       </nav>
 
       <main className="p-conteudo">
+        {secao === 'resumo' && (
+          <Resumo dados={{ ...dados, eu: sessao.usuario }} acao={acao}
+                  aviso={setToast} poderes={p} />
+        )}
         {secao === 'agenda' && (
           <Agenda dados={{ ...dados, eu: sessao.usuario }} acao={acao}
                   aviso={setToast} poderes={p} />

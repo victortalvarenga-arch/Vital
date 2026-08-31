@@ -180,6 +180,22 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   text-decoration:line-through; cursor:default}
 .appt-mais{display:block; font-size:10.5px; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 
+/* ── Resumo: timeline do dia, uma coluna por profissional ──
+   Mesma linguagem visual da grade semanal da Agenda (.horas/.linha/.appt),
+   só com profissional no eixo das colunas em vez de dia — e mais compacta
+   (34px/hora contra 56px), porque aqui é pra ver de relance, não editar. */
+.eq-timeline{display:flex; border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--paper)}
+.eq-horas{border-right:1px solid var(--line); flex:none; width:42px}
+.eq-horas-topo{height:40px; border-bottom:1px solid var(--line)}
+.eq-horas-corpo{position:relative}
+.eq-hlabel{position:absolute; right:6px; transform:translateY(-50%);
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted)}
+.eq-cols{display:flex; flex:1; overflow-x:auto}
+.eq-col{flex:1; min-width:130px; border-left:1px solid var(--line)}
+.eq-colhead{height:40px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:6px;
+  padding:0 10px; font-size:12px; font-weight:700}
+.eq-colbody{position:relative}
+
 /* extras comprados junto, no detalhe do agendamento */
 .extras{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:18px}
 .extras-li{display:flex; justify-content:space-between; gap:12px; font-size:13.5px; padding-top:5px}
