@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Ban, Building2, Check, ExternalLink, LogIn, LogOut, PlayCircle, ScrollText, TriangleAlert,
+  Ban, Building2, Check, ExternalLink, LifeBuoy, LogIn, LogOut, PlayCircle, Reply, ScrollText, TriangleAlert,
 } from 'lucide-react';
 import { api } from './api.js';
 
@@ -102,6 +102,7 @@ function Painel({ sessao, aoSair }) {
   const [resumo, setResumo] = useState(null);
   const [rastro, setRastro] = useState([]);
   const [aba, setAba] = useState('empresas');
+  const [tickets, setTickets] = useState([]);
   const [aviso, setAviso] = useState(null);
   const [erro, setErro] = useState(null);
 
@@ -110,6 +111,7 @@ function Painel({ sessao, aoSair }) {
       setEmpresas(await api.empresas());
       setResumo(await api.resumo());
       setRastro(await api.auditoria());
+      setTickets(await api.tickets());
     } catch (e) { setErro(e.message); setEmpresas([]); }
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
@@ -143,6 +145,20 @@ function Painel({ sessao, aoSair }) {
     await acao(() => api.mudarPlano(e.id, plano.trim()), 'Plano atualizado');
   };
 
+  const abertos = tickets.filter(t => t.status !== 'fechado').length;
+
+  const responder = async t => {
+    const texto = prompt(`Responder "${t.assunto}"
+
+de ${t.empresa} · ${t.autor}
+
+${t.mensagem}
+
+Sua resposta:`, t.resposta || '');
+    if (texto === null || !texto.trim()) return;
+    await acao(() => api.responderTicket(t.id, { resposta: texto.trim() }), 'Chamado respondido');
+  };
+
   return (
     <div className="v-pagina">
       <header className="v-topo">
@@ -150,6 +166,11 @@ function Painel({ sessao, aoSair }) {
         <nav className="v-abas">
           <button className={aba === 'empresas' ? 'on' : ''} onClick={() => setAba('empresas')}>
             <Building2 size={15} /> Empresas
+          </button>
+          <button className={aba === 'suporte' ? 'on' : ''} onClick={() => setAba('suporte')}>
+            <LifeBuoy size={15} /> Suporte
+            {/* O número é a fila, não o total: chamado fechado não pede nada. */}
+            {abertos > 0 && <span className="v-badge">{abertos}</span>}
           </button>
           <button className={aba === 'rastro' ? 'on' : ''} onClick={() => setAba('rastro')}>
             <ScrollText size={15} /> Registro
@@ -232,6 +253,42 @@ function Painel({ sessao, aoSair }) {
               ))}
             </div>
           </>
+        )}
+
+        {aba === 'suporte' && (
+          <div className="v-tabela">
+            <p className="v-sub" style={{ fontSize: 13.5 }}>
+              Chamados abertos pelas empresas de dentro do painel delas. Cada um
+              já vem com o nome da empresa e de quem escreveu — não é preciso
+              perguntar quem é.
+            </p>
+            {tickets.length === 0 && <p className="v-fraco">Nenhum chamado até agora.</p>}
+            {tickets.map(t => (
+              <div key={t.id} className={'v-ticket' + (t.status === 'fechado' ? ' fechado' : '')}>
+                <div className="v-ticket-topo">
+                  <b>{t.assunto}</b>
+                  <span className={'v-ticket-estado ' + t.status}>{
+                    { aberto: 'aguardando', respondido: 'respondido', fechado: 'fechado' }[t.status]
+                  }</span>
+                  <span className="v-fraco">{t.empresa} · {t.autor}</span>
+                  <span className="v-ticket-quando">{new Date(t.criadoEm).toLocaleString('pt-BR')}</span>
+                </div>
+                <p className="v-ticket-msg">{t.mensagem}</p>
+                {t.resposta && <p className="v-ticket-resposta">{t.resposta}</p>}
+                <div className="v-ticket-acoes">
+                  <button className="v-acao" onClick={() => responder(t)}>
+                    <Reply size={14} /> {t.resposta ? 'Editar resposta' : 'Responder'}
+                  </button>
+                  {t.status !== 'fechado' && (
+                    <button className="v-acao" onClick={() =>
+                      acao(() => api.responderTicket(t.id, { status: 'fechado' }), 'Chamado fechado')}>
+                      <Check size={14} /> Fechar
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {aba === 'rastro' && (

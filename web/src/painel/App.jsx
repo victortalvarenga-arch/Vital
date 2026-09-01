@@ -7,6 +7,8 @@ import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
 import Agendamentos from './Agendamentos.jsx';
 import Bloqueios from './Bloqueios.jsx';
+import SeletorProfissional from './Seletor.jsx';
+import Suporte from './Suporte.jsx';
 import Formularios from './Formularios.jsx';
 import Ficha from './Ficha.jsx';
 import Comecar from './Comecar.jsx';
@@ -21,7 +23,7 @@ import {
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
   Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
-  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard,
+  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy,
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -210,6 +212,7 @@ function Painel({ sessao, aoSair }) {
       ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
       // Sem guarda: funcionário vê o próprio rastro, e é o servidor que recorta.
       { k: 'registro', nome: 'Registro', icon: ScrollText },
+      { k: 'suporte', nome: 'Suporte técnico', icon: LifeBuoy },
     ] },
   ].filter(g => g.itens.length);
 
@@ -278,6 +281,7 @@ function Painel({ sessao, aoSair }) {
           <Bloqueios dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} poderes={p} />
         )}
         {secao === 'registro' && <Registro dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} />}
+        {secao === 'suporte' && <Suporte aviso={setFalha} />}
         {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
@@ -458,16 +462,8 @@ function Agenda({ dados, acao, aviso, poderes }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {poderes.verDeTodos && (
-            <div className="chips chips-rolagem">
-              <button className={'chip' + (quem === '' ? ' on' : '')}
-                      onClick={() => setQuem('')}>Todos</button>
-              {staff.filter(p => p.ativo).map(p => (
-                <button key={p.id} className={'chip' + (quem === p.id ? ' on' : '')}
-                        onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
-              ))}
-            </div>
-          )}
+          <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
+                               podeVerTodos={poderes.verDeTodos} rotuloTodos="Todos" />
           <button className="btn btn-g btn-s" onClick={() => setAncora(addDias(ancora, -7))}
                   aria-label="Semana anterior"><ChevronLeft size={16} /></button>
           <button className="btn btn-g btn-s" style={{ minWidth: 172 }} onClick={() => setAncora(hoje)}>
@@ -1664,22 +1660,33 @@ const MES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
 const MES_PQ = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const comoData = iso => new Date(iso + 'T12:00:00');
 
-/** O período por extenso, do jeito que se diz em voz alta. */
-function periodoPorExtenso(escala, de, ate, hoje) {
+/**
+ * O período por extenso, do jeito que se diz em voz alta.
+ *
+ * `mostrarIntervalo` acrescenta as datas exatas. Sem elas, "agosto de 2026" ao
+ * lado de "30 de ago a 5 de set" fazia parecer que os números discordavam
+ * entre si — quando na verdade a SEMANA atravessa o mês e inclui dias de
+ * setembro que o MÊS não inclui. Numa tela de dinheiro, quem lê precisa
+ * conseguir conferir o recorte sem ir medir no banco.
+ */
+function periodoPorExtenso(escala, de, ate, hoje, mostrarIntervalo = false) {
   const d = comoData(de);
+  const f = comoData(ate);
+  const dd = x => `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}`;
+  const intervalo = mostrarIntervalo && escala !== 'dia' ? ` · ${dd(d)} a ${dd(f)}` : '';
+
   if (escala === 'dia') {
     const nome = `${DIAS_SEM[d.getDay()]}, ${d.getDate()} de ${MES_PQ[d.getMonth()]}`;
-    if (de === hoje) return `hoje · ${nome}`;
-    return nome;
+    return de === hoje ? `hoje · ${nome}` : nome;
   }
   if (escala === 'semana') {
-    const f = comoData(ate);
     // Semana que atravessa o mês precisa dizer os dois, senão "30 a 5" mente.
-    return d.getMonth() === f.getMonth()
+    const nome = d.getMonth() === f.getMonth()
       ? `${d.getDate()} a ${f.getDate()} de ${MES_PQ[d.getMonth()]}`
       : `${d.getDate()} de ${MES_PQ[d.getMonth()]} a ${f.getDate()} de ${MES_PQ[f.getMonth()]}`;
+    return `semana de ${nome}`;
   }
-  return `${MES_EXT[d.getMonth()]} de ${d.getFullYear()}`;
+  return `${MES_EXT[d.getMonth()]} de ${d.getFullYear()}${intervalo}`;
 }
 
 /** Quanto subiu ou desceu em relação ao período anterior de mesmo tamanho. */
@@ -1749,7 +1756,7 @@ function Financeiro({ dados, poderes }) {
         <div>
           <h2>Financeiro</h2>
           <div className="sub">
-            {periodoPorExtenso(escala, r.de, r.ate, hoje)} · {r.atendimentos} atendimentos concluídos
+            {periodoPorExtenso(escala, r.de, r.ate, hoje, true)} · {r.atendimentos} atendimentos concluídos
           </div>
         </div>
         <div className="rs-controles">
@@ -1771,18 +1778,10 @@ function Financeiro({ dados, poderes }) {
         </div>
       </div>
 
-      {poderes.verDeTodos && (
-        <div className="fin-filtro">
-          <div className="chips chips-rolagem">
-            <button className={'chip' + (quem === '' ? ' on' : '')}
-                    onClick={() => setQuem('')}>A empresa toda</button>
-            {staff.filter(p => p.ativo).map(p => (
-              <button key={p.id} className={'chip' + (quem === p.id ? ' on' : '')}
-                      onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="fin-filtro">
+        <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
+                             podeVerTodos={poderes.verDeTodos} rotuloTodos="A empresa toda" />
+      </div>
 
       <div className="stats" style={{ marginBottom: 18 }}>
         <div className="card stat">

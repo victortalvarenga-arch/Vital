@@ -45,4 +45,13 @@ export const api = {
     req(`/plataforma/empresas/${id}/plano`, { method: 'PATCH', body: { plano } }),
   auditoria: empresaId =>
     req('/plataforma/auditoria' + (empresaId ? `?empresaId=${empresaId}` : '')),
+
+  /* ── suporte ──
+     A fila de chamados que as empresas abriram de dentro do painel delas. É o
+     único lugar daqui que devolve texto escrito por gente da empresa, e não
+     contagem — e não fura a regra do isolamento porque um chamado é uma
+     mensagem que a empresa escreveu PARA NÓS, sabendo que vamos ler. */
+  tickets: (so) => req('/plataforma/tickets' + (so ? `?status=${so}` : '')),
+  responderTicket: (id, corpo) =>
+    req(`/plataforma/tickets/${id}`, { method: 'PATCH', body: corpo }),
 };

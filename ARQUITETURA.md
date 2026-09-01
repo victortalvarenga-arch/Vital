@@ -50,6 +50,7 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `011_registro_e_so_leitura` | `REVOKE` no registro — GRANT adiciona, nunca tira |
 | `012_formularios` | Intake: perguntas, respostas e o vínculo com serviços |
 | `013_bloqueio_repetido` | `serie` em `blocks`: férias de três semanas são três linhas |
+| `014_suporte` | `plataforma.tickets`: a empresa fala com a Vital de dentro do produto |
 
 ## Visão geral
 
@@ -1041,6 +1042,40 @@ explícito.
 A armadilha não é de `logs`: **qualquer tabela nova em `public` nasce com os
 quatro verbos liberados para a aplicação.** É o padrão certo para tabela de
 negócio e o errado para tabela que só cresce.
+
+## Suporte
+
+Dois caminhos, e o segundo é o que interessa: **e-mail** (`vital.automations@gmail.com`)
+para quando o próprio painel é o problema — se a pessoa não consegue entrar, o
+formulário não adianta — e **chamado de dentro do aplicativo** para o resto.
+
+O chamado chega à página da Vital já sabendo de qual empresa veio e quem
+escreveu, sem a pessoa ter de contar. É o que separa um chamado útil de um
+e-mail dizendo "não está funcionando".
+
+**Ele mora em `plataforma.tickets`, fora do Row-Level Security.** Chamado não é
+dado do negócio da empresa: é uma conversa entre ela e nós, e quem precisa ler é
+a nossa equipe atravessando todas as empresas — exatamente o que o RLS existe
+para impedir. Pôr em `public` obrigaria o back-office a furar o RLS para
+ler.
+
+**O preço é que o filtro vira responsabilidade do código.** Sem RLS, errar a
+empresa numa consulta não dá erro: devolve o chamado da outra, calado. E não
+adianta esperar separação do banco — painel e back-office atendem pela mesma
+conexão, `vital_app`; quem separa é a rota, como já acontece com
+`plataforma.tenants`. Então `routes/suporte.js` amarra `tenant_id` a
+`empresaAtual()` em toda consulta e nunca aceita a empresa vindo do corpo, e
+`test/suporte.test.js` prova isso com duas empresas de verdade — inclusive
+mandando o id da outra no corpo de propósito.
+
+**Esta é a única rota de `/api/plataforma` que devolve texto escrito por gente
+da empresa**, e não contagem. Não fura a regra do isolamento: a diferença é o
+consentimento. A regra existe para a nossa equipe não enxergar a agenda e as
+clientes de quem assina; um chamado é uma mensagem que a empresa escreveu *para
+nós*, sabendo que vamos ler. É a mesma natureza de `plataforma.auditoria`, não a
+de `appointments`.
+
+`DELETE` não é concedido a ninguém: chamado é histórico.
 
 ## O back-office da Vital
 

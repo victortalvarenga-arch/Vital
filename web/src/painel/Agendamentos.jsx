@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Check, UserX, X } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
+import SeletorProfissional from './Seletor.jsx';
 import { brl } from '../shared/formato.js';
 import { hojeISO, intervaloDo } from '../shared/tempo.js';
 
@@ -114,15 +115,8 @@ export default function Agendamentos({ dados, acao, poderes }) {
       </div>
 
       <div className="ag-filtros">
-        {poderes.verDeTodos && (
-          <div className="chips chips-rolagem">
-            <button className={'chip' + (quem === '' ? ' on' : '')} onClick={() => setQuem('')}>Todos</button>
-            {staff.filter(p => p.ativo).map(p => (
-              <button key={p.id} className={'chip' + (quem === p.id ? ' on' : '')}
-                      onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
-            ))}
-          </div>
-        )}
+        <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
+                             podeVerTodos={poderes.verDeTodos} rotuloTodos="Todos" />
         <div className="chips">
           <button className={'chip' + (estado === '' ? ' on' : '')} onClick={() => setEstado('')}>Todo estado</button>
           {Object.entries(ESTADOS).map(([k, e]) => (

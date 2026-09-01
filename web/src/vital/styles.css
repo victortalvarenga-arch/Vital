@@ -202,3 +202,22 @@ h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 600; }
   text-decoration: none; font-weight: 600;
 }
 .v-link:hover { text-decoration: underline; }
+
+/* ── fila de suporte ── */
+.v-badge{display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px;
+  margin-left:6px; border-radius:999px; background:var(--v-erro); color:#fff;
+  font-size:11px; font-weight:700}
+.v-ticket{border:1px solid var(--v-linha); border-radius:12px; padding:14px 16px; margin-bottom:10px}
+.v-ticket.fechado{opacity:.55}
+.v-ticket-topo{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:14.5px}
+.v-ticket-quando{margin-left:auto; font-size:12px; color:var(--v-fraco)}
+.v-ticket-estado{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  padding:2px 9px; border-radius:999px}
+.v-ticket-estado.aberto{background:#FBF1E3; color:#6B4A18}
+.v-ticket-estado.respondido{background:#E4F0EA; color:#2F6B52}
+.v-ticket-estado.fechado{background:var(--v-linha); color:var(--v-fraco)}
+.v-ticket-msg{margin:9px 0 0; font-size:13.5px; white-space:pre-wrap}
+.v-ticket-resposta{margin:10px 0 0; padding:10px 12px; border-radius:10px;
+  background:var(--v-superficie,#F6F6F4); border-left:3px solid var(--v-marca,#A32A4E);
+  font-size:13.5px; white-space:pre-wrap}
+.v-ticket-acoes{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}

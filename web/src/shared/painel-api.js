@@ -208,6 +208,13 @@ export const api = {
   previaCampanha: (chave, clienteId) =>
     req(`/mensagens/campanhas/${chave}/previa`, { method: 'POST', body: { clienteId } }),
 
+  /* ── suporte ── */
+  // O chamado nasce com a empresa da conexão e o autor da sessão; o corpo só
+  // carrega o que a pessoa escreveu. Ver routes/suporte.js.
+  chamados: () => req('/suporte'),
+  abrirChamado: ({ assunto, mensagem }) =>
+    req('/suporte', { method: 'POST', body: { assunto, mensagem } }),
+
   /* ── relatórios ── */
   // Aceita mês fechado ou intervalo livre. Mês continua sendo o caso comum.
   // `profissionalId` recorta numa pessoa. Só vale para quem já vê todo mundo:

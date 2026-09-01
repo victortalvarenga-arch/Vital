@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Clock, Trophy } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
+import SeletorProfissional from './Seletor.jsx';
 import { brl } from '../shared/formato.js';
 import { emFaixas, faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
 
@@ -78,17 +79,8 @@ export default function Resumo({ dados, poderes }) {
           <h2>Resumo</h2>
           <div className="sub">{doDiaPorExtenso(hoje)}</div>
         </div>
-        {poderes.verDeTodos && (
-          <div className="chips chips-rolagem">
-            <button type="button" className={'chip' + (quem === '' ? ' on' : '')}
-                    onClick={() => setQuem('')}>Todos</button>
-            {staff.filter(p => p.ativo).map(p => (
-              <button key={p.id} type="button"
-                      className={'chip' + (quem === p.id ? ' on' : '')}
-                      onClick={() => setQuem(p.id)}>{p.nome.split(' ')[0]}</button>
-            ))}
-          </div>
-        )}
+        <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
+                             podeVerTodos={poderes.verDeTodos} rotuloTodos="A equipe toda" />
       </div>
 
       {falhou && (

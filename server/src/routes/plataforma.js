@@ -195,6 +195,70 @@ plataforma.patch('/empresas/:id/plano', exigeVital, exigePoder('suspender'), rot
   res.json({ ok: true, plano });
 }));
 
+/* ── suporte ────────────────────────────────────────────────────────────── *
+ *
+ * A fila de chamados que as empresas abriram de dentro do painel delas.
+ *
+ * Este é o único lugar de `/api/plataforma` que devolve texto escrito por
+ * gente da empresa, e não contagem — o que parece furar a regra do CLAUDE.md
+ * ("rota nova aqui não devolve linha de tabela de negócio"). Não fura, e a
+ * diferença é o consentimento: a regra existe para a nossa equipe não enxergar
+ * a agenda e as clientes de quem assina. Um chamado é uma mensagem que a
+ * empresa escreveu PARA NÓS, de propósito, sabendo que vamos ler. É a mesma
+ * natureza de `plataforma.auditoria`, não a de `appointments`.
+ */
+
+plataforma.get('/tickets', exigeVital, exigePoder('verEmpresas'), rota(async (req, res) => {
+  const cond = [], args = [];
+  if (req.query.empresaId) { cond.push('k.tenant_id = ?'); args.push(req.query.empresaId); }
+  if (req.query.status === 'abertos') cond.push(`k.status <> 'fechado'`);
+  const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
+
+  const linhas = await db.all(
+    `SELECT k.*, t.nome AS empresa, t.slug
+       FROM plataforma.tickets k
+       LEFT JOIN plataforma.tenants t ON t.id = k.tenant_id
+       ${where}
+      ORDER BY (k.status <> 'fechado') DESC, k.criado_em DESC LIMIT 200`,
+    ...args
+  );
+  res.json(linhas.map(k => ({
+    id: k.id, empresa: k.empresa || '(empresa apagada)', empresaId: k.tenant_id, slug: k.slug,
+    autor: k.autor_nome, autorEmail: k.autor_email,
+    assunto: k.assunto, mensagem: k.mensagem, status: k.status,
+    resposta: k.resposta || '', criadoEm: k.criado_em, respondidoEm: k.respondido_em,
+  })));
+}));
+
+plataforma.patch('/tickets/:id', exigeVital, exigePoder('verEmpresas'), rota(async (req, res) => {
+  const alvo = await db.get('SELECT * FROM plataforma.tickets WHERE id = ?', req.params.id);
+  if (!alvo) return res.status(404).json({ erro: 'chamado não encontrado' });
+
+  const resposta = req.body?.resposta != null
+    ? String(req.body.resposta).trim().slice(0, 4000) : null;
+  const status = ['aberto', 'respondido', 'fechado'].includes(req.body?.status)
+    ? req.body.status : null;
+  if (resposta == null && !status) {
+    return res.status(400).json({ erro: 'nada para mudar' });
+  }
+
+  // Responder implica respondido, a menos que se peça outra coisa: sem isso,
+  // um chamado com resposta escrita continuaria na fila de "abertos".
+  const novoStatus = status || (resposta ? 'respondido' : alvo.status);
+  await db.run(
+    `UPDATE plataforma.tickets
+        SET resposta = COALESCE(?, resposta), status = ?,
+            respondido_em = CASE WHEN ? <> '' THEN now() ELSE respondido_em END
+      WHERE id = ?`,
+    resposta, novoStatus, resposta || '', req.params.id
+  );
+  await registrar({
+    usuarioId: req.vital.id, tenantId: alvo.tenant_id, acao: 'suporte_' + novoStatus,
+    detalhe: { ticket: alvo.id, assunto: alvo.assunto },
+  });
+  res.json({ ok: true, status: novoStatus });
+}));
+
 /* ── o rastro ───────────────────────────────────────────────────────────── */
 
 plataforma.get('/auditoria', exigeVital, exigePoder('verEmpresas'), rota(async (req, res) => {

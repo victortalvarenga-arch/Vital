@@ -21,6 +21,7 @@ import { comRegistro } from './lib/registro.js';
 import { comAdicionais } from './lib/adicionais.js';
 import { combosAtivos } from './lib/combos.js';
 import { comEmpresa } from './lib/tenant.js';
+import { suporte } from './routes/suporte.js';
 import { fecharAtendimentos } from './jobs/fechamento.js';
 
 /**
@@ -129,6 +130,9 @@ app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);
 app.use('/api/bloqueios', bloqueios);
+// Suporte é do painel da empresa, não da plataforma: quem abre chamado é quem
+// opera o negócio. A fila do outro lado está em /api/plataforma/tickets.
+app.use('/api/suporte', suporte);
 app.use('/api/mensagens', mensagens);
 
 /**

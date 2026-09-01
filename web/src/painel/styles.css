@@ -653,3 +653,50 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
    no cabeçalho: são duas perguntas diferentes — "que período" e "de quem" —, e
    empilhá-las na mesma linha fazia as duas parecerem uma lista de abas só. */
 .fin-filtro{margin-bottom:14px}
+
+/* Seletor de profissional. `<select>` nativo: rola sozinho com equipe grande,
+   anda por teclado, e no celular abre o seletor do sistema. */
+.sel-prof{display:inline-flex; align-items:center; gap:8px; font-size:13px}
+.sel-prof-rotulo{font-size:var(--t-rotulo,11px); letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); font-weight:700}
+.sel-prof select{
+  background:var(--paper); border:1px solid var(--line); border-radius:999px;
+  padding:9px 14px; font:inherit; font-size:14px; color:var(--ink);
+  outline:none; cursor:pointer; max-width:220px; min-height:40px}
+.sel-prof select:hover{border-color:var(--ink)}
+.sel-prof select:focus-visible{outline:2px solid var(--uv); outline-offset:2px}
+
+/* ── Suporte técnico ── */
+.sup-canais{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  margin-bottom:22px}
+.sup-email{display:flex; gap:12px; padding:18px; align-items:flex-start; color:var(--ink)}
+.sup-email a{color:var(--lacquer); font-weight:600; font-size:14.5px;
+  word-break:break-all; text-decoration:none}
+.sup-email a:hover{text-decoration:underline}
+.sup-email p{margin:6px 0 0; font-size:12.5px; color:var(--muted)}
+.sup-canal-titulo{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700;
+  margin-bottom:4px}
+.sup-form{padding:18px; display:flex; flex-direction:column; gap:10px}
+.sup-ajuda{margin:0 0 4px; font-size:12.5px; color:var(--muted)}
+.sup-form input, .sup-form textarea{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px;
+  padding:11px 13px; font:inherit; font-size:16px; color:var(--ink); outline:none;
+  width:100%; resize:vertical}
+.sup-form input:focus-visible, .sup-form textarea:focus-visible{border-color:var(--ink)}
+.sup-rodape{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.sup-rodape .btn{margin-left:auto}
+.sup-ok{font-size:13px; color:var(--ok); font-weight:600}
+.sup-titulo-lista{margin-bottom:12px}
+.sup-item{padding:16px 18px; margin-bottom:10px}
+.sup-item-topo{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:14.5px}
+.sup-quando{font-size:12px; color:var(--muted); margin-left:auto}
+.sup-msg{margin:8px 0 0; font-size:13.5px; color:var(--cinza); white-space:pre-wrap}
+/* A resposta destacada do pedido: quem abre a tela quer achar ela primeiro. */
+.sup-resposta{margin-top:12px; padding:12px 14px; border-radius:10px;
+  background:var(--porcelain); border-left:3px solid var(--lacquer)}
+.sup-resposta p{margin:0; font-size:13.5px; white-space:pre-wrap}
+
+@media (max-width: 720px){
+  .sup-rodape .btn{margin-left:0; width:100%}
+  .sup-quando{margin-left:0; width:100%}
+}
