@@ -155,6 +155,54 @@
         "value": "#999",
         "createdAt": "2026-08-31T18:07:57.503Z",
         "reason": "Agent: fallback de cor quando profissional nao tem staff.cor definido - mesmo padrao ja usado em Agenda (App.jsx), so reaproveitado em Resumo.jsx"
+      },
+      {
+        "rule": "overused-font",
+        "value": "instrument serif",
+        "createdAt": "2026-09-16T18:54:54.388Z",
+        "reason": "User pinned: referencia trazida pela cliente (pasta Exemplo) usa Instrument Serif italico na palavra de destaque dos titulos; o brief vence o aviso de fonte saturada"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "instrument serif",
+        "createdAt": "2026-09-16T18:54:54.461Z",
+        "reason": "User pinned: display itálica do modelo Clínica, documentada em DESIGN.md"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "58px",
+        "createdAt": "2026-09-16T18:54:54.538Z",
+        "reason": "Agent: máximo do clamp() fluido dos títulos de seção da Clínica (.bloco-titulo), mesma família dos outros 3 tamanhos fluidos já sancionados"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "46px",
+        "createdAt": "2026-09-16T18:54:54.616Z",
+        "reason": "Agent: mínimo do clamp() fluido do nome da empresa no hero da Clínica"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "210px",
+        "createdAt": "2026-09-16T18:54:54.691Z",
+        "reason": "Agent: o arco do retrato do hero da Clínica (210px em cima, 20px embaixo) — forma assinatura da referência, uso único"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "220px",
+        "createdAt": "2026-09-16T18:54:54.782Z",
+        "reason": "Agent: o anel dourado deslocado 12px em volta do arco do retrato (210+10), uso único"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "22px",
+        "createdAt": "2026-09-16T18:54:54.865Z",
+        "reason": "Agent: cantos inferiores do anel do retrato (20+2), uso único"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(80, 70, 45, .08)",
+        "createdAt": "2026-09-16T18:54:54.937Z",
+        "reason": "Agent: sombra quente do cartão da faixa Agende, sobre o bege — preto puro esfriava o cartão; valor da referência"
       }
     ]
   }

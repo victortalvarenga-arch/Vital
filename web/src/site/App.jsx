@@ -8,7 +8,10 @@ import { aplicarTema } from './tema.js';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
 import Agendar from './Agendar.jsx';
 import Grade from './Grade.jsx';
-import { SecaoEquipe, SecaoAntesDepois, SecaoAvaliacoes, SecaoInstagram, SecaoMapa } from './Clinica.jsx';
+import {
+  HeroClinica, TituloClinica, SecaoEquipe, SecaoAntesDepois, SecaoAvaliacoes,
+  SecaoAgende, SecaoInstagram, SecaoMapa, BotaoWhatsApp,
+} from './Clinica.jsx';
 
 export default function App() {
   const [dados, setDados] = useState(null);
@@ -75,9 +78,13 @@ export default function App() {
  * nada para flutuar sobre — a barra nasce firme, porque texto branco sobre
  * o fundo claro do cabeçalho ficaria ilegível.
  */
-function BarraTopo({ negocio, marca, aoAgendar, temCapa }) {
+function BarraTopo({ negocio, marca, aoAgendar, temCapa, secoes }) {
   const [rolou, setRolou] = useState(false);
   const firme = !temCapa || rolou;
+  // Na Clínica a marca da barra é o nome em caixa-alta espaçada, como na
+  // referência: o logo a 30px vira uma mancha que não se lê, e a cliente
+  // pediu para tirar.
+  const comLogo = marca?.logo && marca.template !== 'clinica';
 
   useEffect(() => {
     if (!temCapa) return;
@@ -91,9 +98,16 @@ function BarraTopo({ negocio, marca, aoAgendar, temCapa }) {
     <header className={'barra' + (firme ? ' firme' : '')}>
       <div className="env-largo barra-in">
         <div className="barra-marca">
-          {marca?.logo && <img className="barra-logo" src={marca.logo} alt="" />}
+          {comLogo && <img className="barra-logo" src={marca.logo} alt="" />}
           <span className="barra-nome">{negocio.nome}</span>
         </div>
+        {/* Navegação por seção — só o modelo que tem seções o bastante pra
+            isso passa a lista; nos outros a barra continua só com as ações. */}
+        {secoes?.length > 0 && (
+          <nav className="barra-nav" aria-label="Seções">
+            {secoes.map(([rotulo, id]) => <a key={id} href={`#${id}`}>{rotulo}</a>)}
+          </nav>
+        )}
         <nav className="barra-acoes">
           {negocio.whatsapp && (
             <a className="barra-link" href={`https://wa.me/55${soDigitos(negocio.whatsapp)}`}
@@ -159,13 +173,12 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
     return [...mapa].map(([nome, itens]) => ({ nome, itens }));
   }, [servicos]);
 
-  // Clínica é o único modelo com um cabeçalho de duas colunas — o resto do
-  // esqueleto (barra, .capa como faixa solta, .identidade empilhada) é
-  // compartilhado pelos outros três de propósito. Uma estrutura por modelo
-  // só se justifica quando o próprio modelo pede uma composição diferente,
-  // não uma variação de cor — ver "Do build new site markup..." no
-  // DESIGN.md. Referência: inspiraestetica.com.br, texto de um lado, imagem
-  // grande do outro.
+  // Clínica é o único modelo com um cabeçalho de duas colunas e seções
+  // próprias (tudo em Clinica.jsx) — o resto do esqueleto (barra, .capa como
+  // faixa solta, .identidade empilhada) é compartilhado pelos outros três de
+  // propósito. Uma estrutura por modelo só se justifica quando o próprio
+  // modelo pede uma composição diferente, não uma variação de cor — ver "Do
+  // build new site markup..." no DESIGN.md.
   const ehClinica = marca?.template === 'clinica';
   // A barra é fixa e, sem uma faixa de capa embaixo dela pra absorver a
   // sobreposição, ela cobre o topo do que vier em seguida — cortava a foto
@@ -175,10 +188,19 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   // esconder nada; nos outros casos, .identidade precisa da própria folga.
   const temFaixaDeCapa = !ehClinica && !!marca?.capa;
 
+  // Só as seções que existem de verdade nesta empresa entram na barra — um
+  // link para uma âncora que não renderizou é um clique pra lugar nenhum.
+  const secoesClinica = ehClinica ? [
+    ['Serviços', 'servicos'],
+    ...(dados.profissionais?.length ? [['Equipe', 'equipe']] : []),
+    ['Avaliações', 'avaliacoes'],
+    ...(negocio.endereco ? [['Contato', 'contato']] : []),
+  ] : null;
+
   return (
     <main>
       <BarraTopo negocio={negocio} marca={marca} aoAgendar={aoAgendar}
-                 temCapa={temFaixaDeCapa} />
+                 temCapa={temFaixaDeCapa} secoes={secoesClinica} />
 
       {ehClinica ? (
         <HeroClinica negocio={negocio} marca={marca} textos={textos} aoAgendar={aoAgendar} />
@@ -219,9 +241,12 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
       )}
 
       {negocio.sobre && (
-        <section className="bloco">
+        <section id="sobre" className={'bloco' + (ehClinica ? ' clinica-sobre' : '')}>
           <div className="env">
-            <Revela><p className="sobre">{negocio.sobre}</p></Revela>
+            <Revela>
+              {ehClinica && <p className="olho">Sobre</p>}
+              <p className="sobre">{negocio.sobre}</p>
+            </Revela>
           </div>
         </section>
       )}
@@ -246,9 +271,11 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
 
       {/* Bloco com fundo próprio: separa os serviços do resto sem precisar de
           linha divisória, e é o pedaço que a pessoa veio ver. */}
-      <section className="bloco bloco-marca">
+      <section id="servicos" className="bloco bloco-marca">
         <div className="env-largo">
-          <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>
+          {ehClinica
+            ? <TituloClinica olho="Serviços">Escolha o seu <em>momento.</em></TituloClinica>
+            : <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>}
           {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
           {exibir?.categorias && categorias.length > 1
             ? <Categorias categorias={categorias} aoAbrir={aoAbrirCategoria} />
@@ -264,85 +291,15 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           <SecaoEquipe profissionais={dados.profissionais} />
           <SecaoAntesDepois casos={dados.antesDepois} />
           <SecaoAvaliacoes />
+          <SecaoAgende textos={textos} aoAgendar={aoAgendar} />
           <SecaoInstagram negocio={negocio} />
           <SecaoMapa negocio={negocio} />
         </>
       )}
 
       <Rodape negocio={negocio} textos={textos} cheio={ehClinica} />
+      {ehClinica && <BotaoWhatsApp negocio={negocio} />}
     </main>
-  );
-}
-
-/**
- * O cabeçalho do modelo Clínica: texto de um lado, imagem grande do outro —
- * a composição do próprio inspiraestetica.com.br, não uma variação de cor
- * do cabeçalho dos outros três modelos.
- *
- * Sem `marca.capa` (nenhuma empresa de exemplo tem foto hoje), o painel
- * visual não finge ser uma foto — vira a marca da empresa em destaque, o
- * mesmo círculo-com-inicial que o site já usa em outros lugares quando falta
- * imagem, só que grande. Assim que a empresa subir uma capa, a foto real
- * ocupa o mesmo espaço sem mudar mais nada.
- */
-function HeroClinica({ negocio, marca, textos, aoAgendar }) {
-  return (
-    <div className="identidade identidade-sem-capa">
-      <div className="env-largo clinica-hero">
-        <div className="clinica-hero-txt">
-          <h1>{negocio.nome}</h1>
-          {negocio.slogan && <p className="slogan">{negocio.slogan}</p>}
-          {negocio.endereco && (
-            <a className="local"
-               href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
-               target="_blank" rel="noreferrer">
-              <MapPin size={15} /> {negocio.endereco}
-            </a>
-          )}
-          <div className="chamada">
-            <button className="b b-p" onClick={() => aoAgendar(null)}>
-              <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
-            </button>
-          </div>
-        </div>
-        <CarrosselHero marca={marca} inicial={(negocio.nome || '?').trim()[0]?.toUpperCase()} />
-      </div>
-    </div>
-  );
-}
-
-/**
- * O painel visual do cabeçalho — uma imagem só (ou a inicial) hoje, mas já
- * passa sozinho para mais de uma quando `marca.capas` existir. Ainda não há
- * tela no painel para cadastrar mais de uma capa — só a `capa` única de
- * Configurações → Site da cliente — então isto funciona, mas ninguém
- * consegue alimentar mais de um item nele ainda.
- */
-function CarrosselHero({ marca, inicial }) {
-  const imagens = marca?.capas?.length ? marca.capas : (marca?.capa ? [marca.capa] : []);
-  const [i, setI] = useState(0);
-
-  useEffect(() => {
-    if (imagens.length < 2) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const t = setInterval(() => setI(v => (v + 1) % imagens.length), 5000);
-    return () => clearInterval(t);
-  }, [imagens.length]);
-
-  return (
-    <div className="clinica-hero-visual">
-      {imagens.length > 0
-        ? <img key={i} src={imagens[i]} alt="" />
-        : <span className="clinica-hero-marca">{inicial}</span>}
-      {imagens.length > 1 && (
-        <div className="clinica-hero-pontos">
-          {imagens.map((_, idx) => (
-            <button key={idx} className={'clinica-ponto' + (idx === i ? ' on' : '')}
-                    onClick={() => setI(idx)} aria-label={`Imagem ${idx + 1} de ${imagens.length}`} />
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -384,7 +341,7 @@ function Categorias({ categorias, aoAbrir }) {
               <p className="svc-meta">
                 <span className="svc-dur">{itens.length} {itens.length === 1 ? 'opção' : 'opções'}</span>
               </p>
-              <button className="b b-p b-peq svc-btn" onClick={() => aoAbrir(nome)}>
+              <button className="b b-p b-peq svc-btn svc-btn-cat" onClick={() => aoAbrir(nome)}>
                 Ver opções <ChevronRight size={15} />
               </button>
             </article>

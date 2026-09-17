@@ -57,7 +57,7 @@ neutro em volta dessa cor.
 | `bandeja` | Sombra suave, foto em círculo. O padrão | — |
 | `quadro` | Fundo escuro, números em fonte mono, cantos retos | Barbearia do João |
 | `caderneta` | Papel kraft, linhas de caderno | — |
-| `clinica` | Duas colunas, neutro e espaçoso | Laura Faust |
+| `clinica` | Papel creme, dourado, retrato em arco, títulos com uma palavra em itálico | Laura Faust |
 
 Para ver qualquer modelo em qualquer empresa **sem salvar nada**, ponha
 `?template=` na URL do site:

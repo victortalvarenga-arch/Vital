@@ -124,12 +124,12 @@ async function primeiraClienteReal() {
         corTexto: '#1A1A1A',
         template: 'clinica',
         logo: F('logo.jpg'),
+        // Só a foto colorida no hero. Havia uma segunda (profissional-laura.jpg,
+        // em preto-e-branco) rodando em `capas`, e ela escolheu ficar com uma —
+        // a colorida combina com o creme e o dourado do modelo. O carrossel
+        // (CarrosselHero, em Clinica.jsx) continua pronto para `capas` quando
+        // uma empresa tiver mais de uma.
         capa: F('capa.jpg'),
-        // Duas fotos dela mesma — o cabeçalho da Clínica já sabe alternar
-        // entre várias (CarrosselHero, em App.jsx); com uma real e uma como
-        // próxima, dá pra ver o carrossel funcionando de verdade, não só a
-        // estrutura.
-        capas: [F('capa.jpg'), F('profissional-laura.jpg')],
       },
       // Caso real de limpeza de pele, do acervo da Laura. As duas fotos são do
       // rosto de um cliente dela — só ficam no ar enquanto houver autorização

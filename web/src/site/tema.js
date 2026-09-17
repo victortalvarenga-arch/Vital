@@ -103,7 +103,10 @@ function paraTextoBranco(hex, minimo = 4.5) {
 const FONTES = {
   quadro: 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap',
   caderneta: 'https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap',
-  clinica: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Tenor+Sans&display=swap',
+  // Só a itálica: é a única forma usada (a palavra de destaque dos títulos).
+  // O corpo continua na Manrope do @import fixo — o modelo deixou de carregar
+  // uma segunda família de corpo, um pedido de rede a menos que o anterior.
+  clinica: 'https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap',
 };
 
 function carregarFonte(template) {
@@ -125,7 +128,7 @@ const FUNDOS = {
   bandeja: '#FFFFFF',
   quadro: '#1C1F1D',
   caderneta: '#F1E9DA',
-  clinica: '#FFFFFF',
+  clinica: '#F7F5ED',
 };
 const CLAROS = new Set(['bandeja', 'clinica']); // fundo claro: mistura em direção ao branco vale como já era
 

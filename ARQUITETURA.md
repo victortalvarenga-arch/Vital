@@ -137,8 +137,10 @@ web/               Vite + React, sem framework de UI. CSS à mão.
   painel.html      entrada do painel da equipe
   vital.html       entrada da página da Vital (cadastro + back-office)
   src/site/        App.jsx (home), Agendar.jsx (a janela de agendamento),
+                   Clinica.jsx (as seções que só o modelo Clínica tem),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css, Entrar.jsx (login e primeiro acesso),
+                   Resumo.jsx (o dia e o mês de quem atende),
                    ConfigSite.jsx (a empresa edita o site),
                    Combos.jsx (promoções), Unidades.jsx (endereços),
                    Usuarios.jsx (acesso),
@@ -265,6 +267,19 @@ e escreve as variáveis CSS em runtime — cor primária, fundo, texto, e uma
 derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
 nenhum rebuild por cliente. É o que permite a empresa escolher a própria paleta
 em Configurações → Site da cliente.
+
+**O modelo do site é um atributo, não um bundle.** `marca.template` (`bandeja`,
+`quadro`, `caderneta`, `clinica`) vira `data-template` no `<html>`, e cada
+modelo é um bloco de tokens em `styles.css` — fundo, raio, sombra, fonte — por
+cima da mesma árvore React. Só a Clínica tem marcação própria (`Clinica.jsx`:
+hero em arco, equipe, antes/depois, avaliações, "agende", mapa), porque a
+composição dela muda, não só a pele; `App.jsx` desvia por `ehClinica` só onde a
+ordem dos blocos difere. A cor da empresa continua sendo o eixo em qualquer
+modelo; o dourado da Clínica é cor do modelo, não da empresa, porque a
+referência que a cliente trouxe dependia dele e nenhuma paleta de cliente o
+substitui. A descrição de cada modelo, com os valores, está em `DESIGN.md`;
+para ver um modelo em qualquer empresa sem gravar, `?template=` na URL
+(`ACESSOS-DEV.md`).
 
 **A home é uma pilha de blocos, cada um com o próprio fundo.** Separa os
 assuntos sem linha divisória e dá ritmo à rolagem. O bloco de serviços usa um

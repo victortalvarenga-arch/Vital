@@ -129,6 +129,16 @@ outra. Quando ela começar a usar o produto de fato, o cadastro dela de
 verdade nasce por `POST /api/cadastro`, separado deste tenant de ensaio — o
 seed não vira o cadastro dela sozinho.
 
+**Ela trouxe um site de referência (set/2026), e o modelo Clínica passou a
+ser ele.** Um projeto React gerado no Replit, em `Exemplo/` (fora do Git,
+como `img/`: tem o telefone e o endereço dela dentro). Dele veio o visual —
+papel creme, dourado, retrato em arco, título com uma palavra em itálico — e
+só o visual: os depoimentos, a nota "5,0" e o "+8 anos" eram inventados pelo
+gerador e ficaram de fora; a janela de agendamento de verdade ficou no lugar
+do formulário de contato. Três pares de cor da referência não passavam em
+contraste e foram corrigidos. É a primeira vez que uma escolha de design
+vem de uma cliente e não de nós.
+
 **Ainda nenhum depoimento, logo de cliente ou número de uso deve ser
 fabricado** em nenhuma superfície — a primeira cliente real ainda não
 publicou nada, e a página de cadastro (`vital.html`) continua podendo falar

@@ -210,37 +210,307 @@ body {
 }
 
 /* ── Clínica ─────────────────────────────────────────────────────────────
-   Tese: agendar aqui parece uma clínica premium de verdade — neutro, arejado,
-   confiante. Referência original: identidade real de uma clínica de estética
-   (inspiraestetica.com.br) — fundo quase-branco, sombra ambiente bem discreta,
-   espaço generoso em vez de ornamento.
+   Tese: um estúdio de cuidado que se apresenta como uma casa, não como uma
+   loja — creme, verde e um fio de dourado, títulos grandes e leves com uma
+   palavra em itálico serifado. Redesenhado a partir de uma referência que a
+   própria cliente trouxe (um site de exemplo feito para ela), trocando o
+   branco clínico anterior por papel creme e o par Montserrat/Tenor Sans pelo
+   Manrope do próprio site + Instrument Serif itálico.
 
-   A tipografia foi corrigida depois, contra uma segunda referência real: o
-   kit de marca da Laura Faust, primeira cliente confirmada da Vital, que usa
-   exatamente este par (título fino e alto + Montserrat no corpo). Vira o
-   padrão do modelo — não só dela — porque é uma combinação genuinamente boa
-   para o registro "clínica premium", não uma imposição da marca de uma
-   cliente sobre as outras. É a segunda exceção nomeada ao One-Family Rule
-   (a primeira foi a Caveat da Caderneta): título e corpo em famílias
-   diferentes, só aqui. */
+   É, deliberadamente, a combinação "creme + serifa + dourado" que o modelo
+   Bandeja foi construído contra (ver DESIGN.md, Overview). Aqui ela é
+   pedido explícito, executada inteira — não meia-medida: a referência é o
+   que a cliente quer parecer, e a fidelidade a ela vence a nossa aversão ao
+   clichê. O que a referência tinha de errado não veio junto: os depoimentos
+   e números inventados, e os três pares de cor abaixo de 4,5:1 (dourado
+   sobre creme, creme sobre sálvia claro, sálvia sobre creme), corrigidos com
+   tokens verificados.
+
+   Duas cores de marca: a da empresa (--marca, como em todo modelo) e o
+   dourado, que é do MODELO — como o grafite é do Quadro e o kraft é da
+   Caderneta. Toda empresa que escolher Clínica ganha creme + a própria cor
+   + dourado; a segunda cor não é configurável de propósito (ver DESIGN.md). */
 [data-template="clinica"] {
-  --fundo: #FFFFFF;
-  --texto: #1E2023;
-  --cinza: #4B4F55;
-  --fraco: #65696F;
-  --linha: #E4E5E7;
-  --superficie: #F6F7F8;
+  --fundo: #F7F5ED;
+  --texto: #2F3D32;
+  --cinza: #4F5F52;
+  --fraco: #5D6A5E;
+  --linha: #D8D3BF;
+  --superficie: #EFECE1;
 
-  --raio: 12px;
-  --sombra: 0 2px 8px rgba(20, 20, 25, .04), 0 16px 40px -24px rgba(20, 20, 25, .12);
-  --sombra-bandeja: 0 4px 16px -6px rgba(20, 20, 25, .14);
-  --sombra-bandeja-hover: 0 8px 28px -8px rgba(20, 20, 25, .18);
+  /* --ouro é para TEXTO pequeno sobre os três fundos claros do modelo (creme,
+     wash da marca, bege): 5,7 / ≥4,7 / 4,7:1. --ouro-claro é fio, anel,
+     preenchimento do botão dourado e a palavra grande sobre o verde escuro —
+     nunca texto pequeno sobre claro (1,9:1). */
+  --ouro: #7A5C2A;
+  --ouro-claro: #E8CF91;
+  /* A faixa "Agende" — o bege da referência, uma quarta faixa entre creme,
+     wash da marca e verde escuro. */
+  --bege: #E8DFCD;
+  /* A faixa dos serviços: a cor da empresa misturada no CREME, não no
+     branco — --marca-clara (mistura em branco a 88%) dava #F3F4F1 numa
+     empresa sálvia, quatro tons do creme, uma listra cinza em vez da faixa
+     verde-clara da referência (#E9ECDF). 18% da marca no creme chega lá. */
+  --faixa: color-mix(in srgb, var(--marca) 18%, var(--fundo));
 
-  --fonte-corpo: 'Montserrat', system-ui, -apple-system, sans-serif;
-  /* Aproximação de "ALTA" (fonte da identidade dela, licença não confirmada
-     — ver DESIGN.md) — geométrica, fina, alta, sem serifa. */
-  --fonte-display: 'Tenor Sans', system-ui, -apple-system, sans-serif;
+  --raio: 16px;
+  --sombra: 0 8px 24px rgba(63, 80, 67, .06);
+  --sombra-bandeja: 0 18px 48px -22px rgba(63, 80, 67, .22), 0 1px 2px rgba(63, 80, 67, .05);
+  --sombra-bandeja-hover: 0 24px 56px -22px rgba(63, 80, 67, .28), 0 2px 4px rgba(63, 80, 67, .07);
+
+  /* Corpo fica na Manrope do :root. Só a itálica de destaque é do modelo. */
+  --fonte-display: 'Instrument Serif', Georgia, serif;
 }
+
+/* As superfícies que o navegador desenha sozinho também são do modelo:
+   seleção, cursor de texto, anel de foco — senão a página parece montada,
+   não feita. */
+[data-template="clinica"] ::selection { background: var(--ouro-claro); color: var(--texto); }
+[data-template="clinica"] input, [data-template="clinica"] textarea { caret-color: var(--marca-escura); }
+
+/* Granulado de papel, fixo, por cima de tudo menos da janela de agendamento
+   (que tem z-index 100 e fica limpa de propósito). 3,5% — mais que isso vira
+   sujeira em foto. */
+[data-template="clinica"] main::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 60; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+}
+
+/* O olho-de-seção: fio dourado + rótulo em caixa-alta espaçada. É o
+   dispositivo que a referência usa pra abrir toda seção, e faz parte do que
+   ela é — uma exceção pedida à regra "sem kicker" do piso de qualidade. Um
+   por seção, sempre com o fio; sem o fio vira só um rótulo. */
+.olho {
+  display: flex; align-items: center; gap: 12px; margin-bottom: var(--e-4);
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .28em; text-transform: uppercase;
+  color: var(--ouro);
+}
+.olho::before { content: ''; width: 44px; height: 1px; background: var(--ouro-claro); flex: none; }
+.bloco-cheio .olho { color: var(--sobre-marca-escura); }
+
+/* Títulos: sans grande e leve, com a palavra de destaque em itálico serifado
+   — o gesto que a referência repete em todo título, e o único lugar onde a
+   serifa aparece. Sobrescreve o peso 700 global e a --fonte-display no
+   título inteiro: aqui a display é só o <em>. */
+[data-template="clinica"] .bloco-titulo {
+  font-family: var(--fonte-corpo); font-weight: 400;
+  font-size: clamp(34px, 3.4vw + 14px, 58px); line-height: .98; letter-spacing: -.04em;
+  max-width: 14ch; text-wrap: balance; margin-bottom: var(--e-8);
+}
+/* O rótulo pequeno do rodapé vira um olho como os outros: fio dourado + caixa-alta. */
+[data-template="clinica"] .bloco-titulo.pequeno {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--fonte-corpo); font-weight: 700; font-size: var(--t-rotulo); letter-spacing: .28em;
+  max-width: none; margin-bottom: var(--e-4);
+}
+[data-template="clinica"] .bloco-titulo.pequeno::before { content: ''; width: 44px; height: 1px; background: var(--ouro-claro); flex: none; }
+[data-template="clinica"] .bloco-titulo em,
+[data-template="clinica"] .identidade h1 em {
+  font-family: var(--fonte-display); font-style: italic; font-weight: 400; letter-spacing: -.01em;
+}
+[data-template="clinica"] .bloco-titulo em { color: var(--marca-legivel); }
+[data-template="clinica"] .bloco-cheio .bloco-titulo em,
+[data-template="clinica"] .identidade h1 em { color: var(--ouro-claro); }
+
+/* Botões em caixa-alta espaçada, como os da referência. Vale também dentro
+   da janela de agendamento — é um site só. */
+[data-template="clinica"] .b {
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+  transition: background .15s, border-color .15s, opacity .15s, transform .18s ease, filter .15s;
+}
+[data-template="clinica"] .b:hover:not(:disabled) { transform: translateY(-2px); }
+/* O botão dourado: só o CTA do hero e o flutuante de WhatsApp. É a única
+   vez que --ouro-claro é preenchimento com texto em cima (6,8:1 com --texto). */
+.clinica-cta-ouro { background: var(--ouro-claro); color: var(--texto); }
+.clinica-cta-ouro:hover { filter: brightness(1.04); }
+.clinica-cta-link {
+  display: inline-flex; align-items: center; gap: 8px; padding: 12px 4px;
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .17em; text-transform: uppercase;
+  color: inherit; text-decoration: none; transition: color .2s;
+}
+.clinica-cta-link:hover { color: var(--ouro-claro); }
+
+/* A barra: creme translúcido com desfoque, nome em caixa-alta espaçada, e a
+   navegação por seção que só cabe em tela larga. */
+[data-template="clinica"] .barra.firme {
+  background: color-mix(in srgb, var(--fundo) 94%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom-color: color-mix(in srgb, var(--linha) 70%, transparent);
+  box-shadow: none;
+}
+[data-template="clinica"] .barra-nome { font-size: var(--t-legenda); letter-spacing: .22em; text-transform: uppercase; }
+.barra-nav { display: none; gap: 26px; align-items: center; }
+.barra-nav a {
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--cinza); text-decoration: none; transition: color .2s;
+}
+.barra-nav a:hover { color: var(--ouro); }
+@media (min-width: 900px) { .barra-nav { display: flex; } }
+
+/* ── o hero da Clínica ──
+   Faixa na cor escura da empresa (--marca-escura, que tema.js já garante
+   legível com branco pra qualquer cor), texto à esquerda, retrato em arco à
+   direita. A referência usava o sálvia CLARO com texto creme — 2,3:1,
+   ilegível; a versão escura é o mesmo verde com o contraste resolvido. */
+[data-template="clinica"] .identidade {
+  background: var(--marca-escura); color: var(--sobre-marca-escura);
+  position: relative;
+}
+/* A curva creme que fecha o hero por baixo, como na referência. */
+[data-template="clinica"] .identidade::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30px;
+  background: var(--fundo); clip-path: ellipse(62% 100% at 50% 100%);
+}
+.clinica-anel {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--ouro-claro) 30%, transparent);
+}
+/* No celular o retrato desce pra baixo do texto e os anéis (posicionados
+   pelo canto da faixa, atrás do retrato no desktop) passariam por cima do
+   nome e do botão. Somem: são desenho de fundo de uma composição que só
+   existe em tela larga. */
+@media (max-width: 859px) { .clinica-anel { display: none; } }
+/* Sobre e rodapé usam .env (640px) em todo modelo; aqui os títulos ficam em
+   .env-largo (900px) e a margem esquerda pulava de seção pra seção. Uma
+   coluna só — o parágrafo do Sobre continua com max-width em ch. */
+[data-template="clinica"] .env { max-width: 900px; }
+/* Com o seletor de modelo na frente de propósito: `.env-largo` (padding 0 20px,
+   max-width 900px) vem depois no arquivo e, em empate de especificidade,
+   zerava o padding vertical do hero. O hero também é mais largo que o resto
+   do site (1180px, como a referência) — as outras seções continuam em 900,
+   onde a grade de círculos e o texto leem melhor. */
+[data-template="clinica"] .clinica-hero {
+  position: relative; z-index: 1; max-width: 1180px;
+  display: grid; grid-template-columns: 1fr; gap: var(--e-9);
+  align-items: center; padding: var(--e-9) 20px calc(var(--e-9) + 40px);
+}
+@media (min-width: 860px) {
+  [data-template="clinica"] .clinica-hero {
+    grid-template-columns: 1.05fr .95fr; min-height: 640px; padding: var(--e-9) 20px calc(var(--e-9) + 44px);
+  }
+}
+.clinica-hero-txt { max-width: 34rem; }
+/* O olho do hero é branco, não dourado: --ouro (5,7:1 sobre creme) cai para
+   ~2:1 sobre o verde escuro. O fio continua dourado. */
+[data-template="clinica"] .identidade .olho { color: var(--sobre-marca-escura); }
+[data-template="clinica"] .identidade h1 {
+  font-family: var(--fonte-corpo); font-weight: 500;
+  font-size: clamp(46px, 6.5vw + 8px, 92px); line-height: .92; letter-spacing: -.04em;
+  max-width: 12ch; text-wrap: balance; margin-top: var(--e-6);
+}
+[data-template="clinica"] .identidade .slogan,
+[data-template="clinica"] .identidade .local { color: inherit; opacity: .8; }
+[data-template="clinica"] .identidade .local:hover { color: var(--ouro-claro); opacity: 1; }
+[data-template="clinica"] .identidade .slogan { font-size: var(--t-corpo); line-height: 1.7; margin-top: var(--e-6); max-width: 30rem; }
+[data-template="clinica"] .identidade .chamada {
+  max-width: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-4); margin-top: var(--e-7);
+}
+/* O retrato: arco por cima, cantos leves embaixo, foto em cor natural. A
+   referência tingia o retrato em preto e branco sobre o verde (blend
+   luminosity); a cliente tirou de propósito — quer a foto como ela é. O que
+   integra a foto à paleta é o arco e o anel dourado deslocado em volta, mais
+   o selo que flutua no canto. */
+.clinica-hero-quadro { position: relative; width: 100%; max-width: 430px; margin: 0 auto; }
+.clinica-hero-quadro::before {
+  content: ''; position: absolute; inset: -12px; pointer-events: none;
+  border-radius: 220px 220px 22px 22px;
+  border: 1px solid color-mix(in srgb, var(--ouro-claro) 35%, transparent);
+}
+.clinica-hero-visual {
+  position: relative; aspect-ratio: .82; width: 100%; overflow: hidden;
+  border-radius: 210px 210px 20px 20px; background: var(--marca);
+  display: grid; place-items: center;
+}
+.clinica-hero-visual img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.clinica-hero-marca { font-size: clamp(56px, 10vw, 104px); font-weight: 700; color: var(--sobre-marca); }
+.clinica-hero-selo {
+  position: absolute; left: -14px; bottom: -22px; max-width: 232px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--fundo); color: var(--texto);
+  border: 1px solid color-mix(in srgb, var(--ouro-claro) 55%, transparent);
+  border-radius: 16px; padding: 12px 16px; box-shadow: var(--sombra-bandeja);
+  animation: clinica-flutua 5s ease-in-out infinite;
+}
+.clinica-hero-selo-ico {
+  width: 36px; height: 36px; border-radius: 50%; flex: none;
+  background: var(--ouro-claro); color: var(--texto); display: grid; place-items: center;
+}
+.clinica-hero-selo b { display: block; font-size: var(--t-rotulo); font-weight: 700; }
+.clinica-hero-selo span { display: block; font-size: var(--t-rotulo); color: var(--fraco); margin-top: 3px; }
+@keyframes clinica-flutua { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+/* Só aparece com marca.capas de mais de um item. */
+.clinica-hero-pontos {
+  position: absolute; left: 50%; bottom: var(--e-5); transform: translateX(-50%);
+  display: flex; gap: 7px;
+}
+.clinica-ponto {
+  width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.55);
+  transition: background .2s; /* nunca width/height: força reflow numa lista de pontos */
+}
+.clinica-ponto.on { background: #fff; }
+
+/* ── faixas do modelo ── */
+/* Seções respiram mais que nos outros modelos (a referência vai de 96 a
+   128px entre faixas; 52px aqui lia como lista, não como página). Fluido
+   pra não virar um deserto no celular. */
+[data-template="clinica"] .bloco { padding: clamp(72px, 9vw, 120px) 0; }
+/* Serviços e Instagram numa faixa tingida de verdade pela cor da empresa —
+   --marca-clara, não o wash de --marca-fundo, claro demais para ler como
+   faixa sobre o creme. */
+[data-template="clinica"] .bloco-marca { background: var(--faixa); }
+/* Sobre a faixa tingida, a palavra em itálico usa a versão escura da marca
+   (garantida ≥4,5:1 com branco, logo ≥3:1 aqui) — --marca-legivel é
+   calculada contra o creme, não contra esta faixa. */
+[data-template="clinica"] .bloco-marca .bloco-titulo em { color: var(--marca-escura); }
+/* "Sobre": só o texto, grande, com o fio dourado e o slogan em caixa-alta —
+   sem título inventado. */
+.clinica-sobre .sobre { font-size: var(--t-titulo-pq); line-height: 1.7; max-width: 58ch; color: var(--cinza); }
+/* "Agende": a faixa bege com a chamada pro agendamento de verdade. */
+.clinica-agende { background: var(--bege); }
+.clinica-agende-grade { display: grid; gap: var(--e-8); }
+@media (min-width: 860px) { .clinica-agende-grade { grid-template-columns: .85fr 1.15fr; gap: var(--e-9); align-items: center; } }
+.clinica-agende p { color: var(--cinza); font-size: var(--t-corpo); line-height: 1.7; max-width: 30rem; }
+.clinica-agende-lista { display: flex; flex-direction: column; gap: var(--e-3); margin-top: var(--e-7); color: var(--cinza); font-size: var(--t-corpo-pq); }
+.clinica-agende-lista li { display: flex; align-items: center; gap: 12px; list-style: none; }
+.clinica-agende-lista svg { color: var(--ouro); flex: none; }
+.clinica-agende-cx {
+  background: var(--fundo); border: 1px solid color-mix(in srgb, var(--ouro-claro) 55%, var(--linha));
+  border-radius: 24px; padding: var(--e-7) var(--e-6);
+  box-shadow: 0 18px 45px rgba(80, 70, 45, .08);
+}
+.clinica-agende-cx h3 { font-size: var(--t-destaque); font-weight: 500; letter-spacing: -.02em; margin-top: 4px; }
+.clinica-agende-cx > p { margin: var(--e-3) 0 var(--e-6); }
+.clinica-agende-cx .b { width: 100%; padding: 18px var(--e-6); }
+/* Mapa dessaturado e levemente sépia, como na referência — o mapa vira parte
+   da paleta em vez de um retângulo de outro site. */
+.clinica-mapa iframe { filter: grayscale(.65) sepia(.15); opacity: .85; }
+/* Rodapé: a assinatura em caixa-alta espaçada. Branca, não dourada — o
+   --ouro-claro em texto de 11px sobre --marca-escura dá ~3,2:1 pra Laura,
+   abaixo do 4,5 de texto pequeno; o dourado fica no fio do rótulo acima. */
+/* `.rodape.bloco-cheio .assinatura` (opacity .65) e `.rodape.bloco-cheio
+   .bloco-titulo.pequeno` (opacity .7) vêm depois no arquivo — a dupla classe
+   aqui é pra vencer o empate; sem ela o texto de 11px caía a ~3:1. */
+[data-template="clinica"] .rodape.bloco-cheio .bloco-titulo.pequeno { opacity: 1; }
+[data-template="clinica"] .rodape.bloco-cheio .assinatura {
+  font-size: var(--t-rotulo); letter-spacing: .2em; text-transform: uppercase; opacity: 1; color: var(--sobre-marca-escura);
+}
+/* O cartão de promoção é compartilhado; aqui o preço perde o negrito 700 da
+   Bandeja pra falar a mesma língua leve dos títulos. "Economize" continua
+   branco: dourado em texto de 14px sobre --marca-escura não passa de 4,5:1. */
+[data-template="clinica"] .destaque-valor { font-weight: 500; }
+/* Nas categorias, o círculo já é o botão (com aria-label) e o nome vem logo
+   embaixo — três pílulas idênticas "Ver opções" viravam ruído. Só na Clínica;
+   na grade de SERVIÇOS a pílula "Agendar" é o CTA e fica. */
+[data-template="clinica"] .svc-btn-cat { display: none; }
+/* WhatsApp flutuante — dourado, canto inferior direito. Fica abaixo da
+   janela de agendamento (z 100) de propósito. */
+.clinica-fab {
+  position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 30;
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ouro-claro); color: var(--texto); box-shadow: var(--sombra-bandeja-hover);
+  transition: transform .18s ease;
+}
+.clinica-fab:hover { transform: scale(1.05); }
 
 /* Uma banda de verdade com a cor da empresa — não o wash de --marca-fundo,
    que é claro demais para quebrar a leitura de "página branca". Usada em
@@ -249,38 +519,6 @@ body {
    fundo/texto muda aqui — cada seção que usa a classe ajusta os filhos que
    tinham cor fixa (ver .equipe-item p e o bloco .rodape.bloco-cheio). */
 .bloco-cheio { background: var(--marca-escura); color: var(--sobre-marca-escura); }
-
-/* Cabeçalho de duas colunas — só a Clínica tem esta estrutura (ver
-   HeroClinica em App.jsx e a nota "Do build new site markup..." no
-   DESIGN.md: é a exceção nomeada, não um padrão para os outros modelos). */
-.clinica-hero {
-  display: grid; grid-template-columns: 1fr; gap: var(--e-8);
-  align-items: center; padding: var(--e-9) 20px;
-}
-@media (min-width: 860px) {
-  .clinica-hero { grid-template-columns: 1.05fr .95fr; gap: var(--e-9); padding: var(--e-9) 20px; }
-}
-.clinica-hero-txt { max-width: 46ch; }
-.clinica-hero-visual {
-  position: relative;
-  aspect-ratio: 4 / 5; width: 100%; border-radius: 20px; overflow: hidden;
-  background: var(--marca-fundo); box-shadow: var(--sombra);
-  display: grid; place-items: center;
-}
-.clinica-hero-visual img { width: 100%; height: 100%; object-fit: cover; }
-.clinica-hero-marca { font-size: clamp(56px, 10vw, 104px); font-weight: 700; color: var(--marca); }
-/* Só aparece com marca.capas de mais de um item — hoje, sem tela no painel
-   para cadastrar mais de uma capa, nunca renderiza de verdade. */
-.clinica-hero-pontos {
-  position: absolute; left: 50%; bottom: var(--e-4); transform: translateX(-50%);
-  display: flex; gap: 7px;
-}
-.clinica-ponto {
-  width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.55);
-  transition: background .2s; /* nunca width/height: força reflow numa lista de pontos */
-}
-.clinica-ponto.on { background: #fff; }
-@media (max-width: 859px) { .clinica-hero-visual { aspect-ratio: 16 / 10; } }
 
 /* ── seções extras da Clínica (equipe, antes/depois, avaliações, Instagram,
    mapa) — ver Clinica.jsx. Só renderizam nesse modelo, então vivem como
@@ -292,9 +530,14 @@ body {
   gap: var(--e-7) var(--e-5); max-width: 780px;
 }
 .equipe-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--e-2); }
+/* Sempre dentro de .bloco-cheio (a faixa escura): fundo claro translúcido e
+   a inicial na cor do texto da faixa, com a cor da pessoa só no anel — lê
+   igual seja a cor dela clara ou escura. */
 .equipe-foto {
   width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 32px; font-weight: 700; background: var(--marca-fundo); color: var(--marca);
+  font-size: 32px; font-weight: 700; color: inherit;
+  background: color-mix(in srgb, var(--fundo) 14%, transparent);
+  border: 2px solid var(--ouro-claro);
   box-shadow: var(--sombra-bandeja);
 }
 .equipe-item h4 { font-size: var(--t-corpo); font-weight: 600; }
@@ -417,6 +660,15 @@ body {
   max-width: 440px; padding: var(--e-8) var(--e-6); border: 1px dashed var(--linha); border-radius: 16px;
   color: var(--fraco); font-size: var(--t-corpo-pq);
 }
+/* Na Clínica o estado vazio é texto do mundo, não uma caixa tracejada de
+   "aqui vai um cartão": a frase honesta em tamanho de leitura, alinhada à
+   esquerda com o título, e o ícone em dourado. */
+[data-template="clinica"] .vazio-cartao {
+  flex-direction: row; align-items: flex-start; text-align: left; gap: var(--e-4);
+  max-width: 44ch; padding: 0; border: 0; border-radius: 0;
+  color: var(--cinza); font-size: var(--t-titulo-pq); line-height: 1.6;
+}
+[data-template="clinica"] .vazio-cartao svg { color: var(--ouro); flex: none; margin-top: 4px; }
 
 .insta-painel {
   display: flex; align-items: center; gap: var(--e-5); flex-wrap: wrap;

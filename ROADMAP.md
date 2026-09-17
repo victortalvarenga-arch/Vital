@@ -619,6 +619,19 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       limpar antes — a segunda passada esbarra em PK duplicada. Não notado
       porque `npm run reset` (que limpa o schema antes) é o caminho de
       verdade; `--forcar` sozinho não tem teste nem uso conhecido.
+- [ ] **`?template=` só pré-visualiza a pele, não a estrutura.** O parâmetro
+      troca o `data-template` (tokens do CSS) mas `ehClinica` em `App.jsx` lê
+      `marca.template` da config — então `?template=bandeja` numa empresa
+      Clínica mostra o hero em arco e as seções da Clínica com as cores da
+      Bandeja, e o inverso também. Achado ao capturar telas; pra valer como
+      pré-visualização de verdade, o override precisa chegar no `dados.marca`
+      que a `Home` lê, não só no `aplicarTema`.
+- [ ] **A palavra dourada do hero da Clínica (`--ouro-claro` sobre
+      `--marca-escura`) não tem guarda de contraste por empresa.** Para a Laura
+      dá 3,2:1 (texto grande, passa); uma empresa cuja cor escurecida cair
+      numa luminância média pode ficar abaixo de 3:1. `comContraste()` em
+      `tema.js` resolveria (um token `--ouro-sobre-escura`), mas o dourado é
+      do CSS do modelo e o tema.js não sabe dele — mesma tensão do `FUNDOS`.
 - [ ] **O fallback estático de `--marca` em `web/src/site/styles.css` (`#3F6350`,
       sálvia) não bate com o padrão de verdade de uma empresa nova**
       (`configPadrao.marca.corPrimaria`, `#A32A4E`, em `server/src/lib/tenant.js`).
