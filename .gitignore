@@ -17,6 +17,9 @@ skills-lock.json
 # system); o resto é local ou cache.
 .impeccable/config.local.json
 .impeccable/hook.cache.json
+# capturas de tela da revisão de acabamento — são do site da Laura, com as
+# fotos dela; ficam na máquina, não no histórico.
+.impeccable/review/
 
 
 # imagens enviadas pelas empresas (não versionar)
@@ -25,5 +28,9 @@ uploads/
 # material bruto que a Laura Faust passou (PDF de identidade de marca, cartão
 # de visita, fotos originais em alta resolução) — dado pessoal e de negócio de
 # uma cliente real, não pertence ao histórico do Git. As versões redimensionadas
-# que o site usa de fato ficam em server/uploads/default/ (já ignorado acima).
+# que o site usa de fato ficam em server/uploads/laurafaust/ (já ignorado acima).
 img/
+# O site de referência que ela trouxe (projeto React gerado no Replit, com o
+# telefone e o endereço dela dentro) — é referência visual do modelo Clínica,
+# não código do produto. O que dele virou sistema está em DESIGN.md.
+Exemplo/
