@@ -361,7 +361,12 @@ O desenho final está em `ARQUITETURA.md`, seção "As duas telas".
 - [x] Recado opcional da cliente no agendamento, que chega ao painel
 - [x] Animações discretas ao rolar, que somem inteiras com
       `prefers-reduced-motion`
-- [x] **Instagram: só o link** (decidido em 2026-08-27 — ver abaixo)
+- [x] **Instagram: só o link** (decidido em 2026-08-27 — ver abaixo). Superado
+      em 2026-09-18: a grade existe, preenchida pela empresa no painel
+- [ ] **Conectar a conta do Instagram** para a grade se atualizar sozinha.
+      Adiado em 2026-09-18; roteiro completo abaixo, em "Próximo passo:
+      conectar a conta". Começa fora do código: conta profissional da Laura e
+      app na Meta (passos 1–6) — só depois disso há o que programar
 
 **Verificado:** 8 casos no calendário, incluindo o que mais importa — lotar
 todos os horários de um dia faz ele sumir do calendário, ou seja, calendário e
@@ -375,6 +380,108 @@ acessível por API nenhuma. Sendo multiempresa, isso vira um cadastro na Meta e
 um token para renovar por cliente. **Caminho barato quando for a hora**: a
 empresa sobe algumas fotos pelo painel, onde o upload já existe. Fica parecido
 visualmente, sem amarrar a plataforma à Meta; só não atualiza sozinho.
+
+**A faixa voltou à mesa em 2026-09-18**: a cliente pediu o grid do site de
+referência, com os 6 últimos posts entrando sozinhos. **Feito no mesmo dia: a
+estrutura** — `config.instagramPosts`, a vitrine que a filtra, a grade no site
+e a tela do painel onde a empresa sobe as fotos (detalhe em `ARQUITETURA.md`).
+**Em aberto: a conexão automática**, que preencheria essa mesma lista sozinha.
+O que ela exige, levantado nessa conversa:
+
+- **Da cliente:** conta Instagram Profissional (comercial ou criador). Perfil
+  pessoal não conecta, e a mudança é ela quem faz, no app.
+- **Da Vital, uma vez:** um app no Meta for Developers com o produto
+  "Instagram API with Instagram Login" (o que não exige Página do Facebook).
+  Enquanto o app não passa pela **App Review** da permissão
+  `instagram_business_basic`, só contas adicionadas como *tester* do app
+  conseguem conectar — serve para a Laura pré-lançamento; para qualquer
+  empresa conectar sozinha, a revisão é obrigatória, e pode pedir
+  verificação da empresa Vital.
+- **No produto:** botão "Conectar Instagram" no painel (Configurações → Site)
+  que manda para o OAuth da Meta; rota de retorno no servidor que troca o
+  código por um **token longo (60 dias)** e o guarda por empresa — token é
+  segredo, então **não** vai em `tenants.config` (a vitrine lê essa coluna;
+  precisa de tabela ou coluna própria, nunca exposta pela API pública); job
+  que renova o token antes de vencer (a renovação só funciona com token ainda
+  válido — vencido, a empresa reconecta); busca dos 6 últimos posts
+  (`/me/media` com `media_url`, `permalink`, `media_type`) com cache no
+  servidor de ~1h, porque o site não pode bater na Meta a cada visita. As
+  URLs de mídia da Meta expiram; o cache precisa refazer a busca, não guardar
+  a URL por dias.
+- **No site e na vitrine: nada.** O job escreve em `config.instagramPosts`
+  (`imagem`, `link`, `tipo: 'video'` com a `thumbnail_url` quando for vídeo)
+  e a grade que já existe mostra. A tela do painel passa a exibir o que veio
+  da conta em vez de pedir upload — e um jeito de desconectar.
+
+O caminho manual que está no ar não depende de revisão de app nem de conta
+profissional; só não atualiza sozinho. Fica como está para toda empresa que
+não conectar.
+
+#### Próximo passo: conectar a conta — o roteiro (anotado em 2026-09-18, adiado)
+
+**Custo: zero da Meta.** Sem cobrança por chamada, conta de desenvolvedor,
+revisão do app e verificação da empresa gratuitas. O que custa é tempo — a
+burocracia da Meta e a programação da conexão. Limite de chamadas folgado
+para uma busca por hora por empresa. Fontes conferidas na data:
+[Instagram API with Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login),
+[Business Login for Instagram](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login).
+
+Duas fases. A primeira já resolve a Laura sem esperar revisão da Meta; a
+segunda só faz sentido quando houver uma segunda empresa querendo isso.
+
+**Fase A — conectar a Laura (dias).**
+
+*Ela, no app do Instagram:*
+1. Conferir se a conta é **Profissional** (Comercial ou Criador). Se pessoal:
+   Configurações → Tipo de conta e ferramentas → Mudar para conta profissional.
+   Gratuito; não exige página no Facebook.
+
+*Nós, no Meta for Developers (uns 30 minutos):*
+2. Conta em <https://developers.facebook.com> com o login da Meta (pede
+   verificação em duas etapas).
+3. **Criar app** → caso de uso "Gerenciar tudo no Instagram" (ou tipo Business)
+   → produto **Instagram** → "Configuração da API com login comercial do
+   Instagram".
+4. Em *Instagram → Configuração da API com login comercial*, anotar o
+   **Instagram App ID** e o **App Secret**, e preencher as três URLs exigidas:
+   - *Redirect URI* — para onde a pessoa volta depois de autorizar. **HTTPS
+     público** obrigatório (ex.: `https://api.vital.app/api/instagram/retorno`);
+     localhost não serve. Para testar antes de ter servidor, um túnel
+     (Cloudflare Tunnel ou ngrok).
+   - *Deauthorize callback* e *Data deletion request* — duas rotas simples do
+     nosso servidor (a criar junto com a conexão).
+5. Em *Instagram → Funções → Testadores do Instagram*, adicionar o `@` da
+   Laura. Ela aceita no app (Configurações → Site e apps → Convites de
+   testador). **Como testadora, conecta sem App Review.**
+6. App ID, App Secret e a URL pública vão no `server/.env` — nunca no Git.
+
+*No código (depois dos passos acima):*
+7. Botão "Conectar Instagram" em Configurações → Site → OAuth da Meta
+   (`https://www.instagram.com/oauth/authorize`, escopo só
+   `instagram_business_basic`) → rota de retorno troca o `code` por token
+   curto (`api.instagram.com/oauth_token`) e este pelo **longo de 60 dias**
+   (`graph.instagram.com/access_token`, `grant_type=ig_exchange_token`) →
+   guarda por empresa, fora da `config` → job renova
+   (`graph.instagram.com/refresh_access_token`, só com token válido e com
+   mais de 24h) e busca `/me/media` a cada hora, escrevendo em
+   `instagramPosts` → o site que já existe mostra. Mais: aviso no painel
+   quando o token cair (troca de senha, revogação, conta voltou a pessoal),
+   botão "Desconectar", e a tela passa a exibir o que veio da conta em vez de
+   pedir upload.
+8. Ela clica em conectar, uma vez.
+
+**Fase B — qualquer empresa conectar sozinha (2 a 4 semanas).**
+9. **Política de privacidade e termos de uso** publicados num endereço da
+   Vital — a Meta exige o link.
+10. **Verificação da empresa** no Gerenciador de Negócios da Meta: CNPJ e um
+    documento (contrato social ou conta no nome da empresa). Gratuito; dias a
+    semanas.
+11. **App Review** pedindo *Acesso Avançado* só a `instagram_business_basic`
+    (pedir mais atrasa): vídeo da tela com o fluxo inteiro (painel → conectar
+    → grade no site), uma conta de teste e a descrição do uso ("exibir as
+    últimas 6 publicações no site da empresa"). Rejeição na primeira tentativa
+    é comum, normalmente por detalhe do vídeo ou do texto.
+12. Aprovado, app em **modo Live**. Daí qualquer empresa conecta.
 
 ### Bloco 6c — Serviços adicionais ✅ concluído
 Detalhes em `ARQUITETURA.md`.
@@ -626,6 +733,12 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       Bandeja, e o inverso também. Achado ao capturar telas; pra valer como
       pré-visualização de verdade, o override precisa chegar no `dados.marca`
       que a `Home` lê, não só no `aplicarTema`.
+- [ ] **A chave "Fotos dos serviços" do painel não faz nada.** `ConfigSite.jsx`
+      grava `exibir.fotos`, a vitrine devolve, e nenhum componente do site lê —
+      nem a grade de círculos nem os cartões da Clínica. A empresa desliga e
+      as fotos continuam. Ou os dois passam a respeitar a chave, ou ela sai
+      da tela; chave que não faz nada ensina a pessoa a não confiar nas
+      outras. Notado ao montar os cartões (2026-09-18).
 - [ ] **A palavra dourada do hero da Clínica (`--ouro-claro` sobre
       `--marca-escura`) não tem guarda de contraste por empresa.** Para a Laura
       dá 3,2:1 (texto grande, passa); uma empresa cuja cor escurecida cair

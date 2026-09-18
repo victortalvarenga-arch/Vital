@@ -63,18 +63,20 @@ Três páginas, três bundles — um público cada:
 
 | Endereço | O que é |
 |---|---|
-| <http://localhost:5173> | Site da cliente — escolhe serviço e agenda |
-| <http://localhost:5173/painel.html> | Painel da equipe — opera o negócio |
+| <http://laurafaust.localhost:5173> | Site da cliente — escolhe serviço e agenda |
+| <http://laurafaust.localhost:5173/painel.html> | Painel da equipe — opera o negócio |
 | <http://localhost:5173/vital.html> | Página da Vital — uma empresa se cadastra aqui |
 | <http://localhost:5173/vital.html#equipe> | Back-office da Vital — nossa equipe vê as empresas |
 | <http://barbearia.localhost:5173> | A segunda empresa de exemplo, noutro endereço |
 
 Cada empresa é resolvida pelo endereço: subdomínio (`lume.vital.app`) ou domínio
-próprio. Em `localhost` é sempre a empresa padrão, então dá para desenvolver sem
-DNS. Detalhes em `ARQUITETURA.md`.
+próprio. `*.localhost` resolve para a própria máquina sem DNS nenhum, e é assim
+que as empresas de exemplo se abrem; `localhost` sem subdomínio é a empresa
+padrão, **vazia** — serve à página da Vital, não ao site de ninguém. Detalhes
+em `ARQUITETURA.md`.
 
-Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços):
-painel → **Configurações → Site da cliente**. Promoções (pacote de serviços com
+Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços,
+publicações do Instagram): painel → **Configurações → Site da cliente**. Promoções (pacote de serviços com
 preço fechado) ficam em **Cadastros → Promoções**. As imagens ficam em
 `server/uploads/`, fora do Git.
 

@@ -90,6 +90,12 @@ publico.get('/vitrine', rota(async (req, res) => {
     antesDepois: (cfg.antesDepois || [])
       .filter(c => c?.antes && c?.depois)
       .map(c => ({ antes: c.antes, depois: c.depois, titulo: c.titulo || '' })),
+    // Sem imagem não há o que mostrar; mais de 6 não cabe na grade. `tipo`
+    // fica reservado para quando os posts vierem da conta ('imagem' | 'video').
+    instagramPosts: (cfg.instagramPosts || [])
+      .filter(p => p?.imagem)
+      .slice(0, 6)
+      .map(p => ({ imagem: p.imagem, link: p.link || '', tipo: p.tipo === 'video' ? 'video' : 'imagem' })),
     exibir: cfg.exibir,
     vocabulario: cfg.vocabulario,
     unidades: await listarUnidades({ somenteAtivas: true }),

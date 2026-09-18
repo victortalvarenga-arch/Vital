@@ -192,6 +192,13 @@ export const configPadrao = {
   // responde por isso — ver LGPD em `ARQUITETURA.md`.
   antesDepois: [],
 
+  // Publicações do Instagram que o site mostra em grade: `{ imagem, link }`,
+  // até 6, na ordem em que aparecem. Hoje quem preenche é a empresa, pelo
+  // painel (foto + link do post); quando a conexão com a conta existir, é um
+  // job que vai escrever esta mesma lista — o site não precisa saber quem
+  // preencheu. Vazio, a seção mostra só o link para o perfil.
+  instagramPosts: [],
+
   // O que o negócio chama cada coisa. Sem isto, white-label para na cor e não
   // chega na linguagem: quem tem barbearia não fala "profissional".
   vocabulario: {

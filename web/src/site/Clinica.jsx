@@ -1,25 +1,26 @@
 import { useEffect, useState } from 'react';
 import {
-  ArrowDown, ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, Instagram,
-  MapPin, MessageCircle, ShieldCheck, Sparkles, Star,
+  ArrowDown, ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, ExternalLink,
+  Instagram, MapPin, MessageCircle, Play, Plus, ShieldCheck, Sparkles, Star,
 } from 'lucide-react';
 import { Revela } from './App.jsx';
-import { soDigitos } from './datas.js';
+import { brl, duracaoTexto, soDigitos } from './datas.js';
 
 /**
- * Tudo que só o modelo Clínica tem: o cabeçalho de duas colunas e as seções
- * extras (equipe, antes/depois, avaliações, agende, Instagram, mapa). Os
- * outros três modelos não pediram nenhuma delas, então ficam neste arquivo à
- * parte em vez de inchar App.jsx com algo que só um modelo usa — App.jsx
- * fica só com o que os quatro compartilham.
+ * Tudo que só o modelo Clínica tem: o cabeçalho de duas colunas, os serviços
+ * em cartão e as seções extras (equipe, antes/depois, avaliações, agende,
+ * Instagram, mapa). Os outros três modelos não pediram nenhuma delas, então
+ * ficam neste arquivo à parte em vez de inchar App.jsx com algo que só um
+ * modelo usa — App.jsx fica só com o que os quatro compartilham.
  *
  * A referência visual atual é um site de exemplo que a própria cliente
  * trouxe (creme, verde, dourado, títulos com uma palavra em itálico
  * serifado). Veio o visual; não veio o conteúdo inventado que ele tinha —
- * depoimentos com nome, "nota 5,0", "+8 anos". Nenhuma seção aqui inventa
- * nada: equipe e mapa usam dado real, antes/depois só entra com foto
- * autorizada, avaliações ficam num estado vazio honesto até existir uma de
- * verdade. Ver PRODUCT.md, "Evidence on Hand".
+ * depoimentos com nome, "nota 5,0", "+8 anos", quadrados de gradiente no
+ * lugar de posts. Nenhuma seção aqui inventa nada: equipe e mapa usam dado
+ * real, antes/depois só entra com foto autorizada, a grade do Instagram só
+ * mostra publicação que a empresa colocou, avaliações ficam num estado vazio
+ * honesto até existir uma de verdade. Ver PRODUCT.md, "Evidence on Hand".
  */
 
 /**
@@ -127,6 +128,116 @@ function CarrosselHero({ marca, inicial }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ── serviços em cartão ──
+   A referência mostra cada tratamento como um cartão: foto larga em cima,
+   rótulo pequeno em dourado, nome, uma linha de descrição e, no rodapé,
+   duração e preço. A cliente pediu esse desenho no lugar da grade de círculos
+   que os outros três modelos usam — a foto redonda continua sendo a gramática
+   deles; aqui o cartão é o pedido.
+
+   O mesmo cartão serve aos dois modos da vitrine: com "separar por categoria"
+   ligado, cada cartão é uma categoria (foto do primeiro serviço com foto, os
+   nomes dos serviços como descrição, "a partir de" o menor preço); desligado,
+   cada cartão é um serviço. Tudo que aparece é dado cadastrado — nada de
+   frase de efeito por serviço, que a referência tinha e a empresa não tem
+   onde escrever. */
+
+export function CartoesClinica({ servicos, categorias, exibir, negocio, aoAgendar, aoAbrir }) {
+  const porCategoria = exibir?.categorias && categorias.length > 1;
+  // Com uma categoria só (ou nenhuma) o rótulo repetiria a mesma palavra em
+  // todo cartão — só entra quando distingue alguma coisa.
+  const comRotulo = categorias.length > 1;
+
+  return (
+    <>
+      <div className="cartoes">
+        {porCategoria
+          ? categorias.map(({ nome, itens }, i) => {
+              const precos = itens.map(s => s.preco).filter(p => p != null);
+              const menor = precos.length ? Math.min(...precos) : null;
+              return (
+                <Revela key={nome} className={`atraso-${Math.min(i, 5)}`}>
+                  <Cartao
+                    foto={itens.find(s => s.foto)?.foto}
+                    inicial={nome?.[0]}
+                    rotulo={`${itens.length} ${itens.length === 1 ? 'opção' : 'opções'}`}
+                    nome={nome}
+                    descricao={itens.map(s => s.nome).join(' · ')}
+                    pe={menor != null ? [`a partir de ${brl(menor)}`] : []}
+                    acao={`Agendar em ${nome}, ${itens.length} opções`}
+                    aoClicar={() => aoAbrir(nome)} />
+                </Revela>
+              );
+            })
+          : servicos.map((s, i) => (
+              <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
+                <Cartao
+                  foto={s.foto}
+                  inicial={s.nome.trim()[0]}
+                  rotulo={comRotulo ? s.categoria : null}
+                  nome={s.nome}
+                  descricao={s.descricao}
+                  /* Preço nulo já vem assim do servidor quando a empresa
+                     esconde preço — vira "Sob consulta", como na grade. */
+                  pe={[
+                    exibir?.duracao ? duracaoTexto(s.duracao) : null,
+                    s.preco != null ? brl(s.preco) : 'Sob consulta',
+                  ].filter(Boolean)}
+                  acao={`Agendar ${s.nome}`}
+                  aoClicar={() => aoAgendar(s.id)} />
+              </Revela>
+            ))}
+      </div>
+
+      {/* A linha que fecha a seção na referência convidava a conversar. A
+          nossa também — pelo WhatsApp real da empresa, e só quando ele
+          existe. */}
+      {negocio.whatsapp && (
+        <Revela>
+          <div className="cartoes-pe">
+            <p>Em dúvida sobre qual escolher? É só perguntar.</p>
+            <a className="clinica-cta-link" href={`https://wa.me/55${soDigitos(negocio.whatsapp)}`}
+               target="_blank" rel="noreferrer">
+              Falar no WhatsApp <ArrowRight size={15} />
+            </a>
+          </div>
+        </Revela>
+      )}
+    </>
+  );
+}
+
+/**
+ * Um cartão. O botão de verdade é o `.cartao-acao`, esticado por cima do
+ * cartão inteiro e invisível — o cartão todo responde ao toque, o leitor de
+ * tela anuncia um botão com nome, e o HTML continua válido (título e
+ * parágrafo não podem morar dentro de <button>). O círculo com o "+" é só
+ * desenho, como na referência.
+ */
+function Cartao({ foto, inicial, rotulo, nome, descricao, pe, acao, aoClicar }) {
+  return (
+    <article className="cartao">
+      <div className="cartao-img">
+        {foto
+          ? <img src={foto} alt="" loading="lazy" />
+          : <span className="cartao-inicial">{(inicial || '?').toUpperCase()}</span>}
+        <span className="cartao-mais" aria-hidden="true"><Plus size={15} /></span>
+      </div>
+      <div className="cartao-corpo">
+        {rotulo && <span className="cartao-rotulo">{rotulo}</span>}
+        <h3 className="cartao-nome">{nome}</h3>
+        {descricao && <p className="cartao-desc">{descricao}</p>}
+        {pe.length > 0 && (
+          <div className="cartao-pe">
+            {pe.map(t => <span key={t}>{t}</span>)}
+          </div>
+        )}
+      </div>
+      <button type="button" className="cartao-acao" onClick={aoClicar} aria-label={acao} />
+    </article>
   );
 }
 
@@ -299,23 +410,69 @@ export function SecaoAgende({ textos, aoAgendar }) {
 }
 
 /* ── instagram ──
-   Link de verdade para o perfil real — nunca um grid fingindo mostrar posts
-   que o site não tem acesso a carregar. */
+   O painel da referência: cabeçalho de perfil (avatar, @, nome, "Seguir") e
+   embaixo a grade 3×2 das publicações. A grade só aparece com publicação de
+   verdade — hoje as que a empresa escolhe no painel (foto + link do post);
+   quando a conexão com a conta existir, é a mesma lista, preenchida por um
+   job. Sem nenhuma, fica só o cabeçalho com o link para o perfil real —
+   nunca um grid fingindo mostrar posts que o site não tem. */
 
-export function SecaoInstagram({ negocio }) {
+export function SecaoInstagram({ negocio, marca, posts = [] }) {
   if (!negocio.instagram) return null;
   const arroba = negocio.instagram.replace('@', '');
+  const perfil = `https://instagram.com/${arroba}`;
   return (
-    <section className="bloco bloco-marca">
-      <div className="env-largo insta-painel">
-        <Instagram size={28} strokeWidth={1.6} aria-hidden="true" />
-        <div className="insta-txt">
-          <h2 className="bloco-titulo" style={{ marginBottom: 4, fontSize: 'var(--t-destaque)' }}>@{arroba}</h2>
-          <p>Acompanhe o dia a dia no Instagram.</p>
-        </div>
-        <a className="b b-p" href={`https://instagram.com/${arroba}`} target="_blank" rel="noreferrer">
-          Seguir no Instagram
-        </a>
+    <section id="instagram" className="bloco bloco-marca">
+      <div className="env-largo">
+        <Revela>
+          <div className="secao-cab">
+            <div>
+              <p className="olho">Instagram</p>
+              <h2 className="bloco-titulo">O dia a dia <em>continua lá.</em></h2>
+            </div>
+            <a className="insta-arroba" href={perfil} target="_blank" rel="noreferrer">
+              <Instagram size={16} /> @{arroba} <ExternalLink size={13} />
+            </a>
+          </div>
+        </Revela>
+
+        <Revela>
+          <div className="insta-painel">
+            <div className="insta-cab">
+              {/* O avatar é o logo da empresa (o site não tem acesso à foto do
+                  perfil); sem logo, a inicial sobre a cor da marca. */}
+              <span className="insta-avatar" aria-hidden="true">
+                {marca?.logo
+                  ? <img src={marca.logo} alt="" />
+                  : (negocio.nome || '?').trim()[0]?.toUpperCase()}
+              </span>
+              <div className="insta-txt">
+                <b>{arroba}</b>
+                <p>{negocio.nome}</p>
+              </div>
+              <a className="b b-p b-peq" href={perfil} target="_blank" rel="noreferrer">
+                Seguir
+              </a>
+            </div>
+
+            {posts.length > 0 && (
+              <div className="insta-grade">
+                {posts.map((p, i) => (
+                  /* Sem link do post, o toque abre o perfil — nunca um
+                     quadrado que não leva a lugar nenhum. */
+                  <a key={p.imagem + i} className="insta-post" href={p.link || perfil}
+                     target="_blank" rel="noreferrer"
+                     aria-label={`Publicação ${i + 1} de ${posts.length} no Instagram`}>
+                    <img src={p.imagem} alt="" loading="lazy" />
+                    {p.tipo === 'video' && (
+                      <span className="insta-play" aria-hidden="true"><Play size={13} fill="currentColor" /></span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </Revela>
       </div>
     </section>
   );

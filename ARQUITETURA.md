@@ -272,9 +272,9 @@ em Configurações → Site da cliente.
 `quadro`, `caderneta`, `clinica`) vira `data-template` no `<html>`, e cada
 modelo é um bloco de tokens em `styles.css` — fundo, raio, sombra, fonte — por
 cima da mesma árvore React. Só a Clínica tem marcação própria (`Clinica.jsx`:
-hero em arco, equipe, antes/depois, avaliações, "agende", mapa), porque a
-composição dela muda, não só a pele; `App.jsx` desvia por `ehClinica` só onde a
-ordem dos blocos difere. A cor da empresa continua sendo o eixo em qualquer
+hero em arco, serviços em cartão, equipe, antes/depois, avaliações, "agende",
+grade do Instagram, mapa), porque a composição dela muda, não só a pele;
+`App.jsx` desvia por `ehClinica` só onde a ordem ou a forma dos blocos difere. A cor da empresa continua sendo o eixo em qualquer
 modelo; o dourado da Clínica é cor do modelo, não da empresa, porque a
 referência que a cliente trouxe dependia dele e nenhuma paleta de cliente o
 substitui. A descrição de cada modelo, com os valores, está em `DESIGN.md`;
@@ -314,6 +314,34 @@ rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor da
 marca, para o círculo não ficar vazio e a grade não desalinhar. A seção de
 serviços é a única que usa o contêiner largo (`.env-largo`): a grade respira
 melhor, e o resto do site continua estreito, que é o que se lê bem.
+
+**Na Clínica, cartões em vez de círculos** (`CartoesClinica`, em
+`Clinica.jsx`, decidido em 2026-09-18 a pedido da cliente, a partir do site de
+referência dela): foto larga em cima, rótulo pequeno, nome, descrição e, no
+rodapé, duração e preço — duas colunas no desktop, uma no celular. O mesmo
+cartão serve aos dois modos da vitrine: com "separar por categoria" ligado,
+cada cartão é uma categoria (foto do primeiro serviço com foto, os nomes dos
+serviços como descrição, "a partir de" o menor preço); desligado, cada cartão
+é um serviço. Tudo que o cartão mostra é dado cadastrado — a referência tinha
+uma frase de efeito por tratamento, e a empresa não tem onde escrever isso.
+O botão de verdade é um `<button>` transparente esticado sobre o cartão
+inteiro, com `aria-label`; título e parágrafo ficam fora dele porque não
+podem morar dentro de um `<button>`.
+
+**A grade do Instagram é uma lista na config, e o site não sabe quem a
+preencheu.** `config.instagramPosts` guarda até seis `{ imagem, link, tipo }`;
+a vitrine devolve só o que tem imagem, no máximo seis, só essas três chaves
+(`server/test/instagram.test.js`). Hoje quem preenche é a empresa, em
+Configurações → Site → Instagram: sobe a foto (o upload que já existe, com
+`uso: 'instagram'`) e, se quiser, cola o link do post — sem link, o toque abre
+o perfil. A seção do site (`SecaoInstagram`, só Clínica) mostra o cabeçalho de
+perfil (logo como avatar, @, nome, "Seguir") e, embaixo, a grade 3×2; sem
+publicação nenhuma, fica só o cabeçalho com o link real — nunca quadrado de
+enfeite. O desenho é este de propósito: quando a conexão com a conta existir
+(ver `ROADMAP.md`, "A faixa voltou à mesa"), um job vai escrever esta mesma
+lista, com `tipo: 'video'` para o que for vídeo, e nem o site nem a vitrine
+mudam. O que a conexão exige — conta profissional, app na Meta, token por
+empresa fora da `config` — é problema do job, não da vitrine.
 
 **Serviços adicionais: um extra vendido junto do principal.** Um adicional não
 é entidade nova — é um `service` comum, marcado como extra de outro. Assim já

@@ -498,10 +498,6 @@ body {
    Bandeja pra falar a mesma língua leve dos títulos. "Economize" continua
    branco: dourado em texto de 14px sobre --marca-escura não passa de 4,5:1. */
 [data-template="clinica"] .destaque-valor { font-weight: 500; }
-/* Nas categorias, o círculo já é o botão (com aria-label) e o nome vem logo
-   embaixo — três pílulas idênticas "Ver opções" viravam ruído. Só na Clínica;
-   na grade de SERVIÇOS a pílula "Agendar" é o CTA e fica. */
-[data-template="clinica"] .svc-btn-cat { display: none; }
 /* WhatsApp flutuante — dourado, canto inferior direito. Fica abaixo da
    janela de agendamento (z 100) de propósito. */
 .clinica-fab {
@@ -670,13 +666,154 @@ body {
 }
 [data-template="clinica"] .vazio-cartao svg { color: var(--ouro); flex: none; margin-top: 4px; }
 
-.insta-painel {
-  display: flex; align-items: center; gap: var(--e-5); flex-wrap: wrap;
-  background: var(--fundo); border-radius: 20px; padding: var(--e-6) var(--e-7); box-shadow: var(--sombra);
-  color: var(--marca);
+/* ── serviços em cartão (só Clínica, ver CartoesClinica) ──
+   Duas colunas a partir do tablet, uma no celular, 12px entre eles como na
+   referência — o pouco espaço é o que faz os cartões lerem como uma grade e
+   não como uma pilha de anúncios. O cartão é creme translúcido sobre a faixa
+   tingida; no hover fica opaco, sobe 4px e ganha a borda dourada. */
+.cartoes { display: grid; gap: var(--e-3); }
+@media (min-width: 700px) { .cartoes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cartao {
+  position: relative; overflow: hidden;
+  border-radius: var(--raio); border: 1px solid var(--linha);
+  background: color-mix(in srgb, var(--fundo) 70%, transparent);
+  transition: transform .3s ease, border-color .3s, background .3s, box-shadow .3s;
 }
-.insta-txt { flex: 1; min-width: 200px; color: var(--texto); }
-.insta-txt p { color: var(--cinza); font-size: var(--t-corpo-pq); margin-top: 4px; }
+.cartao:hover {
+  transform: translateY(-4px); background: var(--fundo); box-shadow: var(--sombra);
+  border-color: color-mix(in srgb, var(--ouro-claro) 70%, var(--linha));
+}
+/* O .revela em volta é filho da grade; sem isto o cartão não estica até a
+   altura da linha e os rodapés desalinham entre vizinhos. */
+.cartoes > .revela { display: flex; }
+.cartoes > .revela > .cartao { flex: 1; display: flex; flex-direction: column; }
+/* Foto larga (1,75:1, como na referência), em cor natural — nenhum véu por
+   cima. Sem foto, a inicial sobre o tom claro da marca, como o círculo faz. */
+.cartao-img {
+  position: relative; aspect-ratio: 1.75; overflow: hidden; flex: none;
+  background: var(--marca-clara); display: grid; place-items: center;
+}
+/* Absoluta, e não item do grid: como item, `height: 100%` numa linha `auto`
+   faz a linha crescer até a altura natural da foto (retrato de 1600×2553
+   vira uma linha de 1,6× a largura), o excesso transborda por baixo e só o
+   topo da foto aparece — as unhas ficavam de fora. Fora do fluxo, 100% é a
+   caixa de 1,75:1 e `cover` centraliza de verdade. */
+.cartao-img img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .7s ease;
+}
+.cartao:hover .cartao-img img { transform: scale(1.05); }
+.cartao-inicial { font-size: var(--t-hero); font-weight: 700; color: var(--sobre-marca-clara); letter-spacing: -.01em; }
+/* O "+" no canto: creme translúcido sobre a foto, dourado no hover. Só
+   desenho — quem recebe o clique é .cartao-acao. */
+.cartao-mais {
+  position: absolute; top: var(--e-4); right: var(--e-5);
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--fundo) 85%, transparent);
+  border: 1px solid rgba(255, 255, 255, .5); color: var(--cinza);
+  transition: background .2s, color .2s;
+}
+.cartao:hover .cartao-mais { background: var(--ouro-claro); color: var(--texto); }
+.cartao-corpo { padding: var(--e-6); display: flex; flex-direction: column; flex: 1; }
+.cartao-rotulo {
+  display: block; font-size: var(--t-rotulo); font-weight: 700;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--ouro);
+}
+.cartao-nome { font-size: var(--t-destaque); font-weight: 500; letter-spacing: -.02em; line-height: 1.2; }
+.cartao-rotulo + .cartao-nome { margin-top: var(--e-4); }
+.cartao-desc {
+  margin-top: var(--e-3); font-size: var(--t-corpo-pq); line-height: 1.6; color: var(--cinza); max-width: 28rem;
+  /* A descrição de uma categoria é a lista dos serviços dela — corta em três
+     linhas para uma categoria grande não esticar o cartão ao lado. */
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* Rodapé encostado embaixo, com o traço em cima: duração e preço na mesma
+   voz pequena e rastreada dos rótulos. `margin-top: auto` é o que alinha os
+   rodapés de dois cartões vizinhos com descrições de tamanho diferente; o
+   que vem logo antes dele garante a folga mínima. */
+.cartao-pe {
+  margin-top: auto; padding-top: var(--e-4); border-top: 1px solid var(--linha);
+  display: flex; flex-wrap: wrap; gap: var(--e-2) var(--e-5);
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--fraco);
+}
+.cartao-corpo > :has(+ .cartao-pe) { margin-bottom: var(--e-7); }
+.cartao-acao {
+  position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
+  margin: 0; padding: 0; border-radius: inherit; background: transparent; cursor: pointer;
+}
+/* O foco vai no cartão inteiro, que é o que a pessoa vê; o botão em si é
+   transparente. */
+.cartao:has(.cartao-acao:focus-visible) { outline: 3px solid var(--marca-escura); outline-offset: 3px; }
+.cartao-acao:focus-visible { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cartao, .cartao-img img, .cartao-mais { transition: none; }
+  .cartao:hover { transform: none; }
+  .cartao:hover .cartao-img img { transform: none; }
+}
+/* A linha que fecha a seção: pergunta à esquerda, link pro WhatsApp à
+   direita, separados do grid por um traço. */
+.cartoes-pe {
+  margin-top: var(--e-7); padding-top: var(--e-6); border-top: 1px solid var(--linha);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-3) var(--e-5);
+}
+.cartoes-pe p { color: var(--cinza); font-size: var(--t-corpo-pq); }
+.cartoes-pe .clinica-cta-link { color: var(--texto); }
+.cartoes-pe .clinica-cta-link:hover { color: var(--ouro); }
+
+/* ── Instagram (só Clínica, ver SecaoInstagram) ──
+   O link com o @ fica à direita do título, na voz dos botões; o painel
+   embaixo imita a página de perfil: cabeçalho com avatar e a grade das
+   publicações separadas por um fio de 1px, como no próprio Instagram. */
+.insta-arroba {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 0;
+  font-size: var(--t-rotulo); font-weight: 700; letter-spacing: .17em; text-transform: uppercase;
+  color: var(--texto); text-decoration: none; transition: color .2s;
+}
+.insta-arroba:hover { color: var(--ouro); }
+.insta-painel {
+  margin-top: var(--e-6); overflow: hidden;
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: 20px;
+  box-shadow: var(--sombra);
+}
+.insta-cab {
+  display: flex; align-items: center; gap: var(--e-4); flex-wrap: wrap;
+  padding: var(--e-5) var(--e-6);
+}
+/* O fio só existe quando há grade embaixo; sozinho o cabeçalho é o painel. */
+.insta-cab:not(:last-child) { border-bottom: 1px solid var(--linha); }
+/* Avatar: o logo, ou a inicial sobre --marca-escura (preenchimento cheio, e
+   cor pastel não aguenta texto na própria intensidade). Anel dourado como o
+   das pessoas da equipe. */
+.insta-avatar {
+  position: relative; width: 56px; height: 56px; border-radius: 50%; flex: none; overflow: hidden;
+  display: grid; place-items: center; font-size: var(--t-destaque); font-weight: 700;
+  background: var(--marca-escura); color: var(--sobre-marca-escura);
+  border: 1px solid var(--ouro-claro); box-shadow: var(--sombra-bandeja);
+}
+.insta-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.insta-txt { flex: 1; min-width: 160px; }
+.insta-txt b { display: block; font-size: var(--t-corpo-pq); font-weight: 700; }
+.insta-txt p { color: var(--cinza); font-size: var(--t-legenda); margin-top: 2px; }
+/* Duas colunas no celular, três a partir de 560px — quadrados sempre. O gap
+   de 1px sobre o fundo --linha é o fio entre as fotos. */
+.insta-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--linha); }
+@media (min-width: 560px) { .insta-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.insta-post { position: relative; display: block; aspect-ratio: 1; overflow: hidden; background: var(--superficie); }
+.insta-post img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .5s ease;
+}
+.insta-post:hover img { transform: scale(1.04); }
+.insta-post:focus-visible { outline-offset: -3px; border-radius: 0; }
+.insta-play {
+  position: absolute; top: var(--e-3); right: var(--e-3); width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--fundo) 85%, transparent); color: var(--texto);
+}
+@media (prefers-reduced-motion: reduce) {
+  .insta-post img { transition: none; }
+  .insta-post:hover img { transform: none; }
+}
 
 .mapa-caixa {
   aspect-ratio: 21 / 9; border-radius: 16px; overflow: hidden; box-shadow: var(--sombra);
@@ -878,12 +1015,14 @@ img { max-width: 100%; display: block; }
      quando há poucos serviços. Sombra direcional, não simétrica — o objeto
      lido como se estivesse pousado numa bandeja sob luz de um lado só. */
   width: min(100%, 128px); aspect-ratio: 1;
-  border-radius: 50%; overflow: hidden; padding: 0;
+  border-radius: 50%; overflow: hidden; padding: 0; position: relative;
   background: var(--marca-clara); display: grid; place-items: center;
   border: 1px solid var(--marca-borda); box-shadow: var(--sombra-bandeja);
   transition: transform .18s ease, box-shadow .18s ease;
 }
-.svc-circulo img { width: 100%; height: 100%; object-fit: cover; }
+/* Absoluta pelo mesmo motivo de .cartao-img img: como item do grid, uma foto
+   em retrato esticava a linha e só o topo dela cabia no círculo. */
+.svc-circulo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .svc-inicial { font-size: var(--t-hero); font-weight: 700; color: var(--sobre-marca-clara); letter-spacing: -.01em; }
 .svc-circulo:hover { transform: translateY(-3px); box-shadow: var(--sombra-bandeja-hover); }
 

@@ -142,6 +142,14 @@ async function primeiraClienteReal() {
           depois: F('depois-1.jpg'),
         },
       ],
+      // A grade do Instagram no site. São fotos reais dela (as mesmas dos
+      // serviços), como quem preencheu a tela do painel — não são os posts
+      // de verdade do perfil, que só a conexão com a conta traria. Sem link,
+      // o toque abre o perfil.
+      instagramPosts: [
+        'servico-unhas-1.jpg', 'servico-cilios-1.jpg', 'servico-limpeza.jpg',
+        'servico-sobrancelha.jpg', 'servico-unhas-2.jpg', 'servico-facial.jpg',
+      ].map(u => ({ imagem: F(u), link: '' })),
       textos: {
         chamada: 'Agende seu horário',
         botaoAgendar: 'Agendar',

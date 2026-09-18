@@ -9,8 +9,8 @@ import { brl, duracaoTexto, soDigitos } from './datas.js';
 import Agendar from './Agendar.jsx';
 import Grade from './Grade.jsx';
 import {
-  HeroClinica, TituloClinica, SecaoEquipe, SecaoAntesDepois, SecaoAvaliacoes,
-  SecaoAgende, SecaoInstagram, SecaoMapa, BotaoWhatsApp,
+  HeroClinica, TituloClinica, CartoesClinica, SecaoEquipe, SecaoAntesDepois,
+  SecaoAvaliacoes, SecaoAgende, SecaoInstagram, SecaoMapa, BotaoWhatsApp,
 } from './Clinica.jsx';
 
 export default function App() {
@@ -194,6 +194,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
     ['Serviços', 'servicos'],
     ...(dados.profissionais?.length ? [['Equipe', 'equipe']] : []),
     ['Avaliações', 'avaliacoes'],
+    ...(negocio.instagram ? [['Instagram', 'instagram']] : []),
     ...(negocio.endereco ? [['Contato', 'contato']] : []),
   ] : null;
 
@@ -277,9 +278,15 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
             ? <TituloClinica olho="Serviços">Escolha o seu <em>momento.</em></TituloClinica>
             : <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>}
           {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
-          {exibir?.categorias && categorias.length > 1
-            ? <Categorias categorias={categorias} aoAbrir={aoAbrirCategoria} />
-            : <Servicos itens={servicos} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />}
+          {/* Na Clínica, cartões com foto larga (pedido da cliente, a partir
+              da referência); nos outros três, a grade de círculos. Os dois
+              respeitam "separar por categoria" do mesmo jeito. */}
+          {ehClinica
+            ? <CartoesClinica servicos={servicos} categorias={categorias} exibir={exibir}
+                              negocio={negocio} aoAgendar={aoAgendar} aoAbrir={aoAbrirCategoria} />
+            : exibir?.categorias && categorias.length > 1
+              ? <Categorias categorias={categorias} aoAbrir={aoAbrirCategoria} />
+              : <Servicos itens={servicos} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />}
         </div>
       </section>
 
@@ -292,7 +299,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           <SecaoAntesDepois casos={dados.antesDepois} />
           <SecaoAvaliacoes />
           <SecaoAgende textos={textos} aoAgendar={aoAgendar} />
-          <SecaoInstagram negocio={negocio} />
+          <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
           <SecaoMapa negocio={negocio} />
         </>
       )}
