@@ -50,7 +50,7 @@ O que o cenário traz, e por que cada peça está lá:
 
 | | Para quê |
 |---|---|
-| **Laura Faust** — 12 serviços em 4 categorias, 3 pessoas, 6 clientes, agenda de 4 meses | Telas cheias, relatório com número — é a bancada de ensaio da primeira cliente real da Vital, com nome, cor e fotos dela mesma (mais duas ilustrativas, do site de referência que ela trouxe) |
+| **Laura Faust** — 12 serviços em 4 categorias, 3 pessoas, 6 clientes, agenda de 4 meses | Telas cheias, relatório com número — é a bancada de ensaio da primeira cliente real da Vital, com nome, cor e fotos dela mesma (mais uma ilustrativa, do site de referência que ela trouxe) |
 | **Barbearia do João** — outro ramo, outra cor, outro vocabulário | Ver o isolamento entre empresas funcionando |
 | **Duas unidades** (Centro, Zona Sul) | O passo "onde você quer ser atendida" só aparece com mais de uma. Laura fica sem unidade de propósito: é o caso de quem atende nos dois endereços |
 | **Combo "Dia de cuidado"** | Preço cheio riscado, economia calculada, rateio da comissão |

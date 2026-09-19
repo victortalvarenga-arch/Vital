@@ -183,10 +183,10 @@ async function primeiraClienteReal() {
 
     // Foto por serviço — as 8 que Laura passou, repetidas onde faz sentido
     // dentro da mesma categoria (duas fotos de unha cobrem cinco serviços de
-    // unha), mais duas ilustrativas do site de referência dela
-    // (`servico-cuidado-pele.jpg`, `servico-design-sobrancelha.jpg`), que ela
-    // pediu para os cartões de Facial e Sobrancelhas. Nomes e preços continuam
-    // aproximação nossa: ela ainda não confirmou o menu de verdade.
+    // unha), mais a de laminação (`servico-sobrancelha-2.jpg`) e uma
+    // ilustrativa do site de referência dela (`servico-cuidado-pele.jpg`),
+    // pedida para o cartão de Facial. Nomes e preços continuam aproximação
+    // nossa: ela ainda não confirmou o menu de verdade.
     //
     // Quatro categorias, para a grade de cartões da Clínica fechar em 2×2. O
     // cartão de uma categoria mostra a foto do PRIMEIRO serviço dela que tem
@@ -199,7 +199,7 @@ async function primeiraClienteReal() {
       ['v5', 'Plástica dos pés', 'Unhas', 'Esfoliação, hidratação profunda e esmaltação.', 95, 70, ['s1'], F('servico-unhas-2.jpg')],
       ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2'], F('servico-cilios-1.jpg')],
       ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2'], F('servico-cilios-2.jpg')],
-      ['v13', 'Laminação de sobrancelhas', 'Sobrancelhas', 'Fios alinhados e efeito preenchido por até 6 semanas.', 120, 60, ['s2'], F('servico-design-sobrancelha.jpg')],
+      ['v13', 'Laminação de sobrancelhas', 'Sobrancelhas', 'Fios alinhados e efeito preenchido por até 6 semanas.', 120, 60, ['s2'], F('servico-sobrancelha-2.jpg')],
       ['v8', 'Design de sobrancelha', 'Sobrancelhas', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
       ['v9', 'Design com henna', 'Sobrancelhas', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
       ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-cuidado-pele.jpg')],
