@@ -181,10 +181,16 @@ async function primeiraClienteReal() {
       );
     }
 
-    // Foto real por serviço — mesmas 8 fotos que Laura passou, repetidas onde
-    // faz sentido dentro da mesma categoria (duas fotos de unha cobrem cinco
-    // serviços de unha, por exemplo). Nomes e preços continuam aproximação
-    // nossa: ela ainda não confirmou o menu de verdade.
+    // Foto por serviço — as 8 que Laura passou, repetidas onde faz sentido
+    // dentro da mesma categoria (duas fotos de unha cobrem cinco serviços de
+    // unha), mais duas ilustrativas do site de referência dela
+    // (`servico-cuidado-pele.jpg`, `servico-design-sobrancelha.jpg`), que ela
+    // pediu para os cartões de Facial e Sobrancelhas. Nomes e preços continuam
+    // aproximação nossa: ela ainda não confirmou o menu de verdade.
+    //
+    // Quatro categorias, para a grade de cartões da Clínica fechar em 2×2. O
+    // cartão de uma categoria mostra a foto do PRIMEIRO serviço dela que tem
+    // foto — por isso a laminação vem antes dos dois designs.
     const servicos = [
       ['v1', 'Esmaltação em gel', 'Unhas', 'Esmaltação curada na cabine, durabilidade de 3 semanas.', 85, 75, ['s1'], F('servico-unhas-1.jpg')],
       ['v2', 'Alongamento em fibra', 'Unhas', 'Alongamento F1 com acabamento em gel.', 160, 150, ['s1'], F('servico-unhas-2.jpg')],
@@ -193,9 +199,10 @@ async function primeiraClienteReal() {
       ['v5', 'Plástica dos pés', 'Unhas', 'Esfoliação, hidratação profunda e esmaltação.', 95, 70, ['s1'], F('servico-unhas-2.jpg')],
       ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2'], F('servico-cilios-1.jpg')],
       ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2'], F('servico-cilios-2.jpg')],
-      ['v8', 'Design de sobrancelha', 'Olhar', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
-      ['v9', 'Design com henna', 'Olhar', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
-      ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-limpeza.jpg')],
+      ['v13', 'Laminação de sobrancelhas', 'Sobrancelhas', 'Fios alinhados e efeito preenchido por até 6 semanas.', 120, 60, ['s2'], F('servico-design-sobrancelha.jpg')],
+      ['v8', 'Design de sobrancelha', 'Sobrancelhas', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
+      ['v9', 'Design com henna', 'Sobrancelhas', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
+      ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-cuidado-pele.jpg')],
       ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3'], F('servico-facial.jpg')],
     ];
     for (const [i, [id, nome, cat, desc, preco, dur, profs, foto]] of servicos.entries()) {
