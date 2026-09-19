@@ -200,7 +200,11 @@ async function primeiraClienteReal() {
       ['v6', 'Extensão de cílios 5D', 'Olhar', 'Volume russo com fios tecnológicos.', 190, 135, ['s2'], F('servico-cilios-1.jpg')],
       ['v7', 'Manutenção de cílios', 'Olhar', 'Até 21 dias após a aplicação.', 100, 90, ['s2'], F('servico-cilios-2.jpg')],
       ['v13', 'Laminação de sobrancelhas', 'Sobrancelhas', 'Fios alinhados e efeito preenchido por até 6 semanas.', 120, 60, ['s2'], F('servico-sobrancelha-2.jpg')],
-      ['v8', 'Design de sobrancelha', 'Sobrancelhas', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2'], F('servico-sobrancelha.jpg')],
+      // Karen também faz o design: é o que faz existir alguém que execute o
+      // combo "Dia de cuidado" (limpeza + design) do começo ao fim. Sem isso o
+      // combo ia para a vitrine sem ninguém habilitado, e o calendário dele
+      // nascia sem dia nenhum.
+      ['v8', 'Design de sobrancelha', 'Sobrancelhas', 'Mapeamento e modelagem com pinça.', 45, 35, ['s2', 's3'], F('servico-sobrancelha.jpg')],
       ['v9', 'Design com henna', 'Sobrancelhas', '', 60, 45, ['s2'], F('servico-sobrancelha.jpg')],
       ['v10', 'Limpeza de pele profunda', 'Facial', 'Extração, alta frequência e máscara calmante.', 180, 90, ['s3'], F('servico-cuidado-pele.jpg')],
       ['v11', 'Peeling de diamante', 'Facial', 'Renovação celular com microdermoabrasão.', 150, 60, ['s3'], F('servico-facial.jpg')],
@@ -262,10 +266,15 @@ async function primeiraClienteReal() {
 /**
  * O que o estúdio de exemplo ganhou depois que o seed foi escrito.
  *
- * Unidades, adicionais, combo e formulário nasceram em blocos posteriores e
- * ficaram de fora daqui — o que significa que uma máquina nova rodava
- * `npm run reset` e via um sistema mais pobre do que o que existe. Seed que não
- * mostra a funcionalidade é seed que faz a pessoa achar que ela não existe.
+ * Adicionais, combo e formulário nasceram em blocos posteriores e ficaram de
+ * fora daqui — o que significa que uma máquina nova rodava `npm run reset` e
+ * via um sistema mais pobre do que o que existe. Seed que não mostra a
+ * funcionalidade é seed que faz a pessoa achar que ela não existe.
+ *
+ * Unidades NÃO moram aqui de propósito: a Laura tem um endereço só, o de
+ * verdade, e duas lojas inventadas faziam o site contradizer o hero ("Rua
+ * Félix Heinzelmann" em cima, "Centro / Zona Sul" na janela). A funcionalidade
+ * continua visível no seed — na Barbearia, que é ficção inteira.
  */
 async function oResto() {
   const h = hoje();
@@ -289,25 +298,6 @@ async function oResto() {
       uid(), 's3', addDias(h, 14 + i * 7), '09:00', '19:00', 'Férias', ferias, h
     );
   }
-
-  /* ── unidades ─────────────────────────────────────────────────────────── */
-  // Duas, para a escolha de endereço aparecer no site. Com uma só, o passo some
-  // — e some com razão, mas aí não dá para ver como é.
-  const unidades = [
-    ['u1', 'Centro', 'Rua XV de Novembro, 100 — Centro', 0],
-    ['u2', 'Zona Sul', 'Av. Beira-Rio, 900 — Boa Vista', 1],
-  ];
-  for (const [id, nome, endereco, ordem] of unidades) {
-    await db.run(
-      `INSERT INTO units (id,nome,endereco,fone,mapa,jornada,ordem,ativo,criado_em)
-       VALUES (?,?,?,?,'','{}',?,1,?)`,
-      id, nome, endereco, '4733334444', ordem, h
-    );
-  }
-  // Laura fica sem unidade de propósito: é o caso de quem atende nos dois
-  // endereços, e o que o sistema faz com `unit_id` nulo.
-  await db.run(`UPDATE staff SET unit_id = 'u1' WHERE id = 's2'`);
-  await db.run(`UPDATE staff SET unit_id = 'u2' WHERE id = 's3'`);
 
   /* ── serviços adicionais ──────────────────────────────────────────────── */
   // Um extra que também se vende sozinho (design de sobrancelha na limpeza) e
@@ -386,7 +376,10 @@ async function segundaEmpresa() {
     await setConfig({
       nome: 'Barbearia do João',
       slogan: 'Corte e barba · Joinville',
-      endereco: 'Rua das Palmeiras, 88 — Joinville/SC',
+      // Com mais de uma unidade, o site mostra os endereços DELAS, não este —
+      // ver `lugares()` em web/src/site/enderecos.js. Fica igual ao da
+      // primeira loja para não haver duas versões do mesmo endereço.
+      endereco: 'Rua das Palmeiras, 88 — Centro, Joinville/SC',
       configurado: true,
       vocabulario: { profissional: 'barbeiro', profissionais: 'barbeiros' },
       // Segundo modelo de exemplo — Quadro de Horários, fundo escuro, números
@@ -400,13 +393,34 @@ async function segundaEmpresa() {
       uid(), 'João Silva', 'joao@barbearia.com', await hashDaSenha(SENHA_DEV), hoje()
     );
 
+    /* ── unidades ───────────────────────────────────────────────────────── */
+    // Duas, para a escolha de endereço aparecer no site. Com uma só, o passo
+    // some — e some com razão, mas aí não dá para ver como é. É a Barbearia
+    // que tem duas lojas, e não a Laura, porque a Barbearia é ficção inteira
+    // e a Laura tem um endereço só, o de verdade.
+    for (const [id, nome, endereco, ordem] of [
+      ['u1', 'Centro', 'Rua das Palmeiras, 88 — Centro, Joinville/SC', 0],
+      ['u2', 'Zona Sul', 'Av. Beira-Rio, 900 — Boa Vista, Joinville/SC', 1],
+    ]) {
+      await db.run(
+        `INSERT INTO units (id,nome,endereco,fone,mapa,jornada,ordem,ativo,criado_em)
+         VALUES (?,?,?,?,'','{}',?,1,?)`,
+        id, nome, endereco, '4733334444', ordem, hoje()
+      );
+    }
+
     const jornada = JSON.stringify(Object.fromEntries(
       [1, 2, 3, 4, 5, 6].map(d => [d, ['09:00', '19:00']])
     ));
-    for (const [id, nome, cor] of [['b1', 'João Silva', '#1F4E5F'], ['b2', 'Rafa Duarte', '#8A6A2F']]) {
+    // João fica sem unidade de propósito: é o dono, atende nas duas lojas, e é
+    // o que o sistema faz com `unit_id` nulo. Rafa só na Zona Sul — no Centro
+    // o passo de barbeiro some (sobra um), na Zona Sul aparece.
+    for (const [id, nome, cor, unidade] of [
+      ['b1', 'João Silva', '#1F4E5F', null], ['b2', 'Rafa Duarte', '#8A6A2F', 'u2'],
+    ]) {
       await db.run(
-        `INSERT INTO staff (id,nome,funcao,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,1,?)`,
-        id, nome, 'Barbeiro', cor, 40, jornada, hoje()
+        `INSERT INTO staff (id,nome,funcao,cor,comissao,jornada,unit_id,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`,
+        id, nome, 'Barbeiro', cor, 40, jornada, unidade, hoje()
       );
     }
     for (const [id, nome, preco, dur] of [

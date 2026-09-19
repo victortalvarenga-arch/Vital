@@ -350,9 +350,11 @@ O desenho final está em `ARQUITETURA.md`, seção "As duas telas".
       No celular vira uma coluna, com o resumo numa barra no rodapé que mostra
       o total e abre ao toque
 - [x] Resumo ao vivo: profissional, serviço, data e hora, total
-- [x] **Calendário por mês**, com navegação entre meses. Dia com vaga ganha um
-      traço embaixo do número — não só cor, que não serve a quem não a
-      distingue e some na impressão
+- [x] **Calendário por mês**, com navegação entre meses. Dia com vaga tem pista
+      além da cor (preenchimento e negrito; passado e sem vaga apagados) — cor
+      sozinha não serve a quem não a distingue. Data e horário na mesma tela,
+      com estado vazio escrito e saída pelo WhatsApp (refeito em 2026-09-19;
+      ver "As três telas" em `ARQUITETURA.md`)
 - [x] Rota nova `/publico/dias-livres?mes=`, resolvendo o mês numa consulta só;
       dia a dia seriam trinta idas ao banco para pintar uma tela
 - [x] Opção "qualquer profissional" no passo de escolha
@@ -651,6 +653,20 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
       seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
 
+- [ ] **O painel deixa cadastrar combo que ninguém faz inteiro, sem avisar.**
+      Limpeza (só a Karen) + design (só a Bia) salva normalmente; a vitrine
+      passou a esconder esse combo (2026-09-19), então a empresa cadastra a
+      promoção e ela simplesmente não aparece no site, sem explicação. Falta
+      `Combos.jsx` dizer, na hora de salvar, "ninguém da equipe faz todos os
+      serviços deste pacote" — `GET /api/combos/:id/profissionais` já
+      responde isso.
+
+- [ ] **Unidade com endereço diferente da config, quando é a única.** Com uma
+      unidade só, o site mostra `config.endereco` (regra de `lugares()`), e a
+      unidade pode ter outro endereço gravado — nada avisa. Caso raro (quem
+      tem uma loja não cadastra unidade), mas o painel poderia esconder a tela
+      de Unidades até a segunda, ou sincronizar os dois.
+
 - [ ] **O fechamento automático pode mandar mensagem para quem não veio.** Se
       ninguém marcar a falta, o sistema conclui o atendimento e a cliente
       recebe "como foi seu atendimento?" no dia seguinte às 11h. Hoje o que
@@ -703,6 +719,13 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       precisará de um provider falso quando a conta sair.
 - [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
       que ela segura.
+- [ ] **O site não tem teste de fluxo nenhum.** A ficha de anamnese ficou
+      sendo pulada no agendamento pelo site (um `setPasso('dados')` no lugar de
+      `avancar()`, logo depois do horário) e ninguém notou até refazer o fluxo
+      em 2026-09-19 — a suíte só cobre o servidor. Um teste de navegador
+      (Playwright) que atravesse serviço → horário → ficha → WhatsApp pegaria
+      isso; a captura por CDP usada na revisão mostrou que dá para automatizar
+      sem instalar nada além do Chrome.
 
 ### Produto
 

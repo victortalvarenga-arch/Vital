@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowDown, ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, ExternalLink,
-  Instagram, MapPin, MessageCircle, Play, Plus, ShieldCheck, Sparkles, Star,
+  Instagram, MessageCircle, Play, Plus, ShieldCheck, Sparkles, Star,
 } from 'lucide-react';
-import { Revela } from './App.jsx';
+import { Lugares, Revela } from './App.jsx';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
+import { lugares } from './enderecos.js';
 
 /**
  * Tudo que só o modelo Clínica tem: o cabeçalho de duas colunas, os serviços
@@ -44,7 +45,7 @@ export function TituloClinica({ olho, children }) {
    é como o título ganha a palavra de destaque sem inventar slogan nenhum:
    o dado é o nome, o gesto é do modelo. */
 
-export function HeroClinica({ negocio, marca, textos, aoAgendar }) {
+export function HeroClinica({ dados, negocio, marca, textos, aoAgendar }) {
   const palavras = (negocio.nome || '').trim().split(/\s+/);
   const ultima = palavras.length > 1 ? palavras.pop() : null;
   return (
@@ -68,13 +69,7 @@ export function HeroClinica({ negocio, marca, textos, aoAgendar }) {
               Conheça os serviços <ArrowDown size={14} />
             </a>
           </div>
-          {negocio.endereco && (
-            <a className="local"
-               href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
-               target="_blank" rel="noreferrer">
-              <MapPin size={15} /> {negocio.endereco}
-            </a>
-          )}
+          <Lugares dados={dados} className="local" />
         </div>
         <div className="clinica-hero-quadro">
           <CarrosselHero marca={marca} inicial={(negocio.nome || '?').trim()[0]?.toUpperCase()} />
@@ -480,22 +475,36 @@ export function SecaoInstagram({ negocio, marca, posts = [] }) {
 
 /* ── mapa ──
    Embed do Google Maps sem chave de API — só o endereço da própria empresa,
-   nunca uma localização inventada. */
+   nunca uma localização inventada. Com mais de uma unidade, um mapa por
+   endereço: a cliente vem ver onde fica a loja que ela vai, não a sede. */
 
-export function SecaoMapa({ negocio }) {
-  if (!negocio.endereco) return null;
+export function SecaoMapa({ dados }) {
+  const onde = lugares(dados);
+  if (!onde.length) return null;
   return (
     <section id="contato" className="bloco">
       <div className="env-largo">
-        <TituloClinica olho="Onde estamos">Um lugar para <em>você chegar.</em></TituloClinica>
-        <Revela>
-          <div className="mapa-caixa clinica-mapa">
-            <iframe
-              title="Localização no mapa"
-              src={`https://www.google.com/maps?q=${encodeURIComponent(negocio.endereco)}&output=embed`}
-              loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-          </div>
-        </Revela>
+        <TituloClinica olho="Onde estamos">
+          {onde.length > 1 ? <>Perto de <em>você.</em></> : <>Um lugar para <em>você chegar.</em></>}
+        </TituloClinica>
+        <div className={'mapas' + (onde.length > 1 ? ' mapas-varios' : '')}>
+          {onde.map(l => (
+            <Revela key={l.id || 'sede'}>
+              {l.nome && (
+                <p className="mapa-unidade">
+                  <b>{l.nome}</b>
+                  <span>{l.endereco}</span>
+                </p>
+              )}
+              <div className="mapa-caixa clinica-mapa">
+                <iframe
+                  title={`Localização no mapa${l.nome ? ` — ${l.nome}` : ''}`}
+                  src={`https://www.google.com/maps?q=${encodeURIComponent(l.endereco)}&output=embed`}
+                  loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              </div>
+            </Revela>
+          ))}
+        </div>
       </div>
     </section>
   );

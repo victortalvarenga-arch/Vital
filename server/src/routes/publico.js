@@ -52,14 +52,20 @@ async function vitrineDeCombos(cfg) {
   const lista = await combosAtivos();
   const saida = [];
   for (const c of lista) {
+    // Quem faz o pacote inteiro. O site precisa da lista para saber se há
+    // escolha de profissional a oferecer — e para não oferecer quem não faz.
+    const profissionais = await profissionaisDoCombo(c.id);
+    // Combo que ninguém faz do começo ao fim não vai para a vitrine: o site
+    // abriria um calendário sem dia nenhum, e a cliente atravessaria o fluxo
+    // inteiro para descobrir isso no fim. Acontece quando cada serviço do
+    // pacote é de uma pessoa diferente — o painel deixa cadastrar assim.
+    if (!profissionais.length) continue;
     saida.push({
       id: c.id, nome: c.nome, descricao: c.descricao, foto: c.foto,
       preco: c.preco, precoCheio: c.precoCheio, economia: c.economia,
       duracao: c.duracao, validoAte: c.validoAte,
       servicos: c.servicos.map(s => ({ id: s.id, nome: s.nome, preco: s.preco })),
-      // Quem faz o pacote inteiro. O site precisa da lista para saber se há
-      // escolha de profissional a oferecer — e para não oferecer quem não faz.
-      profissionais: await profissionaisDoCombo(c.id),
+      profissionais,
     });
   }
   return saida;
@@ -103,8 +109,11 @@ publico.get('/vitrine', rota(async (req, res) => {
     servicos: await comPrecoEExtras(servicos, cfg),
     // Promoção vencida não sai da vitrine: `combosAtivos` já a esconde.
     combos: await vitrineDeCombos(cfg),
+    // `unidadeId` sai porque é onde a pessoa atende, não dado dela: o site
+    // precisa saber para não oferecer, numa unidade, serviço que só quem está
+    // na outra faz — e para dizer o endereço certo na confirmação.
     profissionais: equipe.map(staffOut)
-      .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor })),
+      .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor, unidadeId: p.unidadeId })),
   });
 }));
 

@@ -820,6 +820,13 @@ body {
 }
 .mapa-caixa iframe { width: 100%; height: 100%; border: 0; }
 @media (max-width: 640px) { .mapa-caixa { aspect-ratio: 4 / 3; } }
+/* Mais de uma unidade: um mapa por endereço, lado a lado quando cabe. */
+.mapas { display: grid; gap: var(--e-6); }
+.mapas-varios { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.mapas-varios .mapa-caixa { aspect-ratio: 4 / 3; }
+.mapa-unidade { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--e-3); }
+.mapa-unidade b { font-size: var(--t-titulo-pq); }
+.mapa-unidade span { color: var(--cinza); font-size: var(--t-corpo-pq); }
 
 h1, h2, h3, h4 { margin: 0; line-height: 1.2; letter-spacing: -.02em; font-weight: 700; }
 p { margin: 0; }
@@ -906,10 +913,14 @@ img { max-width: 100%; display: block; }
   max-width: 14ch;
 }
 .identidade .slogan { color: var(--cinza); font-size: var(--t-titulo-pq); margin-top: var(--e-3); max-width: 32ch; }
+/* Um por linha: com mais de uma unidade, cada endereço é um link próprio
+   (ver `Lugares` em App.jsx) e dois inline lado a lado viravam uma frase só. */
 .identidade .local {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: var(--e-3);
-  color: var(--cinza); font-size: var(--t-corpo-pq); text-decoration: none;
+  display: flex; width: fit-content; align-items: flex-start; gap: 6px; margin-top: var(--e-3);
+  color: var(--cinza); font-size: var(--t-corpo-pq); text-decoration: none; line-height: 1.45;
 }
+.identidade .local + .local { margin-top: 6px; }
+.identidade .local svg { flex: none; margin-top: 3px; }
 .identidade .local:hover { color: var(--marca-legivel); }
 .chamada { margin-top: var(--e-7); width: 100%; max-width: 320px; }
 
@@ -1116,11 +1127,19 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 24px 70px -20px rgba(0, 0, 0, .5);
   position: relative;
 }
-
 /* coluna 1 — onde estou */
 .jn-guia {
   background: var(--superficie); border-right: 1px solid var(--linha);
   padding: 26px var(--e-6); display: flex; flex-direction: column; text-align: center;
+}
+/* Entre o celular (uma coluna) e a largura cheia, as laterais de 260 e 280
+   deixavam o miolo com 270px — menos que os sete dias do calendário. Aqui a
+   coluna-guia some (o título dela já está no cabeçalho do passo, como no
+   celular) e o miolo fica com espaço para data e horas lado a lado. Depois
+   da regra base, senão o `display: flex` dela vence. */
+@media (min-width: 860px) and (max-width: 1099px) {
+  .jn { grid-template-columns: 1fr 250px; }
+  .jn-guia { display: none; }
 }
 .jn-bolinhas { display: flex; gap: 7px; justify-content: center; }
 .bolinha { width: 7px; height: 7px; border-radius: 50%; background: var(--linha); transition: background .2s; }
@@ -1150,6 +1169,10 @@ img { max-width: 100%; display: block; }
   /* No celular a rolagem interna não deve arrastar a página atrás junto. */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  /* O passo de data decide o layout pela largura DESTE miolo, não da tela:
+     a janela vira três colunas a 860px e o miolo encolhe justamente quando a
+     tela cresce — uma media query punha as horas em cima dos dias. */
+  container-type: inline-size;
 }
 .jn-pe { padding: var(--e-3) var(--e-6); border-top: 1px solid var(--linha); }
 .jn-voltar {
@@ -1187,22 +1210,16 @@ img { max-width: 100%; display: block; }
 .jn-opcao-desc { color: var(--cinza); font-size: var(--t-auxiliar); line-height: 1.4; }
 .jn-opcao-seta { color: var(--fraco); flex: none; }
 
-/* adicionais: marcáveis, não navegáveis — por isso caixa em vez de seta */
-.jn-add { cursor: pointer; }
-.jn-add.on { border-color: var(--marca); background: var(--marca-clara); }
-.jn-caixa {
-  width: 22px; height: 22px; border-radius: 7px; flex: none;
-  border: 1.5px solid var(--linha); background: var(--fundo);
-  display: grid; place-items: center; color: var(--sobre-marca-escura);
-  transition: background .15s, border-color .15s;
+/* a lista de serviços, agrupada por categoria quando a empresa separa */
+.jn-grupos { display: flex; flex-direction: column; gap: var(--e-5); }
+.jn-grupo-titulo {
+  font-size: var(--t-rotulo); text-transform: uppercase; letter-spacing: .1em;
+  color: var(--fraco); font-weight: 700; margin: 0 0 var(--e-2);
 }
-.jn-caixa.on { background: var(--marca-escura); border-color: var(--marca-escura); }
-
-.jn-add-pe {
-  margin-top: var(--e-5); padding-top: var(--e-4); border-top: 1px solid var(--linha);
-  display: flex; flex-direction: column; gap: 10px;
+.jn-ver-todos {
+  display: inline-flex; align-items: center; gap: 4px; align-self: center;
+  color: var(--marca-legivel); font-size: var(--t-corpo-pq); font-weight: 600; min-height: 44px; padding: 0 var(--e-3);
 }
-.jn-add-soma { font-size: var(--t-corpo-pq); color: var(--cinza); text-align: center; }
 
 .jn-extra {
   display: flex; justify-content: space-between; gap: 10px;
@@ -1210,14 +1227,39 @@ img { max-width: 100%; display: block; }
 }
 .jn-extra span { color: var(--cinza); font-weight: 600; }
 
-/* calendário do mês */
+/* ── calendário do mês ──
+   Data e horário na mesma tela: calendário à esquerda, horas à direita quando
+   o miolo tem largura para os dois (container query — ver .jn-corpo); senão
+   uma embaixo da outra. 480px = sete dias de 36px mais uma coluna de horas
+   de duas pílulas. */
+.cal-duplo { display: grid; grid-template-columns: 1fr; gap: var(--e-5); }
+@container (min-width: 440px) {
+  .cal-duplo { grid-template-columns: minmax(0, 1.1fr) minmax(168px, .8fr); align-items: start; }
+}
+/* Empilhado num miolo largo, o calendário não vira um pôster: 420px é um dia
+   de 56px, o bastante para o dedo e para o olho. */
+.cal-lado { min-width: 0; max-width: 420px; }
+
+/* Ajustes em cima do calendário: com quem, e o que incluir. */
+.cal-ajustes { display: flex; flex-direction: column; gap: var(--e-3); margin-bottom: var(--e-5); }
+.cal-ajuste { display: flex; flex-direction: column; gap: 6px; }
+.cal-ajuste-rotulo {
+  font-size: var(--t-rotulo); text-transform: uppercase; letter-spacing: .1em;
+  color: var(--fraco); font-weight: 700;
+}
+.pilulas { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.pilulas .jn-op { display: inline-flex; align-items: center; gap: 6px; }
+.jn-op-preco { color: var(--cinza); font-size: var(--t-legenda); font-weight: 600; }
+.jn-op.on .jn-op-preco { color: inherit; opacity: .8; }
 .cal-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: var(--e-4); }
 .cal-mes { font-size: var(--t-titulo-pq); font-weight: 700; }
+/* Só a seta, com o nome no aria-label: "Mês anterior" por extenso quebrava em
+   duas linhas tanto ao lado das horas quanto no celular. */
 .cal-nav {
-  display: inline-flex; align-items: center; gap: 6px; color: var(--cinza);
-  font-size: var(--t-auxiliar); min-height: 40px; padding: 0 6px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--cinza);
+  width: 40px; height: 40px; border-radius: var(--raio-pq); border: 1px solid var(--linha);
 }
-.cal-nav:hover:not(:disabled) { color: var(--marca-legivel); }
+.cal-nav:hover:not(:disabled) { color: var(--marca-legivel); border-color: var(--marca-legivel); }
 .cal-nav:disabled { opacity: .35; cursor: not-allowed; }
 
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--e-1); }
@@ -1225,32 +1267,95 @@ img { max-width: 100%; display: block; }
   text-align: center; font-size: var(--t-rotulo); text-transform: uppercase; letter-spacing: .08em;
   color: var(--fraco); padding-bottom: 6px; font-weight: 600;
 }
+/* Quatro estados, cada um com uma pista além da cor (peso, opacidade,
+   preenchimento) — cor sozinha não serve a quem não a distingue:
+   · sem vaga: apagado, sem fundo, peso normal;
+   · passado / fora do mês: mais apagado ainda;
+   · com vaga: preenchido no tom claro da marca, em negrito — é o que se toca;
+   · escolhido: sólido na cor escura da marca.
+   Hoje ganha um ponto embaixo do número, em qualquer estado. */
+/* Sem largura mínima: o dia segue a coluna da grade. `min-height` junto com
+   `aspect-ratio` vira largura mínima também, e foi o que fez os dias
+   transbordarem por cima das horas no meio-termo de largura. */
 .cal-dia {
   aspect-ratio: 1; border-radius: var(--raio-pq); font-size: var(--t-corpo-pq); font-weight: 500;
-  color: var(--fraco); background: var(--superficie); position: relative;
-  display: grid; place-items: center; min-height: 40px;
+  color: var(--fraco); background: transparent; border: 1px solid transparent; position: relative;
+  display: grid; place-items: center; min-width: 0; opacity: .55; padding: 0;
+  transition: background .15s, border-color .15s;
 }
-.cal-dia.fora { opacity: .35; }
 .cal-dia:disabled { cursor: default; }
-/* Dia com vaga ganha um traço embaixo: cor sozinha não serve a quem não a
-   distingue, e o traço também aparece em impressão e alto contraste. */
-.cal-dia.livre { color: var(--texto); background: var(--fundo); font-weight: 600; }
-.cal-dia.livre::after {
-  content: ''; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
-  width: 16px; height: 2.5px; border-radius: 2px; background: var(--marca);
+.cal-dia.passado, .cal-dia.fora { opacity: .28; }
+/* Texto na cor do modelo, não --sobre-marca-clara: aquela garante só 3:1,
+   que serve à inicial grande do círculo de serviço e não a um número de
+   14px. Texto escuro sobre o tom claro da marca passa folgado em todo modelo. */
+.cal-dia.livre {
+  opacity: 1; font-weight: 700; color: var(--texto);
+  /* 20% da marca no fundo do modelo, não --marca-clara (12% em branco): no
+     creme da Clínica aquela quase sumia, e "dia com vaga" é o que a pessoa
+     precisa achar de longe. A borda na cor cheia fecha o destaque. */
+  background: color-mix(in srgb, var(--marca) 20%, var(--fundo)); border-color: var(--marca);
 }
-.cal-dia.livre:hover { background: var(--marca-clara); }
-.cal-dia.on { background: var(--marca-escura); color: var(--sobre-marca-escura); }
-.cal-dia.on::after { background: var(--sobre-marca-escura); }
+.cal-dia.livre:hover { background: color-mix(in srgb, var(--marca) 32%, var(--fundo)); }
+.cal-dia.on, .cal-dia.on:hover {
+  background: var(--marca-escura); color: var(--sobre-marca-escura); border-color: var(--marca-escura);
+}
+.cal-dia.hoje { opacity: 1; color: var(--texto); }
+.cal-dia.hoje::after {
+  content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--marca);
+}
+.cal-dia.hoje.on { color: var(--sobre-marca-escura); }
+.cal-dia.hoje.on::after { background: var(--sobre-marca-escura); }
 
-.cal-horas { margin-top: var(--e-5); padding-top: var(--e-4); border-top: 1px solid var(--linha); }
-.cal-horas h4 { font-size: var(--t-corpo-pq); margin-bottom: var(--e-3); text-transform: capitalize; }
-.horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: var(--e-2); }
+.cal-legenda {
+  display: flex; gap: var(--e-4); margin-top: var(--e-3);
+  font-size: var(--t-legenda); color: var(--fraco);
+}
+.cal-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.cal-legenda i {
+  display: inline-block; width: 14px; height: 14px; border-radius: 4px;
+}
+.cal-legenda-livre { background: color-mix(in srgb, var(--marca) 20%, var(--fundo)); border: 1px solid var(--marca); }
+.cal-legenda-hoje {
+  border: 1px solid var(--linha); position: relative;
+}
+.cal-legenda-hoje::after {
+  content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--marca);
+}
+
+.cal-horas { padding-top: var(--e-4); border-top: 1px solid var(--linha); min-width: 0; }
+/* Depois da regra base de propósito: mesma especificidade, e a de container
+   precisa vencer quando vale. */
+@container (min-width: 440px) {
+  .cal-horas { padding: 0 0 0 var(--e-5); border-top: 0; border-left: 1px solid var(--linha); align-self: stretch; }
+}
+/* Só a inicial em maiúscula: `capitalize` fazia "Seg, 21 De Set". */
+.cal-horas h4 { font-size: var(--t-corpo-pq); margin-bottom: var(--e-3); }
+.cal-horas h4::first-letter { text-transform: uppercase; }
+.horas-grupo + .horas-grupo { margin-top: var(--e-4); }
+.horas-grupo h5 {
+  font-size: var(--t-rotulo); text-transform: uppercase; letter-spacing: .1em;
+  color: var(--fraco); font-weight: 700; margin: 0 0 var(--e-2);
+}
+.horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: var(--e-2); }
 .hora {
   padding: 12px 0; border-radius: var(--raio-pq); border: 1px solid var(--linha);
   background: var(--fundo); font-weight: 600; font-size: var(--t-corpo-pq); min-height: 46px;
 }
 .hora:hover { border-color: var(--marca); background: var(--marca-clara); }
+
+/* O estado vazio da agenda: mês cheio, mês ainda fechado, dia sem vaga. Diz o
+   que aconteceu e oferece saída — o WhatsApp dentro da própria tela. */
+.agenda-vazia {
+  display: flex; flex-direction: column; gap: var(--e-2);
+  background: var(--superficie); border: 1px solid var(--linha); border-radius: 12px;
+  padding: var(--e-4);
+}
+.agenda-vazia strong { font-size: var(--t-corpo); }
+.agenda-vazia p { color: var(--cinza); font-size: var(--t-auxiliar); line-height: 1.5; }
+.agenda-vazia-acoes { display: flex; flex-wrap: wrap; gap: var(--e-2); margin-top: var(--e-2); }
+.agenda-vazia-acoes:empty { display: none; }
 
 /* formulário e confirmação dentro da janela */
 .jn-form { max-width: 380px; }
@@ -1442,7 +1547,9 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--linha); border-radius: var(--raio-pq); background: var(--superficie);
   color: inherit; width: 100%; }
 .jn-pergunta input:focus, .jn-pergunta textarea:focus { outline: 2px solid var(--marca-legivel); outline-offset: -1px; }
-.jn-opcoes { display: flex; gap: var(--e-2); flex-wrap: wrap; }
+/* As respostas de escolha são pílulas em linha (`.pilulas`, junto do
+   calendário). Já foi `.jn-opcoes` — que é a lista em coluna dos serviços, e
+   por isso "Sim" e "Não" saíam empilhados um sobre o outro. */
 .jn-op { font: inherit; font-size: var(--t-corpo-pq); padding: 9px 15px; border-radius: var(--pilula); cursor: pointer;
   border: 1px solid var(--linha); background: var(--superficie); color: inherit; min-height: 42px; }
 .jn-op.on { background: var(--marca-escura); color: var(--sobre-marca-escura); border-color: var(--marca-escura); }

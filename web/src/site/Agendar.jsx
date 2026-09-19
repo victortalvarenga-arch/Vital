@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, User, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, MessageCircle, User, X } from 'lucide-react';
 import * as api from '../shared/publico.js';
-import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, soDigitos, mascaraFone } from './datas.js';
+import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, somarDias, soDigitos, mascaraFone } from './datas.js';
+import { lugares, lugarDaUnidade } from './enderecos.js';
 
 /**
  * Agendamento em janela sobre a home.
@@ -14,13 +15,19 @@ import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, soDigitos, ma
  * no rodapé que mostra o total e abre ao toque.
  */
 
+/**
+ * Serviço → data e horário → dados. É o caminho inteiro.
+ *
+ * Categoria, adicionais e "quem atende" já foram passos próprios: sete telas,
+ * três delas pedindo decisão antes de a pessoa ver um horário sequer. Hoje a
+ * lista de serviços é uma só (agrupada por categoria quando a empresa separa),
+ * e extras e profissional são ajustes dentro da tela de data — quem não quer
+ * mexer neles não os vê como pergunta.
+ */
 const PASSOS = [
   { k: 'unidade', titulo: 'Onde você quer ser atendida?', ajuda: 'Escolha o endereço mais perto de você.' },
-  { k: 'categoria', titulo: 'Escolha a categoria', ajuda: 'Depois você vê as opções dentro dela.' },
   { k: 'servico', titulo: 'Escolha o serviço', ajuda: 'O que você quer fazer hoje.' },
-  { k: 'adicionais', titulo: 'Quer incluir algo mais?', ajuda: 'Serviços que combinam com o que você escolheu. Pode pular.' },
-  { k: 'profissional', titulo: 'Escolha quem atende', ajuda: 'Você pode deixar que a gente escolha por você.' },
-  { k: 'data', titulo: 'Selecione a data e horário', ajuda: 'Dias marcados têm horário disponível.' },
+  { k: 'data', titulo: 'Escolha data e horário', ajuda: 'Os dias em destaque têm horário livre. Toque num deles para ver as horas.' },
   { k: 'ficha', titulo: 'Só mais algumas perguntas', ajuda: 'A equipe precisa disso para te atender com segurança.' },
   { k: 'dados', titulo: 'Seus dados', ajuda: 'Só o WhatsApp, para você receber a confirmação.' },
   { k: 'pronto', titulo: 'Tudo certo', ajuda: '' },
@@ -28,18 +35,35 @@ const PASSOS = [
 
 export default function Agendar({ dados, servicoInicial, categoriaInicial, comboInicial, aoFechar }) {
   const { negocio, textos, exibir, profissionais } = dados;
-  // Igual à home: o extra que só se vende junto não entra na escolha do
-  // serviço principal, mas continua sendo encontrado como adicional.
-  const servicos = dados.servicos.filter(s => !s.somenteAdicional);
   const combo = (dados.combos || []).find(c => c.id === comboInicial) || null;
   const unidades = dados.unidades || [];
+
+  /**
+   * A unidade é de quem atende, não do serviço (ver ARQUITETURA.md).
+   *
+   * Quem está sem unidade atende em qualquer uma — é o estado de toda a equipe
+   * de antes de existirem unidades. E um serviço é oferecido num endereço
+   * quando há ali alguém que o faça: oferecer "Facial" no Centro quando só a
+   * Zona Sul tem quem faça leva a cliente por cinco telas até um calendário
+   * sem dia nenhum.
+   */
+  const atendeEm = (p, unidadeId) => !unidadeId || !p.unidadeId || p.unidadeId === unidadeId;
+  const ofertadoEm = (s, unidadeId) => !unidadeId
+    || profissionais.some(p => s.profissionais?.includes(p.id) && atendeEm(p, unidadeId));
+
+  // Abrindo por um serviço ou combo, só entram os endereços onde ele se faz.
+  // Sobrou um? Não se pergunta — mas fica escolhido, para o resumo e a
+  // confirmação dizerem onde.
+  const alvoInicial = combo || (servicoInicial && dados.servicos.find(s => s.id === servicoInicial)) || null;
+  const unidadesOfertadas = alvoInicial ? unidades.filter(u => ofertadoEm(alvoInicial, u.id)) : unidades;
+
   const [escolha, setEscolha] = useState(() => ({
     categoria: categoriaInicial
-      || (servicoInicial ? servicos.find(x => x.id === servicoInicial)?.categoria : null)
+      || (servicoInicial ? dados.servicos.find(x => x.id === servicoInicial)?.categoria : null)
       || null,
     servicoId: servicoInicial || null,
     comboId: comboInicial || null,
-    unidadeId: null,
+    unidadeId: unidades.length > 1 && unidadesOfertadas.length === 1 ? unidadesOfertadas[0].id : null,
     adicionaisIds: [], profissionalId: null, data: null, hora: null, respostas: {},
   }));
   const [fichas, setFichas] = useState([]);
@@ -47,6 +71,11 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
   const [aviso, setAviso] = useState(null);
   const [resumoAberto, setResumoAberto] = useState(false);
   const janela = useRef(null);
+
+  // Igual à home: o extra que só se vende junto não entra na escolha do
+  // serviço principal, mas continua sendo encontrado como adicional. E só o
+  // que se faz no endereço escolhido entra na lista.
+  const servicos = dados.servicos.filter(s => !s.somenteAdicional && ofertadoEm(s, escolha.unidadeId));
 
   /**
    * O que está sendo comprado.
@@ -60,11 +89,11 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     ? { id: combo.id, nome: combo.nome, preco: combo.preco, duracao: combo.duracao,
         profissionais: combo.profissionais, ehCombo: true }
     : servicos.find(s => s.id === escolha.servicoId);
-  // Quem está sem unidade atende em qualquer uma — é o estado de toda a equipe
-  // de antes de existirem unidades.
-  const daUnidade = p => !escolha.unidadeId || !p.unidadeId || p.unidadeId === escolha.unidadeId;
-  const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id) && daUnidade(p));
+  const equipe = profissionais.filter(p => servico?.profissionais?.includes(p.id) && atendeEm(p, escolha.unidadeId));
   const profissional = profissionais.find(p => p.id === escolha.profissionalId);
+  // Onde vai ser: a unidade escolhida ou, quando o passo foi pulado, a de quem
+  // atende. Nulo quando a empresa tem um endereço só — aí vale o da config.
+  const unidade = lugarDaUnidade(dados, escolha.unidadeId || profissional?.unidadeId);
   // Da lista completa: o extra escolhido pode ser um que não se vende sozinho,
   // e ele precisa aparecer no resumo e na confirmação como qualquer outro.
   const extras = dados.servicos.filter(x => escolha.adicionaisIds.includes(x.id));
@@ -101,45 +130,28 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
    */
   const util = useCallback(k => {
     // Empresa de um endereço só não responde a pergunta que não tem: o passo
-    // some inteiro, e nada muda para quem sempre teve uma loja.
-    if (k === 'unidade') return unidades.length > 1;
-    // No combo o pacote já está fechado: não há categoria, serviço nem extra a
-    // escolher, só quem atende e quando.
-    if (combo) return k === 'profissional'
-      ? exibir?.escolherProfissional && equipe.length > 1
-      : ['unidade', 'data', 'dados', 'pronto'].includes(k);
-    // Continua útil quando a janela abriu por uma categoria: é para lá que o
-    // "Voltar" leva, e trocar de categoria sem fechar é o caminho natural.
-    if (k === 'categoria') return !servicoInicial && exibir?.categorias && categorias.length > 1;
-    if (k === 'adicionais') return ofertados.length > 0;
+    // some inteiro, e nada muda para quem sempre teve uma loja. O mesmo vale
+    // quando o que a cliente abriu só se faz num dos endereços.
+    if (k === 'unidade') return unidadesOfertadas.length > 1;
+    // O cartão da home é a entrada do fluxo: quem clicou em "Limpeza de pele"
+    // já escolheu, e não escolhe de novo. Combo idem — o pacote está fechado.
+    if (k === 'servico') return !servicoInicial && !combo;
     // Serviço que não pede nada não ganha um passo vazio.
     if (k === 'ficha') return fichas.length > 0;
-    if (k === 'profissional') return exibir?.escolherProfissional && equipe.length > 1;
     return true;
-  }, [combo, servicoInicial, exibir, categorias.length, ofertados.length, equipe.length, unidades.length, fichas.length]);
+  }, [combo, servicoInicial, unidadesOfertadas.length, fichas.length]);
 
   /**
-   * A janela sempre abre no começo do fluxo.
+   * A janela abre no primeiro passo que ainda tem pergunta.
    *
-   * Antes ela pulava direto para o primeiro passo com pergunta pendente. Com
-   * serviço já escolhido, sem adicionais cadastrados e uma profissional só,
-   * isso caía no calendário com as bolinhas quase cheias — parecia que a
-   * janela tinha continuado de onde parou.
-   *
-   * Clicar em "Agendar" num serviço não é jogado fora: ele já vem marcado, e
-   * a lista abre filtrada na categoria dele. Vindo de uma categoria, a janela
-   * abre direto na lista daquele grupo — a home não repete essa lista.
+   * Serviço vindo do cartão cai direto no calendário; vindo de uma categoria,
+   * na lista daquele grupo (com "ver todos" para trocar); do botão geral, na
+   * lista inteira. Já foi o contrário — abrir sempre do começo, com o serviço
+   * só marcado — e o custo era refazer três escolhas que a home já tinha
+   * recebido. A unidade, quando existe, vem antes de tudo: ela recorta quem
+   * atende, e perguntá-la depois obrigaria a refazer o resto.
    */
-  // A condição precisa ser a MESMA de util('categoria'). Com uma categoria só,
-  // olhar a quantidade de serviços fazia a janela abrir num passo que util()
-  // considera inválido — e aí o "Voltar" não tinha para onde ir e morria.
-  const [passo, setPasso] = useState(() => {
-    // A unidade vem antes de tudo quando existe: ela recorta quem atende, e
-    // perguntá-la depois obrigaria a refazer as escolhas.
-    if (util('unidade')) return 'unidade';
-    if (comboInicial) return PASSOS.find(p => util(p.k))?.k || 'data';
-    return !servicoInicial && !categoriaInicial && util('categoria') ? 'categoria' : 'servico';
-  });
+  const [passo, setPasso] = useState(() => PASSOS.find(p => util(p.k))?.k || 'data');
 
   const andar = (de, direcao) => {
     let i = PASSOS.findIndex(p => p.k === de) + direcao;
@@ -185,11 +197,8 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
   // Caiu num passo sem nada a perguntar: segue adiante sozinho.
   useEffect(() => {
     if (passo === 'pronto' || util(passo)) return;
-    if (passo === 'profissional') {
-      setEscolha(e => ({ ...e, profissionalId: equipe.length === 1 ? equipe[0].id : null }));
-    }
     setPasso(p => andar(p, 1));
-  }, [passo, util, equipe]);
+  }, [passo, util]);
 
   const voltar = () => {
     // No primeiro passo que esta cliente vê, "Voltar" fecha — e não tenta
@@ -239,7 +248,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
           <div className="jn-corpo">
             {passo === 'unidade' && (
               <Opcoes
-                itens={unidades.map(u => ({ id: u.id, nome: u.nome, sub: u.endereco }))}
+                itens={unidadesOfertadas.map(u => ({ id: u.id, nome: u.nome, sub: u.endereco }))}
                 marcado={escolha.unidadeId}
                 aoEscolher={id => {
                   // Trocar de endereço invalida quem atende e quando: a equipe
@@ -251,69 +260,38 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
               />
             )}
 
-            {passo === 'categoria' && (
-              <Opcoes
-                itens={categorias.map(c => ({
-                  id: c.nome, nome: c.nome, foto: c.itens.find(x => x.foto)?.foto,
-                  sub: `${c.itens.length} ${c.itens.length === 1 ? 'opção' : 'opções'}`,
-                }))}
-                aoEscolher={nome => {
-                  setEscolha(e => ({ ...e, categoria: nome, servicoId: null, adicionaisIds: [] }));
-                  setPasso('servico');
-                }}
-              />
-            )}
-
             {passo === 'servico' && (
-              <Opcoes
+              <ListaDeServicos
+                categorias={categorias} categoria={escolha.categoria} exibir={exibir}
                 marcado={escolha.servicoId}
-                itens={(escolha.categoria
-                  ? servicos.filter(x => (x.categoria || 'Serviços') === escolha.categoria)
-                  : servicos
-                ).map(s => ({
-                  id: s.id, nome: s.nome, foto: s.foto, desc: s.descricao,
-                  sub: [s.preco != null ? brl(s.preco) : 'Sob consulta',
-                        exibir?.duracao ? duracaoTexto(s.duracao) : null].filter(Boolean).join(' · '),
-                }))}
+                aoVerTodos={() => setEscolha(e => ({ ...e, categoria: null }))}
                 aoEscolher={id => {
                   setEscolha(e => ({ ...e, servicoId: id, adicionaisIds: [], profissionalId: null, data: null, hora: null }));
-                  setPasso('adicionais');
+                  avancar();
                 }}
-              />
-            )}
-
-            {passo === 'adicionais' && (
-              <PassoAdicionais
-                ofertados={ofertados} escolhidos={escolha.adicionaisIds} exibir={exibir}
-                aoAlternar={id => setEscolha(e => ({
-                  ...e,
-                  // Mudar os extras muda a duração, e o horário escolhido pode
-                  // não caber mais: a data volta a ser perguntada.
-                  adicionaisIds: e.adicionaisIds.includes(id)
-                    ? e.adicionaisIds.filter(x => x !== id)
-                    : [...e.adicionaisIds, id],
-                  data: null, hora: null,
-                }))}
-                aoSeguir={avancar}
-              />
-            )}
-
-            {passo === 'profissional' && (
-              <Opcoes
-                itens={[
-                  { id: null, nome: 'Qualquer profissional', sub: 'A gente escolhe quem estiver livre', icone: true },
-                  ...equipe.map(p => ({ id: p.id, nome: p.nome, sub: p.funcao, cor: p.cor })),
-                ]}
-                aoEscolher={id => { setEscolha(e => ({ ...e, profissionalId: id, data: null, hora: null })); setPasso('data'); }}
               />
             )}
 
             {passo === 'data' && (
               <PassoData
                 escolha={escolha} negocio={negocio} aviso={setAviso}
+                equipe={exibir?.escolherProfissional && equipe.length > 1 ? equipe : []}
+                ofertados={ofertados}
+                aoMudarProfissional={id => setEscolha(e => ({ ...e, profissionalId: id, data: null, hora: null }))}
+                aoAlternarAdicional={id => setEscolha(e => ({
+                  ...e,
+                  // Mudar os extras muda a duração, e o horário escolhido pode
+                  // não caber mais: a agenda é consultada de novo.
+                  adicionaisIds: e.adicionaisIds.includes(id)
+                    ? e.adicionaisIds.filter(x => x !== id)
+                    : [...e.adicionaisIds, id],
+                  data: null, hora: null,
+                }))}
                 aoEscolher={(data, hora, profId) => {
                   setEscolha(e => ({ ...e, data, hora, profissionalId: profId ?? e.profissionalId }));
-                  setPasso('dados');
+                  // Por `avancar`, não direto para os dados: a ficha, quando o
+                  // serviço tem uma, mora entre o horário e o WhatsApp.
+                  avancar();
                 }}
               />
             )}
@@ -336,7 +314,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
             {passo === 'pronto' && (
               <Pronto resultado={confirmado} escolha={escolha} servico={servico}
-                      profissional={profissional} extras={extras} negocio={negocio}
+                      profissional={profissional} extras={extras} dados={dados} unidade={unidade}
                       textos={textos} aoFechar={aoFechar} />
             )}
           </div>
@@ -352,8 +330,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
         {/* coluna 3 — o que já foi escolhido */}
         <Resumo
-          servico={servico} profissional={profissional}
-          unidade={unidades.find(u => u.id === escolha.unidadeId)} escolha={escolha}
+          servico={servico} profissional={profissional} unidade={unidade} escolha={escolha}
           extras={extras} total={total}
           aberto={resumoAberto} aoAlternar={() => setResumoAberto(v => !v)}
         />
@@ -446,95 +423,162 @@ function Opcoes({ itens, aoEscolher, marcado }) {
 }
 
 /**
- * Extras oferecidos junto do serviço escolhido.
+ * A lista de serviços, uma só.
  *
- * Marcar é opcional e o botão de seguir fica sempre disponível: um passo que
- * obriga a escolher algo para sair vira obstáculo, e obstáculo no meio do
- * agendamento custa venda.
+ * Doze serviços cabem numa lista — a tela de categoria antes dela era um
+ * toque a mais sem ganho. Quando a empresa separa por categoria, o grupo vira
+ * um título dentro da lista, não uma tela. Vindo de um cartão de categoria da
+ * home, a lista abre só naquele grupo, com "ver todos" para trocar.
  */
-function PassoAdicionais({ ofertados, escolhidos, exibir, aoAlternar, aoSeguir }) {
-  const soma = ofertados
-    .filter(x => escolhidos.includes(x.id))
-    .reduce((n, x) => n + Number(x.preco || 0), 0);
+function ListaDeServicos({ categorias, categoria, exibir, marcado, aoEscolher, aoVerTodos }) {
+  const grupos = categoria ? categorias.filter(c => c.nome === categoria) : categorias;
+  const comTitulo = !categoria && exibir?.categorias && categorias.length > 1;
 
   return (
-    <>
-      <div className="jn-opcoes">
-        {ofertados.map(x => {
-          const on = escolhidos.includes(x.id);
-          return (
-            <button key={x.id} className={'jn-opcao jn-add' + (on ? ' on' : '')}
-                    onClick={() => aoAlternar(x.id)}
-                    role="checkbox" aria-checked={on}>
-              <span className={'jn-caixa' + (on ? ' on' : '')} aria-hidden="true">
-                {on && <Check size={14} />}
-              </span>
-              {x.foto && <img className="jn-opcao-foto" src={x.foto} alt="" />}
-              <span className="jn-opcao-txt">
-                <span className="jn-opcao-nome">{x.nome}</span>
-                <span className="jn-opcao-sub">
-                  {x.preco != null ? `+ ${brl(x.preco)}` : 'Sob consulta'}
-                  {exibir?.duracao && ` · + ${duracaoTexto(x.duracao)}`}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="jn-add-pe">
-        {escolhidos.length > 0 && soma > 0 && (
-          <p className="jn-add-soma">
-            {escolhidos.length} {escolhidos.length === 1 ? 'adicional' : 'adicionais'} · + {brl(soma)}
-          </p>
-        )}
-        <button className="b b-p b-larg" onClick={aoSeguir}>
-          {escolhidos.length ? 'Continuar' : 'Continuar sem adicionais'}
+    <div className="jn-grupos">
+      {/* Categoria que ficou sem serviço neste endereço: avisa, e o "ver
+          todos" logo abaixo continua sendo a saída. */}
+      {!grupos.some(g => g.itens.length) && <p className="jn-vazio">Nada disponível por aqui.</p>}
+      {grupos.map(g => (
+        <section key={g.nome} className="jn-grupo">
+          {comTitulo && <h3 className="jn-grupo-titulo">{g.nome}</h3>}
+          <Opcoes
+            marcado={marcado}
+            itens={g.itens.map(s => ({
+              id: s.id, nome: s.nome, foto: s.foto, desc: s.descricao,
+              sub: [s.preco != null ? brl(s.preco) : 'Sob consulta',
+                    exibir?.duracao ? duracaoTexto(s.duracao) : null].filter(Boolean).join(' · '),
+            }))}
+            aoEscolher={aoEscolher}
+          />
+        </section>
+      ))}
+      {categoria && categorias.length > 1 && (
+        <button className="jn-ver-todos" onClick={aoVerTodos}>
+          Ver todos os serviços <ChevronRight size={15} />
         </button>
-      </div>
-    </>
+      )}
+    </div>
   );
 }
 
-function PassoData({ escolha, negocio, aoEscolher, aviso }) {
-  const [mes, setMes] = useState(mesDe(hojeISO()));
-  const [comVaga, setComVaga] = useState(null);
+/**
+ * Os ajustes da tela de data: com quem, e o que incluir.
+ *
+ * Eram dois passos próprios, cada um uma tela inteira antes de a pessoa ver
+ * um horário. Aqui são duas linhas de pílulas em cima do calendário, e mexer
+ * em qualquer uma consulta a agenda de novo — a duração e a equipe mudam. Quem
+ * não quer mexer não precisa responder nada.
+ */
+function Ajustes({ escolha, equipe, ofertados, aoMudarProfissional, aoAlternarAdicional }) {
+  if (!equipe.length && !ofertados.length) return null;
+  return (
+    <div className="cal-ajustes">
+      {equipe.length > 0 && (
+        <div className="cal-ajuste" role="radiogroup" aria-label="Com quem">
+          <span className="cal-ajuste-rotulo">Com quem</span>
+          <div className="pilulas">
+            <button type="button" role="radio" aria-checked={!escolha.profissionalId}
+                    className={'jn-op' + (!escolha.profissionalId ? ' on' : '')}
+                    onClick={() => aoMudarProfissional(null)}>
+              Qualquer
+            </button>
+            {equipe.map(p => (
+              <button key={p.id} type="button" role="radio" aria-checked={escolha.profissionalId === p.id}
+                      className={'jn-op' + (escolha.profissionalId === p.id ? ' on' : '')}
+                      onClick={() => aoMudarProfissional(p.id)}>
+                {p.nome}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {ofertados.length > 0 && (
+        <div className="cal-ajuste">
+          <span className="cal-ajuste-rotulo">Incluir</span>
+          <div className="pilulas">
+            {ofertados.map(x => {
+              const on = escolha.adicionaisIds.includes(x.id);
+              return (
+                <button key={x.id} type="button" role="checkbox" aria-checked={on}
+                        className={'jn-op' + (on ? ' on' : '')}
+                        onClick={() => aoAlternarAdicional(x.id)}>
+                  {on && <Check size={13} />}
+                  {x.nome}
+                  {x.preco != null && <span className="jn-op-preco">+ {brl(x.preco)}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Data e horário na mesma tela.
+ *
+ * Calendário de um lado, as horas do outro (no celular, uma embaixo da outra):
+ * a pessoa vê se sobrou horário que serve antes de se comprometer com o dia.
+ * O primeiro dia com vaga já abre selecionado, para a coluna de horas não
+ * nascer vazia — e as horas vêm agrupadas em manhã, tarde e noite, que é como
+ * a pessoa pensa ("de tarde eu consigo").
+ *
+ * Toda situação sem horário tem texto e saída: mês cheio, mês que a agenda
+ * ainda não abriu, dia sem vaga. Calendário cinza sem uma palavra é o que a
+ * cliente de verdade vê toda vez que a agenda lota, e ela precisa de um
+ * caminho — o WhatsApp — em vez de um beco.
+ */
+function PassoData({ escolha, negocio, equipe, ofertados, aoMudarProfissional, aoAlternarAdicional, aoEscolher, aviso }) {
+  const hoje = hojeISO();
+  const [mes, setMes] = useState(mesDe(hoje));
+  const [comVaga, setComVaga] = useState(null);   // null = consultando
   const [dia, setDia] = useState(null);
-  const [horas, setHoras] = useState(null);
+  const [horas, setHoras] = useState(null);       // null = buscando
+  const painelHoras = useRef(null);
+  // Cada consulta leva um número; resposta de consulta velha (trocou de mês
+  // antes de voltar) é ignorada, senão ela pinta por cima da nova.
+  const vezMes = useRef(0), vezDia = useRef(0);
 
-  const carregarMes = useCallback(async () => {
-    setComVaga(null);
-    try {
-      const r = await api.diasLivres({
-        servicoId: escolha.servicoId,
-        comboId: escolha.comboId || undefined,
-        profissionalId: escolha.profissionalId || undefined,
-        unidadeId: escolha.unidadeId || undefined,
-        adicionais: escolha.adicionaisIds,
-        mes,
-      });
-      setComVaga(new Set(r.dias));
-    } catch (e) { aviso(e.message); setComVaga(new Set()); }
-  }, [mes, escolha.servicoId, escolha.comboId, escolha.profissionalId, escolha.unidadeId, escolha.adicionaisIds, aviso]);
+  const consulta = useMemo(() => ({
+    servicoId: escolha.servicoId,
+    comboId: escolha.comboId || undefined,
+    profissionalId: escolha.profissionalId || undefined,
+    unidadeId: escolha.unidadeId || undefined,
+    adicionais: escolha.adicionaisIds,
+  }), [escolha.servicoId, escolha.comboId, escolha.profissionalId, escolha.unidadeId, escolha.adicionaisIds]);
 
-  useEffect(() => { carregarMes(); }, [carregarMes]);
-
-  const abrirDia = async d => {
+  const abrirDia = useCallback(async d => {
+    const minha = ++vezDia.current;
     setDia(d); setHoras(null);
     try {
-      const r = await api.horarios({
-        servicoId: escolha.servicoId,
-        comboId: escolha.comboId || undefined,
-        profissionalId: escolha.profissionalId || undefined,
-        unidadeId: escolha.unidadeId || undefined,
-        adicionais: escolha.adicionaisIds,
-        data: d,
-      });
+      const r = await api.horarios({ ...consulta, data: d });
+      if (minha !== vezDia.current) return;
       setHoras(r.horarios
         ? r.horarios.map(h => ({ hora: h }))
         : (r.porProfissional || []).flatMap(p => p.horarios.map(h => ({ hora: h, profissionalId: p.profissionalId }))));
-    } catch (e) { aviso(e.message); setHoras([]); }
-  };
+    } catch (e) {
+      if (minha !== vezDia.current) return;
+      aviso(e.message); setHoras([]);
+    }
+  }, [consulta, aviso]);
+
+  const carregarMes = useCallback(async () => {
+    const minha = ++vezMes.current;
+    setComVaga(null); setDia(null); setHoras(null);
+    try {
+      const r = await api.diasLivres({ ...consulta, mes });
+      if (minha !== vezMes.current) return;
+      setComVaga(new Set(r.dias));
+      if (r.dias[0]) abrirDia(r.dias[0]);
+    } catch (e) {
+      if (minha !== vezMes.current) return;
+      aviso(e.message); setComVaga(new Set());
+    }
+  }, [mes, consulta, aviso, abrirDia]);
+
+  useEffect(() => { carregarMes(); }, [carregarMes]);
 
   // Sem profissional escolhido, o mesmo horário pode vir de várias pessoas.
   const horasUnicas = useMemo(() => {
@@ -544,60 +588,152 @@ function PassoData({ escolha, negocio, aoEscolher, aviso }) {
   }, [horas]);
 
   const grade = useMemo(() => montarMes(mes), [mes]);
-  const mesMinimo = mesDe(hojeISO());
+  // A agenda abre até `janelaDias` à frente: navegar além disso só mostraria
+  // mês vazio atrás de mês vazio.
+  const mesMinimo = mesDe(hoje);
+  const mesMaximo = mesDe(somarDias(hoje, negocio.janelaDias || 30));
+  const semVagaNoMes = comVaga !== null && comVaga.size === 0;
+  const zap = negocio.whatsapp ? `https://wa.me/55${soDigitos(negocio.whatsapp)}` : null;
+
+  // Com as horas embaixo do calendário (tela estreita), tocar num dia as traz
+  // para a vista; ao lado, `nearest` não move nada. Só no toque — na abertura
+  // automática do primeiro dia a rolagem tiraria o calendário da vista antes
+  // de a pessoa vê-lo.
+  const tocarDia = iso => {
+    abrirDia(iso);
+    painelHoras.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
 
   return (
     <>
-      <div className="cal-topo">
-        <button className="cal-nav" disabled={mes <= mesMinimo}
-                onClick={() => setMes(somarMes(mes, -1))}>
-          <ChevronLeft size={16} /> <span>Mês anterior</span>
-        </button>
-        <strong className="cal-mes">{nomeDoMes(mes)}</strong>
-        <button className="cal-nav" onClick={() => setMes(somarMes(mes, 1))}>
-          <span>Próximo mês</span> <ChevronRight size={16} />
-        </button>
-      </div>
-
-      <div className="cal">
-        {['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(d => (
-          <span key={d} className="cal-cab">{d}</span>
-        ))}
-        {grade.map(({ iso, numero, doMes }, i) => {
-          const livre = comVaga?.has(iso);
-          return (
-            <button
-              key={i}
-              className={'cal-dia' + (doMes ? '' : ' fora') + (livre ? ' livre' : '') + (iso === dia ? ' on' : '')}
-              disabled={!livre}
-              onClick={() => abrirDia(iso)}
-              aria-label={livre ? `${porExtenso(iso)} — tem horário` : `${porExtenso(iso)} — sem horário`}
-            >
-              {numero}
-            </button>
-          );
-        })}
-      </div>
-      {comVaga === null && <p className="jn-vazio">Consultando a agenda…</p>}
-
-      {dia && (
-        <div className="cal-horas">
-          <h4>{porExtenso(dia)}</h4>
-          {horas === null && <p className="jn-vazio">Buscando horários…</p>}
-          {horas?.length === 0 && <p className="jn-vazio">Sem horário livre neste dia.</p>}
-          {horasUnicas.length > 0 && (
-            <div className="horas">
-              {horasUnicas.map(h => (
-                <button key={h.hora} className="hora"
-                        onClick={() => aoEscolher(dia, h.hora, h.profissionalId)}>
-                  {h.hora}
-                </button>
-              ))}
-            </div>
-          )}
+    <Ajustes escolha={escolha} equipe={equipe} ofertados={ofertados}
+             aoMudarProfissional={aoMudarProfissional} aoAlternarAdicional={aoAlternarAdicional} />
+    <div className="cal-duplo">
+      <div className="cal-lado">
+        <div className="cal-topo">
+          <button className="cal-nav" disabled={mes <= mesMinimo} aria-label="Mês anterior"
+                  onClick={() => setMes(somarMes(mes, -1))}>
+            <ChevronLeft size={18} />
+          </button>
+          <strong className="cal-mes">{nomeDoMes(mes)}</strong>
+          <button className="cal-nav" disabled={mes >= mesMaximo} aria-label="Próximo mês"
+                  onClick={() => setMes(somarMes(mes, 1))}>
+            <ChevronRight size={18} />
+          </button>
         </div>
-      )}
+
+        <div className="cal">
+          {['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(d => (
+            <span key={d} className="cal-cab">{d}</span>
+          ))}
+          {grade.map(({ iso, numero, doMes }, i) => {
+            const livre = !!comVaga?.has(iso);
+            const passado = iso < hoje;
+            const ehHoje = iso === hoje;
+            const classes = ['cal-dia', !doMes && 'fora', passado && 'passado', ehHoje && 'hoje',
+              livre && 'livre', iso === dia && 'on'].filter(Boolean).join(' ');
+            return (
+              <button
+                key={i}
+                className={classes}
+                disabled={!livre}
+                onClick={() => tocarDia(iso)}
+                aria-current={ehHoje ? 'date' : undefined}
+                aria-pressed={livre ? iso === dia : undefined}
+                aria-label={`${porExtenso(iso)}${ehHoje ? ', hoje' : ''} — ${
+                  livre ? 'tem horário' : passado ? 'já passou' : 'sem horário'}`}
+              >
+                {numero}
+              </button>
+            );
+          })}
+        </div>
+        <p className="cal-legenda" aria-hidden="true">
+          <span><i className="cal-legenda-livre" /> com horário</span>
+          <span><i className="cal-legenda-hoje" /> hoje</span>
+        </p>
+        {comVaga === null && <p className="jn-vazio">Consultando a agenda…</p>}
+      </div>
+
+      <div className="cal-horas" ref={painelHoras}>
+        {semVagaNoMes && (
+          <VazioAgenda
+            titulo={`Sem horários em ${nomeDoMes(mes).split(' ')[0].toLowerCase()}`}
+            texto={textoMesCheio({ temProximo: mes < mesMaximo, temZap: !!zap })}
+            zap={zap}
+            acao={mes < mesMaximo && (
+              <button className="b b-c b-peq" onClick={() => setMes(somarMes(mes, 1))}>
+                Ver o próximo mês <ChevronRight size={15} />
+              </button>
+            )} />
+        )}
+
+        {dia && (
+          <>
+            <h4>{porExtenso(dia)}</h4>
+            {horas === null && <p className="jn-vazio">Buscando horários…</p>}
+            {horas?.length === 0 && (
+              <VazioAgenda
+                titulo="Não há horários nesta data"
+                texto="Escolha outro dia em destaque no calendário, ou fale com a gente."
+                zap={zap} />
+            )}
+            {porPeriodo(horasUnicas).map(p => (
+              <div key={p.nome} className="horas-grupo">
+                <h5>{p.nome}</h5>
+                <div className="horas">
+                  {p.horas.map(h => (
+                    <button key={h.hora} className="hora"
+                            onClick={() => aoEscolher(dia, h.hora, h.profissionalId)}>
+                      {h.hora}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
     </>
+  );
+}
+
+/** A frase do mês cheio só promete a saída que existe. */
+function textoMesCheio({ temProximo, temZap }) {
+  const saidas = [temProximo && 'veja o mês seguinte', temZap && 'fale com a gente'].filter(Boolean);
+  if (!saidas.length) return 'A agenda deste mês está cheia.';
+  const frase = saidas.join(' ou ');
+  return `A agenda deste mês está cheia. ${frase[0].toUpperCase()}${frase.slice(1)}`
+    + (temZap ? ' — às vezes abre uma vaga.' : '.');
+}
+
+/** Manhã / tarde / noite — só os períodos que têm hora. */
+const PERIODOS = [['Manhã', '00:00', '12:00'], ['Tarde', '12:00', '18:00'], ['Noite', '18:00', '24:00']];
+const porPeriodo = horas => PERIODOS
+  .map(([nome, de, ate]) => ({ nome, horas: horas.filter(h => h.hora >= de && h.hora < ate) }))
+  .filter(p => p.horas.length);
+
+/**
+ * O estado vazio da agenda: o que aconteceu, e por onde sair.
+ *
+ * O WhatsApp fica dentro da própria tela, não só na coluna da esquerda (que
+ * no celular nem aparece): quem não achou horário precisa da saída na mão.
+ */
+function VazioAgenda({ titulo, texto, zap, acao }) {
+  return (
+    <div className="agenda-vazia" role="status">
+      <strong>{titulo}</strong>
+      <p>{texto}</p>
+      <div className="agenda-vazia-acoes">
+        {acao}
+        {zap && (
+          <a className="b b-c b-peq" href={zap} target="_blank" rel="noreferrer">
+            <MessageCircle size={15} /> Falar no WhatsApp
+          </a>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -659,7 +795,7 @@ function PassoFicha({ fichas, respostas, aoMudar, aoSeguir, aviso }) {
                   onChange={e => set(f.id, c.id, e.target.value)} />
               )}
               {c.tipo === 'sim_nao' && (
-                <div className="jn-opcoes">
+                <div className="pilulas">
                   {[['Sim', true], ['Não', false]].map(([rotulo, v]) => (
                     <button key={rotulo} type="button"
                             className={'jn-op' + (pega(f.id, c.id) === v ? ' on' : '')}
@@ -668,7 +804,7 @@ function PassoFicha({ fichas, respostas, aoMudar, aoSeguir, aviso }) {
                 </div>
               )}
               {c.tipo === 'escolha' && (
-                <div className="jn-opcoes">
+                <div className="pilulas">
                   {c.opcoes.map(o => (
                     <button key={o} type="button"
                             className={'jn-op' + (pega(f.id, c.id) === o ? ' on' : '')}
@@ -677,7 +813,7 @@ function PassoFicha({ fichas, respostas, aoMudar, aoSeguir, aviso }) {
                 </div>
               )}
               {c.tipo === 'multipla' && (
-                <div className="jn-opcoes">
+                <div className="pilulas">
                   {c.opcoes.map(o => {
                     const marcadas = pega(f.id, c.id) || [];
                     return (
@@ -837,7 +973,13 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   );
 }
 
-function Pronto({ resultado, escolha, servico, profissional, extras, negocio, textos, aoFechar }) {
+function Pronto({ resultado, escolha, servico, profissional, extras, dados, unidade, textos, aoFechar }) {
+  // O endereço da unidade onde vai ser, quando há mais de uma; senão o único
+  // que o site mostra. Nunca a config por cima da unidade — seria o hero e a
+  // janela dizendo endereços diferentes de novo.
+  const onde = unidade
+    ? `${unidade.nome} · ${unidade.endereco}`
+    : (lugares(dados).length === 1 ? lugares(dados)[0].endereco : null);
   return (
     <div className="jn-pronto">
       <div className="jn-pronto-marca"><Check size={30} /></div>
@@ -851,7 +993,7 @@ function Pronto({ resultado, escolha, servico, profissional, extras, negocio, te
         {extras?.length > 0 && <ItemResumo rotulo="Adicionais" valor={extras.map(x => x.nome).join(', ')} />}
         {profissional && <ItemResumo rotulo="Com" valor={profissional.nome} />}
         <ItemResumo rotulo="Quando" valor={`${porExtenso(escolha.data)} · ${escolha.hora}`} />
-        {negocio.endereco && <ItemResumo rotulo="Onde" valor={negocio.endereco} />}
+        {onde && <ItemResumo rotulo="Onde" valor={onde} />}
       </dl>
       <button className="b b-p b-larg" onClick={aoFechar}>Fechar</button>
     </div>

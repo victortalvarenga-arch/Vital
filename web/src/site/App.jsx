@@ -6,6 +6,7 @@ import {
 import * as api from '../shared/publico.js';
 import { aplicarTema } from './tema.js';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
+import { lugares } from './enderecos.js';
 import Agendar from './Agendar.jsx';
 import Grade from './Grade.jsx';
 import {
@@ -126,6 +127,22 @@ function BarraTopo({ negocio, marca, aoAgendar, temCapa, secoes }) {
   );
 }
 
+/**
+ * Os endereços da empresa, um link por lugar.
+ *
+ * Vem de `lugares()`: as unidades quando há mais de uma, senão o endereço da
+ * config. É o mesmo componente no hero, no rodapé e na Clínica, para o site
+ * nunca dizer um endereço num canto e outro no seguinte.
+ */
+export function Lugares({ dados, className, tamanho = 15 }) {
+  return lugares(dados).map(l => (
+    <a key={l.id || 'sede'} className={className} href={l.mapa} target="_blank" rel="noreferrer">
+      <MapPin size={tamanho} />
+      <span>{l.nome && <b>{l.nome} · </b>}{l.endereco}</span>
+    </a>
+  ));
+}
+
 /* ── revelar ao rolar ──────────────────────────────────────────────
    Discreto de propósito: a página existe para agendar rápido, não para
    impressionar. Quem pediu menos movimento no sistema não vê nada. */
@@ -195,7 +212,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
     ...(dados.profissionais?.length ? [['Equipe', 'equipe']] : []),
     ['Avaliações', 'avaliacoes'],
     ...(negocio.instagram ? [['Instagram', 'instagram']] : []),
-    ...(negocio.endereco ? [['Contato', 'contato']] : []),
+    ...(lugares(dados).length ? [['Contato', 'contato']] : []),
   ] : null;
 
   return (
@@ -204,7 +221,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
                  temCapa={temFaixaDeCapa} secoes={secoesClinica} />
 
       {ehClinica ? (
-        <HeroClinica negocio={negocio} marca={marca} textos={textos} aoAgendar={aoAgendar} />
+        <HeroClinica dados={dados} negocio={negocio} marca={marca} textos={textos} aoAgendar={aoAgendar} />
       ) : (
         <>
           {/* A foto de capa, quando existe, é uma peça acima do cabeçalho —
@@ -224,13 +241,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
               <Logo marca={marca} nome={negocio.nome} />
               <h1>{negocio.nome}</h1>
               {negocio.slogan && <p className="slogan">{negocio.slogan}</p>}
-              {negocio.endereco && (
-                <a className="local"
-                   href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
-                   target="_blank" rel="noreferrer">
-                  <MapPin size={15} /> {negocio.endereco}
-                </a>
-              )}
+              <Lugares dados={dados} className="local" />
               <div className="chamada">
                 <button className="b b-p b-larg" onClick={() => aoAgendar(null)}>
                   <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
@@ -300,11 +311,11 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           <SecaoAvaliacoes />
           <SecaoAgende textos={textos} aoAgendar={aoAgendar} />
           <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
-          <SecaoMapa negocio={negocio} />
+          <SecaoMapa dados={dados} />
         </>
       )}
 
-      <Rodape negocio={negocio} textos={textos} cheio={ehClinica} />
+      <Rodape dados={dados} negocio={negocio} textos={textos} cheio={ehClinica} />
       {ehClinica && <BotaoWhatsApp negocio={negocio} />}
     </main>
   );
@@ -467,20 +478,14 @@ function Promocoes({ itens, exibir, aoAgendar }) {
   );
 }
 
-function Rodape({ negocio, textos, cheio }) {
+function Rodape({ dados, negocio, textos, cheio }) {
   const NOMES_PAG = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
   return (
     <footer className={'bloco rodape' + (cheio ? ' bloco-cheio' : '')}>
       <div className="env">
         <h2 className="bloco-titulo pequeno">Contato</h2>
         <div className="rodape-links">
-          {negocio.endereco && (
-            <a className="rodape-link"
-               href={negocio.mapa || `https://maps.google.com/?q=${encodeURIComponent(negocio.endereco)}`}
-               target="_blank" rel="noreferrer">
-              <MapPin size={17} /> {negocio.endereco}
-            </a>
-          )}
+          <Lugares dados={dados} className="rodape-link" tamanho={17} />
           {negocio.whatsapp && (
             <a className="rodape-link" href={`https://wa.me/55${soDigitos(negocio.whatsapp)}`}
                target="_blank" rel="noreferrer">

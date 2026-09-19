@@ -152,14 +152,21 @@ vem do Git são as fotos — ver "Onde as fotos moram", abaixo.
 
 | Na Laura Faust | |
 |---|---|
-| Unidades | Centro e Zona Sul. Bia atende no Centro, Karen na Zona Sul, Laura nos dois |
-| Combo | "Dia de cuidado" — limpeza + design por R$ 199, em vez de R$ 225 |
+| Combo | "Dia de cuidado" — limpeza + design por R$ 199, em vez de R$ 225. Só a Karen faz os dois, então é ela quem aparece |
 | Adicionais | Design de sobrancelha e depilação de buço na limpeza; plástica dos pés em toda a categoria Unhas |
 | Só como adicional | Depilação de buço — não aparece sozinha na vitrine |
 | Formulário | Anamnese facial, 4 perguntas, pedida na limpeza e no peeling |
 
 Para ver cada um funcionando: escolha "Limpeza de pele profunda" no site — ela
-puxa a unidade, os adicionais e a ficha no mesmo agendamento.
+puxa os adicionais e a ficha no mesmo agendamento.
+
+| Na Barbearia do João | |
+|---|---|
+| Unidades | Centro e Zona Sul. João atende nas duas (sem unidade), Rafa só na Zona Sul. No Centro o passo de barbeiro some; na Zona Sul aparece |
+
+A Laura tem um endereço só, o de verdade — as duas lojas de exemplo moram na
+Barbearia, que é ficção inteira. Com mais de uma unidade o site mostra os
+endereços delas no hero, no rodapé e no mapa, e não o da config.
 
 ## Cadastrar uma empresa nova
 

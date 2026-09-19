@@ -18,6 +18,12 @@ export const hojeISO = () => {
 
 export const mesDe = iso => iso.slice(0, 7);
 
+/** 'YYYY-MM-DD' + n dias. Em UTC de propósito: só aritmética, sem fuso. */
+export const somarDias = (iso, n) => {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, d + n)).toISOString().slice(0, 10);
+};
+
 export const nomeDoMes = mes => {
   const [ano, m] = mes.split('-').map(Number);
   return `${MESES[m - 1][0].toUpperCase()}${MESES[m - 1].slice(1)} ${ano}`;

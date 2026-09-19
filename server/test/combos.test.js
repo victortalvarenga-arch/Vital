@@ -172,6 +172,20 @@ describe('a promoção na vitrine', () => {
       'a Bia não faz sobrancelha, então não faz este combo');
   });
 
+  test('pacote que ninguém faz inteiro não vai para a vitrine', async () => {
+    // Corte é das duas; sobrancelha só da Ana. Tira a Ana do corte: ninguém
+    // mais faz os dois, e o site abriria um calendário sem dia nenhum.
+    await novoCombo();
+    await db.db.comEmpresa('default', () => db.salvarVinculos('s1', ['p2']));
+    try {
+      const { corpo } = await api.anonimo()('GET', '/api/publico/vitrine');
+      assert.deepEqual(corpo.combos, [],
+        'combo sem quem o execute do começo ao fim é beco sem saída no site');
+    } finally {
+      await db.db.comEmpresa('default', () => db.salvarVinculos('s1', ['p1', 'p2']));
+    }
+  });
+
   test('promoção vencida some sozinha, sem job nenhum ter rodado', async () => {
     await novoCombo(dona, { validoAte: '2020-12-31' });
     const { corpo } = await api.anonimo()('GET', '/api/publico/vitrine');

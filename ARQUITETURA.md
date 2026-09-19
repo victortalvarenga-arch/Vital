@@ -223,22 +223,57 @@ os serviços por categoria, cada um com botão próprio. Mobile primeiro, porque
 quase todo agendamento sai do celular.
 
 **O agendamento é uma janela sobre a home**, não uma troca de tela — a cliente
-não perde de vista onde estava. Os passos são categoria → serviço → adicionais
-→ profissional → data → dados, e **passo sem o que perguntar é pulado**: uma
-função só (`util`) decide isso, e a navegação anda por ela nos dois sentidos.
-Com três passos opcionais, decidir com `if` espalhado já tinha produzido o bug
-de "voltar" cair num passo que a ida havia pulado.
+não perde de vista onde estava. Os passos são unidade → serviço → data e
+horário → ficha → dados, e **passo sem o que perguntar é pulado**: uma função
+só (`util`) decide isso, e a navegação anda por ela nos dois sentidos. Com
+passos opcionais, decidir com `if` espalhado já tinha produzido o bug de
+"voltar" cair num passo que a ida havia pulado.
 
-**A janela sempre abre no começo do fluxo**, mesmo quando a cliente clicou em
-"Agendar" num serviço específico — o serviço apenas já vem marcado e a lista
-abre filtrada na categoria dele. Antes ela pulava direto para o primeiro passo
-com pergunta pendente, e sem adicionais cadastrados nem escolha de profissional
-isso caía no calendário com as bolinhas quase cheias: parecia que a janela
-tinha continuado de onde parou. A janela também remonta a cada abertura, então
-não há estado sobrando de uma escolha anterior. Três colunas: em que passo está, o passo atual,
-e o resumo do que já escolheu com o total. O resumo não é enfeite: é ele que dá
-segurança para confirmar. No celular vira uma coluna só, com o resumo numa
-barra no rodapé que mostra o total e abre ao toque.
+**Serviço → data e horário → dados é o caminho inteiro** (decidido em
+2026-09-19). Categoria, adicionais e "quem atende" já foram passos próprios:
+sete telas, três delas pedindo decisão antes de a pessoa ver um horário. Hoje a
+lista de serviços é uma só — agrupada por título de categoria quando a empresa
+separa, e doze serviços cabem numa lista — e extras e profissional viraram duas
+linhas de pílulas em cima do calendário, que consultam a agenda de novo ao
+mudar. Quem não quer mexer neles não responde nada. O passo de unidade
+continua, só quando há mais de um endereço para o que a cliente abriu.
+
+**O cartão da home é a entrada do fluxo.** Quem clicou em "Limpeza de pele"
+cai direto no calendário com o serviço escolhido; quem clicou numa categoria
+cai na lista daquele grupo, com "ver todos" para trocar; o botão geral abre a
+lista inteira. Já foi o contrário — a janela abria sempre do começo, com o
+serviço só marcado, por medo de parecer que "continuou de onde parou" — e o
+custo era refazer três escolhas que a home já tinha recebido. A janela remonta
+a cada abertura, então não há estado sobrando de uma escolha anterior.
+
+**A unidade escolhida recorta o catálogo, não só a equipe.** Um serviço só entra
+na lista quando há, naquele endereço, alguém que o faça (a unidade é de quem
+atende — ver [Unidades](#unidades)); categoria sem serviço some junto. Sem isso
+a cliente escolhia o Centro, via "Facial", e atravessava cinco telas até um
+calendário sem dia nenhum, porque só a Zona Sul tinha quem fizesse. Abrindo a
+janela por um serviço ou combo, o passo de unidade só oferece os endereços onde
+ele se faz — e, sobrando um, nem pergunta. A vitrine manda `unidadeId` de cada
+profissional para o site poder fazer essa conta.
+
+**Data e horário são uma tela só.** Calendário de um lado, horas do outro
+quando o miolo da janela tem largura para os dois — decidido por *container
+query* sobre `.jn-corpo`, não por largura da tela: a janela vira três colunas a
+860px e o miolo encolhe justamente quando a tela cresce, e uma media query
+punha as horas em cima dos dias. O primeiro dia com vaga já abre, e as horas
+vêm agrupadas em manhã, tarde e noite. Separar em duas telas fazia a pessoa
+escolher o dia sem saber se sobrava horário que servisse. O calendário tem
+quatro estados com pista além da cor (sem vaga apagado, passado mais apagado,
+com vaga preenchido em negrito, escolhido sólido) e hoje leva um ponto. **Toda
+situação sem horário tem texto e saída** — mês cheio, dia sem vaga — com o
+WhatsApp dentro da própria tela: calendário cinza sem uma palavra é o que uma
+cliente de verdade vê toda vez que a agenda lota. A navegação de mês para em
+`janelaDias`, porque além dele só haveria mês vazio atrás de mês vazio.
+
+Três colunas: em que passo está, o passo atual, e o resumo do que já escolheu
+com o total. O resumo não é enfeite: é ele que dá segurança para confirmar. No
+celular vira uma coluna só, com o resumo numa barra no rodapé que mostra o
+total e abre ao toque; entre 860 e 1100px a coluna-guia some (o título dela
+já está no cabeçalho do passo) para o miolo caber.
 
 Quem decide os horários livres é o servidor. São **duas rotas, de propósito**:
 `/api/publico/dias-livres?mes=` diz quais dias do mês têm vaga, e
@@ -766,7 +801,10 @@ agendamentos vendidos apontam para ele.
 **Quem vende o pacote é uma profissional só, do começo ao fim.** É o caso comum
 do balcão e mantém a reserva sendo uma pergunta só — "cabem 90 minutos seguidos
 na agenda dela?". O rateio e o banco já suportam mais de uma pessoa; falta a tela
-que deixa escolher por serviço.
+que deixa escolher por serviço. A consequência que a vitrine respeita: **combo
+que ninguém faz inteiro não sai para o site** — cada serviço de uma pessoa
+diferente é cadastro que o painel aceita, e no site viraria um calendário sem
+dia nenhum no fim do fluxo.
 
 **Criar promoção não tem guarda de papel**, ao contrário do resto dos cadastros:
 foi decisão do negócio, porque é quem está no balcão que sabe qual serviço está
@@ -872,6 +910,15 @@ mover a pessoa de loja depois não reescreve onde o atendimento passado ocorreu.
 **Empresa de um endereço só não paga nada por isso.** Sem unidade cadastrada, o
 passo some do agendamento, o campo some da ficha da profissional, e tudo funciona
 como antes. A funcionalidade só aparece quando há o que perguntar.
+
+**Uma fonte de verdade para o endereço.** Com mais de uma unidade, os endereços
+que o site mostra — hero, rodapé, mapa, resumo e confirmação — são os das
+unidades, e `config.endereco` deixa de aparecer; com uma ou nenhuma, vale a
+config, como sempre valeu. O limiar é o mesmo que decide se o passo de unidade
+aparece, para a página e a janela concordarem sempre (`lugares()`, em
+`web/src/site/enderecos.js`). Nasceu de um caso concreto: o hero dizendo "Rua
+Félix Heinzelmann" e a janela oferecendo "Centro" e "Zona Sul" — cliente que vê
+dois endereços diferentes desconfia do negócio inteiro.
 
 Arquivar uma unidade (`ativo = 0`) não apaga: a agenda antiga aponta para ela. E
 não desvincula a equipe sozinho — a resposta devolve quem ficou sem endereço,

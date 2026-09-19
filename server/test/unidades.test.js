@@ -125,6 +125,18 @@ describe('o site oferece por unidade', () => {
     assert.deepEqual(corpo.unidades.map(u => u.nome).sort(), ['Centro', 'Zona Sul']);
   });
 
+  test('a vitrine diz onde cada pessoa atende', async () => {
+    // O site precisa disso para não oferecer, numa unidade, serviço que só
+    // quem está na outra faz — e para dizer o endereço certo na confirmação.
+    const { corpo: centro } = await novaUnidade();
+    await dona('PUT', '/api/profissionais/p1', { unidadeId: centro.id });
+
+    const { corpo } = await api.anonimo()('GET', '/api/publico/vitrine');
+    const porId = Object.fromEntries(corpo.profissionais.map(p => [p.id, p.unidadeId]));
+    assert.equal(porId.p1, centro.id);
+    assert.equal(porId.p2, null, 'sem unidade: atende em qualquer uma');
+  });
+
   test('escolher a unidade recorta quem atende ali', async () => {
     const { corpo: centro } = await novaUnidade();
     const { corpo: sul } = await novaUnidade({ nome: 'Zona Sul' });
