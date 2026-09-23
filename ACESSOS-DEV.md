@@ -109,6 +109,19 @@ tabela, outro cookie, outra identidade.
 |---|---|---|
 | `victor@vital.com` | admin | ver as empresas, suspender, reativar, mudar plano |
 
+Quatro abas: **Empresas** (com o link `funil` em cada linha, ao lado de site e
+painel), **Suporte**, **Funil** (os cinco passos somados em todas as empresas,
+mais quem está perdendo mais gente) e **Registro**. O funil é sorteado a cada
+`npm run reset` — número redondo demais na tela passa a impressão de que o dado
+é calculado, e não medido.
+
+O seed gera **120 dias** de visitas e roda a compactação no fim, então uma
+máquina nova já nasce com as duas tabelas ocupadas: `funil` com os 90 dias
+recentes e `funil_diario` com o que passou. A Laura fecha menos dias que a
+Barbearia de propósito — ela tem agendamento futuro pendurado em alguns dias
+antigos, e esses esperam até o atendimento acontecer (o porquê está em
+`ARQUITETURA.md`). O `npm run reset` imprime quantos dias fechou.
+
 Um segundo papel existe, `suporte`, que só enxerga. Ainda não há tela para
 convidar gente — crie pelo banco se precisar testar.
 
@@ -153,16 +166,25 @@ vem do Git são as fotos — ver "Onde as fotos moram", abaixo.
 | Na Laura Faust | |
 |---|---|
 | Combo | "Dia de cuidado" — limpeza + design por R$ 199, em vez de R$ 225. Só a Karen faz os dois, então é ela quem aparece |
+| Perguntas frequentes | Seis, com as objeções do ramo (dói? quanto dura? e se eu não gostar?). **Rascunho nosso**, como o catálogo — não são as palavras dela |
+| Frase de abertura | `textos.hero`, também rascunho nosso. Vazia, o site cai na primeira frase do "Sobre" |
 | Adicionais | Design de sobrancelha e depilação de buço na limpeza; plástica dos pés em toda a categoria Unhas |
 | Só como adicional | Depilação de buço — não aparece sozinha na vitrine |
-| Formulário | Anamnese facial, 4 perguntas, pedida na limpeza e no peeling |
+| Formulário | Anamnese facial, 4 perguntas, na limpeza e no peeling. A cliente **não** a responde pelo site: abra o atendimento no painel e use `Preencher a ficha` |
+| Fichas respondidas | Duas, da Renata Alves (limpezas de 60 e de 14 dias atrás). Em **Clientes → Renata → Ver fichas de saúde**: a resposta muda de uma visita para a outra, que é o motivo de a ficha ficar presa ao atendimento. A limpeza de hoje fica **pendente** de propósito — é o estado de quem agendou pelo site |
 
 Para ver cada um funcionando: escolha "Limpeza de pele profunda" no site — ela
-puxa os adicionais e a ficha no mesmo agendamento.
+puxa os adicionais no mesmo agendamento, e a ficha fica pendente para a profissional.
 
 | Na Barbearia do João | |
 |---|---|
 | Unidades | Centro e Zona Sul. João atende nas duas (sem unidade), Rafa só na Zona Sul. No Centro o passo de barbeiro some; na Zona Sul aparece |
+| Perguntas frequentes | Duas, de barbearia. Existem para mostrar que o FAQ é campo da empresa e não uma lista de estética embutida no produto |
+
+**O horário de atendimento do site não está no seed** porque não é campo de
+config: sai da jornada da equipe (`lib/horarios.js`). A Laura publica seg–qui
+09:00–19:00, sex 09:00–20:00 e sáb 08:30–15:00 — a união do que as três
+trabalham. Mude a jornada de alguém no painel e o site muda junto.
 
 A Laura tem um endereço só, o de verdade — as duas lojas de exemplo moram na
 Barbearia, que é ficção inteira. Com mais de uma unidade o site mostra os

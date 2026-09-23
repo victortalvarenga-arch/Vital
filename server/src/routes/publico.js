@@ -5,10 +5,29 @@ import { rota } from '../lib/rota.js';
 import { criarAgendamento, criarCombo } from './agendamentos.js';
 import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara } from '../lib/availability.js';
 import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
+import { horariosDeAtendimento } from '../lib/horarios.js';
+import { marcar, etapaDoNavegador, sessaoValida } from '../lib/funil.js';
+import { limite } from '../lib/limite.js';
 import { combosAtivos, comboCompleto, profissionaisDoCombo } from '../lib/combos.js';
-import { formsDoServico } from '../lib/formularios.js';
 
 export const publico = Router();
+
+/**
+ * Os limites das três rotas abertas que escrevem ou respondem sobre quem
+ * existe. Generosos de propósito: escritório, salão e shopping saem todos pelo
+ * mesmo IP, e barrar cliente de verdade para atrapalhar robô é troca ruim.
+ * O porquê de cada rota estar aqui está em `lib/limite.js`.
+ */
+const LIMITES = {
+  // Uma visita gera três chamadas; isto cobre dezenas de pessoas atrás do
+  // mesmo NAT sem folga para quem sorteia sessão em série.
+  evento: limite({ nome: 'evento', max: 120, janelaSeg: 600 }),
+  // Marcar dez horários em dez minutos do mesmo lugar não é uso de cliente.
+  agendar: limite({ nome: 'agendar', max: 10, janelaSeg: 600 }),
+  // O mais apertado dos três: aqui a resposta diz se um telefone tem cadastro,
+  // e sem limite isso vira varredura de quem é cliente de quem.
+  identificar: limite({ nome: 'identificar', max: 30, janelaSeg: 600 }),
+};
 
 /**
  * Rotas do site, sem autenticação. Só devolvem o que é público:
@@ -82,12 +101,16 @@ publico.get('/vitrine', rota(async (req, res) => {
       slogan: cfg.slogan,
       sobre: cfg.sobre,
       endereco: cfg.endereco,
+      cidade: cfg.cidade,
       mapa: cfg.mapa,
       fone: cfg.fone,
       whatsapp: cfg.whatsapp || cfg.fone,
       instagram: cfg.instagram,
       janelaDias: cfg.janelaDias || 30,
       formasPagamento: cfg.formasPagamento || [],
+      // Derivado da jornada da equipe, nunca um campo à parte — ver
+      // `lib/horarios.js`. Vai para a página e para o schema de negócio local.
+      horarios: horariosDeAtendimento(equipe.map(staffOut)),
     },
     marca: cfg.marca,
     textos: cfg.textos,
@@ -102,6 +125,12 @@ publico.get('/vitrine', rota(async (req, res) => {
       .filter(p => p?.imagem)
       .slice(0, 6)
       .map(p => ({ imagem: p.imagem, link: p.link || '', tipo: p.tipo === 'video' ? 'video' : 'imagem' })),
+    // Só o par de cada pergunta, montado a dedo como o resto desta resposta.
+    // Pergunta sem resposta não vai: a seção existe para tirar dúvida, e meia
+    // entrada na tela deixa a pessoa mais insegura do que antes.
+    faq: (cfg.faq || [])
+      .filter(p => p?.pergunta?.trim() && p?.resposta?.trim())
+      .map(p => ({ pergunta: p.pergunta.trim(), resposta: p.resposta.trim() })),
     exibir: cfg.exibir,
     vocabulario: cfg.vocabulario,
     unidades: await listarUnidades({ somenteAtivas: true }),
@@ -163,17 +192,18 @@ publico.get('/horarios', rota(async (req, res) => {
   });
 }));
 
-/**
- * Os formulários que um serviço pede, para o site montar o passo.
+/*
+ * Houve aqui um `GET /formularios/:servicoId`, que entregava ao site as
+ * perguntas da anamnese para ele montar um passo no agendamento. Saiu em
+ * 2026-09-23: **ficha de anamnese é dado de saúde**, sensível na LGPD, e
+ * coletá-lo de quem só quer marcar um horário — antes mesmo de ser cliente —
+ * é risco que o produto não precisa correr. Quem pergunta é a profissional,
+ * com a pessoa na cadeira, por `POST /api/agendamentos/:id/respostas`.
  *
- * Aberto porque é a pergunta, não a resposta: o que a empresa vai querer saber
- * já apareceria na tela de qualquer jeito. Resposta de ninguém sai por aqui.
+ * Nada de formulário sai por `/api/publico` hoje, e essa é a regra: a rota era
+ * inofensiva sozinha (devolvia pergunta, nunca resposta), mas existia só para
+ * alimentar uma coleta que não devia acontecer aqui.
  */
-publico.get('/formularios/:servicoId', rota(async (req, res) => {
-  const svc = await db.get('SELECT id FROM services WHERE id=? AND ativo=1', req.params.servicoId);
-  if (!svc) return res.status(404).json({ erro: 'serviço não encontrado' });
-  res.json(await formsDoServico(svc.id));
-}));
 
 /** 'a,b,c' → ['a','b','c']. Vem da query string, então tudo é texto. */
 const listaDeIds = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -219,13 +249,32 @@ publico.get('/dias-livres', rota(async (req, res) => {
 }));
 
 /**
+ * "Cheguei até aqui" — os passos do funil que acontecem no navegador.
+ *
+ * Aberta porque o site é aberto, e é o único jeito de saber em qual tela as
+ * pessoas somem. O que a protege de virar depósito de lixo: a etapa vem de uma
+ * lista fechada, a sessão precisa ter a forma exata de um id sorteado por nós,
+ * e a chave primária (empresa, sessão, etapa) faz a mesma visita valer uma
+ * linha por passo — no máximo três por aqui, para sempre.
+ *
+ * Responde 204 em qualquer caso, inclusive quando ignora: o que o site faz com
+ * isso é nada, e uma resposta diferente por motivo diria a quem sonda como a
+ * validação funciona.
+ */
+publico.post('/evento', LIMITES.evento, rota(async (req, res) => {
+  const { sessao, etapa } = req.body || {};
+  if (sessaoValida(sessao) && etapaDoNavegador(etapa)) await marcar({ sessao, etapa });
+  res.status(204).end();
+}));
+
+/**
  * Identificação por WhatsApp. É o "primeiro acesso" do fluxo:
  * se o número já existe, a cliente não preenche nada de novo.
  *
  * Devolve só nome e primeiro acesso — nunca endereço ou histórico,
  * porque qualquer pessoa pode digitar um número aqui.
  */
-publico.post('/identificar', rota(async (req, res) => {
+publico.post('/identificar', LIMITES.identificar, rota(async (req, res) => {
   const fone = soDigitos(req.body?.fone);
   if (fone.length < 10) return res.status(400).json({ erro: 'informe o WhatsApp com DDD' });
   const c = await db.get('SELECT * FROM clients WHERE fone=?', fone);
@@ -237,7 +286,7 @@ publico.post('/identificar', rota(async (req, res) => {
  * Agendamento pelo site. Cria a cliente se for primeiro acesso.
  * Ignora o preço vindo do cliente de propósito: quem manda é o banco.
  */
-publico.post('/agendar', rota(async (req, res) => {
+publico.post('/agendar', LIMITES.agendar, rota(async (req, res) => {
   const b = req.body || {};
   const fone = soDigitos(b.fone);
   if (fone.length < 10) return res.status(400).json({ erro: 'WhatsApp inválido' });
@@ -282,10 +331,20 @@ publico.post('/agendar', rota(async (req, res) => {
   const r = b.comboId
     ? await criarCombo({ ...dados, comboId: b.comboId }, { origem: 'site' })
     : await criarAgendamento(
-        { ...dados, servicoId: b.servicoId, adicionaisIds: b.adicionaisIds, respostas: b.respostas },
+        // Sem `respostas`: a anamnese não é perguntada aqui, e mandar o campo
+        // adiante deixaria a porta entreaberta para o site voltar a coletá-la.
+        // `criarAgendamento` também ignora, pela origem — são duas guardas.
+        { ...dados, servicoId: b.servicoId, adicionaisIds: b.adicionaisIds },
         { origem: 'site' }
       );
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
+
+  // O quarto passo do funil é gravado AQUI, e não pelo navegador: é o único
+  // com consequência — o que separa "quase marcou" de "marcou" — e front não é
+  // fonte confiável para isso. O id do agendamento vai junto porque é o fio
+  // que liga esta sessão ao comparecimento, lá na frente.
+  const primeiro = r.agendamento || r.agendamentos?.[0];
+  await marcar({ sessao: b.sessao, etapa: 'confirmou', appointmentId: primeiro?.id });
 
   res.status(201).json({
     agendamento: r.agendamento || r.agendamentos[0],

@@ -5,6 +5,7 @@ import { render, variaveis } from '../lib/templates.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
 import { TENANT_PADRAO } from '../lib/tenant.js';
 import { fecharAtendimentos } from './fechamento.js';
+import { compactarFunil } from './funil.js';
 
 /**
  * Duas rotinas separadas, de propósito:
@@ -208,6 +209,14 @@ export function iniciarJobs() {
   // durante o dia, não só no fim dele, senão o Resumo do balcão fica velho.
   cron.schedule('*/5 * * * *', () => {
     paraCadaEmpresa('fechamento', fecharAtendimentos).catch(e => console.error('[fechamento]', e.message));
+  }, { timezone: tz });
+
+  // Compactar o funil: uma vez por dia, de madrugada. Não precisa de
+  // `paraCadaEmpresa` — a função do banco atravessa o RLS e fecha todas as
+  // empresas numa transação só. Às 4h17 e não às 4h em ponto, para não
+  // disputar a janela com backup e outros jobs de hora redonda.
+  cron.schedule('17 4 * * *', () => {
+    compactarFunil().catch(e => console.error('[funil]', e.message));
   }, { timezone: tz });
 
   // Uma passada ao subir, como a fila. Sem isto, todo reinício deixa o caixa

@@ -202,6 +202,65 @@ h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 600; }
   text-decoration: none; font-weight: 600;
 }
 .v-link:hover { text-decoration: underline; }
+/* Mesma aparência dos links de site/painel, mas é botão: não navega, abre o
+   funil ali mesmo. A seta gira quando está aberto. */
+.v-link-btn { background: none; border: none; cursor: pointer; font: inherit; font-weight: 600; padding: 0; }
+.v-link-btn svg { transition: transform .15s; }
+.v-link-btn.on svg { transform: rotate(180deg); }
+
+/* ── período ── */
+/* Sem margem negativa para "colar" no bloco seguinte: o `.v-conteudo` é um
+   grid com gap próprio, e puxar daqui fazia esta linha subir por cima do
+   texto da aba. */
+.v-periodo {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 13px; color: var(--v-fraco);
+}
+.v-periodo-op {
+  background: none; border: 1px solid var(--v-linha); border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--v-fraco); padding: 4px 11px; min-height: 30px;
+}
+.v-periodo-op.on { background: var(--v-marca-clara); border-color: var(--v-marca-clara); color: var(--v-marca); font-weight: 600; }
+
+/* ── funil ──
+   A barra é proporcional ao TOPO, não ao passo anterior: é o que faz o
+   afunilamento virar forma em vez de uma coluna de porcentagens. */
+.v-funil { display: grid; gap: 7px; grid-column: 1 / -1; }
+.v-empresa .v-funil { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--v-linha); }
+.v-funil-linha {
+  display: grid; align-items: center; gap: 10px;
+  grid-template-columns: minmax(0, 132px) minmax(0, 1fr) 46px minmax(0, 118px);
+  font-size: 13px;
+}
+@media (max-width: 620px) {
+  .v-funil-linha { grid-template-columns: minmax(0, 1fr) 40px; }
+  .v-funil-barra { grid-column: 1 / -1; order: 3; }
+  .v-funil-taxa { grid-column: 1 / -1; order: 4; }
+}
+.v-funil-rotulo { font-weight: 600; }
+.v-funil-barra { background: var(--v-fundo); border-radius: 5px; height: 22px; overflow: hidden; }
+/* `max(…, 3px)`: um passo com 1 de 900 precisa continuar visível, senão some
+   da tela e parece que não existe. */
+.v-funil-barra i { display: block; height: 100%; background: var(--v-marca); min-width: 3px; border-radius: 5px; }
+.v-funil-valor { font-family: 'IBM Plex Mono', monospace; font-weight: 600; text-align: right; }
+.v-funil-taxa { color: var(--v-fraco); font-size: 12.5px; }
+.v-funil-taxa small { font-size: 11px; opacity: .85; }
+.v-funil-queda {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 6px 0 0; font-size: 12.5px; color: var(--v-alerta);
+}
+.v-funil-vazio { gap: 4px; }
+.v-funil-vazio p { margin: 0; font-size: 13px; }
+
+.v-piores { margin-top: 24px; border-top: 1px solid var(--v-linha); padding-top: 18px; }
+.v-piores h3 { font-size: 14px; margin-bottom: 10px; }
+.v-piores-linha {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) 52px;
+  gap: 10px; align-items: center; padding: 7px 0; font-size: 13px;
+  border-bottom: 1px solid var(--v-linha);
+}
+.v-piores-linha:last-child { border-bottom: 0; }
+.v-piores-n { font-family: 'IBM Plex Mono', monospace; font-weight: 600; text-align: right; color: var(--v-alerta); }
 
 /* ── fila de suporte ── */
 .v-badge{display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px;

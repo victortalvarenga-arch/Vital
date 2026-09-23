@@ -141,6 +141,11 @@ export const configPadrao = {
   whatsapp: '',
   email: '',
   endereco: '',
+  // A cidade, à parte do endereço. Quem procura procura por cidade ("design de
+  // sobrancelha em Joinville"), e o título da página e o schema de negócio
+  // local precisam dela isolada — recortar de `endereco` por vírgula erra na
+  // primeira empresa que escrever o endereço de outro jeito.
+  cidade: '',
   mapa: '',
   instagram: '',
   linkAvaliacao: '',
@@ -181,7 +186,18 @@ export const configPadrao = {
     botaoAgendar: 'Agendar',
     confirmacao: 'Pronto! Seu horário está reservado.',
     rodape: '',
+    // A frase abaixo do nome, no alto da página. Vazia, o site usa a primeira
+    // frase do "sobre" — que descreve o negócio em vez de falar com quem
+    // chegou. É o lugar de nomear um incômodo concreto, e por isso é campo
+    // próprio: a empresa escreve, nós não inventamos por ela.
+    hero: '',
   },
+
+  // Perguntas e respostas do site: `{ pergunta, resposta }`. Vazio por padrão
+  // — a dúvida que trava uma venda é de cada ramo (e de cada negócio dentro
+  // dele), então não há lista nossa que sirva. A seção some quando não há
+  // nenhuma, como o antes/depois.
+  faq: [],
 
   // Casos de antes e depois do site: `{ antes, depois, titulo }`, cada um com
   // duas URLs de imagem. Vazio por padrão, e é isso que mantém a seção num

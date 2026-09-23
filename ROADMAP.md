@@ -647,11 +647,25 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] `logs` cresce para sempre e nada a poda. Com uma empresa movimentada são
       milhares de linhas por mês. Decidir prazo de retenção antes de virar
       problema de espaço.
+- [x] ~~`funil` cresce junto, e mais rápido que `logs`.~~ Resolvido na
+      migration 016: o dia antigo vira uma linha em `funil_diario` e o cru sai,
+      com a série histórica inteira preservada. O detalhe que o desenho
+      escondia está em `ARQUITETURA.md` — um dia só fecha quando o
+      "compareceu" dele parou de mudar.
 
 ### Produto
 
 - [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
       seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
+      Menos urgente desde que a ficha saiu do site (2026-09-23): quem responde
+      é a profissional, e ela vê o que cada serviço pede no painel.
+
+- [ ] **Nada avisa que um atendimento está com a ficha pendente.** Desde que a
+      anamnese saiu do site, todo agendamento online nasce sem ela, e a
+      profissional só descobre abrindo o detalhe. Um marcador na agenda (ou no
+      Resumo do dia) para quem tem ficha obrigatória por responder evitaria
+      começar o atendimento sem saber de uma alergia. `formsDoServico()` já
+      responde quais serviços pedem ficha.
 
 - [ ] **O painel deixa cadastrar combo que ninguém faz inteiro, sem avisar.**
       Limpeza (só a Karen) + design (só a Bia) salva normalmente; a vitrine
@@ -660,6 +674,34 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       `Combos.jsx` dizer, na hora de salvar, "ninguém da equipe faz todos os
       serviços deste pacote" — `GET /api/combos/:id/profissionais` já
       responde isso.
+
+- [ ] **O site nunca foi aberto num celular de verdade.** Tudo que se sabe dele
+      em tela pequena vem de emulação (Chrome headless a 390×844), e é de lá
+      que vem quase todo o tráfego — em especial **pelo link da bio do
+      Instagram, que abre num webview**, não no navegador. O webview tem barra
+      própria que come altura, bloqueia coisas que o Safari permite e trata
+      `target="_blank"` de outro jeito. O que já foi feito por precaução:
+      `dvh` com `vh` de reserva na janela de agendamento, `env(safe-area-inset)`
+      no rodapé, alvos de toque de 44px. O que falta é abrir no aparelho e
+      percorrer o fluxo inteiro — incluindo o "tirar dúvida" e o botão
+      flutuante, que saem do webview para o app do WhatsApp e podem não voltar.
+
+- [ ] **O SEO depende de o buscador rodar JavaScript.** Título, descrição e o
+      JSON-LD são escritos por `site/seo.js` depois que a vitrine responde. O
+      Google renderiza JS e enxerga, mas numa segunda passada e sem garantia de
+      prazo; o resto (Bing, preview de link do WhatsApp e do Instagram) lê só o
+      HTML servido, e recebe o texto neutro do `index.html`. **O preview de
+      link é o caso que dói primeiro**, porque é o que aparece quando a empresa
+      manda o próprio site no WhatsApp. A saída é pré-renderizar o `<head>` por
+      empresa no servidor que entrega o HTML — a vitrine já tem tudo de que
+      isso precisa numa chamada.
+
+- [ ] **`npm run reset` com o `npm run dev` rodando deixa o servidor com cache
+      de empresa velho.** O id da Barbearia é sorteado a cada reset, e o
+      processo em execução continua com a lista antiga por alguns segundos — o
+      site abre como a empresa padrão ("Meu negócio", sem catálogo) e parece
+      que o seed falhou. Passa sozinho, mas custa um susto; `esquecerCacheDeEmpresas()`
+      existe e só é chamado nos testes.
 
 - [ ] **Unidade com endereço diferente da config, quando é a única.** Com uma
       unidade só, o site mostra `config.endereco` (regra de `lugares()`), e a
@@ -719,13 +761,12 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       precisará de um provider falso quando a conta sair.
 - [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
       que ela segura.
-- [ ] **O site não tem teste de fluxo nenhum.** A ficha de anamnese ficou
-      sendo pulada no agendamento pelo site (um `setPasso('dados')` no lugar de
-      `avancar()`, logo depois do horário) e ninguém notou até refazer o fluxo
-      em 2026-09-19 — a suíte só cobre o servidor. Um teste de navegador
-      (Playwright) que atravesse serviço → horário → ficha → WhatsApp pegaria
-      isso; a captura por CDP usada na revisão mostrou que dá para automatizar
-      sem instalar nada além do Chrome.
+- [ ] **O site não tem teste de fluxo nenhum.** Um passo do meio do
+      agendamento ficou sendo pulado (um `setPasso` no lugar de `avancar()`) e
+      ninguém notou até refazer o fluxo à mão em 2026-09-19 — a suíte só cobre
+      o servidor. Um teste de navegador (Playwright) que atravesse serviço →
+      horário → WhatsApp pegaria isso; a captura por CDP usada na revisão
+      mostrou que dá para automatizar sem instalar nada além do Chrome.
 
 ### Produto
 
@@ -777,6 +818,13 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Operação
 
+- [ ] **O funil só existe no back-office da Vital; a empresa não vê o dela.**
+      É o dono que decide mexer no próprio site, e hoje o número que diria
+      "você perde 70% na abertura do agendamento" está só do nosso lado.
+      `funilDaEmpresa()` em `lib/funil.js` já devolve isso pronto, dentro do
+      contexto da empresa — falta a rota no painel e um lugar na tela de
+      Resumo. Foi deixado de fora de propósito: a primeira pergunta era
+      nossa ("a tela de agendamento funciona?"), e a dela vem depois.
 - [ ] Não há como exportar os dados de uma empresa, nem para ela levar embora
       nem para backup por empresa. Vira exigência de LGPD no dia do primeiro
       cliente de verdade.
@@ -811,6 +859,17 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] `CORS_ORIGIN` precisa apontar para o domínio real, não `localhost`.
 - [ ] Conferir que nenhum log imprime a `DATABASE_URL` inteira (o boot já
       mascara a senha — manter assim ao mexer nele).
+- [x] ~~As rotas públicas de escrita não têm limite de chamadas.~~ Resolvido:
+      `lib/limite.js` limita `/evento`, `/agendar` e `/identificar` por IP e
+      empresa. Ver `ARQUITETURA.md`.
+- [ ] **O limite de chamadas conta na memória do processo.** Com mais de uma
+      instância, cada uma tem o próprio balde e o teto real vira N vezes o
+      configurado. Segura script solto, não segura ataque distribuído. A
+      proteção de verdade é na borda (Cloudflare, WAF do provedor); quando ela
+      existir, `RATE_LIMIT=off` desliga a daqui sem mexer em código. Se um dia
+      valer a pena centralizar sem borda, o balde vira uma chave com TTL no
+      Postgres — mas isso é uma escrita a mais por requisição, e a borda é mais
+      barata.
 
 ### Banco
 

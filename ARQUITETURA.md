@@ -24,6 +24,7 @@ você for mexer.
 | [Formulários de intake](#formulários-de-intake) | Anamnese, ficha, dado sensível |
 | [A agenda do painel](#a-agenda-do-painel) | Semana, faixas e arrastar para remarcar |
 | [Unidades](#unidades) | A empresa com mais de um endereço |
+| [Onde as pessoas somem](#onde-as-pessoas-somem) | O funil de cinco passos, e por que ele não guarda dado pessoal |
 | [O registro do painel](#o-registro-do-painel) | Quem fez o quê, dentro da empresa |
 | [O back-office da Vital](#o-back-office-da-vital) | Ver todas as empresas sem ver o dado de nenhuma |
 | [Testes](#testes) | O que a suíte cobre e como ela roda |
@@ -51,6 +52,8 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `012_formularios` | Intake: perguntas, respostas e o vínculo com serviços |
 | `013_bloqueio_repetido` | `serie` em `blocks`: férias de três semanas são três linhas |
 | `014_suporte` | `plataforma.tickets`: a empresa fala com a Vital de dentro do produto |
+| `015_funil` | `funil`: em qual passo a visita some, sem guardar dado de ninguém |
+| `016_funil_compactado` | `funil_diario`: o dia antigo vira uma linha, e o cru sai |
 
 ## Visão geral
 
@@ -145,7 +148,7 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    Combos.jsx (promoções), Unidades.jsx (endereços),
                    Usuarios.jsx (acesso),
                    Comecar.jsx (assistente de primeira configuração),
-                   Formularios.jsx (monta), Ficha.jsx (responde no balcão),
+                   Formularios.jsx (monta), Ficha.jsx (responde no atendimento),
                    Registro.jsx (quem fez o quê)
   src/vital/       Cadastro.jsx (empresa nova), Equipe.jsx (back-office),
                    api.js (cookie próprio), styles.css (a marca da Vital)
@@ -224,7 +227,7 @@ quase todo agendamento sai do celular.
 
 **O agendamento é uma janela sobre a home**, não uma troca de tela — a cliente
 não perde de vista onde estava. Os passos são unidade → serviço → data e
-horário → ficha → dados, e **passo sem o que perguntar é pulado**: uma função
+horário → dados, e **passo sem o que perguntar é pulado**: uma função
 só (`util`) decide isso, e a navegação anda por ela nos dois sentidos. Com
 passos opcionais, decidir com `if` espalhado já tinha produzido o bug de
 "voltar" cair num passo que a ida havia pulado.
@@ -287,15 +290,81 @@ O front tem noção de jornada só para desenhar; se ele adivinhasse a
 disponibilidade, mostraria horário já vendido e a cliente só descobriria ao
 tentar confirmar.
 
+### A página responde objeção, não só descreve
+
+Uma vitrine que diz "um espaço para você se cuidar" não responde nada a quem
+está decidindo. Três peças, todas alimentadas pela empresa:
+
+**As perguntas frequentes** (`config.faq`, um `{pergunta, resposta}` por item)
+viram uma seção nos quatro modelos. São `<details>`/`<summary>` nativos: abrem
+sem JavaScript, o teclado anda por eles, o leitor de tela anuncia o estado, e o
+texto da resposta existe no HTML mesmo fechado — que é o que um buscador lê.
+**Sem pergunta cadastrada a seção não existe**, como o antes/depois. Não há
+lista nossa de perguntas: a dúvida que trava uma venda muda de ramo para ramo, e
+"dói?" não serve a uma oficina.
+
+**A frase de abertura** (`textos.hero`) é campo próprio, separado do `sobre`. O
+`sobre` descreve o negócio; esta fala com quem acabou de chegar, e é onde cabe
+nomear um incômodo concreto. Vazia, o site cai na primeira frase do `sobre`,
+como era antes.
+
+**"Tirar dúvida" em cada serviço** abre o WhatsApp com a mensagem já escrita,
+citando aquele serviço (ou aquela categoria, quando o cartão é de categoria).
+Quem tem dúvida no meio do catálogo não tem que rolar até o rodapé, e do outro
+lado ninguém recebe um "oi" sem assunto. É link, não botão: agendar continua
+sendo a ação da vitrine. Some inteiro quando a empresa não cadastrou WhatsApp.
+
+### O que os buscadores leem
+
+O site é uma página só montada no navegador — sem ajuda, todas as empresas
+dividiriam o `<title>` do `index.html`. `site/seo.js` escreve, depois que a
+vitrine responde: título com nome, categorias e cidade; descrição; `og:` para
+quem compartilha o link; e **JSON-LD `LocalBusiness`** com endereço, telefone,
+horário de atendimento e catálogo de serviços, mais um `FAQPage` quando há
+perguntas.
+
+**Nada ali inventa dado.** Campo sem cadastro não entra no schema — busca com
+endereço errado é pior que busca sem endereço. `LocalBusiness` genérico, e não
+`HealthAndBeautySalon` ou parecido: o ramo é texto livre de cada empresa, e
+escolher o tipo por palavra-chave erraria justamente em quem não é do ramo que
+a gente conhece.
+
+**`cidade` é campo à parte do `endereco`** porque é por cidade que se procura
+serviço, e recortar a cidade do endereço por vírgula erraria na primeira
+empresa que escrevesse o endereço de outro jeito.
+
+**O horário de atendimento é derivado da jornada da equipe**, nunca um campo da
+config (`lib/horarios.js`): o negócio está aberto quando há alguém trabalhando,
+e um campo próprio nasceria contradizendo a agenda no dia em que a empresa
+mudasse a jornada de alguém e esquecesse de mexer no site. Mesmo princípio do
+endereço, em [Unidades](#unidades) — uma fonte de verdade só. A faixa de cada
+dia vai da abertura mais cedo ao fechamento mais tarde de quem trabalha nele.
+
+### A animação nunca esconde conteúdo
+
+`.revela` entra com opacidade zero e sobe ao encostar na tela. Isso já deixou
+seção inteira invisível, e três coisas impedem que volte a acontecer:
+
+- o `opacity: 0` só vale com a classe `js` no `<html>` (escrita por
+  `main.jsx`), então uma falha no bundle devolve a página inteira legível em
+  vez de uma tela em branco com o texto dentro;
+- o observador dispara ao **encostar** na tela (`threshold: 0`), e não com 12%
+  do elemento visível — um bloco mais alto que a tela nunca chegava a 12% e
+  ficava escondido para sempre;
+- a margem é positiva embaixo, então o bloco começa a aparecer um quinto de
+  tela antes de entrar e chega opaco mesmo para quem rola rápido. Uma rede de
+  1,2s revela o que **já está na tela** e continuar escondido — só isso, porque
+  revelar a página inteira por tempo mataria o efeito para quem está no topo.
+
 **Painel da equipe** (`web/src/painel/`) — navegação lateral agrupada em
 Calendário/Financeiro, Cadastros e Configurações. No computador a lateral é
 fixa; no celular vira gaveta. A equipe abre isto do balcão e do próprio
 telefone.
 
 Em **Configurações → Site da cliente** (`painel/ConfigSite.jsx`) a empresa muda
-identidade, cor, logo, capa, textos, contato e o que aparece ou não — tudo sem
-programador. Grava no mesmo JSON que a vitrine lê, então salvar muda o site na
-hora.
+identidade, cor, logo, capa, textos, contato, cidade, perguntas frequentes e o
+que aparece ou não — tudo sem programador. Grava no mesmo JSON que a vitrine
+lê, então salvar muda o site na hora.
 
 **A marca vem do banco, não do CSS.** `site/tema.js` recebe a config da empresa
 e escreve as variáveis CSS em runtime — cor primária, fundo, texto, e uma
@@ -957,37 +1026,88 @@ pode deixar meio agendamento gravado.
 Resposta de anamnese é dado pessoal sensível pela LGPD — saúde. Fica atrás do
 RLS, e três limites valem além dele:
 
-- A rota pública devolve **a pergunta, nunca a resposta**. O que a empresa vai
-  querer saber já apareceria na tela de qualquer jeito; o que a cliente
-  respondeu, não.
-- Quem lê a ficha é quem atende. Funcionário lê a de seus atendimentos e a rota
-  recusa o resto.
+- **Nada de formulário sai por `/api/publico`** — nem a pergunta. O site não
+  pergunta anamnese (ver abaixo), então nem a lista de perguntas precisa
+  atravessar a fronteira do que é público.
+- Quem lê a ficha é quem atende. Funcionário lê e responde a de seus
+  atendimentos, e a rota recusa o resto.
 - No painel, a ficha é carregada **sob demanda**, ao abrir o agendamento. Trazê-la
   junto da agenda colocaria a ficha de saúde de todo mundo no navegador de quem
-  só queria ver os horários do dia.
+  só queria ver os horários do dia. Na ficha da cliente vale o mesmo, com um
+  passo a mais: só sai depois de clicar em **"Ver fichas de saúde"** — abrir o
+  cadastro para conferir um telefone não baixa o histórico clínico de ninguém.
+- **Esse acesso deixa rastro.** `GET /clientes/:id/fichas` grava
+  `ficha.consultar` em `logs` (quem abriu, de quem, quando — nunca o conteúdo).
+  Leitura do painel não é registrada em geral, porque o ruído afogaria a lista
+  útil; esta é a exceção, e existe porque a LGPD pede saber quem leu dado de
+  saúde de quem. Copiar a resposta para o log seria espalhar o dado sensível
+  numa segunda tabela para "proteger" a primeira.
 
 Resposta dada não se edita (`REVOKE UPDATE`): é o registro do que a cliente
 declarou naquele dia. Corrigir é responder de novo.
 
-### O balcão pergunta também
+### A ficha não é perguntada pelo site
 
-O servidor exige a ficha em **todo** agendamento, inclusive o encaixe manual — e
-por isso o painel também a apresenta. A regra não podia ser afrouxada para o
-balcão: ficha que só o site preenche é ficha que metade dos atendimentos não tem.
+**Quem pergunta é a profissional, presencialmente** (decidido em 2026-09-23).
+A anamnese é dado de saúde: sensível na LGPD, com regra própria, consentimento
+destacado e responsabilidade que acompanha o dado por anos. Coletá-la num
+formulário web aberto, de alguém que ainda nem é cliente e só quer marcar um
+horário, é risco desproporcional ao que se ganha — e o ganho era conveniência,
+não segurança do atendimento.
+
+Antes disso, o site tinha um passo entre o horário e o WhatsApp, e havia uma
+rota `GET /api/publico/formularios/:servicoId` que entregava as perguntas.
+Os dois saíram. Hoje **nada de formulário sai por `/api/publico`**, e há teste
+que confere isso.
+
+O caminho que sobrou tem três peças:
+
+- **Pelo site**, o agendamento nasce com a ficha pendente. `criarAgendamento`
+  pula a validação quando `origem === 'site'`; `POST /api/publico/agendar` nem
+  repassa `respostas`. São duas guardas para a mesma coisa, de propósito.
+- **Pelo balcão**, nada mudou: quem marca no painel responde na hora, e o
+  servidor continua recusando agendamento com pergunta obrigatória em branco.
+- **No atendimento**, `POST /api/agendamentos/:id/respostas` grava a ficha de
+  um agendamento que já existe — é por aqui que a anamnese do site é
+  preenchida, no detalhe do atendimento. Mesma guarda da leitura: funcionário
+  responde a de quem ele atende, e nada mais.
+
+**Sem essa terceira peça a mudança teria apagado a ficha do produto**, porque a
+resposta só era gravada no momento da criação e a maioria dos agendamentos vem
+do site.
+
+Responder de novo **acrescenta**; não reescreve (`REVOKE UPDATE` na migration
+012). As duas versões ficam no histórico, cada uma com a sua data — corrigir uma
+ficha é registrar o que se sabe agora, não apagar o que se declarou antes.
 
 No painel a cliente já foi escolhida numa lista, então dá para trazer o que ela
 respondeu da última vez como sugestão — ficha de saúde não muda a cada visita, e
 obrigar a redigitar tudo faz a pessoa responder qualquer coisa para se livrar. A
 sugestão casa por rótulo, porque é o rótulo que a resposta guarda; pergunta
-renomeada simplesmente não sugere nada. No site isso não é possível: lá a pessoa
-só é identificada no fim, depois do formulário.
+renomeada simplesmente não sugere nada.
 
-### Onde o passo entra no agendamento
+### Onde a profissional lê o que já foi respondido
 
-Depois de escolher o horário, antes de dar o WhatsApp. Quem chegou até ali já
-decidiu, e responder três perguntas não faz desistir — perguntar antes da data
-faria, porque o passo apareceria antes de a pessoa saber se existe horário para
-ela. Serviço que não pede nada não ganha passo nenhum.
+Em dois lugares, e os dois carregam sob demanda:
+
+- **No atendimento** (Calendário → o bloco): as respostas daquele dia,
+  acima do botão de responder.
+- **Na cliente** (Clientes → Ficha → "Ver fichas de saúde"): o histórico
+  inteiro, da mais recente para a mais antiga, cada uma com a data e o serviço
+  de onde veio. Antes disso, ler a anamnese de alguém exigia lembrar em qual
+  dia ela foi respondida e abrir aquele atendimento — e ficha que ninguém
+  consegue achar não protege ninguém.
+
+**A data ao lado de cada ficha não é enfeite.** É ela que diz se você está
+lendo a resposta de ontem ou a de dois anos atrás, e é o motivo de a resposta
+ficar presa ao atendimento em vez de virar campo no cadastro: no `seed`, a
+mesma cliente aparece como "pele mista, sem ácido" numa visita e "pele
+sensível, usando ácido salicílico" na seguinte. Guardar só a mais recente
+apagaria por que o procedimento de julho foi feito de um jeito.
+
+O recorte por papel é o mesmo dos dois lados: funcionário vê as fichas dos
+atendimentos que ele atendeu, e **quem filtra é a consulta**, não a tela —
+o que ele não pode ver nem chega a atravessar a rede.
 
 ## Horários fechados
 
@@ -1166,6 +1286,148 @@ nós*, sabendo que vamos ler. É a mesma natureza de `plataforma.auditoria`, nã
 de `appointments`.
 
 `DELETE` não é concedido a ninguém: chamado é histórico.
+
+## Onde as pessoas somem
+
+Até o Bloco do funil, o produto media **resultado** — quantos agendamentos,
+quanto faturou — e nada de **percurso**. Com isso, toda conversa sobre a tela de
+agendamento era opinião: ninguém sabia dizer se a pessoa desiste na escolha do
+serviço, no calendário ou na hora de dar o WhatsApp, e dava para reformar o
+calendário por um mês e descobrir depois que a perda estava noutro lugar.
+
+Cinco passos respondem isso:
+
+```
+site  →  agendamento  →  horário  →  confirmou  →  compareceu
+```
+
+**Uma linha é uma visita que chegou a um passo, não um clique.** A chave
+primária de `funil` é `(tenant_id, sessao, etapa)`, e o `INSERT` usa
+`ON CONFLICT DO NOTHING`: quem recarrega a página cinco vezes continua valendo
+uma. Quem deduplica é o banco, não a aplicação — um `SELECT` antes abriria
+corrida entre duas abas. Isso também é o que limita o tamanho da tabela: no
+máximo quatro linhas por visita, para sempre.
+
+**A contagem é de sessões, não de agendamentos.** Quem marca dois horários na
+mesma visita conta uma vez, e o `appointment_id` guardado é o do primeiro. É o
+certo para medir queda entre telas, e é a razão de o número daqui não bater com
+o total de agendamentos do mês — que é outra pergunta.
+
+### Sem dado pessoal, de propósito
+
+`sessao` é um número sorteado pelo navegador (`site/medir.js`), guardado em
+`sessionStorage` e esquecido ao fechar a aba. Não há IP, não há user-agent, não
+há cookie, nada sai para terceiro. É contagem de percurso, e é por isso que não
+precisa de banner de consentimento nem vira base de dado pessoal na LGPD. Quem
+for acrescentar coluna aqui: **contagem e percurso, nunca identificação.**
+
+Quando `sessionStorage` falha — aba anônima, webview com dado de site bloqueado
+— o id fica só em memória e vale enquanto a página estiver aberta. A visita
+continua medida; o que se perde é ligá-la a uma volta futura, que não existe no
+escopo de uma sessão mesmo.
+
+### Quem grava cada passo
+
+Os três primeiros vêm do navegador, por `POST /api/publico/evento`. A rota é
+aberta porque o site é aberto, e o que a impede de virar depósito de lixo é a
+forma: etapa de lista fechada, sessão com o formato exato de um id nosso (32
+hexadecimais), e a chave primária fazendo o resto.
+
+**`confirmou` é gravado pelo servidor**, dentro de `POST /api/publico/agendar`,
+e o navegador não consegue declará-lo — `etapaDoNavegador()` o recusa. É o
+único passo com consequência (o que separa "quase marcou" de "marcou"), e front
+não é fonte confiável para isso.
+
+**`compareceu` não é evento nenhum.** Já existe em `appointments.status`;
+gravá-lo de novo criaria duas verdades sobre a mesma coisa. O funil junta as
+duas pelo `appointment_id`, e por isso cancelado e faltou não entram — o funil
+precisa mostrar quem some *depois* de marcar também.
+
+**Medir nunca derruba quem está agendando.** `marcar()` engole o próprio erro e
+o front dispara sem esperar resposta: se a medição falhar, o agendamento segue.
+
+### A tabela só cresce, e por isso é compactada
+
+Como `logs`, `funil` nasce com `REVOKE UPDATE, DELETE` para a aplicação — sem
+isso viria com os quatro verbos por causa do `ALTER DEFAULT PRIVILEGES` da
+migration 002, a armadilha que a 011 documenta. Registro de visita não se
+reescreve. É por isso que os testes limpam a tabela por `comoAdmin`.
+
+Só que visita é muito mais frequente que ação no painel: com duzentas empresas,
+`funil` vira a maior tabela do banco em um ano. **Podar e perder a série
+histórica seria o conserto errado** — a pergunta "a mudança de março melhorou a
+conversão?" precisa do ano passado. O que ela não precisa é da linha de cada
+visita.
+
+Então o dia antigo vira **uma linha em `funil_diario`** com as cinco contagens,
+e o cru dele sai. Quem faz isso é `plataforma.compactar_funil()`, chamada pelo
+cron às 4h17 (`jobs/funil.js`). A função é `SECURITY DEFINER` por dois motivos:
+atravessar o RLS, como as outras, e porque **`vital_app` não tem DELETE em
+`funil`** — ela é a única porta que apaga, e só apaga o que já somou, na mesma
+transação.
+
+**Um dia só fecha quando o "compareceu" dele parou de mudar.** Este é o detalhe
+que o desenho esconde: `compareceu` vem de `appointments.status`, e status muda
+depois. Uma visita que confirmou hoje pode virar atendimento concluído daqui a
+trinta dias — ou mais, porque `janelaDias` é da empresa. Fechar cedo gravaria
+para sempre um comparecimento que ainda ia acontecer, e o número do ano passado
+ficaria menor que a verdade sem ninguém descobrir por quê. Por isso a regra tem
+duas condições: o dia precisa ser mais velho que a retenção (90 dias) **e**
+nenhum agendamento nascido dele pode estar no futuro. Um dia com agendamento
+marcado para daqui a seis meses simplesmente espera, ocupando espaço, até poder
+fechar com o número certo. Dá para ver isso no próprio `seed`: a Laura fecha
+menos dias que a Barbearia justamente porque tem agenda futura pendurada.
+
+**Ler soma os dois.** `funil_por_empresa()` e `funilDaEmpresa()` leem `funil` e
+`funil_diario` e somam. Um dia está num ou no outro, nunca nos dois — e é essa
+garantia que torna a soma segura. Se ela cair, a conta passa a dobrar sem
+nenhum erro aparecer, e é o que o teste "a conta da tela não muda ao compactar"
+existe para pegar.
+
+### O limite das rotas abertas
+
+Três rotas de `/api/publico` escrevem ou respondem sobre dado que existe, e
+nenhuma pede login — é o site, tem de ser assim. `lib/limite.js` põe um teto
+por IP **e por empresa** em cada uma, com balde próprio: abusar do funil não
+pode travar o agendamento de quem está tentando marcar horário, e uma empresa
+não pode derrubar a medição da vizinha.
+
+O mais apertado é `/identificar` (30 por 10 min), e não é por capacidade: ela
+responde se um telefone tem cadastro, e sem limite vira varredura de quem é
+cliente de quem — o risco mais grave dos três, porque não custa nada a quem faz
+e não deixa rastro na empresa. `/agendar` são 10; `/evento`, 120, porque uma
+visita gera três chamadas e escritório, salão e shopping saem todos pelo mesmo
+IP.
+
+A janela é fixa, não deslizante: deixa passar até o dobro na virada, e os
+limites já são escolhidos com folga sabendo disso. O preço é um Map por janela
+em vez de uma lista de horários por chave — numa rota pública, a diferença
+entre lembrar de quem chamou e lembrar de cada chamada. Trocar o Map inteiro na
+virada também é o que impede o vazamento de memória.
+
+**A contagem é do processo.** Com várias instâncias, o teto real vira N vezes o
+configurado: segura script solto, não segura ataque distribuído — essa proteção
+mora na borda, e está no ROADMAP. `RATE_LIMIT=off` desliga tudo, que é como a
+suíte roda (`limite.test.js` é o único arquivo que liga).
+
+### No back-office, contagem e só
+
+`plataforma.funil_por_empresa(dias)` é `SECURITY DEFINER` pelo mesmo motivo de
+`numeros_por_empresa()` (migration 008): a aplicação é barrada pelo RLS, e
+contar empresa por empresa com `comEmpresa` seria uma consulta por linha da
+tela. O acordo é o mesmo — **devolve número, nunca linha** —, e não há coluna
+ali capaz de carregar o nome, o telefone ou o horário de ninguém. Há teste que
+confere a lista de colunas exatamente por isso.
+
+O período é fechado em 7, 30 ou 90 dias: `dias` vira `make_interval` dentro da
+função, e aceitar número livre da query string abriria varredura de anos a cada
+F5.
+
+A tela mostra a barra proporcional ao **topo** (é assim que o afunilamento vira
+forma) e, ao lado de cada passo, quanto sobrou do **anterior** — que é onde o
+buraco aparece. "80% do total" esconde uma etapa que segurou 30% logo antes. A
+maior queda é apontada em **gente perdida, não em porcentagem**: perder metade
+de dez é menos urgente que perder um quinto de mil.
 
 ## O back-office da Vital
 

@@ -34,7 +34,7 @@ no `.env`; você não precisa criá-lo à mão.
 
 Os passos acima bastam: o banco é reconstruído por migrations e populado pelo
 `seed`, e **o resultado é o mesmo em qualquer máquina** — mesmos serviços, mesma
-equipe, mesmas unidades, o combo, a ficha de anamnese, os adicionais e as duas
+equipe, mesmas unidades, o combo, a ficha de anamnese do painel, os adicionais e as duas
 empresas de exemplo. Não há dump de banco para copiar.
 
 **As fotos são a exceção.** Elas não cabem no Git — `server/uploads/` é pasta
@@ -55,7 +55,9 @@ O que o cenário traz, e por que cada peça está lá:
 | **Duas unidades na Barbearia** (Centro, Zona Sul) | O passo "onde você quer ser atendida" só aparece com mais de uma, e o site passa a mostrar os endereços delas. João fica sem unidade de propósito: é o caso de quem atende nos dois endereços. Ficam na Barbearia, e não na Laura, porque ela tem um endereço só — o de verdade |
 | **Combo "Dia de cuidado"** | Preço cheio riscado, economia calculada, rateio da comissão |
 | **Adicionais** na limpeza e no peeling | Um extra que também se vende sozinho (design de sobrancelha) e um que não (depilação de buço) |
-| **Anamnese facial**, 4 perguntas | O passo de ficha no agendamento e a resposta no painel |
+| **Anamnese facial**, 4 perguntas | A ficha que a profissional preenche no atendimento. **Não é perguntada pelo site** — é dado de saúde; ver `ARQUITETURA.md` |
+| **Perguntas frequentes** nas duas empresas | A seção do site e o `FAQPage` que o Google lê. Seis na Laura, duas na Barbearia — de propósito em dois ramos, porque o conteúdo é da empresa, não do produto |
+| **Quatro meses de visitas ao site**, nas duas | A aba Funil do back-office da Vital. Sorteadas a cada `reset`, com afunilamentos diferentes: a Laura converte, a Barbearia perde quase todo mundo logo na abertura do agendamento. Quatro meses, e não um, para a compactação ter o que fechar — o `reset` diz quantos dias compactou |
 
 Contas e endereços: `ACESSOS-DEV.md`.
 
@@ -75,10 +77,15 @@ que as empresas de exemplo se abrem; `localhost` sem subdomínio é a empresa
 padrão, **vazia** — serve à página da Vital, não ao site de ninguém. Detalhes
 em `ARQUITETURA.md`.
 
-Para mudar a cara do site (nome, cor, logo, capa, textos, fotos dos serviços,
-publicações do Instagram): painel → **Configurações → Site da cliente**. Promoções (pacote de serviços com
+Para mudar a cara e o texto do site (nome, cor, logo, capa, frase de abertura,
+cidade, perguntas frequentes, fotos dos serviços, publicações do Instagram):
+painel → **Configurações → Site da cliente**. Promoções (pacote de serviços com
 preço fechado) ficam em **Cadastros → Promoções**. As imagens ficam em
 `server/uploads/`, fora do Git.
+
+O **horário de atendimento** que aparece no site não se digita em lugar nenhum:
+sai da jornada da equipe, em **Cadastros → Equipe**. Mudou a jornada de alguém,
+mudou o site.
 
 **O site não tem login.** A cliente informa o WhatsApp na hora de agendar e
 pronto — se já agendou antes, é reconhecida pelo número.

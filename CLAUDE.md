@@ -119,9 +119,24 @@ escrito, não aconteceu.
   nenhum dos dois — são três identidades, e misturá-las num arquivo é o começo
   de misturá-las numa sessão.
 - Rota nova em `/api/plataforma` não pode devolver linha de tabela de negócio,
-  só contagem. Quem conta é `plataforma.numeros_por_empresa()`, que ignora o RLS
-  de propósito — devolver dado pessoal por ali fura o isolamento no lugar onde
-  ninguém iria procurar.
+  só contagem. Quem conta é `plataforma.numeros_por_empresa()` e
+  `plataforma.funil_por_empresa()`, que ignoram o RLS de propósito — devolver
+  dado pessoal por ali fura o isolamento no lugar onde ninguém iria procurar.
+  Coluna nova nessas funções é coluna que pode vazar: há teste que confere a
+  lista de colunas exatamente por isso.
+- Medição não guarda gente. A tabela `funil` conta percurso por sessão
+  sorteada, sem IP, sem user-agent e sem vínculo com cliente. Coluna nova ali
+  é contagem ou passo, nunca identificação — ver `ARQUITETURA.md`.
+- Tabela que só registra (`logs`, `funil`, `funil_diario`) precisa de
+  `REVOKE UPDATE, DELETE` explícito na própria migration: o
+  `ALTER DEFAULT PRIVILEGES` da 002 faz toda tabela nova em `public` nascer com
+  os quatro verbos para a aplicação. Se essa tabela também precisar ser podada,
+  quem poda é uma função `SECURITY DEFINER` que só apaga o que já foi somado —
+  nunca o `DELETE` de volta para a aplicação.
+- Rota nova em `/api/publico` que escreve, ou que responde se um dado existe,
+  entra com `limite()` (`lib/limite.js`). Sem login não há a quem cobrar o
+  abuso, e `/identificar` já mostrou o caso pior: uma resposta de "sim/não"
+  vira varredura de quem é cliente de quem.
 - Campo novo na config não entra na vitrine sozinho — `/api/publico/vitrine`
   monta a resposta a dedo, para não publicar segredo por descuido.
 - Nada de lista fixa de categoria, ramo ou serviço no código: cada empresa tem

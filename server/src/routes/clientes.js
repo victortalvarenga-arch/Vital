@@ -3,6 +3,8 @@ import { db, uid, clientOut, apptOut } from '../db.js';
 import { hoje, soDigitos, diasEntre } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { mudancas } from '../lib/registro.js';
+import { escopoDe } from '../lib/auth.js';
+import { fichasDaCliente } from '../lib/formularios.js';
 
 export const clientes = Router();
 
@@ -51,6 +53,41 @@ clientes.get('/:id', rota(async (req, res) => {
     req.params.id
   );
   res.json({ ...(await comMetricas(clientOut(r))), historico: linhas.map(apptOut) });
+}));
+
+/**
+ * As anamneses que esta cliente já respondeu.
+ *
+ * Rota própria, e não um campo de `GET /clientes/:id`, por três motivos que
+ * são todos o mesmo motivo: **dado de saúde não anda junto do resto.**
+ *
+ * - Sai só quando alguém pede para ver — abrir a ficha da cliente para
+ *   conferir o telefone não baixa o histórico clínico dela.
+ * - Nunca entra na listagem de clientes, que carregaria a anamnese de todo
+ *   mundo no navegador de quem só queria procurar um nome.
+ * - **Deixa rastro.** Abrir a ficha de saúde de alguém é acesso deliberado, e
+ *   a LGPD pede que se saiba quem leu o quê. Outras leituras do painel não são
+ *   registradas de propósito (o ruído afogaria a lista útil); esta é.
+ *
+ * O recorte por papel é o mesmo da ficha do atendimento: funcionário vê as
+ * dos atendimentos que ele atendeu. Quem filtra é a consulta, não a tela.
+ */
+clientes.get('/:id/fichas', rota(async (req, res) => {
+  const c = await db.get('SELECT id, nome FROM clients WHERE id=?', req.params.id);
+  if (!c) return res.status(404).json({ erro: 'cliente não encontrada' });
+
+  const fichas = await fichasDaCliente(c.id, { soDoProfissional: escopoDe(req.usuario) });
+
+  // Registra o acesso, não o conteúdo: o histórico diz que Fulana abriu a
+  // ficha de saúde da Beltrana às 14h — copiar a resposta para cá seria
+  // espalhar o dado sensível numa segunda tabela para "proteger" a primeira.
+  await req.registrar('ficha.consultar', {
+    alvoTipo: 'cliente', alvoId: c.id,
+    resumo: `abriu a ficha de saúde de ${c.nome}`,
+    detalhe: { fichas: fichas.length },
+  });
+
+  res.json(fichas);
 }));
 
 clientes.post('/', rota(async (req, res) => {

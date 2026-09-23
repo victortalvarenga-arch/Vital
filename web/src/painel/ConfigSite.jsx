@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, Image, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, Image, Plus, Trash2, Upload } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { prepararImagem } from '../shared/imagem.js';
 
@@ -75,6 +75,11 @@ export default function ConfigSite({ dados, acao, aviso }) {
       </Secao>
 
       <Secao titulo="Textos" ajuda="As palavras dos botões e das mensagens do site.">
+        <Area rotulo="Frase de abertura" valor={cfg.textos?.hero}
+              aoMudar={v => mudar('textos.hero', v)}
+              dica="A primeira frase, abaixo do nome. Funciona melhor quando fala de um
+                    incômodo concreto de quem procura o serviço, e não do negócio em geral.
+                    Vazia, o site usa a primeira frase do “Sobre”." />
         <Texto rotulo="Chamada principal" valor={cfg.textos?.chamada}
                aoMudar={v => mudar('textos.chamada', v)} dica="Ex.: Agende seu horário" />
         <Texto rotulo="Botão de cada serviço" valor={cfg.textos?.botaoAgendar}
@@ -87,10 +92,18 @@ export default function ConfigSite({ dados, acao, aviso }) {
 
       <Secao titulo="Contato" ajuda="Aparece no topo e no rodapé, com link.">
         <Texto rotulo="Endereço" valor={cfg.endereco} aoMudar={v => mudar('endereco', v)} />
+        <Texto rotulo="Cidade" valor={cfg.cidade} aoMudar={v => mudar('cidade', v)}
+               dica="Só o nome da cidade. Entra no título da página e no cadastro que o Google lê —
+                     é por cidade que as pessoas procuram serviço." />
         <Texto rotulo="Link do mapa" valor={cfg.mapa} aoMudar={v => mudar('mapa', v)}
                dica="Cole o link do Google Maps. Vazio: o site monta a busca pelo endereço." />
         <Texto rotulo="WhatsApp" valor={cfg.whatsapp} aoMudar={v => mudar('whatsapp', v)}
                dica="Só números, com DDD." />
+      </Secao>
+
+      <Secao titulo="Perguntas frequentes"
+             ajuda="Viram uma seção no site, e o Google as usa para mostrar as respostas direto na busca.">
+        <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
       </Secao>
 
       <Secao titulo="Instagram" ajuda="O perfil vai para o rodapé e, no modelo Clínica, ganha uma seção com as publicações.">
@@ -273,6 +286,55 @@ function Imagem({ rotulo, uso, valor, largura, aoMudar, dica, aviso }) {
           )}
         </div>
         <input ref={entrada} type="file" accept="image/*" hidden onChange={escolher} />
+      </div>
+    </Linha>
+  );
+}
+
+/**
+ * As perguntas e respostas do site.
+ *
+ * Sem sugestão nossa de pergunta, de propósito: a dúvida que trava uma venda
+ * é de cada ramo — "dói?" não serve a uma oficina, "quanto tempo dura?" não
+ * serve a um consultório. Os exemplos abaixo são só o que cabe no campo
+ * vazio, e falam de forma, não de assunto.
+ */
+function Perguntas({ lista, aoMudar }) {
+  const trocar = (i, patch) => aoMudar(lista.map((p, n) => (n === i ? { ...p, ...patch } : p)));
+  const remover = i => aoMudar(lista.filter((_, n) => n !== i));
+  const mover = (i, para) => {
+    if (para < 0 || para >= lista.length) return;
+    const nova = [...lista];
+    [nova[i], nova[para]] = [nova[para], nova[i]];
+    aoMudar(nova);
+  };
+
+  return (
+    <Linha rotulo="Perguntas"
+           dica="Comece pelas que você mais responde no WhatsApp — é o que faz alguém desistir
+                 antes de agendar. A seção some do site quando não há nenhuma.">
+      <div className="cs-faq">
+        {lista.map((p, i) => (
+          <div key={i} className="cs-faq-item">
+            <input placeholder="A pergunta, como a cliente faria" value={p.pergunta || ''}
+                   onChange={e => trocar(i, { pergunta: e.target.value })} />
+            <textarea rows={3} placeholder="A resposta, curta e direta" value={p.resposta || ''}
+                      onChange={e => trocar(i, { resposta: e.target.value })} />
+            <div className="cs-faq-btns">
+              {/* Lista vertical: a seta aponta para onde o item vai. */}
+              <button className="btn btn-g btn-s" onClick={() => mover(i, i - 1)} disabled={i === 0}
+                      aria-label="Mover para cima"><ChevronUp size={14} /></button>
+              <button className="btn btn-g btn-s" onClick={() => mover(i, i + 1)} disabled={i === lista.length - 1}
+                      aria-label="Mover para baixo"><ChevronDown size={14} /></button>
+              <button className="btn btn-g btn-s" onClick={() => remover(i)} aria-label="Remover pergunta">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+        <button className="btn btn-g btn-s" onClick={() => aoMudar([...lista, { pergunta: '', resposta: '' }])}>
+          <Plus size={14} /> Adicionar pergunta
+        </button>
       </div>
     </Linha>
   );

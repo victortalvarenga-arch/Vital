@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Calendar, ChevronRight, Instagram, MapPin, MessageCircle,
-  Phone, Sparkles, TriangleAlert,
+  Calendar, ChevronRight, Clock, Instagram, MapPin, MessageCircle,
+  Phone, Plus, Sparkles, TriangleAlert,
 } from 'lucide-react';
 import * as api from '../shared/publico.js';
 import { aplicarTema } from './tema.js';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
 import { lugares } from './enderecos.js';
+import { aplicarSeo } from './seo.js';
+import { linkGeral, linkServico } from './whatsapp.js';
+import { passo } from './medir.js';
 import Agendar from './Agendar.jsx';
 import Grade from './Grade.jsx';
 import {
   HeroClinica, TituloClinica, CartoesClinica, SecaoEquipe, SecaoAntesDepois,
   SecaoAvaliacoes, SecaoAgende, SecaoInstagram, SecaoMapa, BotaoWhatsApp,
+  altDaCapa, altDoServico,
 } from './Clinica.jsx';
 
 export default function App() {
@@ -27,7 +31,13 @@ export default function App() {
         // modelo sem precisar gravar nada, do painel ou de um link só seu.
         const doLink = new URLSearchParams(location.search).get('template');
         aplicarTema(doLink ? { ...d.marca, template: doLink } : d.marca);
-        document.title = d.negocio.nome;
+        // Título, descrição e o schema de negócio local — sem isto toda
+        // empresa herda o <title> do index.html e some das buscas por serviço
+        // e cidade. Ver `seo.js`.
+        aplicarSeo(d, lugares(d));
+        // Primeiro passo do funil. Depois da vitrine responder, não antes:
+        // empresa suspensa ou endereço errado não são visita de ninguém.
+        passo('site');
       })
       .catch(e => setErro(e.message));
   }, []);
@@ -99,6 +109,8 @@ function BarraTopo({ negocio, marca, aoAgendar, temCapa, secoes }) {
     <header className={'barra' + (firme ? ' firme' : '')}>
       <div className="env-largo barra-in">
         <div className="barra-marca">
+          {/* `alt=""`: o nome do negócio vem logo ao lado, em texto. Descrever
+              o logo aqui faria o leitor de tela dizê-lo duas vezes seguidas. */}
           {comLogo && <img className="barra-logo" src={marca.logo} alt="" />}
           <span className="barra-nome">{negocio.nome}</span>
         </div>
@@ -145,21 +157,50 @@ export function Lugares({ dados, className, tamanho = 15 }) {
 
 /* ── revelar ao rolar ──────────────────────────────────────────────
    Discreto de propósito: a página existe para agendar rápido, não para
-   impressionar. Quem pediu menos movimento no sistema não vê nada. */
+   impressionar. Quem pediu menos movimento no sistema não vê nada.
+
+   **O conteúdo tem de aparecer mesmo quando o gatilho não dispara.** Três
+   coisas garantem isso, porque a animação escondia seção de verdade:
+
+   1. `threshold: 0.12` pedia 12% do elemento visível — um bloco mais alto que
+      a tela nunca chega a 12% e ficava invisível para sempre.
+   2. A margem agora é POSITIVA embaixo: o bloco começa a aparecer um quinto de
+      tela antes de entrar, e chega opaco. Era o sintoma de "rolando rápido, a
+      seção fica quase invisível" — a transição de meio segundo começava tarde
+      demais e a pessoa já tinha passado.
+   3. Sem IntersectionObserver (webview antigo), revela na hora.
+   4. Uma rede curta: passado o tempo da transição, o que já estiver na tela e
+      continuar escondido aparece. Só o que já deveria estar visível — revelar
+      a página inteira por tempo mataria o efeito para quem está no topo.
+
+   E o `opacity: 0` do CSS só vale com a classe `js` no <html> (main.jsx), então
+   página sem JavaScript nenhum nasce inteira. */
+const ESPERA_MAXIMA = 1200;
+
 export function useRevelar() {
   const ref = useRef(null);
   useEffect(() => {
     const alvo = ref.current;
     if (!alvo) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      alvo.classList.add('visivel');
+    const revelar = () => alvo.classList.add('visivel');
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+        || typeof IntersectionObserver === 'undefined') {
+      revelar();
       return;
     }
+
     const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { alvo.classList.add('visivel'); obs.disconnect(); }
-    }, { threshold: 0.12 });
+      if (e.isIntersecting) { revelar(); obs.disconnect(); }
+    }, { threshold: 0, rootMargin: '0px 0px 20% 0px' });
     obs.observe(alvo);
-    return () => obs.disconnect();
+
+    const rede = setTimeout(() => {
+      // Já está na tela e continua escondido: o observador não fez o trabalho.
+      if (alvo.getBoundingClientRect().top < window.innerHeight) { revelar(); obs.disconnect(); }
+    }, ESPERA_MAXIMA);
+
+    return () => { clearTimeout(rede); obs.disconnect(); };
   }, []);
   return ref;
 }
@@ -231,7 +272,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
               imagem. */}
           {marca?.capa && (
             <div className="capa">
-              <img src={marca.capa} alt="" />
+              <img src={marca.capa} alt={altDaCapa(negocio)} />
               <div className="capa-veu" aria-hidden="true" />
             </div>
           )}
@@ -240,7 +281,11 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
             <div className="env identidade-in">
               <Logo marca={marca} nome={negocio.nome} />
               <h1>{negocio.nome}</h1>
-              {negocio.slogan && <p className="slogan">{negocio.slogan}</p>}
+              {/* A frase que a empresa escreveu para quem acabou de chegar,
+                  quando existe; senão o slogan de sempre. */}
+              {(textos?.hero || negocio.slogan) && (
+                <p className="slogan">{textos?.hero || negocio.slogan}</p>
+              )}
               <Lugares dados={dados} className="local" />
               <div className="chamada">
                 <button className="b b-p b-larg" onClick={() => aoAgendar(null)}>
@@ -296,8 +341,9 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
             ? <CartoesClinica servicos={servicos} categorias={categorias} exibir={exibir}
                               negocio={negocio} aoAgendar={aoAgendar} aoAbrir={aoAbrirCategoria} />
             : exibir?.categorias && categorias.length > 1
-              ? <Categorias categorias={categorias} aoAbrir={aoAbrirCategoria} />
-              : <Servicos itens={servicos} exibir={exibir} textos={textos} aoAgendar={aoAgendar} />}
+              ? <Categorias categorias={categorias} negocio={negocio} aoAbrir={aoAbrirCategoria} />
+              : <Servicos itens={servicos} exibir={exibir} textos={textos} negocio={negocio}
+                          aoAgendar={aoAgendar} />}
         </div>
       </section>
 
@@ -311,9 +357,14 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           <SecaoAvaliacoes />
           <SecaoAgende textos={textos} aoAgendar={aoAgendar} />
           <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
-          <SecaoMapa dados={dados} />
         </>
       )}
+
+      {/* Dúvida que não é respondida vira desistência, e isso não é
+          particularidade de modelo nenhum: a seção é dos quatro. */}
+      <Perguntas faq={dados.faq} negocio={negocio} ehClinica={ehClinica} />
+
+      {ehClinica && <SecaoMapa dados={dados} />}
 
       <Rodape dados={dados} negocio={negocio} textos={textos} cheio={ehClinica} />
       {ehClinica && <BotaoWhatsApp negocio={negocio} />}
@@ -321,10 +372,128 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   );
 }
 
+/**
+ * "Tirar uma dúvida" em cada serviço, com a mensagem já escrita.
+ *
+ * Secundário de propósito — link, não botão: agendar é a ação da vitrine, e
+ * dois botões com o mesmo peso fariam a pessoa parar para escolher. Some
+ * inteiro quando a empresa não cadastrou WhatsApp.
+ */
+export function PerguntarSobre({ negocio, servico, className = 'svc-duvida' }) {
+  const href = linkServico(negocio, servico);
+  if (!href) return null;
+  return (
+    <a className={className} href={href} target="_blank" rel="noreferrer"
+       aria-label={`Tirar dúvida sobre ${servico.nome} no WhatsApp`}>
+      <MessageCircle size={14} /> Tirar dúvida
+    </a>
+  );
+}
+
+/**
+ * Perguntas frequentes.
+ *
+ * `<details>`/`<summary>` em vez de acordeão com estado: abre e fecha sem
+ * JavaScript, o teclado já anda por ele, o leitor de tela anuncia o estado, e
+ * o texto da resposta existe no HTML mesmo fechado — que é o que um buscador
+ * lê. Um acordeão nosso custaria as quatro coisas para ganhar nada.
+ *
+ * O conteúdo é da empresa (config `faq`): a dúvida que trava uma venda muda de
+ * ramo para ramo, e escrever uma lista nossa seria pôr palavra de estética na
+ * boca de uma oficina. Sem pergunta cadastrada, a seção não existe.
+ */
+function Perguntas({ faq = [], negocio, ehClinica }) {
+  if (!faq.length) return null;
+  const zap = linkGeral(negocio, 'Olá! Vim pelo site e fiquei com uma dúvida.');
+  return (
+    <section id="perguntas" className="bloco">
+      <div className="env">
+        {ehClinica
+          ? <TituloClinica olho="Dúvidas">Perguntas que a gente <em>sempre ouve.</em></TituloClinica>
+          : <Revela><h2 className="bloco-titulo">Perguntas frequentes</h2></Revela>}
+
+        <div className="faq">
+          {faq.map((p, i) => (
+            <Revela key={p.pergunta} className={`atraso-${Math.min(i, 5)}`}>
+              <details className="faq-item">
+                <summary>
+                  <span>{p.pergunta}</span>
+                  <Plus className="faq-mais" size={17} aria-hidden="true" />
+                </summary>
+                <p>{p.resposta}</p>
+              </details>
+            </Revela>
+          ))}
+        </div>
+
+        {zap && (
+          <Revela>
+            <p className="faq-pe">
+              Ficou com outra dúvida?{' '}
+              <a href={zap} target="_blank" rel="noreferrer">Pergunte no WhatsApp</a>.
+            </p>
+          </Revela>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * O horário de funcionamento, no contato.
+ *
+ * Vem da jornada da equipe, calculado no servidor (`lib/horarios.js`) — não é
+ * um campo que a empresa preenche e esquece de atualizar. Dias de mesma faixa
+ * viram uma linha só ("seg a sex · 09:00 às 19:00"), como um negócio escreve
+ * na porta.
+ */
+function Horarios({ horarios = [] }) {
+  const linhas = useMemo(() => agruparDias(horarios), [horarios]);
+  if (!linhas.length) return null;
+  return (
+    <div className="horarios">
+      <h3><Clock size={15} /> Horário de atendimento</h3>
+      <dl>
+        {linhas.map(l => (
+          <div key={l.dias}>
+            <dt>{l.dias}</dt>
+            <dd>{l.abre} às {l.fecha}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+const NOME_DIA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+/** Dias seguidos com a mesma faixa viram uma linha: "seg a sex". */
+function agruparDias(horarios) {
+  const linhas = [];
+  for (const h of horarios) {
+    const ultima = linhas[linhas.length - 1];
+    // Só junta dia consecutivo: seg e qua com o mesmo horário são duas linhas,
+    // senão "seg a qua" prometeria terça.
+    if (ultima && ultima.abre === h.abre && ultima.fecha === h.fecha && ultima.ate === h.dia - 1) {
+      ultima.ate = h.dia;
+    } else {
+      linhas.push({ de: h.dia, ate: h.dia, abre: h.abre, fecha: h.fecha });
+    }
+  }
+  return linhas.map(l => ({
+    ...l,
+    dias: l.de === l.ate ? NOME_DIA[l.de]
+      : l.ate === l.de + 1 ? `${NOME_DIA[l.de]} e ${NOME_DIA[l.ate]}`
+      : `${NOME_DIA[l.de]} a ${NOME_DIA[l.ate]}`,
+  }));
+}
+
 function Logo({ marca, nome, tamanho }) {
   const estilo = tamanho ? { width: tamanho, height: tamanho, borderWidth: 2 } : undefined;
   return (
     <div className="logo" style={estilo}>
+      {/* `alt=""`: este logo fica logo acima do `<h1>` com o nome do negócio.
+          O leitor de tela já vai lê-lo — repetir aqui não acrescenta nada. */}
       {marca?.logo
         ? <img src={marca.logo} alt="" />
         : <span className="logo-letra" style={tamanho ? { fontSize: tamanho * 0.5 } : undefined}>
@@ -341,7 +510,7 @@ function Logo({ marca, nome, tamanho }) {
  * home abria os serviços do grupo, e a janela pedia o serviço de novo logo
  * depois — a mesma lista, duas vezes, com um toque a mais no meio.
  */
-function Categorias({ categorias, aoAbrir }) {
+function Categorias({ categorias, negocio, aoAbrir }) {
   return (
     <Grade>
       {categorias.map(({ nome, itens }, i) => {
@@ -351,6 +520,9 @@ function Categorias({ categorias, aoAbrir }) {
             <article className="svc-item">
               <button className="svc-circulo" onClick={() => aoAbrir(nome)}
                       aria-label={`Agendar em ${nome}, ${itens.length} opções`}>
+                {/* `alt=""`: a imagem está DENTRO do botão, que já se anuncia
+                    pelo `aria-label`. Descrever aqui faria o leitor de tela
+                    ler a categoria duas vezes antes de dizer que é um botão. */}
                 {capa
                   ? <img src={capa} alt="" loading="lazy" />
                   : <span className="svc-inicial">{nome?.[0]?.toUpperCase()}</span>}
@@ -362,6 +534,9 @@ function Categorias({ categorias, aoAbrir }) {
               <button className="b b-p b-peq svc-btn svc-btn-cat" onClick={() => aoAbrir(nome)}>
                 Ver opções <ChevronRight size={15} />
               </button>
+              {/* Aqui a dúvida cita a categoria: é o que está na tela, e quem
+                  está em dúvida é justamente quem ainda não escolheu o serviço. */}
+              <PerguntarSobre negocio={negocio} servico={{ nome }} />
             </article>
           </Revela>
         );
@@ -377,12 +552,14 @@ function Categorias({ categorias, aoAbrir }) {
  * mais rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor
  * da marca, para o círculo não ficar vazio e a grade não desalinhar.
  */
-function Servicos({ itens, exibir, textos, aoAgendar }) {
+function Servicos({ itens, exibir, textos, negocio, aoAgendar }) {
   return (
     <Grade>
       {itens.map((s, i) => (
         <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
           <article className="svc-item">
+            {/* Mesma regra das categorias: a imagem mora dentro do botão, que
+                já diz "Agendar <serviço>". Ver `alt` em Clinica.jsx. */}
             <button className="svc-circulo" onClick={() => aoAgendar(s.id)}
                     aria-label={`Agendar ${s.nome}`}>
               {s.foto
@@ -401,6 +578,7 @@ function Servicos({ itens, exibir, textos, aoAgendar }) {
             <button className="b b-p b-peq svc-btn" onClick={() => aoAgendar(s.id)}>
               <Calendar size={15} /> {textos?.botaoAgendar || 'Agendar'}
             </button>
+            <PerguntarSobre negocio={negocio} servico={s} />
           </article>
         </Revela>
       ))}
@@ -456,7 +634,9 @@ function Promocoes({ itens, exibir, aoAgendar }) {
         <Revela key={c.id} className={`atraso-${Math.min(i, 5)}`}>
           <article className="promo">
             <span className="promo-selo"><Sparkles size={13} /> Promoção</span>
-            {c.foto && <img className="promo-foto" src={c.foto} alt="" loading="lazy" />}
+            {/* O cartão da promoção não é um botão inteiro (o "Aproveitar" é
+                um botão à parte), então a foto é conteúdo e ganha descrição. */}
+            {c.foto && <img className="promo-foto" src={c.foto} alt={c.nome} loading="lazy" />}
             <h4 className="promo-nome">{c.nome}</h4>
             <p className="promo-itens">{c.servicos.map(s => s.nome).join(' + ')}</p>
             {c.descricao && <p className="promo-desc">{c.descricao}</p>}
@@ -505,6 +685,8 @@ function Rodape({ dados, negocio, textos, cheio }) {
             </a>
           )}
         </div>
+
+        <Horarios horarios={negocio.horarios} />
 
         {negocio.formasPagamento?.length > 0 && (
           <div className="pagamentos">

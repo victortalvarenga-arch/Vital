@@ -123,6 +123,14 @@ export const api = {
   formulariosDoServico: id => req(`/formularios/servico/${id}`),
   ultimaFicha: (formId, clienteId) => req(`/formularios/${formId}/ultima/${clienteId}`),
   respostasDoAgendamento: id => req(`/agendamentos/${id}/respostas`),
+  // O histórico de anamneses de uma cliente. Rota própria e sob demanda: dado
+  // de saúde não viaja junto da ficha cadastral, e o servidor registra quem
+  // abriu. Ver `routes/clientes.js`.
+  fichasDaCliente: id => req(`/clientes/${id}/fichas`),
+  // A ficha é respondida aqui, no atendimento — não mais pelo site (LGPD; ver
+  // ARQUITETURA.md). `respostas` é `{ [formId]: [{campoId, valor}] }`.
+  responderFicha: (id, respostas) =>
+    req(`/agendamentos/${id}/respostas`, { method: 'POST', body: { respostas } }),
 
   /* ── registro do painel ── */
   logs: acao => req('/logs' + (acao ? `?acao=${acao}` : '')),

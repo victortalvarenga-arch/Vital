@@ -55,6 +55,12 @@ async function garantirBanco() {
 export async function prepararBanco() {
   await garantirBanco();
 
+  // O limite de chamadas das rotas públicas fica DESLIGADO na suíte: um teste
+  // que agenda quinze vezes seguidas bateria no teto e falharia por um motivo
+  // que não é o dele. Quem liga é `limite.test.js`, que existe justamente para
+  // provar que o limite funciona — e volta a desligar no fim.
+  process.env.RATE_LIMIT = 'off';
+
   const adminTeste = comBanco(process.env.DATABASE_ADMIN_URL, NOME);
   const appTeste = comBanco(process.env.DATABASE_URL, NOME);
   if (!adminTeste.endsWith('_teste')) {

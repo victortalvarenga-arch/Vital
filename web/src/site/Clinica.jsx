@@ -3,7 +3,7 @@ import {
   ArrowDown, ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, ExternalLink,
   Instagram, MessageCircle, Play, Plus, ShieldCheck, Sparkles, Star,
 } from 'lucide-react';
-import { Lugares, Revela } from './App.jsx';
+import { Lugares, PerguntarSobre, Revela } from './App.jsx';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
 import { lugares } from './enderecos.js';
 
@@ -45,6 +45,26 @@ export function TituloClinica({ olho, children }) {
    é como o título ganha a palavra de destaque sem inventar slogan nenhum:
    o dado é o nome, o gesto é do modelo. */
 
+/**
+ * Texto alternativo das imagens do site.
+ *
+ * Duas regras, e a segunda é a que se esquece:
+ *
+ * 1. **Imagem que carrega informação ganha `alt` descritivo.** A foto do
+ *    trabalho da empresa é conteúdo — quem usa leitor de tela precisa saber
+ *    que existe e do que é.
+ * 2. **Imagem decorativa, ou já descrita pelo texto ao lado, leva `alt=""`.**
+ *    Não é descuido: `alt` repetido faz o leitor de tela ler a mesma coisa
+ *    duas vezes seguidas, e é pior que o silêncio. Vale sobretudo para imagem
+ *    dentro de botão que já tem `aria-label`.
+ *
+ * O nome da empresa entra no texto porque o site é dela — "foto de Laura
+ * Faust" diz mais que "foto do estabelecimento" para quem chegou pelo link.
+ */
+export const altDaCapa = negocio => `Ambiente de ${negocio?.nome || 'atendimento'}`;
+export const altDoServico = (nome, negocio) =>
+  `${nome}${negocio?.nome ? ` — ${negocio.nome}` : ''}`;
+
 export function HeroClinica({ dados, negocio, marca, textos, aoAgendar }) {
   const palavras = (negocio.nome || '').trim().split(/\s+/);
   const ultima = palavras.length > 1 ? palavras.pop() : null;
@@ -60,7 +80,13 @@ export function HeroClinica({ dados, negocio, marca, textos, aoAgendar }) {
           <h1>
             {palavras.join(' ')}{ultima && <> <em>{ultima}</em></>}
           </h1>
-          {negocio.sobre && <p className="slogan">{primeiraFrase(negocio.sobre)}</p>}
+          {/* A frase que a empresa escreveu para este lugar, quando existe. A
+              primeira frase do "sobre" é o fallback — descreve o negócio em
+              vez de falar com quem acabou de chegar, e por isso deixou de ser
+              a única opção (ver `textos.hero` na config). */}
+          {(textos?.hero || negocio.sobre) && (
+            <p className="slogan">{textos?.hero || primeiraFrase(negocio.sobre)}</p>
+          )}
           <div className="chamada">
             <button className="b clinica-cta-ouro" onClick={() => aoAgendar(null)}>
               {textos?.chamada || 'Agende seu horário'} <ArrowRight size={15} />
@@ -72,7 +98,8 @@ export function HeroClinica({ dados, negocio, marca, textos, aoAgendar }) {
           <Lugares dados={dados} className="local" />
         </div>
         <div className="clinica-hero-quadro">
-          <CarrosselHero marca={marca} inicial={(negocio.nome || '?').trim()[0]?.toUpperCase()} />
+          <CarrosselHero marca={marca} negocio={negocio}
+                         inicial={(negocio.nome || '?').trim()[0]?.toUpperCase()} />
           {/* O selo diz uma coisa que é verdade do produto, não um slogan:
               aqui se marca hora de verdade, sem cadastro nem senha. */}
           <div className="clinica-hero-selo">
@@ -98,7 +125,7 @@ function primeiraFrase(texto) {
  * painel para cadastrar mais de uma capa — só a `capa` única de
  * Configurações → Site da cliente.
  */
-function CarrosselHero({ marca, inicial }) {
+function CarrosselHero({ marca, inicial, negocio }) {
   const imagens = marca?.capas?.length ? marca.capas : (marca?.capa ? [marca.capa] : []);
   const [i, setI] = useState(0);
 
@@ -111,8 +138,12 @@ function CarrosselHero({ marca, inicial }) {
 
   return (
     <div className="clinica-hero-visual">
+      {/* A foto do topo é a primeira impressão do negócio — quem não a vê
+          precisa saber que ela existe e do que é. Com várias, o número diz
+          qual está na tela, senão o leitor anuncia a mesma coisa a cada troca. */}
       {imagens.length > 0
-        ? <img key={i} src={imagens[i]} alt="" />
+        ? <img key={i} src={imagens[i]}
+               alt={`${altDaCapa(negocio)}${imagens.length > 1 ? ` (${i + 1} de ${imagens.length})` : ''}`} />
         : <span className="clinica-hero-marca">{inicial}</span>}
       {imagens.length > 1 && (
         <div className="clinica-hero-pontos">
@@ -163,7 +194,13 @@ export function CartoesClinica({ servicos, categorias, exibir, negocio, aoAgenda
                     descricao={itens.map(s => s.nome).join(' · ')}
                     pe={menor != null ? [`a partir de ${brl(menor)}`] : []}
                     acao={`Agendar em ${nome}, ${itens.length} opções`}
-                    aoClicar={() => aoAbrir(nome)} />
+                    // A foto do cartão é de um dos serviços do grupo — dizer
+                    // "categoria Unhas" descreveria o cartão, não a imagem.
+                    altFoto={altDoServico(itens.find(s => s.foto)?.nome || nome, negocio)}
+                    aoClicar={() => aoAbrir(nome)}
+                    /* A dúvida cita a categoria: é o que está na tela, e quem
+                       está em dúvida ainda não escolheu o serviço. */
+                    extra={<PerguntarSobre negocio={negocio} servico={{ nome }} className="cartao-duvida" />} />
                 </Revela>
               );
             })
@@ -182,7 +219,10 @@ export function CartoesClinica({ servicos, categorias, exibir, negocio, aoAgenda
                     s.preco != null ? brl(s.preco) : 'Sob consulta',
                   ].filter(Boolean)}
                   acao={`Agendar ${s.nome}`}
-                  aoClicar={() => aoAgendar(s.id)} />
+                  altFoto={altDoServico(s.nome, negocio)}
+                  aoClicar={() => aoAgendar(s.id)}
+                  /* Quem tem dúvida pergunta daqui, sem rolar até o rodapé. */
+                  extra={<PerguntarSobre negocio={negocio} servico={s} className="cartao-duvida" />} />
               </Revela>
             ))}
       </div>
@@ -212,12 +252,15 @@ export function CartoesClinica({ servicos, categorias, exibir, negocio, aoAgenda
  * parágrafo não podem morar dentro de <button>). O círculo com o "+" é só
  * desenho, como na referência.
  */
-function Cartao({ foto, inicial, rotulo, nome, descricao, pe, acao, aoClicar }) {
+function Cartao({ foto, inicial, rotulo, nome, descricao, pe, acao, aoClicar, extra, altFoto }) {
   return (
     <article className="cartao">
       <div className="cartao-img">
+        {/* A foto mostra o trabalho, e não está dentro do botão — o
+            `.cartao-acao` é irmão dela. Então o `alt` acrescenta em vez de
+            repetir o que o botão já anuncia. */}
         {foto
-          ? <img src={foto} alt="" loading="lazy" />
+          ? <img src={foto} alt={altFoto || ''} loading="lazy" />
           : <span className="cartao-inicial">{(inicial || '?').toUpperCase()}</span>}
         <span className="cartao-mais" aria-hidden="true"><Plus size={15} /></span>
       </div>
@@ -232,6 +275,10 @@ function Cartao({ foto, inicial, rotulo, nome, descricao, pe, acao, aoClicar }) 
         )}
       </div>
       <button type="button" className="cartao-acao" onClick={aoClicar} aria-label={acao} />
+      {/* Depois do `.cartao-acao`, que cobre o cartão inteiro: o que vier aqui
+          precisa ficar por cima dele para receber o toque (ver `.cartao-duvida`
+          no CSS), senão o cartão engole o clique e manda agendar. */}
+      {extra}
     </article>
   );
 }
@@ -458,6 +505,9 @@ export function SecaoInstagram({ negocio, marca, posts = [] }) {
                   <a key={p.imagem + i} className="insta-post" href={p.link || perfil}
                      target="_blank" rel="noreferrer"
                      aria-label={`Publicação ${i + 1} de ${posts.length} no Instagram`}>
+                    {/* `alt=""` de propósito: a imagem está DENTRO do link, que
+                        já se anuncia. Descrevê-la aqui faria o leitor de tela
+                        ler a mesma publicação duas vezes. */}
                     <img src={p.imagem} alt="" loading="lazy" />
                     {p.tipo === 'video' && (
                       <span className="insta-play" aria-hidden="true"><Play size={13} fill="currentColor" /></span>

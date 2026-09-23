@@ -50,6 +50,56 @@ agendamentos.get('/:id/respostas', rota(async (req, res) => {
   res.json(await respostasDoAgendamento(req.params.id));
 }));
 
+/**
+ * Responder a ficha de um atendimento que já existe.
+ *
+ * É por aqui que a anamnese é preenchida desde que saiu do site (2026-09-23):
+ * a profissional pergunta presencialmente, com a cliente na cadeira, e grava.
+ * Sem esta rota, todo agendamento feito pelo site ficaria sem ficha para
+ * sempre — a ficha só era gravada na criação.
+ *
+ * Mesma guarda do GET: funcionário responde a de quem ele atende, e nada mais.
+ * O rótulo gravado sai do banco, não do que o navegador mandou — `validarRespostas`
+ * é a mesma função do balcão, para não haver duas versões da mesma conferência.
+ */
+agendamentos.post('/:id/respostas', rota(async (req, res) => {
+  const a = await db.get('SELECT id, staff_id, service_id, client_id FROM appointments WHERE id=?', req.params.id);
+  if (!a) return res.status(404).json({ erro: 'agendamento não encontrado' });
+  if (!podeMexer(req.usuario, a.staff_id)) {
+    return res.status(403).json({ erro: 'esta ficha não é de um atendimento seu' });
+  }
+
+  const enviadas = req.body?.respostas || {};
+  const jaRespondidos = new Set((await respostasDoAgendamento(a.id)).map(r => r.formulario));
+  const gravar = [];
+
+  for (const form of await formsDoServico(a.service_id)) {
+    // Resposta dada não se edita (`REVOKE UPDATE` na migration 012): é o
+    // registro do que a cliente declarou naquele dia. Responder de novo cria
+    // outra linha, e a tela mostra as duas — corrigir é acrescentar, não
+    // reescrever. Aqui o que se evita é gravar uma ficha vazia por cima de
+    // uma já respondida só porque a tela recarregou.
+    if (jaRespondidos.has(form.nome) && !enviadas[form.id]) continue;
+    const r = validarRespostas(form, enviadas[form.id]);
+    if (r.erro) return res.status(400).json({ erro: r.erro });
+    if (r.itens.length) gravar.push({ formId: form.id, itens: r.itens });
+  }
+
+  if (!gravar.length) return res.status(400).json({ erro: 'nada para gravar' });
+
+  for (const f of gravar) {
+    await gravarRespostas(db, { ...f, agendamentoId: a.id, clienteId: a.client_id });
+  }
+  // Registro sem o conteúdo da ficha, de propósito: o que interessa ao
+  // histórico é que alguém respondeu e quando, não a resposta de saúde da
+  // cliente copiada para uma segunda tabela.
+  await req.registrar?.('ficha.responder', {
+    alvoTipo: 'agendamento', alvoId: a.id,
+    resumo: `respondeu a ficha de ${await nomeDaCliente(a.client_id)}`,
+  });
+  res.status(201).json(await respostasDoAgendamento(a.id));
+}));
+
 agendamentos.get('/horarios', rota(async (req, res) => {
   const { servicoId, profissionalId, data } = req.query;
   if (!data) return res.status(400).json({ erro: 'informe data=YYYY-MM-DD' });
@@ -128,14 +178,28 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
   const extras = await validarAdicionais(svc, b.adicionaisIds);
   if (extras.erro) return extras;
 
-  // Formulários que este serviço pede. Conferidos ANTES da transação: recusar
-  // por resposta faltando não pode deixar meio agendamento gravado.
-  const forms = await formsDoServico(svc.id);
+  /**
+   * Formulários que este serviço pede.
+   *
+   * **Só no balcão.** Ficha de anamnese é dado de saúde — dado sensível na
+   * LGPD, com regra própria e consentimento destacado —, e coletá-lo num
+   * formulário web aberto, de quem ainda nem é cliente, é risco que o produto
+   * não precisa correr para agendar um horário. Quem pergunta é a profissional,
+   * presencialmente, no começo do atendimento (decidido em 2026-09-23).
+   *
+   * Agendamento vindo do site nasce com a ficha pendente, e o painel a
+   * apresenta para responder no detalhe do atendimento.
+   *
+   * Conferidos ANTES da transação: recusar por resposta faltando não pode
+   * deixar meio agendamento gravado.
+   */
   const fichas = [];
-  for (const form of forms) {
-    const r = validarRespostas(form, (b.respostas || {})[form.id]);
-    if (r.erro) return { erro: r.erro, codigo: 400 };
-    if (r.itens.length) fichas.push({ formId: form.id, itens: r.itens });
+  if (origem !== 'site') {
+    for (const form of await formsDoServico(svc.id)) {
+      const r = validarRespostas(form, (b.respostas || {})[form.id]);
+      if (r.erro) return { erro: r.erro, codigo: 400 };
+      if (r.itens.length) fichas.push({ formId: form.id, itens: r.itens });
+    }
   }
 
   // A duração precisa somar os extras, senão a cadeira é reservada por menos

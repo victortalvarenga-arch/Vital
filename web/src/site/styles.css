@@ -745,6 +745,18 @@ body {
    transparente. */
 .cartao:has(.cartao-acao:focus-visible) { outline: 3px solid var(--marca-escura); outline-offset: 3px; }
 .cartao-acao:focus-visible { outline: none; }
+/* "Tirar dúvida" no canto do cartão. `z-index` acima do `.cartao-acao`, que
+   cobre o cartão inteiro — sem isso o toque cai no cartão e abre o
+   agendamento. Fundo próprio porque flutua sobre a foto e o texto. */
+.cartao-duvida {
+  position: absolute; z-index: 2; right: var(--e-3); bottom: var(--e-3);
+  display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 0 13px;
+  border-radius: var(--pilula); border: 1px solid var(--linha); background: var(--fundo);
+  color: var(--cinza); font-size: var(--t-auxiliar); font-weight: 600; text-decoration: none;
+}
+.cartao-duvida:hover { border-color: var(--marca); color: var(--marca-legivel); }
+/* Deixa a linha de preço/duração respirar longe do botão. */
+.cartao:has(.cartao-duvida) .cartao-pe { padding-right: 130px; }
 @media (prefers-reduced-motion: reduce) {
   .cartao, .cartao-img img, .cartao-mais { transition: none; }
   .cartao:hover { transform: none; }
@@ -957,9 +969,14 @@ img { max-width: 100%; display: block; }
 .sobre { color: var(--cinza); font-size: var(--t-corpo); line-height: 1.65; text-align: left; max-width: 62ch; }
 
 /* revelar ao rolar: sutil de propósito — a página existe para agendar rápido,
-   não para impressionar. Some inteiro para quem pediu menos movimento. */
-.revela { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s cubic-bezier(.22,1,.36,1); }
-.revela.visivel { opacity: 1; transform: none; }
+   não para impressionar. Some inteiro para quem pediu menos movimento.
+
+   Escondido só quando há JavaScript para revelar (`js` entra no <html> em
+   main.jsx). Sem o bundle — erro de rede, script bloqueado —, o site continua
+   legível em vez de virar uma página em branco com o conteúdo invisível. */
+.revela { transition: opacity .55s ease, transform .55s cubic-bezier(.22,1,.36,1); }
+.js .revela { opacity: 0; transform: translateY(18px); }
+.js .revela.visivel { opacity: 1; transform: none; }
 .atraso-1 { transition-delay: .06s; }
 .atraso-2 { transition-delay: .12s; }
 .atraso-3 { transition-delay: .18s; }
@@ -1047,6 +1064,14 @@ img { max-width: 100%; display: block; }
 .sob-consulta { font-size: var(--t-corpo-pq); color: var(--cinza); font-weight: 600; }
 .svc-dur { font-size: var(--t-legenda); letter-spacing: .06em; text-transform: uppercase; color: var(--fraco); }
 .svc-btn { flex: none; margin-top: 2px; }
+/* "Tirar dúvida": link, não botão — agendar é a ação da vitrine, e dois
+   botões de mesmo peso fariam a pessoa parar para escolher. Alvo de toque de
+   40px mesmo sendo texto. */
+.svc-duvida {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 40px;
+  color: var(--cinza); font-size: var(--t-auxiliar); font-weight: 500; text-decoration: none;
+}
+.svc-duvida:hover { color: var(--marca-legivel); }
 
 @media (max-width: 420px) {
   .grade { gap: 20px 10px; }
@@ -1078,6 +1103,50 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca-legivel) 15%, transparent);
 }
 .ajuda { font-size: var(--t-auxiliar); color: var(--fraco); margin: -6px 0 var(--e-3); }
+
+/* ── perguntas frequentes ──
+   <details> nativo: o marcador padrão sai, o "+" gira ao abrir. A resposta
+   existe no HTML mesmo fechada — é o que o buscador lê. */
+.faq { display: flex; flex-direction: column; gap: var(--e-2); max-width: 62ch; }
+.faq-item {
+  border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo);
+  transition: border-color .15s;
+}
+.faq-item[open] { border-color: var(--marca-borda); }
+.faq-item summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-3);
+  padding: var(--e-4); cursor: pointer; font-weight: 600; font-size: var(--t-corpo);
+  min-height: 56px; list-style: none;
+}
+/* O triângulo padrão do Safari/iOS não some com `list-style` sozinho. */
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary:hover { color: var(--marca-legivel); }
+.faq-mais { flex: none; color: var(--marca-legivel); transition: transform .18s ease; }
+.faq-item[open] .faq-mais { transform: rotate(45deg); }
+.faq-item p {
+  padding: 0 var(--e-4) var(--e-4); color: var(--cinza); font-size: var(--t-corpo-pq);
+  line-height: 1.6;
+}
+.faq-pe { margin-top: var(--e-5); font-size: var(--t-corpo-pq); color: var(--cinza); }
+.faq-pe a { color: var(--marca-legivel); font-weight: 600; }
+/* No celular o botão flutuante do WhatsApp (Clínica) pousa no canto e cobria
+   o fim deste link — dois alvos de toque no mesmo lugar. */
+@media (max-width: 640px) { .faq-pe { padding-right: 62px; } }
+
+/* ── horário de atendimento, no contato ── */
+.horarios { margin-top: var(--e-6); }
+.horarios h3 {
+  display: flex; align-items: center; gap: 7px; font-size: var(--t-legenda);
+  text-transform: uppercase; letter-spacing: .08em; color: var(--fraco);
+  font-weight: 700; margin-bottom: var(--e-3);
+}
+.horarios dl { margin: 0; display: flex; flex-direction: column; gap: 5px; max-width: 320px; }
+.horarios dl > div { display: flex; justify-content: space-between; gap: var(--e-4); font-size: var(--t-corpo-pq); }
+/* Só a inicial: `capitalize` fazia "Seg A Qui". */
+.horarios dt { color: var(--cinza); }
+.horarios dt::first-letter { text-transform: uppercase; }
+.horarios dd { margin: 0; font-weight: 600; font-family: var(--fonte-mono); }
+.rodape.bloco-cheio .horarios h3, .rodape.bloco-cheio .horarios dt { color: inherit; opacity: .7; }
 
 /* ── rodapé ── */
 .rodape { border-top: 1px solid var(--linha); }
@@ -1122,7 +1191,12 @@ img { max-width: 100%; display: block; }
 
 .jn {
   background: var(--fundo); border-radius: 16px; overflow: hidden;
-  width: 100%; max-width: 1120px; height: min(680px, 92vh);
+  /* `dvh` acompanha a barra do navegador que aparece e some ao rolar; `vh`
+     fica valendo a tela SEM a barra, e no webview do Instagram (que é por
+     onde chega quase todo mundo, pelo link da bio) isso cortava o rodapé da
+     janela — o botão de confirmar ficava fora da tela. A linha `vh` fica de
+     fallback para navegador sem `dvh`. */
+  width: 100%; max-width: 1120px; height: min(680px, 92vh); height: min(680px, 92dvh);
   display: grid; grid-template-columns: 260px 1fr 280px;
   box-shadow: 0 24px 70px -20px rgba(0, 0, 0, .5);
   position: relative;
@@ -1430,6 +1504,10 @@ img { max-width: 100%; display: block; }
 
 /* ── celular: uma coluna, resumo vira barra no rodapé ── */
 @media (max-width: 860px) {
+  /* `position: fixed; inset: 0` + `height: 100%` acompanha a tela útil do
+     webview (Instagram, Facebook), que é onde a maior parte do tráfego
+     entra pelo link da bio — `100vh` aqui deixaria o rodapé por baixo da
+     barra do app. */
   .jn-fundo { padding: 0; place-items: stretch; }
   .jn {
     grid-template-columns: 1fr; grid-template-rows: 1fr auto;
@@ -1439,7 +1517,7 @@ img { max-width: 100%; display: block; }
   .jn-centro { min-height: 0; }
   .jn-corpo { padding: 18px 18px var(--e-5); }
 
-  .jn-resumo { border-left: 0; border-top: 1px solid var(--linha); max-height: 60vh; }
+  .jn-resumo { border-left: 0; border-top: 1px solid var(--linha); max-height: 60vh; max-height: 60dvh; }
   .jn-resumo-barra { border-bottom: 0; cursor: pointer; padding: var(--e-3) 18px; min-height: 56px; }
   .jn-resumo-titulo { flex: none; text-align: left; }
   .jn-resumo-total { display: block; margin-left: auto; }
@@ -1452,7 +1530,7 @@ img { max-width: 100%; display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
-  .revela { opacity: 1; transform: none; }
+  .revela, .js .revela { opacity: 1; transform: none; }
 }
 
 /* ── conferir de quem é o número ── */

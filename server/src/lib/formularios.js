@@ -131,6 +131,44 @@ export async function respostasDoAgendamento(agendamentoId) {
 }
 
 /**
+ * Todas as fichas de uma cliente, da mais recente para a mais antiga.
+ *
+ * Existe porque ler a anamnese de alguém exigia lembrar em qual dia ela foi
+ * respondida e abrir aquele atendimento no calendário — o que na prática
+ * fazia a profissional não ler. Ficha de saúde que ninguém consegue achar não
+ * protege ninguém; só ocupa espaço.
+ *
+ * **`soDoProfissional` é o controle de acesso, e ele vive aqui na consulta.**
+ * Funcionário vê as fichas dos atendimentos que ele mesmo atendeu, e nada
+ * mais. Filtrar isso na tela deixaria a resposta inteira passando pela rede
+ * antes de ser escondida — que é o mesmo que não filtrar.
+ *
+ * @param {string} clienteId
+ * @param {string|null} soDoProfissional  staff_id, ou nulo para quem vê tudo
+ */
+export async function fichasDaCliente(clienteId, { soDoProfissional = null } = {}) {
+  const linhas = await db.all(
+    `SELECT r.id, r.respostas, r.criado_em, f.nome AS formulario,
+            a.data, a.hora, a.staff_id, s.nome AS servico
+       FROM form_answers r
+       JOIN forms f ON f.id = r.form_id
+       LEFT JOIN appointments a ON a.id = r.appointment_id
+       LEFT JOIN services s ON s.id = a.service_id
+      WHERE r.client_id = ?
+        AND (? = '' OR a.staff_id = ?)
+      ORDER BY r.criado_em DESC, r.id DESC`,
+    clienteId, soDoProfissional || '', soDoProfissional || ''
+  );
+  return linhas.map(l => ({
+    id: l.id, formulario: l.formulario, quando: l.criado_em,
+    // De qual atendimento veio. Uma resposta de dois anos atrás não vale o
+    // mesmo que a de ontem, e sem a data ninguém sabe qual está lendo.
+    atendimento: l.data ? { data: l.data, hora: l.hora, servico: l.servico } : null,
+    respostas: l.respostas || [],
+  }));
+}
+
+/**
  * O que a cliente respondeu da última vez, para o formulário vir preenchido.
  *
  * Ficha de saúde não muda a cada visita, e obrigar a redigitar tudo faz a pessoa

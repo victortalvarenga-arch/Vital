@@ -36,9 +36,11 @@ export const api = {
   sair: () => req('/plataforma/sair', { method: 'POST' }),
   eu: () => req('/plataforma/eu'),
 
-  /* ── as empresas-cliente ── */
-  empresas: () => req('/plataforma/empresas'),
-  resumo: () => req('/plataforma/resumo'),
+  /* ── as empresas-cliente ──
+     `dias` é o período do funil (7, 30 ou 90); o servidor recusa qualquer
+     outro valor. Vem nas duas porque a tela troca as duas ao mesmo tempo. */
+  empresas: (dias = 30) => req(`/plataforma/empresas?dias=${dias}`),
+  resumo: (dias = 30) => req(`/plataforma/resumo?dias=${dias}`),
   mudarStatus: (id, status, motivo) =>
     req(`/plataforma/empresas/${id}/status`, { method: 'POST', body: { status, motivo } }),
   mudarPlano: (id, plano) =>

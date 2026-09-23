@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { rota } from '../lib/rota.js';
 import { esquecerCacheDeEmpresas } from '../lib/tenant.js';
+import { comTaxas } from '../lib/funil.js';
 import {
   NOME_COOKIE_VITAL, opcoesDoCookieVital, PODERES_VITAL, podeNaPlataforma,
   entrarNaPlataforma, fecharSessaoVital, sessaoVitalDe, criarPrimeiroAdmin, registrar,
@@ -81,6 +82,7 @@ plataforma.get('/eu', exigeVital, rota(async (req, res) => {
 /* ── as empresas ────────────────────────────────────────────────────────── */
 
 plataforma.get('/empresas', exigeVital, exigePoder('verEmpresas'), rota(async (req, res) => {
+  const dias = periodo(req.query.dias);
   const linhas = await db.all(
     `SELECT id, slug, nome, dominio, plano, status, ativo, criado_em
        FROM plataforma.tenants ORDER BY criado_em DESC, nome`
@@ -89,6 +91,11 @@ plataforma.get('/empresas', exigeVital, exigePoder('verEmpresas'), rota(async (r
   // `comEmpresa` seriam quatro consultas por linha da tela.
   const numeros = await db.all('SELECT * FROM plataforma.numeros_por_empresa()');
   const porId = new Map(numeros.map(n => [n.tenant_id, n]));
+  // O funil vem junto, e não numa rota por empresa: são contagens, cabem na
+  // mesma consulta, e uma chamada por linha da tela seria o mesmo erro que a
+  // função de números existe para evitar.
+  const funis = await db.all('SELECT * FROM plataforma.funil_por_empresa(?)', dias);
+  const funilPorId = new Map(funis.map(f => [f.tenant_id, f]));
 
   res.json(linhas.map(t => {
     const n = porId.get(t.id) || {};
@@ -105,9 +112,21 @@ plataforma.get('/empresas', exigeVital, exigePoder('verEmpresas'), rota(async (r
       servicos: n.servicos ?? 0,
       agendamentosNoMes: n.agendamentos_mes ?? 0,
       ultimoMovimento: n.ultimo_movimento || null,
+      // Onde as pessoas somem, nesta empresa, no período pedido. Só contagem,
+      // como tudo aqui — ver `plataforma.funil_por_empresa()` na migration 015.
+      funil: comTaxas(funilPorId.get(t.id), { dias }),
     };
   }));
 }));
+
+/**
+ * Períodos fechados, não número livre.
+ *
+ * `dias` vira `make_interval` dentro de uma função do banco; aceitar qualquer
+ * coisa da query string é abrir a porta para uma varredura de anos inteiros a
+ * cada F5. Três opções cobrem as perguntas reais: a semana, o mês, o trimestre.
+ */
+const periodo = v => ([7, 30, 90].includes(Number(v)) ? Number(v) : 30);
 
 /**
  * De onde a empresa é acessível, do ponto de vista de quem está olhando a tela.
@@ -126,6 +145,7 @@ function enderecoDe(req, t) {
 }
 
 plataforma.get('/resumo', exigeVital, exigePoder('verEmpresas'), rota(async (req, res) => {
+  const dias = periodo(req.query.dias);
   const t = await db.get(
     `SELECT COUNT(*) total,
             COUNT(*) FILTER (WHERE ativo = 1 AND status = 'ativa') ativas,
@@ -139,11 +159,22 @@ plataforma.get('/resumo', exigeVital, exigePoder('verEmpresas'), rota(async (req
     `SELECT plano, COUNT(*) n FROM plataforma.tenants GROUP BY plano ORDER BY plano`
   );
 
+  // O funil somado de todas as empresas: é a pergunta de produto ("a nossa
+  // tela de agendamento perde gente onde?"), enquanto o de cada empresa é a
+  // pergunta de negócio ("esta aqui está vendendo?").
+  const funis = await db.all('SELECT * FROM plataforma.funil_por_empresa(?)', dias);
+  const somarFunil = campo => funis.reduce((s, f) => s + Number(f[campo] || 0), 0);
+
   res.json({
     empresas: { total: Number(t.total), ativas: Number(t.ativas), suspensas: Number(t.suspensas) },
     porPlano: porPlano.map(p => ({ plano: p.plano, empresas: Number(p.n) })),
     clientesFinais: somar('clientes'),
     agendamentosNoMes: somar('agendamentos_mes'),
+    funil: comTaxas({
+      site: somarFunil('site'), agendamento: somarFunil('agendamento'),
+      horario: somarFunil('horario'), confirmou: somarFunil('confirmou'),
+      compareceu: somarFunil('compareceu'),
+    }, { dias }),
     // Empresa que nunca teve agendamento é a que corre risco de cancelar antes
     // de virar cliente de verdade — é o número que diz se o produto pegou.
     semNenhumAgendamento: numeros.filter(n => !n.ultimo_movimento).length,

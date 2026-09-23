@@ -598,9 +598,14 @@ function Agenda({ dados, acao, aviso, poderes }) {
             {/* Quem atende precisa saber o que foi comprado junto antes de
                 começar — e o valor só fecha com o total quando os extras
                 aparecem discriminados. */}
-            {/* A ficha que ela respondeu ao agendar. Quem atende precisa ler
-                antes de começar — é para isso que ela existe. */}
-            <FichaRespondida agendamentoId={sel.id} />
+            {/* A ficha do atendimento. A cliente não a responde mais pelo site
+                (LGPD — ver ARQUITETURA.md): é aqui que ela é perguntada, com a
+                pessoa presente, e lida antes de começar. */}
+            {/* `sel.servico` e `sel.cliente`, não `servicoId`/`clienteId`: o
+                painel traduz os nomes do servidor em `painel-api.js`, e aqui
+                dentro o agendamento já chega com os nomes curtos. */}
+            <FichaRespondida agendamentoId={sel.id} servicoId={sel.servico}
+                             clienteId={sel.cliente} aviso={aviso} />
 
             {sel.adicionais.length > 0 && (
               <div className="extras">
@@ -960,36 +965,149 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
 }
 
 /**
- * As respostas do formulário, no detalhe do agendamento.
+ * O histórico de anamneses da cliente, na ficha dela.
  *
- * Carregadas sob demanda, e não junto da agenda: são dado sensível, e trazê-las
- * na listagem colocaria a ficha de saúde de todo mundo no navegador de quem só
- * queria ver os horários do dia.
+ * **Não carrega junto com a ficha.** Abrir o cadastro para conferir o telefone
+ * não pode baixar o histórico clínico de alguém — quem quer ler a anamnese
+ * pede, e esse pedido fica registrado no servidor (ver `routes/clientes.js`).
+ * O botão existe para que isso seja um ato, e não um efeito colateral.
+ *
+ * Antes disso, ler a ficha de saúde de uma cliente exigia lembrar em qual dia
+ * ela foi respondida e abrir aquele atendimento no calendário. Ficha que
+ * ninguém consegue achar não protege ninguém.
  */
-function FichaRespondida({ agendamentoId }) {
+function FichasDaCliente({ cliente, aviso }) {
   const [fichas, setFichas] = useState(null);
+  const [carregando, setCarregando] = useState(false);
+
+  // Trocar de cliente esquece o que estava aberto: sem isto, a anamnese de uma
+  // apareceria por um instante na ficha da seguinte.
+  useEffect(() => { setFichas(null); }, [cliente.id]);
+
+  const abrir = async () => {
+    setCarregando(true);
+    try { setFichas(await api.fichasDaCliente(cliente.id)); }
+    catch (e) { aviso?.(e.message); }
+    finally { setCarregando(false); }
+  };
+
+  if (fichas === null) {
+    return (
+      <button className="btn btn-g btn-s" style={{ marginTop: 16 }}
+              disabled={carregando} onClick={abrir}>
+        <ClipboardList size={14} /> {carregando ? 'Abrindo…' : 'Ver fichas de saúde'}
+      </button>
+    );
+  }
+
+  if (!fichas.length) {
+    return (
+      <p style={{ marginTop: 16, fontSize: 13, color: 'var(--muted)' }}>
+        Nenhuma ficha respondida — nem por ela, nem pela equipe.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>
+        Fichas de saúde · da mais recente
+      </div>
+      {fichas.map(f => (
+        <div key={f.id} className="extras" style={{ marginBottom: 10 }}>
+          <span className="eyebrow">
+            {f.formulario}
+            {/* A data importa: resposta de dois anos atrás não vale o mesmo
+                que a de ontem, e sem ela ninguém sabe qual está lendo. */}
+            {f.atendimento && ` · ${fmtDataLonga(f.atendimento.data)} · ${f.atendimento.servico}`}
+          </span>
+          {f.respostas.map((r, i) => (
+            <div key={i} className="extras-li">
+              <span>{r.rotulo}</span>
+              <b>{formatarResposta(r.valor)}</b>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A ficha do atendimento: o que já foi respondido, e o formulário para
+ * responder o que falta.
+ *
+ * **É aqui que a anamnese é preenchida**, desde que ela saiu do site
+ * (2026-09-23): dado de saúde é sensível na LGPD, e quem pergunta é a
+ * profissional com a cliente na cadeira. Antes disso, a ficha só existia se a
+ * pessoa tivesse respondido sozinha na internet, o que era o problema.
+ *
+ * Carregada sob demanda, e não junto da agenda: trazê-la na listagem colocaria
+ * a ficha de saúde de todo mundo no navegador de quem só queria ver os
+ * horários do dia.
+ */
+function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
+  const [fichas, setFichas] = useState(null);
+  const [respostas, setRespostas] = useState({});
+  const [abrindo, setAbrindo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     let valeu = true;
     api.respostasDoAgendamento(agendamentoId)
-      .then(r => { if (valeu) setFichas(r); })
+      .then(r => { if (valeu) { setFichas(r); setAbrindo(false); setRespostas({}); } })
       .catch(() => { if (valeu) setFichas([]); });
     return () => { valeu = false; };
   }, [agendamentoId]);
 
-  if (!fichas?.length) return null;
+  const gravar = async () => {
+    setSalvando(true);
+    try {
+      setFichas(await api.responderFicha(agendamentoId, respostas));
+      setAbrindo(false);
+      setRespostas({});
+    } catch (e) { aviso?.(e.message); }
+    finally { setSalvando(false); }
+  };
 
-  return fichas.map(f => (
-    <div key={f.id} className="extras" style={{ marginBottom: 14 }}>
-      <span className="eyebrow">{f.formulario}</span>
-      {f.respostas.map((r, i) => (
-        <div key={i} className="extras-li">
-          <span>{r.rotulo}</span>
-          <b>{formatarResposta(r.valor)}</b>
+  if (fichas === null) return null;
+
+  return (
+    <>
+      {fichas.map(f => (
+        <div key={f.id} className="extras" style={{ marginBottom: 14 }}>
+          <span className="eyebrow">{f.formulario}</span>
+          {f.respostas.map((r, i) => (
+            <div key={i} className="extras-li">
+              <span>{r.rotulo}</span>
+              <b>{formatarResposta(r.valor)}</b>
+            </div>
+          ))}
         </div>
       ))}
-    </div>
-  ));
+
+      {abrindo ? (
+        <div style={{ marginBottom: 14 }}>
+          <Ficha servicoId={servicoId} clienteId={clienteId} valor={respostas}
+                 aoMudar={(formId, lista) => setRespostas(r => ({ ...r, [formId]: lista }))} />
+          <div className="chips">
+            <button className="btn btn-p btn-s" disabled={salvando} onClick={gravar}>
+              {salvando ? 'Gravando…' : 'Gravar ficha'}
+            </button>
+            <button className="btn btn-g btn-s" onClick={() => setAbrindo(false)}>Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        // "Responder de novo" e não "editar": resposta dada não se reescreve
+        // (REVOKE UPDATE na migration 012) — corrigir é acrescentar a versão
+        // nova, e as duas ficam no histórico com a data de cada uma.
+        <button className="btn btn-g btn-s" style={{ marginBottom: 14 }}
+                onClick={() => setAbrindo(true)}>
+          <ClipboardList size={14} /> {fichas.length ? 'Responder de novo' : 'Preencher a ficha'}
+        </button>
+      )}
+    </>
+  );
 }
 
 const formatarResposta = v =>
@@ -1077,6 +1195,8 @@ function Clientes({ dados, acao, aviso }) {
               })}
               {hist.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Ainda sem atendimentos.</div>}
             </div>
+            <FichasDaCliente cliente={sel} aviso={aviso} />
+
             <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
               <a className="btn btn-wa" href={waLink(sel.fone, `Oi ${sel.nome.split(' ')[0]}! `)} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> WhatsApp</a>
               <button className="btn btn-g" onClick={() => { setEdit(sel); setSel(null); }}><Pencil size={16} /> Editar cadastro</button>

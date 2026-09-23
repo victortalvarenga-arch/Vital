@@ -5,6 +5,7 @@ import { definirSenhaApp } from './senha-app.js';
 import { hoje, addDias } from './lib/dates.js';
 import { prepararEmpresaPadrao, provisionarEmpresa } from './lib/provisionar.js';
 import { hashDaSenha } from './lib/auth.js';
+import { compactarFunil } from './jobs/funil.js';
 
 /** Senha das contas de desenvolvimento. Não vai para lugar nenhum além daqui. */
 const SENHA_DEV = 'vital1234';
@@ -60,6 +61,13 @@ await primeiraClienteReal();
 await equipeDaVital();
 await segundaEmpresa();
 
+// Fecha o que já passou da retenção, como o cron faria de madrugada. Sem esta
+// passada, `funil_diario` nasceria vazia numa máquina nova e a compactação
+// pareceria não existir — e é ela que impede a tabela de visitas crescer para
+// sempre. Atravessa o RLS por dentro, então roda fora de `comEmpresa`.
+const { dias, linhas } = await compactarFunil();
+console.log(`  Funil: ${dias} dia(s) além da retenção já compactado(s), ${linhas} linha(s) a menos.`);
+
 console.log('Banco populado.');
 
 }
@@ -110,6 +118,7 @@ async function primeiraClienteReal() {
       slogan: 'Estética e beleza · Joinville',
       fone: '47996195696',
       endereco: 'Rua Félix Heinzelmann, 139, Sala 02 — Bairro Santo Antônio, Joinville/SC',
+      cidade: 'Joinville',
       instagram: 'estetica_laurafaust',
       linkAvaliacao: 'https://g.page/estetica-laurafaust',
       whatsapp: '47996195696',
@@ -153,7 +162,56 @@ async function primeiraClienteReal() {
       textos: {
         chamada: 'Agende seu horário',
         botaoAgendar: 'Agendar',
+        // A frase do topo. A anterior ("um espaço para você se cuidar e se
+        // sentir incrível") descrevia o negócio e não respondia nada a quem
+        // chegou; esta nomeia o incômodo concreto de quem procura estética.
+        // Como o catálogo, é RASCUNHO NOSSO — a Laura ainda não escreveu o
+        // texto dela.
+        hero: 'Sem fila de espera e sem "te encaixo depois": você escolhe o horário '
+          + 'que cabe no seu dia e sai daqui com ele confirmado.',
       },
+      // As objeções que seguram a decisão neste ramo. Também são RASCUNHO
+      // NOSSO, escrito a partir do que costuma aparecer no WhatsApp de um
+      // estúdio de estética — trocar pelas respostas dela quando confirmar.
+      // Nada disto é do produto: empresa nova nasce sem pergunta nenhuma, e a
+      // seção só aparece quando alguém escreve as suas.
+      faq: [
+        {
+          pergunta: 'Nunca fiz. Dá para começar por qualquer serviço?',
+          resposta: 'Dá. Antes de começar a gente conversa sobre o que você quer, o que '
+            + 'combina com você e quanto tempo leva. Se o que você pediu não for o melhor '
+            + 'caminho, a gente diz — e não faz.',
+        },
+        {
+          pergunta: 'Dói?',
+          resposta: 'Design de sobrancelha e depilação incomodam por alguns segundos, e dá '
+            + 'para aliviar bastante evitando os dias antes da menstruação. Cílios, unhas e '
+            + 'limpeza de pele não doem: na limpeza, a parte da extração pode incomodar em '
+            + 'pele muito sensível, e a gente vai no seu ritmo.',
+        },
+        {
+          pergunta: 'Quanto tempo dura?',
+          resposta: 'Esmaltação em gel, cerca de 3 semanas. Alongamento de unhas pede '
+            + 'manutenção a cada 3 ou 4 semanas. Cílios duram o ciclo natural do fio, com '
+            + 'manutenção em até 21 dias. Laminação de sobrancelhas, até 6 semanas.',
+        },
+        {
+          pergunta: 'Preciso de manutenção sempre?',
+          resposta: 'Só nos serviços que crescem junto com você — unhas e cílios. Você pode '
+            + 'parar quando quiser: no alongamento, a remoção é feita aqui, sem danificar a '
+            + 'unha natural. Limpeza de pele e design não prendem você a nada.',
+        },
+        {
+          pergunta: 'E se eu não gostar do resultado?',
+          resposta: 'Me diga ainda no atendimento, ou nos dois dias seguintes pelo WhatsApp. '
+            + 'O que der para ajustar, a gente ajusta sem cobrar de novo.',
+        },
+        {
+          pergunta: 'Posso remarcar se acontecer algo?',
+          resposta: 'Pode, pelo mesmo link ou pelo WhatsApp. Avisando com pelo menos 3 horas '
+            + 'de antecedência, o horário volta para a agenda e outra pessoa consegue usar.',
+        },
+      ],
       configurado: true,
       janelaDias: 30,            // quantos dias à frente o site deixa agendar
       antecedenciaHoras: 2,      // mínimo entre agora e o horário agendado
@@ -232,18 +290,26 @@ async function primeiraClienteReal() {
       );
     }
 
+    // Devolve o id porque as fichas de exemplo, mais abaixo, precisam se
+    // pendurar num atendimento — resposta de anamnese existe presa a um
+    // atendimento, nunca solta na cliente.
     const mk = async (cli, svc, prof, dia, hora, status, pagStatus, forma) => {
       const s = await db.get('SELECT * FROM services WHERE id=?', svc);
+      const id = uid();
       await db.run(
         `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_forma,origem,criado_em)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,'site',?)`,
-        uid(), cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
+        id, cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
         status, pagStatus, forma, h
       );
+      return id;
     };
     await mk('c1', 'v1', 's1', 0, '09:00', 'concluido', 'pago', 'pix');
     await mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
     await mk('c3', 'v4', 's1', 0, '11:00', 'confirmado', 'aberto', 'local');
+    // Limpeza de pele de hoje: fica com a ficha PENDENTE de propósito. É o
+    // estado normal de quem agendou pelo site, e é o que a profissional vai
+    // encontrar ao abrir o atendimento.
     await mk('c5', 'v10', 's3', 0, '14:00', 'agendado', 'aberto', 'local');
     await mk('c4', 'v2', 's1', 0, '14:30', 'confirmado', 'pago', 'cartao');
     await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'aberto', 'local');
@@ -255,8 +321,22 @@ async function primeiraClienteReal() {
     await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
     await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
     await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
+    // Duas limpezas antigas da mesma cliente, com a ficha respondida — é o que
+    // dá o que mostrar em "Ver fichas de saúde", e mostra a resposta mudando
+    // entre uma visita e outra, que é justamente o motivo de a ficha ficar
+    // presa ao atendimento em vez de virar campo no cadastro.
+    const limpezaAntiga = await mk('c5', 'v10', 's3', -60, '10:00', 'concluido', 'pago', 'pix');
+    const limpezaRecente = await mk('c5', 'v10', 's3', -14, '10:00', 'concluido', 'pago', 'pix');
 
     await oResto();
+    // Depois de `oResto()`, que é quem cria o formulário de anamnese: ficha
+    // respondida precisa do formulário existindo.
+    await fichasDeExemplo({ limpezaAntiga, limpezaRecente });
+    // Quatro meses de visitas, com o afunilamento de um site que funciona mas
+    // perde gente no meio. Quatro e não um: é o que faz a compactação ter o
+    // que fechar (a retenção é de 90 dias), e numa máquina nova a tabela
+    // `funil_diario` nasce preenchida em vez de parecer que não existe.
+    await funilDeExemplo({ dias: 120, visitasPorDia: 14, queda: [0.42, 0.55, 0.62] });
     await contasDeDesenvolvimento();
   });
 
@@ -349,6 +429,128 @@ async function oResto() {
   await db.run(`INSERT INTO form_services (form_id, service_id) VALUES ('f1','v11')`);
 }
 
+/**
+ * Duas anamneses já respondidas, para a tela ter o que mostrar.
+ *
+ * A ficha saiu do site em 2026-09-23 (dado de saúde; ver `ARQUITETURA.md`) e
+ * hoje é a profissional quem pergunta, no atendimento. Sem nenhuma respondida
+ * no seed, "Ver fichas de saúde" nasce vazio numa máquina nova e a
+ * funcionalidade parece não existir.
+ *
+ * **As duas são da mesma cliente e mudam entre uma visita e outra** — de pele
+ * mista para sensível, e um ácido que ela não usava antes. É o que torna
+ * visível a razão de a resposta ficar presa ao atendimento em vez de virar
+ * campo no cadastro: guardar só a mais recente apagaria o motivo de um
+ * procedimento ter sido feito de um jeito naquele dia.
+ *
+ * Como o resto do catálogo da Laura, é conteúdo inventado nosso — não é ficha
+ * de cliente real nenhuma.
+ */
+async function fichasDeExemplo({ limpezaAntiga, limpezaRecente }) {
+  const form = await db.get(`SELECT id FROM forms WHERE id = 'f1'`);
+  if (!form) return;
+
+  // O rótulo vai congelado junto, como o produto faz: a resposta é o registro
+  // do que foi perguntado naquele dia, não um ponteiro para a pergunta viva.
+  const responder = (agendamentoId, quandoDias, itens) => db.run(
+    `INSERT INTO form_answers (id, form_id, appointment_id, client_id, respostas, criado_em)
+     VALUES (?, 'f1', ?, 'c5', ?, ?)`,
+    uid(), agendamentoId, JSON.stringify(itens), addDias(hoje(), quandoDias)
+  );
+
+  await responder(limpezaAntiga, -60, [
+    { rotulo: 'Está grávida ou amamentando?', tipo: 'sim_nao', valor: false },
+    { rotulo: 'Tipo de pele', tipo: 'escolha', valor: 'Mista' },
+    { rotulo: 'Usa algum ácido ou medicação?', tipo: 'longo', valor: 'Não uso nada no momento.' },
+  ]);
+  await responder(limpezaRecente, -14, [
+    { rotulo: 'Está grávida ou amamentando?', tipo: 'sim_nao', valor: false },
+    { rotulo: 'Tipo de pele', tipo: 'escolha', valor: 'Sensível' },
+    { rotulo: 'Usa algum ácido ou medicação?', tipo: 'longo',
+      valor: 'Comecei ácido salicílico à noite, há umas três semanas.' },
+    { rotulo: 'Já teve reação a algum produto?', tipo: 'longo',
+      valor: 'Ardência com um esfoliante forte, mas passou no mesmo dia.' },
+  ]);
+}
+
+/**
+ * Um mês de visitas ao site, com gente sumindo pelo caminho.
+ *
+ * O funil é a tela que diz **em qual passo as pessoas desistem** (ver
+ * `lib/funil.js`). Sem dado, ela nasce vazia numa máquina nova e a
+ * funcionalidade parece não existir — o erro que o CLAUDE.md manda não repetir.
+ *
+ * As visitas são sorteadas, então dois `npm run reset` dão números diferentes.
+ * É de propósito: número redondo demais na tela passa a impressão de que o
+ * dado é calculado, e não medido.
+ *
+ * O `appointment_id` de quem confirmou aponta para os agendamentos que o seed
+ * já criou — é o que faz o quinto passo ("compareceu") ter o que contar, já
+ * que ele não é evento e sim um join com `appointments.status`.
+ *
+ * @param {number} o.dias           quantos dias para trás
+ * @param {number} o.visitasPorDia  quantas abrem o site por dia
+ * @param {number[]} o.queda        fração que sobrevive a cada passo seguinte
+ */
+async function funilDeExemplo({ dias = 30, visitasPorDia, queda }) {
+  const h = hoje();
+  // Os agendamentos que já existem, para pendurar os "confirmou" neles. Os
+  // concluídos são os que viram "compareceu" na conta.
+  const agendamentos = await db.all(`SELECT id FROM appointments ORDER BY data DESC`);
+  let proximo = 0;
+
+  for (let d = dias - 1; d >= 0; d--) {
+    const dia = addDias(h, -d);
+    // Fim de semana movimenta menos, como num negócio de verdade.
+    const fds = [0, 6].includes(new Date(`${dia}T12:00:00Z`).getUTCDay());
+    const visitas = Math.max(1, Math.round(visitasPorDia * (fds ? 0.45 : 1) * (0.7 + Math.random() * 0.6)));
+
+    // Uma sessão por visita, e cada uma anda por quantas etapas sobreviver —
+    // como acontece de verdade. Sessões independentes por etapa dariam a mesma
+    // contagem na tela, mas gravariam algo que não pode existir (uma visita
+    // que confirmou sem ter aberto o site).
+    for (let v = 0; v < visitas; v++) {
+      const sessao = sessaoSorteada();
+      await marcarNoSeed(sessao, 'site', dia);
+
+      const etapas = ['agendamento', 'horario', 'confirmou'];
+      for (const [i, etapa] of etapas.entries()) {
+        if (Math.random() > queda[i]) break;         // desistiu aqui
+        // Empresa sem agenda nenhuma no seed não pode ter "confirmou": seria
+        // uma visita que marcou horário sem existir agendamento, e a tela
+        // mostraria uma conversão que o banco desmente. O funil dela para no
+        // horário — que é, aliás, um caso real: site visitado, nada vendido.
+        if (etapa === 'confirmou' && !agendamentos.length) break;
+        await marcarNoSeed(
+          sessao, etapa, dia,
+          etapa === 'confirmou' ? agendamentos[proximo++ % agendamentos.length].id : null
+        );
+      }
+    }
+  }
+}
+
+/**
+ * 32 hexadecimais, a mesma forma que o navegador sorteia e a rota exige.
+ *
+ * `function` e não `const`: estas duas são chamadas por `funilDeExemplo()`,
+ * que roda enquanto o módulo ainda está sendo avaliado — uma `const` declarada
+ * aqui embaixo só existe depois, e a chamada morre na zona morta temporal.
+ */
+function sessaoSorteada() {
+  return [...crypto.getRandomValues(new Uint8Array(16))]
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Um passo, direto no banco: o seed não passa pela rota pública. */
+function marcarNoSeed(sessao, etapa, data, appointmentId = null) {
+  return db.run(
+    `INSERT INTO funil (sessao, etapa, data, appointment_id) VALUES (?,?,?,?)
+     ON CONFLICT DO NOTHING`,
+    sessao, etapa, data, appointmentId
+  );
+}
+
 /** Nada de conta ou empresa de demonstração fora da máquina de quem programa. */
 function ehLocal() {
   return /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '');
@@ -380,8 +582,28 @@ async function segundaEmpresa() {
       // ver `lugares()` em web/src/site/enderecos.js. Fica igual ao da
       // primeira loja para não haver duas versões do mesmo endereço.
       endereco: 'Rua das Palmeiras, 88 — Centro, Joinville/SC',
+      cidade: 'Joinville',
+      // Fictício, como o resto desta empresa — mas precisa existir: sem
+      // WhatsApp cadastrado o "tirar dúvida" de cada serviço some, e some com
+      // razão. Sem ele aqui, a funcionalidade não apareceria no seed.
+      whatsapp: '47933334444',
       configurado: true,
       vocabulario: { profissional: 'barbeiro', profissionais: 'barbeiros' },
+      textos: { hero: 'Corte na hora marcada. Você não espera sentado, e a cadeira é sua.' },
+      // Duas perguntas de outro ramo, de propósito: é o que mostra que o FAQ
+      // é campo da empresa e não uma lista de estética embutida no produto.
+      faq: [
+        {
+          pergunta: 'Preciso marcar ou posso chegar e esperar?',
+          resposta: 'Pode chegar, mas quem marcou tem preferência. Marcando aqui pelo site '
+            + 'você entra na cadeira na hora combinada.',
+        },
+        {
+          pergunta: 'Atendem criança?',
+          resposta: 'Atendemos, a partir dos 3 anos. Marque no nome da criança para o tempo '
+            + 'do corte já sair certo.',
+        },
+      ],
       // Segundo modelo de exemplo — Quadro de Horários, fundo escuro, números
       // em mono. É onde alguém vê que o site muda de verdade entre empresas.
       marca: { corPrimaria: '#1F4E5F', template: 'quadro' },
@@ -434,6 +656,11 @@ async function segundaEmpresa() {
       );
       await salvarVinculos(id, ['b1', 'b2']);
     }
+
+    // Um funil bem pior que o da Laura, de propósito: é com duas empresas
+    // diferentes lado a lado que a tela da Vital mostra para que serve —
+    // aqui a queda grande está logo na abertura do agendamento.
+    await funilDeExemplo({ dias: 120, visitasPorDia: 9, queda: [0.18, 0.5, 0.45] });
   });
 
   console.log(`  Segunda empresa: ${nova.nome} · ${nova.slug}.localhost:5173`);

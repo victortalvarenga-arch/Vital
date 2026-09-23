@@ -50,10 +50,23 @@ export function diasLivres({ servicoId, comboId, profissionalId, unidadeId, adic
   return req(`/dias-livres?${q}`);
 }
 
-/** As perguntas que a empresa faz neste serviço. Pergunta, nunca resposta. */
-export const formularios = servicoId => req(`/formularios/${servicoId}`);
+/*
+ * Houve aqui um `formularios(servicoId)`, que trazia as perguntas da anamnese
+ * para o site montar um passo. Saiu em 2026-09-23 junto com a rota: dado de
+ * saúde é sensível na LGPD e não se coleta de quem só quer marcar horário.
+ * Quem pergunta é a profissional, presencialmente, pelo painel.
+ */
 
 /** Diz se o WhatsApp já tem cadastro — para não pedir os dados de novo. */
 export const identificar = fone => req('/identificar', { method: 'POST', body: { fone } });
+
+/**
+ * "Cheguei até aqui" — um passo do funil. Ver `site/medir.js`.
+ *
+ * Não leva nada da pessoa: só um id de sessão sorteado no navegador e o nome
+ * do passo. É o que permite saber em qual tela as visitas somem sem guardar
+ * dado de ninguém.
+ */
+export const evento = ({ sessao, etapa }) => req('/evento', { method: 'POST', body: { sessao, etapa } });
 
 export const agendar = dados => req('/agendar', { method: 'POST', body: dados });

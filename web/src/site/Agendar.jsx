@@ -3,6 +3,9 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, MessageCircle, User
 import * as api from '../shared/publico.js';
 import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, somarDias, soDigitos, mascaraFone } from './datas.js';
 import { lugares, lugarDaUnidade } from './enderecos.js';
+// `passo` aqui já é o estado do passo atual da janela — o do funil entra com
+// outro nome para os dois não se confundirem.
+import { idDaSessao, passo as medirPasso } from './medir.js';
 
 /**
  * Agendamento em janela sobre a home.
@@ -28,10 +31,21 @@ const PASSOS = [
   { k: 'unidade', titulo: 'Onde você quer ser atendida?', ajuda: 'Escolha o endereço mais perto de você.' },
   { k: 'servico', titulo: 'Escolha o serviço', ajuda: 'O que você quer fazer hoje.' },
   { k: 'data', titulo: 'Escolha data e horário', ajuda: 'Os dias em destaque têm horário livre. Toque num deles para ver as horas.' },
-  { k: 'ficha', titulo: 'Só mais algumas perguntas', ajuda: 'A equipe precisa disso para te atender com segurança.' },
   { k: 'dados', titulo: 'Seus dados', ajuda: 'Só o WhatsApp, para você receber a confirmação.' },
   { k: 'pronto', titulo: 'Tudo certo', ajuda: '' },
 ];
+
+/*
+ * Houve aqui um passo de **ficha**, entre o horário e o WhatsApp, que
+ * perguntava a anamnese do serviço (grávida? tipo de pele? usa ácido?). Saiu em
+ * 2026-09-23: isso é dado de saúde, sensível na LGPD, e pedi-lo num site aberto
+ * a quem ainda nem é cliente é risco que não se corre para marcar um horário.
+ * Quem pergunta é a profissional, presencialmente, no começo do atendimento —
+ * e o painel grava por `POST /api/agendamentos/:id/respostas`.
+ *
+ * Não é só uma tela a menos: o servidor também parou de exigir a ficha quando a
+ * origem é o site, senão todo agendamento online passaria a ser recusado.
+ */
 
 export default function Agendar({ dados, servicoInicial, categoriaInicial, comboInicial, aoFechar }) {
   const { negocio, textos, exibir, profissionais } = dados;
@@ -64,13 +78,16 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     servicoId: servicoInicial || null,
     comboId: comboInicial || null,
     unidadeId: unidades.length > 1 && unidadesOfertadas.length === 1 ? unidadesOfertadas[0].id : null,
-    adicionaisIds: [], profissionalId: null, data: null, hora: null, respostas: {},
+    adicionaisIds: [], profissionalId: null, data: null, hora: null,
   }));
-  const [fichas, setFichas] = useState([]);
   const [confirmado, setConfirmado] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [resumoAberto, setResumoAberto] = useState(false);
   const janela = useRef(null);
+
+  // Segundo passo do funil: a janela abriu. Uma vez por visita — o servidor
+  // deduplica, então reabrir não conta de novo.
+  useEffect(() => { medirPasso('agendamento'); }, []);
 
   // Igual à home: o extra que só se vende junto não entra na escolha do
   // serviço principal, mas continua sendo encontrado como adicional. E só o
@@ -110,17 +127,6 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
   const ofertados = dados.servicos.filter(x => servico?.adicionais?.includes(x.id));
 
-  // O que a empresa vai perguntar neste serviço. Combo não tem ficha por ora —
-  // são vários serviços, e cada um poderia pedir a sua.
-  useEffect(() => {
-    if (combo || !escolha.servicoId) return setFichas([]);
-    let valeu = true;
-    api.formularios(escolha.servicoId)
-      .then(fs => { if (valeu) setFichas(fs); })
-      .catch(() => { if (valeu) setFichas([]); });
-    return () => { valeu = false; };
-  }, [combo, escolha.servicoId]);
-
   /**
    * Passo que não tem o que perguntar é pulado.
    *
@@ -136,10 +142,8 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     // O cartão da home é a entrada do fluxo: quem clicou em "Limpeza de pele"
     // já escolheu, e não escolhe de novo. Combo idem — o pacote está fechado.
     if (k === 'servico') return !servicoInicial && !combo;
-    // Serviço que não pede nada não ganha um passo vazio.
-    if (k === 'ficha') return fichas.length > 0;
     return true;
-  }, [combo, servicoInicial, unidadesOfertadas.length, fichas.length]);
+  }, [combo, servicoInicial, unidadesOfertadas.length]);
 
   /**
    * A janela abre no primeiro passo que ainda tem pergunta.
@@ -289,19 +293,14 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
                 }))}
                 aoEscolher={(data, hora, profId) => {
                   setEscolha(e => ({ ...e, data, hora, profissionalId: profId ?? e.profissionalId }));
-                  // Por `avancar`, não direto para os dados: a ficha, quando o
-                  // serviço tem uma, mora entre o horário e o WhatsApp.
+                  // Terceiro passo do funil: achou um horário que serve. É a
+                  // fronteira entre "estava olhando" e "quer marcar".
+                  medirPasso('horario');
+                  // Por `avancar`, e não `setPasso('dados')`: a navegação anda
+                  // pela lista de passos nos dois sentidos, e pular direto já
+                  // fez um passo do meio ser esquecido por meses.
                   avancar();
                 }}
-              />
-            )}
-
-            {passo === 'ficha' && (
-              <PassoFicha
-                fichas={fichas} respostas={escolha.respostas}
-                aoMudar={(formId, lista) =>
-                  setEscolha(e => ({ ...e, respostas: { ...e.respostas, [formId]: lista } }))}
-                aoSeguir={avancar} aviso={setAviso}
               />
             )}
 
@@ -405,6 +404,9 @@ function Opcoes({ itens, aoEscolher, marcado }) {
         <button key={o.id ?? 'qualquer'}
                 className={'jn-opcao' + (marcado && o.id === marcado ? ' on' : '')}
                 onClick={() => aoEscolher(o.id)}>
+          {/* `alt=""`: a miniatura está dentro do botão, e o nome do serviço
+              vem escrito ao lado dela. Descrevê-la faria o leitor de tela ler
+              o mesmo nome duas vezes em cada item da lista. */}
           {o.foto
             ? <img className="jn-opcao-foto" src={o.foto} alt="" />
             : <span className="jn-opcao-marca" style={o.cor ? { background: o.cor } : undefined}>
@@ -737,105 +739,6 @@ function VazioAgenda({ titulo, texto, zap, acao }) {
   );
 }
 
-/**
- * As perguntas que a empresa faz antes de atender.
- *
- * Vem depois de escolher o horário e antes de dar o WhatsApp, de propósito:
- * quem chegou até aqui já decidiu, e responder três perguntas não faz desistir.
- * Perguntar antes da data faria — o passo apareceria antes de a pessoa saber se
- * existe horário para ela.
- *
- * A conferência de verdade é do servidor: o que falta aqui é só evitar a viagem
- * e apontar qual pergunta ficou em branco.
- */
-function PassoFicha({ fichas, respostas, aoMudar, aoSeguir, aviso }) {
-  const pega = (formId, campoId) =>
-    (respostas[formId] || []).find(r => r.campoId === campoId)?.valor;
-
-  const set = (formId, campoId, valor) => {
-    const atuais = (respostas[formId] || []).filter(r => r.campoId !== campoId);
-    aoMudar(formId, [...atuais, { campoId, valor }]);
-  };
-
-  const seguir = () => {
-    for (const f of fichas) {
-      for (const c of f.campos) {
-        if (!c.obrigatorio) continue;
-        const v = pega(f.id, c.id);
-        const vazio = v === undefined || v === null || v === ''
-          || (Array.isArray(v) && v.length === 0);
-        if (vazio) return aviso(`Responda "${c.rotulo}".`);
-      }
-    }
-    aoSeguir();
-  };
-
-  return (
-    <div className="jn-ficha">
-      {fichas.map(f => (
-        <section key={f.id}>
-          {f.descricao && <p className="jn-ficha-intro">{f.descricao}</p>}
-          {f.campos.map(c => (
-            <div key={c.id} className="jn-pergunta">
-              <label>
-                {c.rotulo}
-                {c.obrigatorio && <span className="jn-obrig"> *</span>}
-              </label>
-              {c.ajuda && <p className="jn-ajuda">{c.ajuda}</p>}
-
-              {c.tipo === 'longo' && (
-                <textarea rows={3} value={pega(f.id, c.id) || ''}
-                          onChange={e => set(f.id, c.id, e.target.value)} />
-              )}
-              {['texto', 'numero', 'data'].includes(c.tipo) && (
-                <input
-                  type={c.tipo === 'data' ? 'date' : c.tipo === 'numero' ? 'number' : 'text'}
-                  inputMode={c.tipo === 'numero' ? 'decimal' : undefined}
-                  value={pega(f.id, c.id) ?? ''}
-                  onChange={e => set(f.id, c.id, e.target.value)} />
-              )}
-              {c.tipo === 'sim_nao' && (
-                <div className="pilulas">
-                  {[['Sim', true], ['Não', false]].map(([rotulo, v]) => (
-                    <button key={rotulo} type="button"
-                            className={'jn-op' + (pega(f.id, c.id) === v ? ' on' : '')}
-                            onClick={() => set(f.id, c.id, v)}>{rotulo}</button>
-                  ))}
-                </div>
-              )}
-              {c.tipo === 'escolha' && (
-                <div className="pilulas">
-                  {c.opcoes.map(o => (
-                    <button key={o} type="button"
-                            className={'jn-op' + (pega(f.id, c.id) === o ? ' on' : '')}
-                            onClick={() => set(f.id, c.id, o)}>{o}</button>
-                  ))}
-                </div>
-              )}
-              {c.tipo === 'multipla' && (
-                <div className="pilulas">
-                  {c.opcoes.map(o => {
-                    const marcadas = pega(f.id, c.id) || [];
-                    return (
-                      <button key={o} type="button"
-                              className={'jn-op' + (marcadas.includes(o) ? ' on' : '')}
-                              onClick={() => set(f.id, c.id, marcadas.includes(o)
-                                ? marcadas.filter(x => x !== o)
-                                : [...marcadas, o])}>{o}</button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </section>
-      ))}
-
-      <button className="b b-p b-larg" onClick={seguir}>Continuar</button>
-    </div>
-  );
-}
-
 function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   const [fone, setFone] = useState('');
   const [conhecida, setConhecida] = useState(null);
@@ -863,6 +766,10 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
     try {
       aoConfirmar(await api.agendar({
         fone: digitos,
+        // Quem é esta visita, para o servidor fechar o funil e ligar o
+        // agendamento ao comparecimento. Não identifica ninguém: é um número
+        // sorteado no navegador, que morre ao fechar a aba.
+        sessao: idDaSessao(),
         // Combo: o servidor monta os agendamentos em sequência e rateia o
         // preço. Mandar `servicoId` junto faria virar um agendamento avulso.
         ...(escolha.comboId ? { comboId: escolha.comboId } : { servicoId: escolha.servicoId }),
@@ -872,7 +779,6 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         formaPagamento,
         obs,
         adicionaisIds: escolha.adicionaisIds,
-        respostas: escolha.respostas,
         ...(conhecida?.cadastrada ? {} : form),
       }));
     } catch (e) { aviso(e.message); setOcupado(false); }
