@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import pg from 'pg';
+import { bancoDescartavel, sslPara } from './lib/ambiente.js';
 
 /**
  * Zera o banco. Antes era apagar um arquivo; com Postgres é derrubar os schemas
@@ -12,11 +13,10 @@ import pg from 'pg';
  *
  * Só serve para desenvolvimento. Em produção, migration; nunca isto.
  */
-const url = process.env.DATABASE_URL || '';
 const admin = process.env.DATABASE_ADMIN_URL;
 
-if (!/localhost|127\.0\.0\.1/.test(url)) {
-  console.error('\n  reset abortado: DATABASE_URL não aponta para localhost.');
+if (!bancoDescartavel()) {
+  console.error('\n  reset abortado: DATABASE_URL não aponta para localhost nem o .env declara VITAL_BANCO_DESCARTAVEL=sim.');
   console.error('  Este comando apaga TODOS os dados e só existe para desenvolvimento.\n');
   process.exit(1);
 }
@@ -25,7 +25,7 @@ if (!admin) {
   process.exit(1);
 }
 
-const pool = new pg.Pool({ connectionString: admin, ssl: false });
+const pool = new pg.Pool({ connectionString: admin, ssl: sslPara(admin) });
 try {
   await pool.query('DROP SCHEMA IF EXISTS plataforma CASCADE');
   await pool.query('DROP SCHEMA IF EXISTS public CASCADE');

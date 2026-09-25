@@ -2,6 +2,7 @@ import pg from 'pg';
 import { migrar } from './lib/migrate.js';
 import { contexto, conexaoAtual, empresaAtual } from './lib/contexto.js';
 import { comPadroes } from './lib/tenant.js';
+import { sslPara } from './lib/ambiente.js';
 
 const { Pool, types } = pg;
 
@@ -18,9 +19,7 @@ types.setTypeParser(20, v => (v === null ? null : parseInt(v, 10)));
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // Postgres gerenciado (Neon, Supabase) exige TLS; o local não tem certificado.
-  ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '')
-    ? false
-    : { rejectUnauthorized: false },
+  ssl: sslPara(process.env.DATABASE_URL),
 });
 
 pool.on('error', erro => {
@@ -160,7 +159,7 @@ export async function iniciarBanco() {
   const urlAdmin = process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL;
   const admin = new Pool({
     connectionString: urlAdmin,
-    ssl: /localhost|127\.0\.0\.1/.test(urlAdmin) ? false : { rejectUnauthorized: false },
+    ssl: sslPara(urlAdmin),
   });
   try {
     await migrar(admin);

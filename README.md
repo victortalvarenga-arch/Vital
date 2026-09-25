@@ -10,32 +10,46 @@ cliente do sistema. Como o sistema é montado: `ARQUITETURA.md`. O que ainda fal
 
 ## Rodar
 
-Precisa de **Node 20+** e **PostgreSQL 17** rodando na máquina. Não precisa de
-Docker, Redis, nem conta em serviço nenhum.
+Precisa de **Node 20+** e de um banco **PostgreSQL 17 na Neon** (tier gratuito,
+sem cartão). Não precisa de Postgres instalado na máquina, nem de Docker ou
+Redis. O banco é compartilhado entre as máquinas de quem programa: a mesma
+versão de esquema em todas, sem instalar nada.
+
+**Banco (uma vez só, no painel da Neon).** Crie um *branch* descartável — `dev`,
+a partir do `production` — e, em *Connect*, com **"Connection pooling"
+desmarcado**, copie a string de conexão. O host não pode ter `-pooler`: a
+aplicação prende a empresa à conexão (`ARQUITETURA.md`), e um pooler em modo
+transação misturaria as empresas.
 
 ```bash
-# 1. Postgres, uma vez só (Windows)
-winget install PostgreSQL.PostgreSQL.17
-psql -U postgres -c "CREATE DATABASE vital;"
-
-# 2. O projeto
 npm install                              # concurrently, na raiz
-cp server/.env.example server/.env       # ajuste a senha do postgres em DATABASE_ADMIN_URL
+cp server/.env.example server/.env       # preencha as duas URLs e VITAL_BANCO_DESCARTAVEL=sim
 npm run setup                            # instala server/ e web/, cria e popula o banco
 npm run dev                              # API em :3333, front em :5173
 ```
 
-**A única coisa que costuma precisar de ajuste é a senha do `postgres`** em
-`DATABASE_ADMIN_URL`, dentro do `server/.env` — a que você definiu ao instalar. O
-outro usuário (`vital_app`) é criado pelo próprio `setup`, com a senha que estiver
-no `.env`; você não precisa criá-lo à mão.
+No `server/.env`:
+
+- `DATABASE_ADMIN_URL` — a string do `neondb_owner`, direta, como a Neon dá.
+- `DATABASE_URL` — o mesmo host e banco, com usuário `vital_app` e uma senha que
+  **você inventa**. Não se cria nada no painel da Neon: a migration cria o papel
+  e o `setup` grava a senha nele.
+- `VITAL_BANCO_DESCARTAVEL=sim` — só no branch de desenvolvimento. Sem isso,
+  `reset`, `seed` e `senha-app` se recusam a tocar em banco que não seja
+  `localhost`. **Nunca no branch de produção.**
 
 ### Montar em outra máquina, com os mesmos dados
 
-Os passos acima bastam: o banco é reconstruído por migrations e populado pelo
-`seed`, e **o resultado é o mesmo em qualquer máquina** — mesmos serviços, mesma
-equipe, mesmas unidades, o combo, a ficha de anamnese do painel, os adicionais e as duas
-empresas de exemplo. Não há dump de banco para copiar.
+O banco vive na Neon, então a segunda máquina **não roda `setup` nem `reset`**:
+o banco já está pronto e populado. Basta clonar, `npm install`, copiar o
+`server/.env` da primeira máquina (as senhas não vão para o Git) e `npm run dev`.
+Esquema e dados são os mesmos em todas — mesmos serviços, mesma equipe, o combo,
+a ficha de anamnese do painel, os adicionais e as duas empresas de exemplo. Não
+há dump de banco para copiar; e se alguém precisar recomeçar, o `reset` reconstrói
+tudo por migrations e `seed` com o mesmo resultado.
+
+Como o banco é um só, **`reset` apaga o cenário de todo mundo** que usa o mesmo
+branch. Avise antes.
 
 **As fotos são a exceção.** Elas não cabem no Git — `server/uploads/` é pasta
 de arquivo enviado por empresa — e vivem num bucket público, apontado por
@@ -111,16 +125,17 @@ localhost: o `seed` confere a `DATABASE_URL` antes de criar qualquer uma.
 | `npm run dev:api` | Só o backend |
 | `npm run dev:web` | Só o front |
 | `cd server && npm run seed` | Roda migrations e popula um banco vazio |
-| `cd server && npm run reset` | Apaga tudo e popula de novo (só em localhost) |
+| `cd server && npm run reset` | Apaga tudo e popula de novo (só em `localhost` ou com `VITAL_BANCO_DESCARTAVEL=sim`) |
 | `cd server && npm run senha-app` | Redefine a senha do usuário da aplicação |
 | `cd server && npm test` | Roda a suíte automatizada |
 | `cd server && npm run seed -- --vazio` | Popula como uma empresa recém-cadastrada: só config e textos |
 
 As migrations rodam sozinhas quando a API sobe.
 
-`npm test` usa um banco separado, `vital_teste`, criado sozinho na primeira vez.
-Ele apaga e repovoa os próprios dados a cada teste e nunca toca no banco de
-trabalho.
+`npm test` usa um banco separado, `neondb_teste` (o nome do banco de trabalho
+mais `_teste`), criado sozinho na primeira vez, no mesmo projeto da Neon. Ele
+apaga e repovoa os próprios dados a cada teste e nunca toca no banco de trabalho.
+Pela rede a suíte leva alguns minutos (uns 4).
 
 **Dois usuários de banco, de propósito.** A aplicação conecta como `vital_app`,
 sem superusuário — é isso que faz o isolamento entre empresas valer, porque o
@@ -133,15 +148,23 @@ define a senha dele a partir do `.env`; nada disso é manual.
 **`DATABASE_URL não definida`** — falta copiar `server/.env.example` para
 `server/.env`.
 
-**`ECONNREFUSED` ao subir a API** — o Postgres não está rodando. No Windows:
-`Get-Service postgresql*` e, se preciso, `Start-Service postgresql-x64-17`.
+**Primeira requisição lenta, ou `Connection terminated` uma vez** — o compute
+do tier gratuito da Neon dorme depois de uns 5 minutos parado e acorda na
+próxima consulta (cerca de um segundo). Tente de novo.
+
+**Muda de empresa sozinha, ou some dado** — a `DATABASE_URL` está com host
+`-pooler`. Use a conexão direta (ver **Rodar**).
+
+**`reset abortado` ou `só serve para desenvolvimento`** — o banco não é
+`localhost` e falta `VITAL_BANCO_DESCARTAVEL=sim` no `server/.env`. É de
+propósito; confira que a URL é do branch de desenvolvimento antes de acrescentar.
 
 **`password authentication failed` para `vital_app`** — o papel existe mas está
 sem a senha do seu `.env`. Rode `cd server && npm run senha-app`.
 
-**`password authentication failed` para `postgres`** — a senha em
-`DATABASE_ADMIN_URL` não bate com a que você definiu ao instalar o Postgres.
-Corrija a linha no `server/.env`.
+**`password authentication failed` para `neondb_owner`** — a senha em
+`DATABASE_ADMIN_URL` não bate com a da Neon (painel → *Connect* → mostrar senha,
+ou *Reset password*). Corrija a linha no `server/.env`.
 
 **Uma consulta volta vazia sem motivo** — provavelmente está rodando fora de uma
 requisição HTTP, onde não há empresa definida e o RLS esconde tudo. Envolva em
@@ -150,35 +173,25 @@ requisição HTTP, onde não há empresa definida e o RLS esconde tudo. Envolva 
 **Esqueci a senha do painel** — em desenvolvimento, `cd server && npm run reset`
 zera tudo e a tela de primeiro acesso volta.
 
-**`database "vital" does not exist`** — falta o passo 1:
-`psql -U postgres -c "CREATE DATABASE vital;"`.
-
 **Porta 3333 ou 5173 ocupada** — mude `PORT` no `server/.env` (a API) ou
 `server.port` em `web/vite.config.js` (o front).
 
 ## Ver o banco por interface gráfica
 
-O **pgAdmin 4** vem junto na instalação (menu Iniciar → *pgAdmin 4*). Na
-primeira execução ele pede para criar uma senha mestra — é só dele, não tem
-relação com o banco. Depois, *Add New Server*:
+O próprio painel da Neon tem o que precisa: *Tables* mostra e edita as linhas, e
+o *SQL Editor* roda consulta. Ali você entra como `neondb_owner`, que **ignora o
+isolamento por empresa** — vê todas as empresas de uma vez, o que é útil para
+conferir e perigoso para editar.
 
-| Campo | Valor |
-|---|---|
-| Name | Vital (local) |
-| Host | `localhost` |
-| Port | `5432` |
-| Maintenance database | `vital` |
-| Username | `postgres` |
-| Password | a que você definiu ao instalar o Postgres |
-
-As tabelas ficam em *Servers → Vital → Databases → vital → Schemas → public →
-Tables*.
-
-Para consulta rápida sem abrir interface:
+Para consulta rápida sem abrir interface, com a mesma credencial de admin do
+`server/.env`:
 
 ```bash
-psql -U postgres -d vital -c "SELECT nome, preco FROM services ORDER BY ordem;"
+psql "<DATABASE_ADMIN_URL>" -c "SELECT nome, preco FROM services ORDER BY ordem;"
 ```
+
+O pgAdmin também serve: *Add New Server* com o host, o usuário e a senha da
+`DATABASE_ADMIN_URL`, e SSL ligado (*SSL mode: require*).
 
 ## Documentação
 

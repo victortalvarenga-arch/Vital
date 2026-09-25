@@ -1,8 +1,13 @@
 # Acessos de desenvolvimento
 
-Tudo aqui é criado pelo `npm run seed`, na sua máquina. **Nenhuma destas
-contas existe em produção**: o seed confere a `DATABASE_URL` antes de criar
-qualquer uma, e não cria nada se ela não apontar para `localhost`.
+Tudo aqui é criado pelo `npm run seed`, no banco de desenvolvimento (um branch
+da Neon, ver `README.md`). **Nenhuma destas contas existe em produção**: o seed
+confere a `DATABASE_URL` antes de criar qualquer uma, e não cria nada se ela não
+apontar para `localhost` nem o `.env` declarar `VITAL_BANCO_DESCARTAVEL=sim` —
+variável que só existe no branch de desenvolvimento.
+
+As senhas do banco (`neondb_owner` e `vital_app`) ficam só no `server/.env`,
+que não vai para o Git; passe de uma máquina à outra por fora do repositório.
 
 **Uma exceção ao "tudo é ficção":** a empresa "Laura Faust" usa o nome, a cor
 e as fotos reais da primeira cliente confirmada da Vital — ela ainda não usa

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import pg from 'pg';
+import { bancoDescartavel, sslPara } from './lib/ambiente.js';
 
 /**
  * Define a senha do usuário `vital_app` no Postgres local, lendo-a da própria
@@ -18,15 +19,15 @@ export async function definirSenhaApp() {
   const url = process.env.DATABASE_URL || '';
   const admin = process.env.DATABASE_ADMIN_URL;
 
-  if (!/localhost|127\.0\.0\.1/.test(url)) {
-    throw new Error('DATABASE_URL não aponta para localhost; este script só serve para desenvolvimento');
+  if (!bancoDescartavel()) {
+    throw new Error('DATABASE_URL não aponta para localhost nem o .env declara VITAL_BANCO_DESCARTAVEL=sim; este script só serve para desenvolvimento');
   }
   if (!admin) throw new Error('DATABASE_ADMIN_URL não definida');
 
   const { username: usuario, password: senha } = new URL(url);
   if (!usuario || !senha) throw new Error('DATABASE_URL precisa ter usuário e senha');
 
-  const pool = new pg.Pool({ connectionString: admin, ssl: false });
+  const pool = new pg.Pool({ connectionString: admin, ssl: sslPara(admin) });
   try {
     // ALTER ROLE não aceita parâmetro ($1) nem para o nome nem para a senha, e
     // bloco DO também não. Sobra montar o comando — usando os escapadores do

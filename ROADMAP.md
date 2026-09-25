@@ -48,16 +48,18 @@ nuvem sabe hospedar. E o modelo de um banco só deixa barato o que a Vital mais
 vai fazer: cadastrar empresa nova é um `INSERT`, e relatório da plataforma é um
 `GROUP BY`, não abrir banco por banco.
 
-**Postgres local para desenvolver de graça; gerenciado só quando alguém além de
-nós for acessar.** São dois ambientes, não dois planos concorrentes — todo
-time que usa Postgres trabalha assim, não é etapa provisória a "migrar depois".
-Local não tem IP fixo, cai quando desliga, não tem backup — por isso nunca é
-onde o *cliente de verdade* acessa. Mas para desenvolver e testar sozinho, é
-grátis para sempre e é exatamente o mesmo motor: mesmo SQL, mesmo driver `pg`,
-mesma forma de conectar. O que muda de um ambiente para o outro é uma linha —
-`DATABASE_URL` no `.env` — nunca código. Quando for a hora de sair do zero
-custo, gerenciado (Neon ou Supabase, tier gratuito, sem cartão) resolve IP fixo,
-backup automático e acesso de fora.
+**Neon desde já, também para desenvolver — não há mais Postgres local.**
+Decisão de set/2026, revendo a de manter um Postgres em cada máquina. O motivo:
+banco local por máquina significa versão de esquema e dados divergindo entre
+computadores (o cenário do `seed` só é igual se todo mundo rodar o mesmo `reset`
+na mesma hora). Um banco só, na nuvem, resolve isso sem custo: o tier gratuito
+da Neon basta para desenvolver e testar, é o mesmo motor (mesmo SQL, mesmo driver
+`pg`), e o que muda entre ambientes continua sendo uma linha do `.env`, nunca
+código. O desenvolvimento usa um *branch* descartável (`dev`); o de produção
+(`production`) fica intocado até o lançamento. O preço: a primeira consulta depois
+de uns 5 minutos parado espera o compute acordar (~1 s), e a suíte de testes leva
+uns 4 minutos pela rede em vez de segundos. Como isso funciona por dentro (conexão
+direta, trava do `reset`): `ARQUITETURA.md`.
 
 **Vercel hospeda o site e a API, não o banco.** Vercel é ótimo para domínio,
 rotas e certificado — mas não guarda Postgres rodando dentro dele; até o
@@ -154,7 +156,8 @@ da config em JSON. **O que não sobrevive:** o SQL específico do SQLite
 Só troca de motor, ainda sem multiempresa. O que ficou implementado está em
 `ARQUITETURA.md`.
 
-- [x] PostgreSQL 17 local (winget), rodando como serviço do Windows — mesma
+- [x] PostgreSQL 17 local (winget), rodando como serviço do Windows — hoje o
+      desenvolvimento usa a Neon, ver o início deste arquivo — mesma
       versão que Neon e Supabase rodam, então local e produção não divergem
 - [x] Esquema portado para dialeto Postgres, consolidado numa migration só
       (as duas do SQLite não valia carregar: metade era reconstrução de tabela,
@@ -635,6 +638,18 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Banco
 
+- [ ] **`sslmode=require` na URL do Neon faz o `pg` avisar em toda execução**
+      que o modo vai mudar de semântica na próxima versão maior
+      (`pg-connection-string` v3 / `pg` v9). Hoje `require` vale como
+      `verify-full`; se o comportamento mudar, a conexão pode ficar mais frouxa
+      sem ninguém perceber. Trocar por `sslmode=verify-full` explícito quando
+      atualizar o `pg`, e conferir que `sslPara()` (`lib/ambiente.js`), que passa
+      `rejectUnauthorized: false`, não anula a verificação.
+- [ ] **O branch `dev` e o `production` da Neon não são distinguíveis pela URL
+      que o código enxerga**, só pelo `VITAL_BANCO_DESCARTAVEL`. Se alguém
+      copiar o `.env` de desenvolvimento para o servidor de produção, o `reset`
+      volta a poder apagar o banco de verdade. Vale um segundo fecho — por
+      exemplo, recusar a variável quando `NODE_ENV=production`.
 - [ ] **`messages.dedupe_key` é UNIQUE global, sem `tenant_id`.** Funciona hoje
       porque os ids são aleatórios e não colidem entre empresas — mas é a única
       restrição do sistema que atravessa a fronteira, e um `ON CONFLICT DO
@@ -849,9 +864,13 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] **Cookie de sessão só vai por HTTPS quando `NODE_ENV=production`.** Em
       produção essa variável PRECISA estar definida, senão o cookie viaja em
       claro. Conferir no provedor antes de publicar.
-- [ ] **A senha do Postgres local é `vitaldev`**, escrita em `server/.env`.
-      É senha de desenvolvimento; em produção vem do cofre de variáveis do
-      provedor, nunca de arquivo.
+- [ ] **As senhas do banco de desenvolvimento estão em `server/.env`**
+      (`neondb_owner` e `vital_app`, na Neon). Nesse branch, o banco é alcançável
+      pela internet e guarda o cenário do seed — inclusive o nome, a cor e as
+      fotos da primeira cliente. Em produção as senhas vêm do cofre de variáveis
+      do provedor, nunca de arquivo, e de um branch **sem**
+      `VITAL_BANCO_DESCARTAVEL`. Trocar as senhas antes do lançamento, e a do
+      `neondb_owner` sempre que alguém deixar o projeto.
 - [x] ~~O front embutia o token do painel no bundle.~~ Resolvido nos Blocos 3 e
       3b: a sessão é cookie `httpOnly`, que o JavaScript não lê, e o bundle do
       site nunca importa `painel-api.js`. Não há credencial de painel no código

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { db, pool, iniciarBanco, uid, setConfig, salvarVinculos } from './db.js';
 import { TENANT_PADRAO } from './lib/tenant.js';
 import { definirSenhaApp } from './senha-app.js';
+import { bancoDescartavel } from './lib/ambiente.js';
 import { hoje, addDias } from './lib/dates.js';
 import { prepararEmpresaPadrao, provisionarEmpresa } from './lib/provisionar.js';
 import { hashDaSenha } from './lib/auth.js';
@@ -133,12 +134,11 @@ async function primeiraClienteReal() {
         corTexto: '#1A1A1A',
         template: 'clinica',
         logo: F('logo.jpg'),
-        // Só a foto colorida no hero. Havia uma segunda (profissional-laura.jpg,
-        // em preto-e-branco) rodando em `capas`, e ela escolheu ficar com uma —
-        // a colorida combina com o creme e o dourado do modelo. O carrossel
-        // (CarrosselHero, em Clinica.jsx) continua pronto para `capas` quando
-        // uma empresa tiver mais de uma.
-        capa: F('capa.jpg'),
+        // Só uma foto no hero: a em preto-e-branco (profissional-laura.jpg). Já foi
+        // a colorida (capa.jpg, que continua no bucket); a troca é decisão de
+        // set/2026. O carrossel (CarrosselHero, em Clinica.jsx) continua pronto
+        // para `capas` quando uma empresa tiver mais de uma.
+        capa: F('profissional-laura.jpg'),
       },
       // Caso real de limpeza de pele, do acervo da Laura. As duas fotos são do
       // rosto de um cliente dela — só ficam no ar enquanto houver autorização
@@ -553,7 +553,7 @@ function marcarNoSeed(sessao, etapa, data, appointmentId = null) {
 
 /** Nada de conta ou empresa de demonstração fora da máquina de quem programa. */
 function ehLocal() {
-  return /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '');
+  return bancoDescartavel();
 }
 
 /**

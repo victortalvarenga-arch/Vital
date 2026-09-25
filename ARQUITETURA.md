@@ -589,6 +589,18 @@ Três peças fazem funcionar:
    sem `SUPERUSER` e sem `BYPASSRLS`, e as tabelas usam `FORCE ROW LEVEL
    SECURITY`. Migrations continuam saindo por uma conexão de administrador
    (`DATABASE_ADMIN_URL`), que precisa criar tabela.
+
+   **Onde o banco mora.** O banco de desenvolvimento é um branch da Neon (tier
+   gratuito), não um Postgres em cada máquina — assim o esquema e os dados são os
+   mesmos em qualquer computador, sem versão de banco divergindo entre máquinas.
+   Três consequências: (a) a conexão é a **direta**, nunca a `-pooler`, porque a
+   peça 2 abaixo usa `set_config` de sessão e um pooler em modo transação
+   entregaria a conexão de uma empresa a outra requisição; (b) `reset`, `seed` e
+   `senha-app` só rodam em `localhost` **ou** quando o `.env` declara
+   `VITAL_BANCO_DESCARTAVEL=sim` (`lib/ambiente.js`) — a trava existe para que
+   ninguém apague um banco de verdade nem crie conta de senha conhecida nele, e
+   por isso a variável só existe no branch de desenvolvimento, nunca no de
+   produção; (c) o TLS é ligado sempre que o host não é `localhost`.
 2. **A empresa vive na conexão, não na consulta.** O middleware `comEmpresa()`
    pega uma conexão, marca `app.tenant_id` nela e roda a requisição inteira ali
    dentro, via `AsyncLocalStorage` (`lib/contexto.js`). Por isso `db.get/all/run`
@@ -1525,10 +1537,12 @@ projeto apareceram.
 
 **Banco de verdade, não simulação.** O motor de horários concilia jornada,
 agendamentos e bloqueios em SQL, com RLS por baixo; um banco simulado testaria o
-simulador. A suíte usa um banco à parte, `vital_teste`, criado sozinho na
-primeira execução e apagado e repovoado a cada teste — `test/ambiente.js` recusa
-rodar se a URL não terminar em `_teste`, porque um dia alguém vai rodar `npm
-test` apontando para o banco de trabalho.
+simulador. A suíte usa um banco à parte — o nome do de trabalho mais `_teste`
+(`neondb_teste` na Neon) —, criado sozinho na primeira execução, no mesmo projeto,
+e apagado e repovoado a cada teste. `test/ambiente.js` recusa rodar se o **nome do
+banco** não terminar em `_teste` (olha o caminho da URL, não o fim dela, que agora
+traz `?sslmode=require`), porque um dia alguém vai rodar `npm test` apontando para
+o banco de trabalho. Pela rede a suíte leva uns 4 minutos.
 
 A limpeza entre testes é `DELETE`, não `TRUNCATE`: `vital_app` não tem esse
 direito de propósito, e `TRUNCATE` ignora RLS — apagaria também o que é de outra

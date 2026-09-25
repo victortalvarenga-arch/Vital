@@ -36,7 +36,10 @@ let admin = null;
 export const comoAdmin = (sql, ...params) => admin.query(sql, params);
 
 async function garantirBanco() {
-  const manutencao = new pg.Pool({ connectionString: comBanco(url, 'postgres'), ssl: false });
+  // Conecta no banco de trabalho para criar o de teste: no Neon não há garantia
+  // de existir um banco `postgres` para servir de manutenção.
+  const { sslPara } = await import('../src/lib/ambiente.js');
+  const manutencao = new pg.Pool({ connectionString: url.toString(), ssl: sslPara(url.toString()) });
   try {
     const { rows } = await manutencao.query('SELECT 1 FROM pg_database WHERE datname = $1', [NOME]);
     // CREATE DATABASE não aceita parâmetro; o nome vem do .env, não de fora.
@@ -63,14 +66,15 @@ export async function prepararBanco() {
 
   const adminTeste = comBanco(process.env.DATABASE_ADMIN_URL, NOME);
   const appTeste = comBanco(process.env.DATABASE_URL, NOME);
-  if (!adminTeste.endsWith('_teste')) {
-    throw new Error('recusando rodar: a URL de teste não termina em _teste');
+  if (!new URL(adminTeste).pathname.endsWith('_teste')) {
+    throw new Error('recusando rodar: o banco de teste não termina em _teste');
   }
 
   process.env.DATABASE_ADMIN_URL = adminTeste;
   process.env.DATABASE_URL = appTeste;
 
-  admin = new pg.Pool({ connectionString: adminTeste, ssl: false });
+  const { sslPara } = await import('../src/lib/ambiente.js');
+  admin = new pg.Pool({ connectionString: adminTeste, ssl: sslPara(adminTeste) });
 
   const db = await import('../src/db.js');
 

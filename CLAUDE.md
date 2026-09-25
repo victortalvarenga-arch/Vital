@@ -110,6 +110,11 @@ escrito, não aconteceu.
   ali: a empresa vem de `empresaAtual()`, e a falta dela é erro.
 - Código que roda fora de uma requisição HTTP (cron, seed, script) precisa de
   `db.comEmpresa(id, fn)`, senão o banco não devolve nem aceita nada.
+- O banco de desenvolvimento é um branch da Neon, e a `DATABASE_URL` é sempre a
+  conexão **direta** (sem `-pooler`). `VITAL_BANCO_DESCARTAVEL=sim` é o que deixa
+  `reset`, `seed` e `senha-app` tocarem num banco que não é `localhost`: só no
+  branch de desenvolvimento, nunca no de produção, e nunca acrescentada por
+  conta própria para "fazer o comando rodar". Ver `ARQUITETURA.md`.
 - Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê
   está em `ARQUITETURA.md`.
 - Telefone é guardado só com dígitos, sem `+55`.
