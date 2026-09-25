@@ -133,9 +133,29 @@ relatorios.get('/resumo', rota(async (req, res) => {
   );
 
   const recebido = g.recebido || 0;
+
+  // Custos: as comissões pagas sobre o que entrou. Mesma base do `recebido`
+  // (concluído e pago), senão receita, custos e lucro lado a lado contariam
+  // coisas diferentes. A comissão é arredondada em centavos POR atendimento e a
+  // sobra do arredondamento fica com a empresa. Vale para todos: para o
+  // funcionário o `escopoDe` já recortou nas comissões DELE (é o que ele recebe).
+  //
+  // Lucro é do dono. Funcionário recebe `null`: a comissão dos colegas não é
+  // dado dele — e para ele "lucro da empresa" nem existe.
+  const { c: comissaoCentavos } = await db.get(
+    `SELECT SUM(ROUND(a.valor * 100 * COALESCE(p.comissao, 0) / 100)) c
+       FROM appointments a JOIN staff p ON p.id = a.staff_id
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' AND a.pag_status='pago' ${meuA}`,
+    de, ate, ...arg
+  );
+  const custos = (comissaoCentavos || 0) / 100;
+  const lucro = escopo ? null : lucroEmReais(recebido, comissaoCentavos);
+
   res.json({
     mes, de, ate, dias,
     recebido,
+    custos,
+    lucro,
     aReceber,
     previstoHoje,
     atendimentos: g.atendimentos || 0,
@@ -160,6 +180,182 @@ relatorios.get('/resumo', rota(async (req, res) => {
       recebido: anterior?.recebido || 0,
       atendimentos: anterior?.atendimentos || 0,
     },
+  });
+}));
+
+/**
+ * A série do gráfico do Financeiro: receita, custos e lucro por hora, dia ou mês.
+ *
+ * `por` diz o tamanho do degrau; quem escolhe é a tela, conforme o período
+ * (hoje → hora, semana e mês → dia, ano → mês). Devolve **todos** os degraus do
+ * período, zerados onde não houve venda, para o eixo nunca pular — e recusa o
+ * que geraria um gráfico ilegível (mais de 400 degraus).
+ *
+ * Mesma base e mesmo recorte do `/resumo`: concluído e pago, `escopoDe` para o
+ * funcionário (que recebe `lucro: null`), `profissionalId` só para quem vê tudo.
+ * A hora é a do atendimento, não a do pagamento — o sistema só guarda a data
+ * em que o pagamento foi marcado como feito.
+ */
+const DEGRAUS = {
+  hora: 'substr(a.hora, 1, 2)',
+  dia: 'a.data',
+  mes: 'substr(a.data, 1, 7)',
+};
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+relatorios.get('/serie', rota(async (req, res) => {
+  const por = String(req.query.por || 'dia');
+  const de = String(req.query.de || '');
+  const ate = String(req.query.ate || '');
+  if (!DEGRAUS[por]) return res.status(400).json({ erro: 'por deve ser hora, dia ou mes' });
+  if (!DATA_ISO.test(de) || !DATA_ISO.test(ate) || de > ate) {
+    return res.status(400).json({ erro: 'informe de e ate (AAAA-MM-DD), com de até ate' });
+  }
+
+  const escopo = escopoDe(req.usuario);
+  const so = escopo || (req.query.profissionalId || null);
+
+  // Os degraus do período, antes de consultar: 400 é decidido sem tocar no banco.
+  let chaves = [];
+  if (por === 'dia') {
+    if (diasEntre(de, ate) + 1 > 400) return res.status(400).json({ erro: 'período grande demais para ver por dia' });
+    for (let d = de; d <= ate; d = addDias(d, 1)) chaves.push(d);
+  } else if (por === 'mes') {
+    chaves = mesesEntre(de.slice(0, 7), ate.slice(0, 7));
+    if (chaves.length > 400) return res.status(400).json({ erro: 'período grande demais' });
+  }
+
+  const linhas = await db.all(
+    `SELECT ${DEGRAUS[por]} chave, SUM(a.valor) recebido,
+            SUM(ROUND(a.valor * 100 * COALESCE(p.comissao, 0) / 100)) comissao
+       FROM appointments a JOIN staff p ON p.id = a.staff_id
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' AND a.pag_status='pago'
+        ${so ? 'AND a.staff_id = ?' : ''}
+      GROUP BY ${DEGRAUS[por]}`,
+    de, ate, ...(so ? [so] : [])
+  );
+  const porChave = new Map(linhas.map(l => [l.chave, l]));
+
+  if (por === 'hora') {
+    // Horário comercial por padrão, esticado para caber o que existe: uma venda
+    // às 7h ou às 21h não pode ficar de fora do eixo.
+    const horas = linhas.map(l => Number(l.chave));
+    const ini = Math.min(8, ...horas);
+    const fim = Math.max(19, ...horas);
+    for (let h = ini; h <= fim; h++) chaves.push(String(h).padStart(2, '0'));
+  }
+
+  res.json({
+    por, de, ate,
+    profissionalId: so || null,
+    somenteMeu: Boolean(escopo),
+    pontos: chaves.map(chave => {
+      const l = porChave.get(chave);
+      const receita = l?.recebido || 0;
+      const custos = (l?.comissao || 0) / 100;
+      return { chave, receita, custos, lucro: escopo ? null : lucroEmReais(receita, l?.comissao) };
+    }),
+  });
+}));
+
+/**
+ * O mês atual e os 11 anteriores, um número por mês — o gráfico do Resumo.
+ *
+ * Sempre 12 linhas, do mais antigo ao atual, com zero nos meses sem venda: quem
+ * desenha não precisa inventar o mês que faltou, e o eixo nunca pula.
+ *
+ * Mesma base e mesmo recorte do `/resumo`: só o concluído e pago, `escopoDe`
+ * para o funcionário (que recebe `lucro: null` e fica com o `recebido`
+ * dele), `profissionalId` para o dono olhar uma pessoa.
+ */
+relatorios.get('/mensal', rota(async (req, res) => {
+  const meses = ultimosMeses(hoje().slice(0, 7), 12);
+  const de = `${meses[0]}-01`;
+  const ate = ultimoDiaDoMes(meses[meses.length - 1]);
+
+  const escopo = escopoDe(req.usuario);
+  const so = escopo || (req.query.profissionalId || null);
+
+  const linhas = await db.all(
+    `SELECT substr(a.data, 1, 7) mes, SUM(a.valor) recebido,
+            SUM(ROUND(a.valor * 100 * COALESCE(p.comissao, 0) / 100)) comissao
+       FROM appointments a JOIN staff p ON p.id = a.staff_id
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' AND a.pag_status='pago'
+        ${so ? 'AND a.staff_id = ?' : ''}
+      GROUP BY substr(a.data, 1, 7)`,
+    de, ate, ...(so ? [so] : [])
+  );
+  const porMes = new Map(linhas.map(l => [l.mes, l]));
+
+  res.json({
+    profissionalId: so || null,
+    somenteMeu: Boolean(escopo),
+    meses: meses.map(mes => {
+      const l = porMes.get(mes);
+      const recebido = l?.recebido || 0;
+      return { mes, recebido, lucro: escopo ? null : lucroEmReais(recebido, l?.comissao) };
+    }),
+  });
+}));
+
+/** Recebido menos comissões, com as comissões já somadas em centavos inteiros. */
+function lucroEmReais(recebido, comissaoCentavos) {
+  return (Math.round(recebido * 100) - (comissaoCentavos || 0)) / 100;
+}
+
+/** Todos os 'YYYY-MM' de `ini` a `fim`, inclusive. */
+function mesesEntre(ini, fim) {
+  let [ano, m] = ini.split('-').map(Number);
+  const [anoFim, mFim] = fim.split('-').map(Number);
+  const meses = [];
+  while (ano < anoFim || (ano === anoFim && m <= mFim)) {
+    meses.push(`${ano}-${String(m).padStart(2, '0')}`);
+    if (++m === 13) { m = 1; ano++; }
+    if (meses.length > 1000) break;
+  }
+  return meses;
+}
+
+/** 'YYYY-MM' de `n` meses terminando em `fim`, do mais antigo ao mais novo. */
+function ultimosMeses(fim, n) {
+  let [ano, m] = fim.split('-').map(Number);
+  const meses = [];
+  for (let i = 0; i < n; i++) {
+    meses.unshift(`${ano}-${String(m).padStart(2, '0')}`);
+    if (--m === 0) { m = 12; ano--; }
+  }
+  return meses;
+}
+
+/**
+ * Ranking do mês: quem mais atendeu.
+ *
+ * É a única rota de relatório que mostra a equipe inteira a um funcionário — de
+ * propósito, porque o ranking só serve se todo mundo aparece nele. Por isso ela
+ * devolve **só contagem** para quem está sob `escopoDe`; a produção em dinheiro
+ * (o que cada colega faturou) só sai para o dono. Ordena por atendimentos, e não
+ * por valor, para a ordem que o funcionário vê não denunciar o faturamento dos
+ * outros.
+ */
+relatorios.get('/ranking', rota(async (req, res) => {
+  const mes = req.query.mes || hoje().slice(0, 7);
+  const de = `${mes}-01`;
+  const ate = ultimoDiaDoMes(mes);
+  const veDinheiro = !escopoDe(req.usuario);
+
+  const linhas = await db.all(
+    `SELECT p.id, p.nome, COUNT(*) qtd, SUM(a.valor) producao
+       FROM appointments a JOIN staff p ON p.id = a.staff_id
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido'
+      GROUP BY p.id, p.nome ORDER BY qtd DESC, producao DESC, p.nome`,
+    de, ate
+  );
+  res.json({
+    mes, de, ate,
+    ranking: linhas.map(l => ({
+      id: l.id, nome: l.nome, qtd: l.qtd,
+      ...(veDinheiro ? { producao: l.producao || 0 } : {}),
+    })),
   });
 }));
 

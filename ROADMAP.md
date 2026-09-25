@@ -785,6 +785,17 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Produto
 
+- [ ] **`ticketMedio` divide o recebido (só o pago) por TODOS os concluídos**,
+      pagos ou não (`relatorios.js`, `/resumo`). Um atendimento concluído e ainda
+      em aberto entra no denominador e não no numerador, e o ticket médio sai
+      menor do que é. Definir se a base é "concluído e pago" (coerente com o
+      faturamento) e testar. Notado ao montar o Resumo de mês/ano.
+- [ ] **"Custos" no Financeiro são só as comissões.** Não há cadastro de despesa
+      — aluguel, produto, conta de luz, taxa da maquininha —, então o "Lucro" da
+      tela é receita menos comissões, e nenhuma empresa fecha o mês por ele. O
+      cartão já avisa no "!", mas avisar não resolve: falta uma tabela de
+      despesas (fixas e do período) e a conta passando a descontá-las. Notado ao
+      montar o dashboard de faturamento (set/2026).
 - [ ] **A Vital não consegue cobrar.** `plano` é texto livre, sem preço nem
       ciclo, e não há cobrança nenhuma. O produto funciona inteiro e não fatura.
 - [ ] **Pagamento online da cliente não existe** (item antigo, no fim do

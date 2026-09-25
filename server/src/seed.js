@@ -225,11 +225,11 @@ async function primeiraClienteReal() {
     });
 
     const staff = [
-      { id: 's1', nome: 'Laura Faust', funcao: 'Proprietária · Unhas', cor: '#334942', comissao: 0, fone: '47996195696',
+      { id: 's1', nome: 'Laura Faust', funcao: 'Proprietária · Unhas', cor: '#A32A4E', comissao: 0, fone: '47996195696',
         jornada: { 1: ['09:00', '19:00'], 2: ['09:00', '19:00'], 3: ['09:00', '19:00'], 4: ['09:00', '19:00'], 5: ['09:00', '19:00'], 6: ['08:30', '14:00'] } },
-      { id: 's2', nome: 'Bia Menezes', funcao: 'Cílios e sobrancelhas', cor: '#6A57C7', comissao: 40, fone: '47988887777',
+      { id: 's2', nome: 'Bia Menezes', funcao: 'Cílios e sobrancelhas', cor: '#59182B', comissao: 40, fone: '47988887777',
         jornada: { 2: ['10:00', '19:00'], 3: ['10:00', '19:00'], 4: ['10:00', '19:00'], 5: ['10:00', '20:00'], 6: ['09:00', '15:00'] } },
-      { id: 's3', nome: 'Karen Souza', funcao: 'Estética facial', cor: '#3E7D63', comissao: 45, fone: '47977776666',
+      { id: 's3', nome: 'Karen Souza', funcao: 'Estética facial', cor: '#C2476C', comissao: 45, fone: '47977776666',
         jornada: { 1: ['13:00', '19:00'], 3: ['13:00', '19:00'], 5: ['13:00', '19:00'] } },
     ];
     for (const p of staff) {
@@ -638,7 +638,7 @@ async function segundaEmpresa() {
     // o que o sistema faz com `unit_id` nulo. Rafa só na Zona Sul — no Centro
     // o passo de barbeiro some (sobra um), na Zona Sul aparece.
     for (const [id, nome, cor, unidade] of [
-      ['b1', 'João Silva', '#1F4E5F', null], ['b2', 'Rafa Duarte', '#8A6A2F', 'u2'],
+      ['b1', 'João Silva', '#A32A4E', null], ['b2', 'Rafa Duarte', '#59182B', 'u2'],
     ]) {
       await db.run(
         `INSERT INTO staff (id,nome,funcao,cor,comissao,jornada,unit_id,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`,

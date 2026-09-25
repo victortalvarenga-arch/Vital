@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
-import { emFaixas, hojeISO, iniciais, intervaloDo, toHora, toMin } from '../shared/tempo.js';
+import { emFaixas, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
@@ -16,6 +16,7 @@ import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
 import Usuarios from './Usuarios.jsx';
 import Resumo from './Resumo.jsx';
+import Financeiro from './Financeiro.jsx';
 import { prepararImagem } from '../shared/imagem.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
@@ -45,7 +46,12 @@ const fmtFone = s => { const d = soDigitos(s).slice(0, 11); if (d.length <= 2) r
 const waLink = (fone, texto) => `https://wa.me/55${soDigitos(fone)}?text=${encodeURIComponent(texto)}`;
 const diasEntre = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
 
-const PALETA = ['#A32A4E', '#6A57C7', '#3E7D63', '#A98243', '#C2557A', '#2F6D8C'];
+// Uma cor só, em seis tons — o vinho da marca do painel. Cada pessoa e cada
+// categoria se distingue pelo tom, não pelo matiz: a tela ficava um arco-íris.
+// A ordem é a de maior contraste entre vizinhos (meio, escuro, claro, ...), para
+// as três primeiras pessoas já saírem bem diferentes; todos passam de 4,5:1
+// contra o branco das iniciais.
+const PALETA = ['#A32A4E', '#59182B', '#C2476C', '#711E37', '#B03B5E', '#892443'];
 
 /**
  * Cor de uma categoria, deduzida do nome.
@@ -1757,217 +1763,6 @@ function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
         Quem não deu opt-in fica de fora automaticamente. Com a API oficial, campanha exige template aprovado pela Meta na categoria marketing.
       </div>
     </Modal>
-  );
-}
-
-/* ── Financeiro ── */
-/**
- * Períodos que se olha na prática.
- *
- * O mês fechado era o único que existia — é a pergunta do contador, não a de
- * quem opera. "Como foi a semana" e "o feriado valeu a pena" não tinham
- * resposta.
- */
-const ESCALAS = [
-  { k: 'dia', rotulo: 'Dia' },
-  { k: 'semana', rotulo: 'Semana' },
-  { k: 'mes', rotulo: 'Mês' },
-];
-
-const DIAS_SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-const MES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const MES_PQ = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const comoData = iso => new Date(iso + 'T12:00:00');
-
-/**
- * O período por extenso, do jeito que se diz em voz alta.
- *
- * `mostrarIntervalo` acrescenta as datas exatas. Sem elas, "agosto de 2026" ao
- * lado de "30 de ago a 5 de set" fazia parecer que os números discordavam
- * entre si — quando na verdade a SEMANA atravessa o mês e inclui dias de
- * setembro que o MÊS não inclui. Numa tela de dinheiro, quem lê precisa
- * conseguir conferir o recorte sem ir medir no banco.
- */
-function periodoPorExtenso(escala, de, ate, hoje, mostrarIntervalo = false) {
-  const d = comoData(de);
-  const f = comoData(ate);
-  const dd = x => `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}`;
-  const intervalo = mostrarIntervalo && escala !== 'dia' ? ` · ${dd(d)} a ${dd(f)}` : '';
-
-  if (escala === 'dia') {
-    const nome = `${DIAS_SEM[d.getDay()]}, ${d.getDate()} de ${MES_PQ[d.getMonth()]}`;
-    return de === hoje ? `hoje · ${nome}` : nome;
-  }
-  if (escala === 'semana') {
-    // Semana que atravessa o mês precisa dizer os dois, senão "30 a 5" mente.
-    const nome = d.getMonth() === f.getMonth()
-      ? `${d.getDate()} a ${f.getDate()} de ${MES_PQ[d.getMonth()]}`
-      : `${d.getDate()} de ${MES_PQ[d.getMonth()]} a ${f.getDate()} de ${MES_PQ[f.getMonth()]}`;
-    return `semana de ${nome}`;
-  }
-  return `${MES_EXT[d.getMonth()]} de ${d.getFullYear()}${intervalo}`;
-}
-
-/** Quanto subiu ou desceu em relação ao período anterior de mesmo tamanho. */
-const Variacao = ({ de, para }) => {
-  // Sem base de comparação não há porcentagem que signifique alguma coisa —
-  // "cresceu infinito" a partir de zero é ruído, não informação.
-  if (!de) return null;
-  const pct = Math.round((para - de) / de * 100);
-  const tom = pct > 0 ? 'sobe' : pct < 0 ? 'desce' : 'igual';
-  return (
-    <span className={'variacao ' + tom}>
-      {pct > 0 ? '↑' : pct < 0 ? '↓' : '='} {Math.abs(pct)}% vs. período anterior
-    </span>
-  );
-};
-
-function Financeiro({ dados, poderes }) {
-  const { staff } = dados;
-  // Escala mais deslocamento, em vez de uma lista fixa de recortes: assim
-  // "semana passada" e "março do ano passado" são a mesma mecânica, e não
-  // dois botões que alguém teria de lembrar de criar.
-  const [escala, setEscala] = useState('mes');
-  const [desloc, setDesloc] = useState(0);
-  // Quem o dono está olhando. '' é a empresa inteira. O servidor ignora este
-  // parâmetro para funcionário — esconder os chips é conveniência, não
-  // controle de acesso.
-  const [quem, setQuem] = useState('');
-  const [r, setR] = useState(null);
-  const [falhou, setFalhou] = useState(false);
-
-  const hoje = hojeISO();
-  const { de, ate } = intervaloDo(escala, desloc);
-
-  // Agregação é trabalho de banco, não de navegador: SUM/GROUP BY no servidor.
-  useEffect(() => {
-    let vivo = true;
-    setR(null);
-    setFalhou(false);
-    api.resumo({ de, ate, profissionalId: quem || undefined })
-      .then(x => { if (vivo) setR(x); })
-      // Falha precisa parecer falha: caindo em `setR(null)`, sessão expirada
-      // virava um "Calculando…" eterno, sem nada no console.
-      .catch(() => { if (vivo) setFalhou(true); });
-    return () => { vivo = false; };
-  }, [de, ate, quem]);
-
-  if (falhou) {
-    return (
-      <div className="rs-falha" style={{ margin: 24 }}>
-        Não deu para carregar os números deste período. Se você ficou muito tempo
-        com a tela aberta, a sessão pode ter expirado — recarregue a página.
-      </div>
-    );
-  }
-  if (!r) return <div style={{ padding: 40, color: 'var(--muted)' }}>Calculando…</div>;
-
-  const recebido = r.recebido, aberto = r.aReceber;
-  const ticket = r.ticketMedio, faltas = r.faltas;
-  const rank = r.porServico.map(s => [s.nome, s.total]);
-  const max = rank[0]?.[1] || 1;
-  const formas = Object.fromEntries(r.porForma.map(f => [f.forma, f.total]));
-  const producaoPor = Object.fromEntries(r.porProfissional.map(p => [p.id, p.producao]));
-
-  return (
-    <>
-      <div className="head">
-        <div>
-          <h2>Financeiro</h2>
-          <div className="sub">
-            {periodoPorExtenso(escala, r.de, r.ate, hoje, true)} · {r.atendimentos} atendimentos concluídos
-          </div>
-        </div>
-        <div className="rs-controles">
-          <div className="chips">
-            {ESCALAS.map(e => (
-              <button key={e.k} className={'chip' + (escala === e.k ? ' on' : '')}
-                      onClick={() => { setEscala(e.k); setDesloc(0); }}>{e.rotulo}</button>
-            ))}
-          </div>
-          <div className="rs-nav">
-            <button className="btn btn-g btn-s" title="Período anterior"
-                    onClick={() => setDesloc(d => d - 1)}><ChevronLeft size={15} /></button>
-            {desloc !== 0 && (
-              <button className="btn btn-g btn-s" onClick={() => setDesloc(0)}>Agora</button>
-            )}
-            <button className="btn btn-g btn-s" title="Período seguinte"
-                    onClick={() => setDesloc(d => d + 1)}><ChevronRight size={15} /></button>
-          </div>
-        </div>
-      </div>
-
-      <div className="fin-filtro">
-        <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
-                             podeVerTodos={poderes.verDeTodos} rotuloTodos="A empresa toda" />
-      </div>
-
-      <div className="stats" style={{ marginBottom: 18 }}>
-        <div className="card stat">
-          <span className="eyebrow">Recebido</span>
-          <span className="v">{brl(recebido)}</span>
-          {/* Um número sozinho não diz se está indo bem: a comparação é com o
-              mesmo tanto de dias, imediatamente antes. */}
-          <Variacao de={r.anterior.recebido} para={recebido} />
-        </div>
-        {/* Do período, não de hoje: com escala de dia e semana, "previsto
-            hoje" ao lado de "recebido na semana passada" eram dois recortes
-            diferentes no mesmo cartão. */}
-        <div className="card stat"><span className="eyebrow">Previsto</span><span className="v">{brl(r.previsto)}</span></div>
-        {/* Este continua ancorado em hoje de propósito — é a dívida em aberto
-            acumulada, não algo que o período recorte. O rótulo diz isso. */}
-        <div className="card stat"><span className="eyebrow">A receber, até hoje</span><span className="v" style={{ color: aberto > 0 ? 'var(--warn)' : 'inherit' }}>{brl(aberto)}</span></div>
-        <div className="card stat"><span className="eyebrow">Ticket médio</span><span className="v">{brl(ticket)}</span></div>
-        <div className="card stat"><span className="eyebrow">Faltas</span><span className="v">{faltas}</span></div>
-      </div>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
-        <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>O que mais dá dinheiro</div>
-          {rank.map(([nome, v]) => (
-            <div key={nome} style={{ marginBottom: 11 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                <span>{nome}</span><span className="mono" style={{ fontWeight: 600 }}>{brl(v)}</span>
-              </div>
-              <div style={{ height: 6, background: 'var(--line)', borderRadius: 6 }}>
-                <div style={{ height: 6, width: `${v / max * 100}%`, background: 'var(--lacquer)', borderRadius: 6 }} />
-              </div>
-            </div>
-          ))}
-          {rank.length === 0 && <p className="rs-vazio">Sem atendimentos concluídos neste período.</p>}
-        </div>
-
-        <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Comissões do período</div>
-          {/* `r.profissionalId` é quem está no recorte, seja por escolha do dono
-              ou por papel. Listar a equipe inteira mostrava a colega com
-              "produziu R$ 0,00" para quem não pode ver a produção dela — e zero
-              não é "não sei", é uma afirmação falsa. */}
-          {staff.filter(p => !r.profissionalId || p.id === r.profissionalId).map(p => {
-            const prod = producaoPor[p.id] || 0;
-            return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
-                <div className="avatar" style={{ background: p.cor, width: 30, height: 30, fontSize: 11 }}>{iniciais(p.nome)}</div>
-                <div style={{ flex: 1, fontSize: 13.5 }}>{p.nome.split(' ')[0]}
-                  <span style={{ color: 'var(--muted)' }}> · produziu {brl(prod)}</span></div>
-                <b className="mono" style={{ fontSize: 13.5 }}>{brl(prod * p.comissao / 100)}</b>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Como entrou</div>
-          {Object.entries(formas).map(([f, v]) => (
-            <div key={f} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 13.5 }}>
-              <span style={{ textTransform: 'capitalize' }}>{f}</span><b className="mono">{brl(v)}</b>
-            </div>
-          ))}
-          {Object.keys(formas).length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum pagamento registrado.</p>}
-        </div>
-      </div>
-    </>
   );
 }
 

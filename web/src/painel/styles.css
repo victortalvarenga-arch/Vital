@@ -217,7 +217,10 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .li .nm{font-weight:600; font-size:14.5px}
 .li .mt{font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; margin-top:2px}
 .stat{display:flex; flex-direction:column; gap:3px; padding:16px 18px}
-.stat .v{font-family:'Fraunces',serif; font-size:27px; font-weight:400}
+/* O valor encolhe com o cartão, em vez de vazar dele: um faturamento anual de
+   cinco dígitos, em 27px, passava da borda. Nunca quebra no meio do número. */
+.stat{container-type:inline-size}
+.stat .v{font-family:'Fraunces',serif; font-size:clamp(15px, 14cqw, 27px); font-weight:400; white-space:nowrap}
 .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px}
 
 /* CRM */
@@ -731,3 +734,145 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .sup-rodape .btn{margin-left:0; width:100%}
   .sup-quando{margin-left:0; width:100%}
 }
+
+/* ── Resumo: o "!" que explica cada número ── */
+.stat, .rs-relativo{position:relative}
+.stat .eyebrow{padding-right:22px}
+.rs-dica{display:contents}
+.rs-info{position:absolute; top:9px; right:9px; width:20px; height:20px; padding:0; border-radius:50%;
+  border:1px solid var(--line); background:var(--paper); color:var(--muted);
+  font-size:11px; font-weight:700; line-height:1; display:grid; place-items:center}
+/* Alvo de toque maior que o desenho: o círculo é pequeno de propósito, o dedo não. */
+.rs-info::after{content:''; position:absolute; inset:-9px}
+.rs-info:hover, .rs-info[aria-expanded="true"]{border-color:var(--lacquer); color:var(--lacquer)}
+.rs-dica-texto{position:absolute; z-index:5; left:9px; right:9px; top:36px;
+  background:var(--ink); color:#fff; font-size:12px; line-height:1.4; font-weight:400;
+  padding:8px 10px; border-radius:10px; box-shadow:0 6px 18px rgba(36,26,40,.22)}
+
+/* ── Resumo: gráfico de colunas por mês ── */
+.rs-grafico{padding:16px 18px 10px; margin-bottom:12px}
+.rs-graf-topo{display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  padding-right:26px; margin-bottom:14px; min-height:20px}
+.rs-graf-leitura{display:flex; align-items:baseline; gap:8px; font-size:12.5px; color:var(--muted)}
+.rs-graf-leitura b{font-size:14px; color:var(--ink); font-weight:600}
+.rs-graf-corpo{display:flex; gap:8px}
+/* 132px de área de barra: a grade e os rótulos do eixo usam a mesma altura. */
+.rs-graf-eixo{display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end;
+  height:132px; width:34px; flex:none; font-size:10.5px; line-height:1; color:var(--muted); transform:translateY(-5px)}
+.rs-graf-plot{position:relative; flex:1; min-width:0; container-type:inline-size}
+.rs-graf-grade{position:absolute; inset:0 0 auto 0; height:132px; display:flex; flex-direction:column; justify-content:space-between}
+.rs-graf-grade i{display:block; height:1px; background:var(--line)}
+.rs-graf-cols{position:relative; display:grid; grid-template-columns:repeat(12,1fr); gap:2px}
+.rs-col{display:flex; flex-direction:column; align-items:center; padding:0; min-width:0}
+.rs-col-area{display:flex; align-items:flex-end; justify-content:center; width:100%; height:132px}
+.rs-barra{display:block; width:min(24px, 70%); background:var(--lacquer); border-radius:4px 4px 0 0}
+.rs-col[aria-pressed="true"] .rs-barra{background:var(--lacquer-d)}
+.rs-col-mes{margin-top:6px; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.rs-col[aria-pressed="true"] .rs-col-mes{color:var(--ink); font-weight:700}
+.rs-col-ano{height:12px; font-size:9.5px; color:var(--muted); opacity:.8}
+.rs-grafico .rs-dica-texto{left:auto; right:9px; width:min(300px, calc(100% - 18px))}
+/* Doze nomes de mês não cabem lado a lado no celular: ali vira a inicial. O mês
+   inteiro continua na leitura do topo e no rótulo de acessibilidade. */
+.rs-mes-inicial{display:none}
+@container (max-width: 460px){
+  .rs-mes-cheio{display:none}
+  .rs-mes-inicial{display:inline}
+}
+
+/* ── Financeiro: período, cartões e gráfico ── */
+.fin-topo{position:relative}
+.fin-head{display:flex; align-items:center; justify-content:space-between; gap:12px 20px; flex-wrap:wrap}
+.fin-head h2{font-size:26px}
+/* Chips numa pista só, como o controle segmentado do Linear: o ativo "sobe" para
+   o branco. No celular a pista rola de lado em vez de quebrar em duas linhas. */
+.fin-seg{display:inline-flex; gap:2px; padding:3px; background:#F1E8E5; border-radius:12px;
+  max-width:100%; overflow-x:auto; scrollbar-width:none}
+.fin-seg::-webkit-scrollbar{display:none}
+.fin-seg button{display:inline-flex; align-items:center; gap:6px; padding:8px 14px; min-height:38px;
+  border-radius:9px; font-size:13.5px; font-weight:600; color:var(--muted); white-space:nowrap;
+  transition:background .14s, color .14s}
+.fin-seg button:hover{color:var(--ink)}
+.fin-seg button.on{background:var(--paper); color:var(--ink); box-shadow:0 0 0 1px var(--line), 0 1px 2px rgba(36,26,40,.10)}
+
+.fin-periodo{display:flex; align-items:center; justify-content:space-between; gap:12px 20px; flex-wrap:wrap; margin:16px 0 18px}
+.fin-nav{display:flex; align-items:center; gap:10px}
+.fin-seta{width:40px; height:40px; flex:none; border-radius:10px; border:1px solid var(--line);
+  background:var(--paper); display:grid; place-items:center; color:var(--ink); transition:border-color .14s}
+.fin-seta:hover:not(:disabled){border-color:var(--ink)}
+.fin-seta:disabled{opacity:.3; cursor:default}
+.fin-titulo{display:flex; flex-direction:column; align-items:center; min-width:168px; line-height:1.25; text-align:center}
+.fin-titulo b{font-family:'Fraunces',serif; font-weight:400; font-size:21px}
+.fin-titulo span{font-size:12.5px; color:var(--muted)}
+
+.fin-corpo{transition:opacity .16s}
+.fin-corpo[aria-busy="true"]{opacity:.55}
+.fin-cards{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; margin-bottom:12px}
+.fin-cards .variacao{margin-top:2px}
+
+.fin-grafico{padding:16px 18px 12px; margin-bottom:12px}
+.fin-leitura-parte{color:var(--muted)}
+/* A coluna do dia é a receita; dentro dela, lucro embaixo e custos em cima. A
+   fresta de 2px entre os dois é o fundo aparecendo — sem borda em volta. */
+.fin-barra{display:flex; flex-direction:column; width:min(24px, 78%); gap:2px; border-radius:4px 4px 0 0; overflow:hidden}
+.fin-lucro{background:var(--lacquer); min-height:1px}
+.fin-custos{background:#D98CA5; min-height:1px}
+.rs-col[aria-pressed="true"] .fin-lucro{background:var(--lacquer-d)}
+.fin-legenda{display:flex; gap:16px; margin:8px 0 2px 42px; font-size:12px; color:var(--muted)}
+.fin-legenda i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px}
+
+/* Os miúdos: dinheiro em aberto, previsto, ticket, faltas — uma linha só, sem
+   competir com os três números que abrem a tela. */
+.fin-miudos{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:12px}
+.fin-miudo{display:flex; flex-direction:column; gap:3px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper)}
+.fin-miudo b{font-size:15px; font-weight:600}
+
+/* Calendário de intervalo. Sobrepõe o conteúdo, sem empurrá-lo para baixo. */
+.dr{position:absolute; z-index:20; right:0; top:100%; width:min(348px, 100%); margin-top:8px; padding:14px;
+  box-shadow:0 12px 32px rgba(36,26,40,.18)}
+.dr-topo{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+.dr-mes{font-family:'Fraunces',serif; font-weight:400; font-size:17px}
+.dr-grade{display:grid; grid-template-columns:repeat(7, 1fr); row-gap:2px}
+.dr-sem{text-align:center; font-size:11px; font-weight:700; color:var(--muted); padding:4px 0 6px}
+.dr-dia{height:44px; display:grid; place-items:center; font-size:14px; border-radius:0; position:relative}
+.dr-dia:disabled{color:var(--line); cursor:default}
+.dr-dia:hover:not(:disabled):not(.ponta){background:var(--blush)}
+.dr-dia.dentro{background:var(--blush)}
+.dr-dia.ponta{background:var(--lacquer); color:#fff; font-weight:700; border-radius:10px}
+.dr-dia.hoje::after{content:''; position:absolute; bottom:6px; width:4px; height:4px; border-radius:50%; background:currentColor}
+.dr-rodape{margin-top:12px; padding-top:12px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:10px}
+.dr-escolha{font-size:13px; color:var(--ink)}
+.dr-escolha small{color:var(--muted); font-size:12px}
+.dr-botoes{display:flex; gap:8px; justify-content:flex-end}
+
+@media (max-width: 640px){
+  .fin-cards{grid-template-columns:1fr}
+  .fin-periodo{flex-direction:column; align-items:stretch}
+  .fin-nav{justify-content:space-between}
+  .fin-titulo{flex:1}
+  .dr{left:0; right:0; width:auto}
+  .fin-legenda{margin-left:0}
+}
+
+@media (max-width: 520px){
+  /* Os cinco chips não cabem numa linha de 340px, e rolar de lado esconderia o
+     "Personalizado". Os quatro curtos dividem a primeira linha; o longo ocupa a
+     segunda inteira — todos aparecem, sem ninguém precisar descobrir que dá
+     para arrastar. */
+  .fin-head{display:block}
+  .fin-head h2{margin-bottom:12px}
+  .fin-seg{display:grid; grid-template-columns:repeat(4, 1fr); overflow:visible}
+  .fin-seg button:last-child{grid-column:1 / -1}
+  .fin-seg button{justify-content:center; padding:8px 6px}
+  .fin-seg button svg{display:none}
+}
+.fin-grafico .rs-graf-topo{flex-wrap:wrap; row-gap:4px}
+
+/* O valor escrito em cima da coluna. O espaço vem de um respiro no topo do
+   corpo inteiro — eixo e grade descem junto, então a barra continua batendo
+   com a linha do eixo. Encolher as barras para abrir espaço faria o gráfico
+   mentir. */
+.rs-graf-corpo.com-rotulos{padding-top:15px}
+.rs-col-area{position:relative}
+.rs-col-valor{position:absolute; left:-3px; right:-3px; text-align:center;
+  font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600;
+  color:var(--ink); white-space:nowrap; transform:translateY(-3px); pointer-events:none}

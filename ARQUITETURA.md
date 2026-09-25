@@ -143,7 +143,10 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    Clinica.jsx (as seções que só o modelo Clínica tem),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css, Entrar.jsx (login e primeiro acesso),
-                   Resumo.jsx (o dia e o mês de quem atende),
+                   Resumo.jsx (o mês, o ano e o dia de quem atende),
+                   Financeiro.jsx (receita, custos e lucro por período),
+                   IntervaloDatas.jsx (calendário de "de tal a tal dia"),
+                   Cartoes.jsx (o cartão de número e o "!" que o explica),
                    ConfigSite.jsx (a empresa edita o site),
                    Combos.jsx (promoções), Unidades.jsx (endereços),
                    Usuarios.jsx (acesso),
@@ -715,6 +718,68 @@ quem vê tudo, ou o id do profissional para quem vê só o próprio. As rotas de
 agenda e de relatório passam por ele em vez de decidir cada uma. Um funcionário
 sem vínculo com a equipe recebe um id impossível — **falha fechada**: devolver
 `null` ali abriria o negócio inteiro por um cadastro incompleto.
+
+**O Resumo (tela inicial) fala em mês e ano, e o dia fica só na agenda de
+baixo.** Cartões: faturamento do mês, faturamento do ano, ticket médio e faltas
+/ cancelados do mês — mais o **lucro do mês, só para o dono**. Lucro é o
+recebido (concluído e pago, a mesma base do faturamento) menos as comissões,
+cada uma arredondada em centavos **por atendimento**; a sobra do arredondamento
+fica com a empresa. Para o funcionário o servidor manda `lucro: null`: a
+comissão dos colegas não é dado dele. Ficaram de fora, de propósito, "atendimentos" e
+"concluídos" — sem filtro de período, viravam o mesmo número da agenda.
+
+**O ranking do mês é a única rota de relatório que mostra a equipe inteira a um
+funcionário** (`/api/relatorios/ranking`), porque ranking em que a pessoa só vê
+a si mesma não é ranking. A exceção tem um limite: sob `escopoDe` a rota devolve
+só contagem de atendimentos — `producao` em dinheiro só sai para o dono — e
+ordena por atendimentos, não por valor, para a ordem não denunciar o
+faturamento de quem está abaixo. O dono vê os dois.
+
+**O gráfico do Resumo mostra sempre 12 colunas: o mês atual e os 11 anteriores**
+(`/api/relatorios/mensal`, uma consulta agrupada por mês). A rota devolve os 12
+meses mesmo os sem venda, com zero — quem desenha não inventa o mês que faltou e
+o eixo nunca pula. Mede o lucro para o dono e, para o funcionário (que recebe
+`lucro: null`), o faturamento dele; mesma base e mesmo recorte do `/resumo`
+(concluído e pago, `escopoDe`, `profissionalId` só para quem vê tudo). É desenhado
+com CSS, sem biblioteca de gráfico: são doze retângulos. No celular os meses
+viram inicial, porque doze nomes não cabem lado a lado.
+
+**O Financeiro abre em três números — Receita, Custos, Lucro — e um gráfico.**
+*Custos são as comissões da equipe, e só elas*: não há cadastro de despesa
+(aluguel, produto, luz), então "lucro" aqui é receita menos comissões, e o "!"
+do cartão diz isso — chamar de lucro contábil o que não é seria mentira numa
+tela de dinheiro. Para o funcionário os cartões viram dois, "Sua receita" e
+"Sua comissão": `custos` recortado por `escopoDe` é justamente o que ele recebe,
+e `lucro` vem `null`.
+
+**O período são cinco chips e duas setas** (Hoje · Semana · Mês · Ano ·
+Personalizado). Todos são recortes do **calendário**, não janelas deslizantes:
+"Semana" é a semana em que se está, de domingo a sábado — o mesmo recorte da
+agenda semanal do painel —, e não os últimos sete dias. É assim que a dona
+compara ("esta semana contra a passada"), e foi por isso que "últimos 30 dias"
+saiu: ao lado de "Mês", eram duas respostas ligeiramente diferentes para a mesma
+pergunta. A seta anda no tamanho do próprio filtro — um dia, uma semana, um mês,
+um ano — e nunca passa do período atual. Personalizado abre um calendário de
+intervalo (`IntervaloDatas.jsx`) e as setas param, porque ali o intervalo é
+escolhido, não uma janela que desliza. A mecânica toda vive em
+`shared/periodo.js`, **fora do React e sem `Date`** (texto `'YYYY-MM-DD'`, como
+todo o resto do sistema): é o lugar onde moram os erros que só aparecem na
+virada do ano e em 31 de janeiro, e assim são testados sem abrir tela —
+`server/test/periodo-financeiro.test.js` (o único teste da suíte que importa do
+`web/`, de propósito: a regra é do produto, não da tela).
+
+**O gráfico muda de degrau com o filtro**: Hoje vira horas, Semana e Mês viram
+dias, Ano vira meses; Personalizado escolhe pelo tamanho do intervalo. Os dados
+vêm de `/api/relatorios/serie?por=hora|dia|mes`, que devolve todos os degraus do
+período (zerados onde não houve venda, para o eixo não pular) e recusa o que
+daria um gráfico ilegível. Cada coluna é a receita do degrau, partida em lucro
+(embaixo) e custos (em cima). **Até doze colunas, o valor vem escrito em cima de
+cada uma**; acima disso os números se encavalariam e o valor fica a um toque, na
+leitura do topo. O rótulo é irmão da barra e se posiciona na mesma porcentagem
+dela, com o respiro vindo de um `padding-top` no corpo inteiro do gráfico —
+encolher as barras para abrir espaço faria elas não baterem mais com o eixo. A série guardada na tela carrega junto o `por` a
+que pertence, e o gráfico só desenha quando os dois batem: sem isso, trocar de
+"Hoje" para "Ano" desenhava os pontos de hora com o degrau de mês e quebrava.
 
 **Cada regra vale na tela e na rota.** Esconder o botão evita erro feio para
 quem não pode; recusar na rota é o que impede a chamada direta. Um sem o outro
@@ -1543,6 +1608,14 @@ e apagado e repovoado a cada teste. `test/ambiente.js` recusa rodar se o **nome 
 banco** não terminar em `_teste` (olha o caminho da URL, não o fim dela, que agora
 traz `?sslmode=require`), porque um dia alguém vai rodar `npm test` apontando para
 o banco de trabalho. Pela rede a suíte leva uns 4 minutos.
+
+**Uma exceção, e só uma: `periodo-financeiro.test.js` importa de `web/`.** É
+conta pura sobre texto de data — que período cada chip do Financeiro cobre, e o
+que as setas fazem —, sem banco e sem tela. A regra é do produto, não do
+navegador, e testá-la aqui é o que faz a virada do ano e o 31 de janeiro serem
+verificados a cada `npm test` em vez de na mão. Regra de produto que caiba em
+função pura pode morar no `web/` e ser testada assim; qualquer coisa que toque
+em dado continua sendo teste de rota, com banco de verdade.
 
 A limpeza entre testes é `DELETE`, não `TRUNCATE`: `vital_app` não tem esse
 direito de propósito, e `TRUNCATE` ignora RLS — apagaria também o que é de outra

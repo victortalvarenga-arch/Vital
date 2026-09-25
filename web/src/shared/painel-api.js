@@ -235,4 +235,15 @@ export const api = {
     if (profissionalId) q.set('profissionalId', profissionalId);
     return req('/relatorios/resumo' + (q.toString() ? `?${q}` : ''));
   },
+  // Os 12 meses até o atual, um número por mês. Para funcionário, `lucro` vem null.
+  mensal: ({ profissionalId } = {}) =>
+    req('/relatorios/mensal' + (profissionalId ? `?profissionalId=${profissionalId}` : '')),
+  // Receita, custos e lucro por degrau ('hora', 'dia' ou 'mes') — o gráfico do Financeiro.
+  serie: ({ de, ate, por, profissionalId }) => {
+    const q = new URLSearchParams({ de, ate, por });
+    if (profissionalId) q.set('profissionalId', profissionalId);
+    return req(`/relatorios/serie?${q}`);
+  },
+  // Ranking de atendimentos do mês ('YYYY-MM'). Para funcionário vem sem valor.
+  ranking: ({ mes } = {}) => req('/relatorios/ranking' + (mes ? `?mes=${mes}` : '')),
 };
