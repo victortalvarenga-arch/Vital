@@ -391,3 +391,48 @@ describe('série do gráfico do Financeiro', () => {
       'mais de 400 dias por dia é um gráfico ilegível');
   });
 });
+
+describe('a receber do período', () => {
+  const MES = '2027-08';
+  const D = `${MES}-10`;
+
+  before(async () => {
+    await db.db.comEmpresa('default', () => db.db.run('DELETE FROM appointments'));
+    await marcar({ hora: '09:00', data: D, status: 'concluido', pago: true });  // 100, já entrou
+    await marcar({ hora: '10:00', data: D, status: 'concluido' });              // 100, atendeu e não pagou
+    await marcar({ hora: '11:00', data: D });                                    // 100, marcado, ainda vem
+    await marcar({ hora: '14:00', data: D, status: 'falta' });                   // 100, não vem
+    await marcar({ hora: '15:00', data: D, status: 'cancelado' });               // 100, não vem
+  });
+
+  test('conta o que ainda vem: o marcado e o atendido sem pagar', async () => {
+    const { corpo } = await dona('GET', `/api/relatorios/resumo?mes=${MES}`);
+    assert.equal(corpo.aReceberNoPeriodo, 200, 'o de 10h e o de 11h');
+  });
+
+  test('falta e cancelamento ficam de fora — não é dinheiro que se espera', async () => {
+    const { corpo } = await dona('GET', `/api/relatorios/resumo?mes=${MES}`);
+    // A diferença entre previsto e recebido daria 300: a falta entraria junto.
+    assert.equal(corpo.previsto - corpo.recebido, 300);
+    assert.equal(corpo.aReceberNoPeriodo, 200, 'e é por isso que este número é consultado à parte');
+  });
+
+  test('o que já entrou não conta duas vezes', async () => {
+    const { corpo } = await dona('GET', `/api/relatorios/resumo?mes=${MES}`);
+    assert.equal(corpo.recebido, 100);
+    assert.equal(corpo.recebido + corpo.aReceberNoPeriodo, 300, 'o que entrou mais o que ainda vem');
+  });
+
+  test('o período recorta: outro mês não entra', async () => {
+    const { corpo } = await dona('GET', '/api/relatorios/resumo?mes=2027-09');
+    assert.equal(corpo.aReceberNoPeriodo, 0);
+  });
+
+  test('funcionário vê só o que ele tem a receber', async () => {
+    await marcar({ hora: '16:00', data: D, prof: 'p2' });  // 100, da outra pessoa
+    const dono = await dona('GET', `/api/relatorios/resumo?mes=${MES}`);
+    const dela = await funcionaria('GET', `/api/relatorios/resumo?mes=${MES}`);
+    assert.equal(dono.corpo.aReceberNoPeriodo, 300);
+    assert.equal(dela.corpo.aReceberNoPeriodo, 200, 'o da colega não é dela');
+  });
+});

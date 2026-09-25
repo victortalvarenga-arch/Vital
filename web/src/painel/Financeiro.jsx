@@ -136,31 +136,30 @@ export default function Financeiro({ dados, poderes }) {
       </div>
 
       <div className="fin-corpo" aria-busy={carregando}>
+        {/* Quatro números, na ordem em que a pergunta se faz: o que entrou, o que
+            sobrou, o que ainda vem, e quanto rende cada atendimento. */}
         <div className="fin-cards">
-          {meu ? (
-            <>
-              <Numero rotulo="Sua receita" valor={r && brl(r.recebido)}
-                      dica="O que você atendeu neste período e já foi pago."
-                      extra={r && <Variacao de={r.anterior.recebido} para={r.recebido} />} />
-              <Numero rotulo="Sua comissão" valor={r && brl(r.custos)}
+          <Numero rotulo={meu ? 'Sua receita' : `Receita${de1}`} valor={r && brl(r.recebido)}
+                  dica={meu ? 'O que você atendeu neste período e já foi pago.'
+                            : 'Tudo o que foi atendido e já foi pago neste período.'}
+                  extra={r && <Variacao de={r.anterior.recebido} para={r.recebido} />} />
+          {meu
+            ? <Numero rotulo="Sua comissão" valor={r && brl(r.custos)}
                       dica="A sua parte sobre o que foi pago, pela sua porcentagem de comissão." />
-            </>
-          ) : (
-            <>
-              <Numero rotulo={`Receita${de1}`} valor={r && brl(r.recebido)}
-                      dica="Tudo o que foi atendido e já foi pago neste período."
-                      extra={r && <Variacao de={r.anterior.recebido} para={r.recebido} />} />
-              <Numero rotulo={`Custos${de1}`} valor={r && brl(r.custos)}
-                      dica="O que sai para pagar as comissões da equipe. Outras despesas (aluguel, produtos) ainda não são registradas no sistema." />
-              <Numero rotulo={`Lucro${de1}`} valor={r && brl(r.lucro)}
-                      dica="Receita menos custos: o que sobra para a empresa depois de pagar as comissões." />
-            </>
-          )}
+            : <Numero rotulo={`Lucro${de1}`} valor={r && brl(r.lucro)}
+                      dica="Receita menos as comissões da equipe: o que sobra para a empresa. Outras despesas (aluguel, produtos) ainda não são registradas no sistema." />}
+          <Numero rotulo="A receber" valor={r && brl(r.aReceberNoPeriodo)}
+                  dica="O que os atendimentos deste período ainda devem render: os que estão marcados e os que já foram atendidos sem pagar. Falta e cancelamento ficam de fora."
+                  extra={r && r.aReceber > 0 && (
+                    <span className="fin-atraso">{brl(r.aReceber)} em atraso, até hoje</span>
+                  )} />
+          <Numero rotulo="Ticket médio" valor={r && brl(r.ticketMedio)}
+                  dica="Quanto rendeu cada atendimento concluído, em média, neste período." />
         </div>
 
         <GraficoFinanceiro pontos={serie?.por === por ? serie.pontos : null} por={por} comLucro={!meu} />
 
-        {r && <Detalhes r={r} staff={staff} />}
+        {r && <Detalhes r={r} staff={staff} meu={meu} />}
       </div>
     </>
   );
@@ -228,10 +227,12 @@ function GraficoFinanceiro({ pontos, por, comLucro }) {
   const escolhido = sel != null && pontos?.[sel] ? pontos[sel] : null;
 
   const titulo = { hora: 'Receita por hora', dia: 'Receita por dia', mes: 'Receita por mês' }[por];
-  // O valor em cima de cada coluna só cabe enquanto são poucas: com trinta dias
-  // ou doze horas os números se encavalam e nenhum se lê. Acima disso, o valor
-  // continua a um toque, na leitura do topo.
-  const comRotulos = n <= 12;
+  // O que decide se o valor cabe em cima da coluna são as colunas COM VALOR, não
+  // o total delas: um mês de trinta dias em que se vendeu em cinco tem cinco
+  // números para escrever, com folga. Num mês de venda quase todo dia eles se
+  // encavalariam — aí o valor continua a um toque, na leitura do topo.
+  const comValor = (pontos || []).filter(p => p.receita > 0).length;
+  const comRotulos = comValor > 0 && comValor <= 12;
 
   return (
     <div className="card fin-grafico" onMouseLeave={() => setSel(null)}>
@@ -259,7 +260,8 @@ function GraficoFinanceiro({ pontos, por, comLucro }) {
 
       {pontos && !vazio && (
         <>
-          <div className={'rs-graf-corpo' + (comRotulos ? ' com-rotulos' : '')}>
+          <div className={'rs-graf-corpo' + (comRotulos ? ' com-rotulos' : '')
+            + (comRotulos && n > 14 ? ' rotulos-apertados' : '')}>
             <div className="rs-graf-eixo" aria-hidden="true">
               {[teto, teto / 2, 0].map(v => <span key={v}>{compacto(v)}</span>)}
             </div>
@@ -315,51 +317,106 @@ function GraficoFinanceiro({ pontos, por, comLucro }) {
   );
 }
 
+/** Uma porcentagem pequena, ao lado do valor. Sem base, não há porcentagem. */
+function pct(v, total) {
+  if (!total || !v) return null;
+  const p = v / total * 100;
+  return p < 1 ? '<1%' : `${Math.round(p)}%`;
+}
+
 /**
- * O que ficou de fora dos três cartões e ainda faz falta: dinheiro em aberto, o
- * que se espera receber, e o quadro por serviço, por pessoa e por forma de
- * pagamento.
+ * O quadro do período, depois dos quatro números e do gráfico: o que mais rende,
+ * quanto sai de comissão, quanto se perde em falta — e, embaixo, como o dinheiro
+ * entrou e quem produziu.
+ *
+ * As porcentagens são pequenas de propósito: o valor é a resposta, a
+ * porcentagem é o tamanho dela dentro do todo.
  */
-function Detalhes({ r, staff }) {
-  const rank = r.porServico.map(s => [s.nome, s.total]);
-  const max = rank[0]?.[1] || 1;
-  const formas = Object.fromEntries(r.porForma.map(f => [f.forma, f.total]));
+function Detalhes({ r, staff, meu }) {
+  const formas = r.porForma.filter(f => f.total > 0);
   const producaoPor = Object.fromEntries(r.porProfissional.map(p => [p.id, p.producao]));
+  const max = r.porServico[0]?.total || 1;
+  // Tudo o que foi marcado no período, cancelado incluído: é a base que faz
+  // "10% faltaram" querer dizer alguma coisa.
+  const marcados = r.agendados + r.cancelados;
+  // A produção é maior que o recebido quando alguém atendeu e ainda não pagou.
+  const produzido = r.porProfissional.reduce((s, p) => s + (p.producao || 0), 0);
 
   return (
     <>
-      <div className="fin-miudos">
-        {/* Este continua ancorado em hoje de propósito — é a dívida em aberto
-            acumulada, não algo que o período recorte. O rótulo diz isso. */}
-        <div className="fin-miudo">
-          <span className="eyebrow">A receber, até hoje</span>
-          <b className="mono" style={{ color: r.aReceber > 0 ? 'var(--warn)' : 'inherit' }}>{brl(r.aReceber)}</b>
-        </div>
-        {/* Do período, não de hoje: previsto hoje ao lado de recebido na semana
-            passada eram dois recortes diferentes no mesmo cartão. */}
-        <div className="fin-miudo"><span className="eyebrow">Previsto</span><b className="mono">{brl(r.previsto)}</b></div>
-        <div className="fin-miudo"><span className="eyebrow">Ticket médio</span><b className="mono">{brl(r.ticketMedio)}</b></div>
-        <div className="fin-miudo"><span className="eyebrow">Faltas</span><b className="mono">{r.faltas}</b></div>
-      </div>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))' }}>
-        <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>O que mais dá dinheiro</div>
-          {rank.map(([nome, v]) => (
-            <div key={nome} style={{ marginBottom: 11 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                <span>{nome}</span><span className="mono" style={{ fontWeight: 600 }}>{brl(v)}</span>
+      <div className="fin-quadros">
+        <div className="card fin-quadro">
+          <div className="eyebrow">Serviços mais lucrativos</div>
+          {/* A lista rola dentro do cartão em vez de esticá-lo: uma empresa com
+              quarenta serviços empurraria o resto da tela para baixo, e a
+              coluna do lado ficaria com um vão do tamanho de uma página. */}
+          <div className="fin-servicos">
+          {r.porServico.map(s => (
+            <div key={s.nome} className="fin-servico">
+              <div className="fin-servico-linha">
+                <span>{s.nome}</span>
+                <span>
+                  <b className="mono">{brl(s.total)}</b>
+                  <i className="fin-pct">{pct(s.total, r.recebido)}</i>
+                </span>
               </div>
-              <div style={{ height: 6, background: 'var(--line)', borderRadius: 6 }}>
-                <div style={{ height: 6, width: `${v / max * 100}%`, background: 'var(--lacquer)', borderRadius: 6 }} />
+              <div className="fin-trilho">
+                <div className="fin-preenche" style={{ width: `${s.total / max * 100}%` }} />
               </div>
             </div>
           ))}
-          {rank.length === 0 && <p className="rs-vazio">Sem atendimentos concluídos neste período.</p>}
+          </div>
+          {r.porServico.length === 0 && <p className="rs-vazio">Sem atendimentos concluídos neste período.</p>}
         </div>
 
-        <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Comissões do período</div>
+        {/* Os dois empilhados numa coluna só: sozinhos, ao lado de uma lista de
+            seis serviços, ficavam dois cartões baixos com um vão enorme embaixo.
+            Juntos, acompanham a altura da lista. */}
+        <div className="fin-pilha">
+          {/* Para o funcionário a comissão já é um dos quatro números lá em cima —
+              repeti-la aqui seria o mesmo número duas vezes na mesma tela. */}
+          {!meu && (
+            <div className="card fin-quadro">
+              <div className="eyebrow">Comissão</div>
+              <b className="fin-grande mono">{brl(r.custos)}</b>
+              <span className="fin-sub">
+                <i className="fin-pct">{pct(r.custos, r.recebido) || '0%'}</i> da receita
+              </span>
+              <p className="fin-nota">O que sai para a equipe sobre o que já foi pago.</p>
+            </div>
+          )}
+
+          <div className="card fin-quadro">
+            <div className="eyebrow">Faltas</div>
+            <b className="fin-grande mono">{r.faltas}</b>
+            <span className="fin-sub">
+              <i className="fin-pct">{pct(r.faltas, marcados) || '0%'}</i> dos agendamentos
+            </span>
+            <p className="fin-nota">
+              {r.cancelados} cancelado{r.cancelados === 1 ? '' : 's'}
+              {pct(r.cancelados, marcados) && <i className="fin-pct"> {pct(r.cancelados, marcados)}</i>}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="fin-quadros fin-quadros-2">
+        <div className="card fin-quadro">
+          <div className="eyebrow">Pagamentos</div>
+          {formas.map(f => (
+            <div key={f.forma} className="fin-linha">
+              <span style={{ textTransform: 'capitalize' }}>{f.forma}</span>
+              <span>
+                <b className="mono">{brl(f.total)}</b>
+                <i className="fin-pct">{pct(f.total, r.recebido)}</i>
+              </span>
+            </div>
+          ))}
+          {formas.length === 0 && <p className="rs-vazio">Nenhum pagamento registrado.</p>}
+        </div>
+
+        <div className="card fin-quadro">
+          <div className="eyebrow">Profissionais</div>
           {/* `r.profissionalId` é quem está no recorte, seja por escolha do dono
               ou por papel. Listar a equipe inteira mostrava a colega com
               "produziu R$ 0,00" para quem não pode ver a produção dela — e zero
@@ -367,24 +424,19 @@ function Detalhes({ r, staff }) {
           {staff.filter(p => !r.profissionalId || p.id === r.profissionalId).map(p => {
             const prod = producaoPor[p.id] || 0;
             return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
-                <div className="avatar" style={{ background: p.cor, width: 30, height: 30, fontSize: 11 }}>{iniciais(p.nome)}</div>
-                <div style={{ flex: 1, fontSize: 13.5 }}>{p.nome.split(' ')[0]}
-                  <span style={{ color: 'var(--muted)' }}> · produziu {brl(prod)}</span></div>
-                <b className="mono" style={{ fontSize: 13.5 }}>{brl(prod * p.comissao / 100)}</b>
+              <div key={p.id} className="fin-linha">
+                <span className="fin-pessoa">
+                  <span className="avatar rs-av-pq" style={{ background: p.cor }}>{iniciais(p.nome)}</span>
+                  {p.nome.split(' ')[0]}
+                  <i className="fin-pct">{pct(prod, produzido)}</i>
+                </span>
+                <span>
+                  <b className="mono">{brl(prod)}</b>
+                  <i className="fin-pct">{p.comissao}% · {brl(prod * p.comissao / 100)}</i>
+                </span>
               </div>
             );
           })}
-        </div>
-
-        <div className="card" style={{ padding: 18 }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Como entrou</div>
-          {Object.entries(formas).map(([f, v]) => (
-            <div key={f} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--line)', fontSize: 13.5 }}>
-              <span style={{ textTransform: 'capitalize' }}>{f}</span><b className="mono">{brl(v)}</b>
-            </div>
-          ))}
-          {Object.keys(formas).length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum pagamento registrado.</p>}
         </div>
       </div>
     </>

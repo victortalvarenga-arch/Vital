@@ -61,6 +61,17 @@ relatorios.get('/resumo', rota(async (req, res) => {
     h, ...arg
   )).v || 0;
 
+  // O que os agendamentos DESTE período ainda devem render: o que está marcado
+  // ou já foi atendido e não foi pago. Falta e cancelamento ficam de fora — não
+  // é dinheiro que se espera —, e é por isso que não dá para tirar isto de
+  // `previsto - recebido`: ali a falta entra, e a tela prometeria o que não vem.
+  const aReceberNoPeriodo = (await db.get(
+    `SELECT SUM(valor) v FROM appointments
+      WHERE data >= ? AND data <= ? AND pag_status='aberto'
+        AND status IN ('agendado','confirmado','concluido') ${meu}`,
+    de, ate, ...arg
+  )).v || 0;
+
   /**
    * O que mais dá dinheiro, por serviço.
    *
@@ -157,6 +168,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
     custos,
     lucro,
     aReceber,
+    aReceberNoPeriodo,
     previstoHoje,
     atendimentos: g.atendimentos || 0,
     faltas: g.faltas || 0,

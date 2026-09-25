@@ -744,13 +744,33 @@ o eixo nunca pula. Mede o lucro para o dono e, para o funcionário (que recebe
 com CSS, sem biblioteca de gráfico: são doze retângulos. No celular os meses
 viram inicial, porque doze nomes não cabem lado a lado.
 
-**O Financeiro abre em três números — Receita, Custos, Lucro — e um gráfico.**
-*Custos são as comissões da equipe, e só elas*: não há cadastro de despesa
-(aluguel, produto, luz), então "lucro" aqui é receita menos comissões, e o "!"
-do cartão diz isso — chamar de lucro contábil o que não é seria mentira numa
-tela de dinheiro. Para o funcionário os cartões viram dois, "Sua receita" e
-"Sua comissão": `custos` recortado por `escopoDe` é justamente o que ele recebe,
-e `lucro` vem `null`.
+**O Financeiro abre em quatro números — Receita, Lucro, A receber, Ticket médio
+—, o gráfico do período, e então os quadros**: serviços mais lucrativos,
+comissão e faltas empilhados ao lado; pagamentos e profissionais embaixo. Cada
+quadro traz a porcentagem ao lado do valor, pequena e recuada: o valor é a
+resposta, a porcentagem é o tamanho dele dentro do todo.
+
+Comissão e faltas ficam **empilhados numa coluna só** porque sozinhos, ao lado
+de uma lista de serviços, eram dois cartões baixos com um vão embaixo. E a lista
+de serviços **rola dentro do próprio cartão** (`.fin-servicos`, altura máxima
+fixa): uma empresa com quarenta serviços empurraria o resto da tela para baixo e
+deixaria a coluna vizinha com um vazio do tamanho de uma página. Sobrando espaço
+a lista se estica, faltando ela rola — é o que mantém a linha alinhada tanto para
+quem tem dois serviços quanto para quem tem quarenta.
+
+*Lucro é receita menos as comissões da equipe, e só elas*: não há cadastro de
+despesa (aluguel, produto, luz), e o "!" do cartão diz isso — chamar de lucro
+contábil o que não é seria mentira numa tela de dinheiro. Para o funcionário o
+segundo cartão vira "Sua comissão" (`custos` recortado por `escopoDe` é
+justamente o que ele recebe, e `lucro` vem `null`), e o quadro "Comissão"
+some, para o mesmo número não aparecer duas vezes na tela.
+
+**"A receber" é `aReceberNoPeriodo`, uma consulta à parte**: o que está marcado
+ou já foi atendido e não foi pago, dentro do período. Não sai de
+`previsto - recebido` porque ali a falta entra — e a tela prometeria dinheiro
+que não vem. O campo antigo `aReceber` (dívida em aberto acumulada até hoje,
+independente do período) continua, agora como a linha pequena de "em atraso"
+dentro do mesmo cartão.
 
 **O período são cinco chips e duas setas** (Hoje · Semana · Mês · Ano ·
 Personalizado). Todos são recortes do **calendário**, não janelas deslizantes:
@@ -773,9 +793,11 @@ dias, Ano vira meses; Personalizado escolhe pelo tamanho do intervalo. Os dados
 vêm de `/api/relatorios/serie?por=hora|dia|mes`, que devolve todos os degraus do
 período (zerados onde não houve venda, para o eixo não pular) e recusa o que
 daria um gráfico ilegível. Cada coluna é a receita do degrau, partida em lucro
-(embaixo) e custos (em cima). **Até doze colunas, o valor vem escrito em cima de
-cada uma**; acima disso os números se encavalariam e o valor fica a um toque, na
-leitura do topo. O rótulo é irmão da barra e se posiciona na mesma porcentagem
+(embaixo) e custos (em cima). **O valor vem escrito em cima da coluna enquanto as
+colunas COM VALOR forem até doze** — e é isso, não o total de colunas, que decide:
+um mês de trinta dias em que se vendeu em cinco tem cinco números para escrever,
+com folga. Numa empresa que vende quase todo dia eles se encavalariam, e aí o
+valor fica a um toque, na leitura do topo. O rótulo é irmão da barra e se posiciona na mesma porcentagem
 dela, com o respiro vindo de um `padding-top` no corpo inteiro do gráfico —
 encolher as barras para abrir espaço faria elas não baterem mais com o eixo. A série guardada na tela carrega junto o `por` a
 que pertence, e o gráfico só desenha quando os dois batem: sem isso, trocar de
