@@ -8,6 +8,13 @@ import Registro from './Registro.jsx';
 import Agendamentos from './Agendamentos.jsx';
 import Bloqueios from './Bloqueios.jsx';
 import SeletorProfissional from './Seletor.jsx';
+import SeletorPessoas from './SeletorPessoas.jsx';
+import GradeDoDia from './GradeDoDia.jsx';
+import GradeDoMes from './GradeDoMes.jsx';
+import Recepcao from './Recepcao.jsx';
+import SeletorCliente from './SeletorCliente.jsx';
+import CampoData from './CampoData.jsx';
+import { Campo, Modal, Switch } from './Base.jsx';
 import Suporte from './Suporte.jsx';
 import Formularios from './Formularios.jsx';
 import Ficha from './Ficha.jsx';
@@ -116,22 +123,6 @@ function renderTemplate(txt, vars) {
   return txt.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
 }
 
-/* ─────────── UI base ─────────── */
-const Modal = ({ children, onClose, wide }) => (
-  <div className="ovl" onClick={onClose}>
-    <div className={'modal' + (wide ? ' wide' : '')} onClick={e => e.stopPropagation()}>
-      <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, color: 'var(--muted)' }} aria-label="Fechar"><X size={20} /></button>
-      {children}
-    </div>
-  </div>
-);
-
-const Campo = ({ label, children }) => (<div className="mfield"><label>{label}</label>{children}</div>);
-
-const Switch = ({ on, onChange }) => (
-  <button className={'switch' + (on ? ' on' : '')} onClick={onChange} role="switch" aria-checked={on}><i /></button>
-);
-
 /* ══════════════════════════════════════════════
    APP
    ══════════════════════════════════════════════ */
@@ -152,6 +143,11 @@ export default function App() {
 function Painel({ sessao, aoSair }) {
   const { dados, erro, recarregar } = useEstado();
   const [secao, setSecao] = useState('resumo');
+  // Um atalho pode pedir mais do que a tela: 'novo' abre a janela de
+  // agendamento (ou a de bloqueio) assim que a Agenda montar. O pedido é
+  // consumido lá e some —
+  // senão voltar para a Agenda depois reabriria a janela sozinha.
+  const [pedido, setPedido] = useState(null);
   const [menuAberto, setMenuAberto] = useState(false);
   const [toast, setToast] = useState(null);
   const [falha, setFalha] = useState(null);
@@ -198,8 +194,9 @@ function Painel({ sessao, aoSair }) {
   const GRUPOS = [
     { titulo: null, itens: [
       { k: 'resumo', nome: 'Resumo', icon: LayoutDashboard },
-      { k: 'agenda', nome: 'Calendário', icon: Calendar },
-      { k: 'agendamentos', nome: 'Agendamentos', icon: ClipboardCheck },
+      // Calendário e Agendamentos eram duas telas para a mesma pergunta — uma
+      // desenhava a agenda, a outra listava a mesma agenda. Hoje são abas.
+      { k: 'agenda', nome: 'Agenda', icon: Calendar },
       { k: 'bloqueios', nome: 'Horários fechados', icon: CalendarOff },
       ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
     ] },
@@ -223,7 +220,7 @@ function Painel({ sessao, aoSair }) {
   ].filter(g => g.itens.length);
 
   const atual = GRUPOS.flatMap(g => g.itens).find(i => i.k === secao);
-  const irPara = k => { setSecao(k); setMenuAberto(false); };
+  const irPara = (k, oQue = null) => { setSecao(k); setPedido(oQue); setMenuAberto(false); };
 
   return (
     <div className="p-app">
@@ -274,15 +271,13 @@ function Painel({ sessao, aoSair }) {
         )}
         {secao === 'agenda' && (
           <Agenda dados={{ ...dados, eu: sessao.usuario }} acao={acao}
-                  aviso={setToast} poderes={p} />
+                  aviso={setToast} poderes={p} pedido={pedido}
+                  aoConsumirPedido={() => setPedido(null)} />
         )}
         {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
-        {secao === 'agendamentos' && (
-          <Agendamentos dados={dados} acao={acao} poderes={p} />
-        )}
         {secao === 'bloqueios' && (
           <Bloqueios dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} poderes={p} />
         )}
@@ -323,6 +318,50 @@ function semanaDe(iso) {
   return Array.from({ length: 7 }, (_, i) => addDias(segunda, i));
 }
 
+/** Primeiro e último dia do recorte: um dia, a semana de segunda a domingo, ou o mês. */
+function faixaDaEscala(escala, ancora, semana) {
+  if (escala === 'dia') return { de: ancora, ate: ancora };
+  if (escala === 'semana') return { de: semana[0], ate: semana[6] };
+  const [ano, mes] = ancora.split('-').map(Number);
+  const ultimo = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  return { de: `${ancora.slice(0, 7)}-01`, ate: `${ancora.slice(0, 7)}-${String(ultimo).padStart(2, '0')}` };
+}
+
+/** A seta anda no tamanho do que se está vendo: um dia, uma semana, um mês. */
+function passoDaEscala(escala, ancora, passos) {
+  if (escala === 'dia') return addDias(ancora, passos);
+  if (escala === 'semana') return addDias(ancora, passos * 7);
+  const [ano, mes] = ancora.split('-').map(Number);
+  const total = ano * 12 + (mes - 1) + passos;
+  // Dia 1 de propósito: somar mês sobre dia 31 cairia em "31 de fevereiro".
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-01`;
+}
+
+const MES_LONGO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const DIA_LONGO = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
+  'quinta-feira', 'sexta-feira', 'sábado'];
+
+/** 'Sexta-feira, 26 de setembro' — o subtítulo da tela. */
+function diaPorExtenso(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const nome = DIA_LONGO[d.getDay()];
+  return `${nome[0].toUpperCase()}${nome.slice(1)}, ${d.getDate()} de ${MES_LONGO[d.getMonth()]}`;
+}
+
+/** O que vai escrito entre as setas. Curto: é rótulo, não frase. */
+function rotuloDaEscala(escala, ancora, de, ate) {
+  // Sempre a data, mesmo sendo hoje: o botão "Hoje" fica logo ao lado, e os
+  // dois dizendo a mesma palavra deixavam sem saber onde se estava.
+  if (escala === 'dia') {
+    const d = new Date(ancora + 'T12:00:00');
+    return `${d.getDate()} ${MESES[d.getMonth()]}`;
+  }
+  if (escala === 'semana') return `${fmtData(de)} – ${fmtData(ate)}`;
+  const [ano, mes] = ancora.split('-').map(Number);
+  return `${MES_LONGO[mes - 1][0].toUpperCase()}${MES_LONGO[mes - 1].slice(1)} ${ano}`;
+}
+
 
 /**
  * Em que dia e hora o ponteiro está, dentro da grade.
@@ -354,32 +393,53 @@ function ondeCaiu(x, y, a, passo) {
  * diferente a cada dia. Com os dias fixos, a quem pertence cada atendimento é
  * dito dentro do próprio bloco — cor e primeiro nome.
  */
-function Agenda({ dados, acao, aviso, poderes }) {
+function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
   const { staff, servicos, clientes, agendamentos } = dados;
   const [ancora, setAncora] = useState(hojeISO());
   const [sel, setSel] = useState(null);
-  const [novo, setNovo] = useState(false);
-  const [bloquear, setBloquear] = useState(null);
+  const [novo, setNovo] = useState(pedido === 'novo');
+  const [bloquear, setBloquear] = useState(pedido === 'bloquear' ? {} : null);
   const [arrasto, setArrasto] = useState(null);
-  // Quem a dona está olhando. '' é a semana inteira, de todo mundo. Funcionário
-  // não tem a escolha — o servidor já entrega só a agenda dele.
-  const [quem, setQuem] = useState('');
+  // O pedido vale para esta montagem só; `novo` já nasceu com ele acima.
+  useEffect(() => { if (pedido) aoConsumirPedido(); }, []);
+
+  // Como se está olhando. `aba` escolhe a forma (grade, lista, recepção) e
+  // `escala` o tamanho do recorte. Recepção não tem escala: é sempre o dia, que
+  // é a pergunta de quem está no balcão agora.
+  const [aba, setAba] = useState(pedido === 'lista' ? 'lista' : 'calendario');
+  const [escala, setEscala] = useState('dia');    // dia | semana | mes
+  // Quem a dona está olhando. Lista vazia é a equipe toda. Funcionário não tem
+  // a escolha — o servidor já entrega só a agenda dele.
+  const [pessoas, setPessoas] = useState([]);
 
   const passo = dados.config.passoAgenda || 30;
+  const hoje = hojeISO();
   const semana = useMemo(() => semanaDe(ancora), [ancora]);
-  const de = semana[0], ate = semana[6];
+  const escalaAtiva = aba === 'recepcao' ? 'dia' : escala;
+  const { de, ate } = useMemo(
+    () => faixaDaEscala(escalaAtiva, ancora, semana), [escalaAtiva, ancora, semana]
+  );
 
-  const daSemana = agendamentos
+  const daPessoa = a => pessoas.length === 0 || pessoas.includes(a.prof);
+  const doPeriodo = agendamentos
     .filter(a => a.data >= de && a.data <= ate && a.status !== 'cancelado')
-    .filter(a => !quem || a.prof === quem);
+    .filter(daPessoa);
   // Bloqueio sem dono fecha a empresa toda: continua aparecendo mesmo com uma
   // pessoa escolhida, porque fecha a agenda dela também.
   const fechados = (dados.bloqueios || [])
     .filter(b => b.data >= de && b.data <= ate)
-    .filter(b => !quem || !b.profissionalId || b.profissionalId === quem);
-  const receita = daSemana.reduce((s, a) => s + a.valor, 0);
-  const hoje = hojeISO();
-  const diaParaAcao = semana.includes(hoje) ? hoje : semana[0];
+    .filter(b => pessoas.length === 0 || !b.profissionalId || pessoas.includes(b.profissionalId));
+  const receita = doPeriodo.reduce((s, a) => s + a.valor, 0);
+  // Ação sempre cai num dia que está à vista: no mês e na semana que contêm
+  // hoje, cai em hoje; fora disso, no primeiro dia do recorte.
+  const diaParaAcao = hoje >= de && hoje <= ate ? hoje : de;
+
+  // As colunas do dia: quem está escolhido, ou a equipe ativa inteira.
+  const colunasDoDia = poderes.verDeTodos
+    ? staff.filter(p => p.ativo && (pessoas.length === 0 || pessoas.includes(p.id)))
+    : staff.filter(p => p.id === dados.eu?.profissionalId);
+
+  const andar = passos => setAncora(passoDaEscala(escalaAtiva, ancora, passos));
 
   const mudarStatus = async (id, status) => {
     await acao(() => api.atualizarAgendamento(id, { status }), 'Agendamento atualizado');
@@ -460,30 +520,79 @@ function Agenda({ dados, acao, aviso, poderes }) {
 
   return (
     <>
-      <div className="head">
-        <div>
-          <h2>Agenda</h2>
-          <div className="sub">
-            {daSemana.length} atendimentos na semana · {brl(receita)} previstos
+      <div className="ag-topo">
+        <div className="ag-cabeca">
+          <div>
+            <h2>Agenda</h2>
+            <div className="sub">{diaPorExtenso(ancora)}</div>
+          </div>
+          <div className="ag-nav">
+            <button className="btn btn-g btn-s" onClick={() => setAncora(hoje)}>Hoje</button>
+            <button className="fin-seta" onClick={() => andar(-1)}
+                    aria-label="Anterior"><ChevronLeft size={16} /></button>
+            <span className="ag-periodo">{rotuloDaEscala(escalaAtiva, ancora, de, ate)}</span>
+            <button className="fin-seta" onClick={() => andar(1)}
+                    aria-label="Seguinte"><ChevronRight size={16} /></button>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
-                               podeVerTodos={poderes.verDeTodos} rotuloTodos="Todos" />
-          <button className="btn btn-g btn-s" onClick={() => setAncora(addDias(ancora, -7))}
-                  aria-label="Semana anterior"><ChevronLeft size={16} /></button>
-          <button className="btn btn-g btn-s" style={{ minWidth: 172 }} onClick={() => setAncora(hoje)}>
-            {semana.includes(hoje) ? 'Esta semana' : `${fmtData(de)} – ${fmtData(ate)}`}
-          </button>
-          <button className="btn btn-g btn-s" onClick={() => setAncora(addDias(ancora, 7))}
-                  aria-label="Próxima semana"><ChevronRight size={16} /></button>
-          <button className="btn btn-g btn-s" onClick={() => setBloquear({ data: diaParaAcao })}>
-            <Ban size={16} /> Bloquear
-          </button>
-          <button className="btn btn-p btn-s" onClick={() => setNovo(true)}><Plus size={16} /> Encaixe</button>
+
+        <div className="ag-controles">
+          {/* Recepção é sempre o dia: oferecer semana e mês ali seria oferecer
+              uma pergunta que a tela não responde. */}
+          {aba !== 'recepcao' && (
+            <div className="fin-seg" role="group" aria-label="Tamanho do período">
+              {[['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês']].map(([k, r]) => (
+                <button key={k} type="button" className={escala === k ? 'on' : ''}
+                        aria-pressed={escala === k} onClick={() => setEscala(k)}>{r}</button>
+              ))}
+            </div>
+          )}
+          <SeletorPessoas staff={staff} valor={pessoas} aoMudar={setPessoas}
+                          podeVerTodos={poderes.verDeTodos} multiplo />
+          <div className="ag-acoes">
+            <button className="btn btn-g btn-s" onClick={() => setBloquear({ data: diaParaAcao })}>
+              <Ban size={16} /> Bloquear horário
+            </button>
+            <button className="btn btn-p btn-s" onClick={() => setNovo(true)}>
+              <Plus size={16} /> Novo agendamento
+            </button>
+          </div>
+        </div>
+
+        <div className="ag-abas" role="tablist">
+          {[['calendario', 'Calendário'], ['lista', 'Lista'], ['recepcao', 'Recepção']].map(([k, r]) => (
+            <button key={k} type="button" role="tab" aria-selected={aba === k}
+                    className={'ag-aba' + (aba === k ? ' on' : '')}
+                    onClick={() => setAba(k)}>{r}</button>
+          ))}
+          <span className="ag-conta">
+            {doPeriodo.length} {doPeriodo.length === 1 ? 'atendimento' : 'atendimentos'}
+            {' · '}{brl(receita)}
+          </span>
         </div>
       </div>
 
+      {aba === 'lista' && (
+        <Agendamentos dados={dados} acao={acao} poderes={poderes}
+                      de={de} ate={ate} pessoas={pessoas} />
+      )}
+
+      {aba === 'recepcao' && (
+        <Recepcao agendamentos={doPeriodo} clientes={clientes} servicos={servicos}
+                  staff={staff} aoTocar={setSel} />
+      )}
+
+      {aba === 'calendario' && escala === 'dia' && (
+        <GradeDoDia colunas={colunasDoDia} agendamentos={doPeriodo}
+                    clientes={clientes} servicos={servicos} aoTocar={setSel} />
+      )}
+
+      {aba === 'calendario' && escala === 'mes' && (
+        <GradeDoMes mes={ancora} agendamentos={doPeriodo} hoje={hoje} staff={staff}
+                    aoEscolherDia={d => { setAncora(d); setEscala('dia'); }} />
+      )}
+
+      {aba === 'calendario' && escala === 'semana' && (
       <div className="agenda">
         {/* Legendas de hora em hora, centradas na própria linha. A grade é de
             meia em meia hora: é o passo em que a agenda é vendida, e sem ela
@@ -501,7 +610,7 @@ function Agenda({ dados, acao, aviso, poderes }) {
 
         <div className="semana">
           {semana.map(dia => {
-            const daqui = daSemana.filter(a => a.data === dia);
+            const daqui = doPeriodo.filter(a => a.data === dia);
             const blocos = emFaixas(daqui.map(a => ({
               a, ini: toMin(a.hora), fim: toMin(a.hora) + a.duracao,
             })));
@@ -579,6 +688,7 @@ function Agenda({ dados, acao, aviso, poderes }) {
           })}
         </div>
       </div>
+      )}
 
       {/* Onde vai cair, enquanto o dedo ainda está em cima. */}
       {arrasto?.hora && (
@@ -650,10 +760,16 @@ function Agenda({ dados, acao, aviso, poderes }) {
         );
       })()}
 
-      {novo && <NovoAgendamento dados={dados} acao={acao} data={data} fechar={() => setNovo(false)} aviso={aviso} />}
+      {/* `diaParaAcao`, não `data`: essa variável não existe aqui, e a referência
+          solta derrubava a Agenda inteira no clique — a tela sumia sem modal e
+          sem erro visível. Vale para os dois modais. */}
+      {novo && (
+        <NovoAgendamento dados={dados} acao={acao} data={diaParaAcao}
+                         fechar={() => setNovo(false)} aviso={aviso} />
+      )}
       {bloquear && (
-        <BloquearHorario dados={dados} poderes={poderes} data={data} acao={acao}
-                         aviso={aviso} fechar={() => setBloquear(null)} />
+        <BloquearHorario dados={dados} poderes={poderes} data={bloquear.data || diaParaAcao}
+                         acao={acao} aviso={aviso} fechar={() => setBloquear(null)} />
       )}
     </>
   );
@@ -732,8 +848,7 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
         )}
 
         <Campo label="Dia">
-          <input type="date" required value={f.data}
-                 onChange={e => setF(v => ({ ...v, data: e.target.value }))} />
+          <CampoData valor={f.data} aoMudar={d => setF(v => ({ ...v, data: d }))} />
         </Campo>
 
         <div className="mrow">
@@ -760,16 +875,16 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
 }
 
 /**
- * Encaixe manual, pelo balcão.
+ * Agendamento pelo balcão — o botão "Agendar" do Calendário e o atalho do Resumo.
  *
  * Vendia menos que o site: nada de adicionais, nada de combos. Quem marcava por
  * aqui lançava o valor na mão, e o que digitasse não batia com o que o site
  * cobraria pelo mesmo atendimento — duas verdades para a mesma venda.
  *
- * O que continua diferente de propósito: `forcar: true`. O encaixe pode furar a
- * jornada, porque é manual e quem está no balcão sabe o que está fazendo. O que
- * ele **não** fura é conflito com outro atendimento — isso o servidor recusa
- * dos dois lados.
+ * O que continua diferente de propósito: `forcar: true`. A marcação pelo balcão
+ * pode furar a jornada, porque é manual e quem está ali sabe o que está fazendo.
+ * O que ela **não** fura é conflito com outro atendimento — isso o servidor
+ * recusa dos dois lados. Por que não é a tela do site: ver `ARQUITETURA.md`.
  */
 function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
   const { staff, clientes, agendamentos } = dados;
@@ -786,6 +901,11 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
   const [ofertados, setOfertados] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [ocupado, setOcupado] = useState(false);
+  // Marcar numa data que já passou é legítimo — atendeu sem agendar e quer
+  // registrar —, mas quase sempre é engano de digitação. Por isso pergunta, em
+  // vez de bloquear: bloquear obrigaria a inventar outro caminho para o caso
+  // real, e é assim que nasce planilha paralela.
+  const [confirmarPassado, setConfirmarPassado] = useState(false);
 
   const svc = vendaveis.find(s => s.id === f.servico);
   const combo = combos.find(c => c.id === f.combo);
@@ -840,14 +960,20 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
             data: f.data, hora: f.hora, adicionaisIds: f.extras, forcar: true,
             respostas,
           })),
-      ehCombo ? 'Combo agendado' : 'Encaixe criado'
+      ehCombo ? 'Promoção agendada' : 'Agendamento criado'
     );
     if (ok) fechar(); else setOcupado(false);
   };
 
+  const ehPassado = Boolean(f.data) && f.data < hojeISO();
+  const tentarSalvar = () => {
+    if (ehPassado && !confirmarPassado) return setConfirmarPassado(true);
+    salvar();
+  };
+
   return (
     <Modal onClose={fechar}>
-      <h2 style={{ fontSize: 24, marginBottom: 18 }}>Novo encaixe</h2>
+      <h2 style={{ fontSize: 24, marginBottom: 18 }}>Novo agendamento</h2>
 
       {combos.length > 0 && (
         <div className="chips" style={{ marginBottom: 16 }}>
@@ -858,11 +984,11 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
         </div>
       )}
 
+      {/* Escrever e filtrar, em vez de rolar a lista inteira: com trezentas
+          clientes um <select> vira uma parede de nomes. */}
       <Campo label="Cliente">
-        <select value={f.cliente} onChange={e => setF(v => ({ ...v, cliente: e.target.value }))}>
-          <option value="">Selecione</option>
-          {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
+        <SeletorCliente clientes={clientes} valor={f.cliente}
+                        aoMudar={id => setF(v => ({ ...v, cliente: id }))} />
       </Campo>
 
       {ehCombo ? (
@@ -919,8 +1045,8 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
           </select>
         </Campo>
         <Campo label="Data">
-          <input type="date" value={f.data}
-                 onChange={e => setF(v => ({ ...v, data: e.target.value, hora: '' }))} />
+          <CampoData valor={f.data}
+                     aoMudar={d => { setConfirmarPassado(false); setF(v => ({ ...v, data: d, hora: '' })); }} />
         </Campo>
       </div>
 
@@ -962,13 +1088,44 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
         </div>
       )}
 
-      <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }}
-              disabled={ocupado || !f.cliente || !f.hora || !prof} onClick={salvar}>
-        {ocupado ? 'Criando…' : ehCombo ? 'Agendar promoção' : 'Criar agendamento'}
-      </button>
+      {/* A pergunta aparece no lugar do botão, e não numa janela em cima da
+          janela: no celular um modal sobre o outro esconde o que se estava
+          conferindo. Diz o que vai acontecer de verdade — o fechamento
+          automático trata como feito e pago o que já passou da hora. */}
+      {confirmarPassado ? (
+        <div className="ag-passado">
+          <b><TriangleAlert size={15} /> {dataPorExtensoBR(f.data)} já passou.</b>
+          <p>
+            Criar assim mesmo? Serve para registrar quem foi atendida sem ter
+            agendado — o atendimento entra no histórico como feito e pago.
+          </p>
+          <div className="ag-passado-botoes">
+            <button className="btn btn-g btn-s" type="button"
+                    onClick={() => setConfirmarPassado(false)}>Voltar</button>
+            <button className="btn btn-p btn-s" type="button" disabled={ocupado}
+                    onClick={salvar}>
+              {ocupado ? 'Criando…' : 'Sim, registrar'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }}
+                disabled={ocupado || !f.cliente || !f.hora || !prof} onClick={tentarSalvar}>
+          {ocupado ? 'Criando…' : ehCombo ? 'Agendar promoção' : 'Criar agendamento'}
+        </button>
+      )}
     </Modal>
   );
 }
+
+const MESES_BR = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** '2026-09-25' → '25 de setembro de 2026'. Por extenso porque é um aviso. */
+const dataPorExtensoBR = iso => {
+  const [a, m, d] = (iso || '').split('-').map(Number);
+  return MESES_BR[m - 1] ? `${d} de ${MESES_BR[m - 1]} de ${a}` : iso;
+};
 
 /**
  * O histórico de anamneses da cliente, na ficha dela.
@@ -1228,7 +1385,9 @@ function EditarCliente({ c, acao, fechar, aviso }) {
       <Campo label="Nome completo"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
       <div className="mrow">
         <Campo label="WhatsApp"><input value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>
-        <Campo label="Nascimento"><input type="date" value={f.nasc} onChange={e => setF(v => ({ ...v, nasc: e.target.value }))} /></Campo>
+        <Campo label="Nascimento">
+          <CampoData valor={f.nasc} aoMudar={d => setF(v => ({ ...v, nasc: d }))} />
+        </Campo>
       </div>
       <Campo label="Endereço"><input value={f.end} onChange={e => setF(v => ({ ...v, end: e.target.value }))} /></Campo>
       <Campo label="Observações"><textarea rows={2} value={f.obs} onChange={e => setF(v => ({ ...v, obs: e.target.value }))} placeholder="Alergias, preferências, cuidados" /></Campo>

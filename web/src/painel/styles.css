@@ -121,7 +121,11 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .p-aviso{
   position:fixed; left:16px; right:16px; bottom:16px; max-width:400px; margin:0 auto;
   display:flex; align-items:center; gap:9px; padding:13px 17px; border-radius:12px;
-  background:var(--ink); color:var(--porcelain); font-size:14px; z-index:60;
+  background:var(--ink); color:var(--porcelain); font-size:14px;
+  /* Acima do modal (.ovl é 100): com 60, o aviso de erro nascia ATRÁS da janela
+     aberta. Quem clicava em "Criar agendamento" e a criação falhava não via
+     nada — clicava de novo, e de novo. */
+  z-index:120;
   box-shadow:0 8px 30px -12px rgba(0,0,0,.45);
 }
 .p-aviso.erro{ background:var(--erro); color:#fff; }
@@ -891,10 +895,11 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
      para arrastar. */
   .fin-head{display:block}
   .fin-head h2{margin-bottom:12px}
-  .fin-seg{display:grid; grid-template-columns:repeat(4, 1fr); overflow:visible}
-  .fin-seg button:last-child{grid-column:1 / -1}
-  .fin-seg button{justify-content:center; padding:8px 6px}
-  .fin-seg button svg{display:none}
+  /* Só o do Financeiro, que tem cinco: o da Agenda tem três e cabe numa pista. */
+  .fin-head .fin-seg{display:grid; grid-template-columns:repeat(4, 1fr); overflow:visible}
+  .fin-head .fin-seg button:last-child{grid-column:1 / -1}
+  .fin-head .fin-seg button{justify-content:center; padding:8px 6px}
+  .fin-head .fin-seg button svg{display:none}
 }
 .fin-grafico .rs-graf-topo{flex-wrap:wrap; row-gap:4px}
 
@@ -963,3 +968,151 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .rs-acao span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .rs-hoje-numeros{grid-template-columns:1fr 1fr}
 }
+
+/* ── Campo de cliente: escrever para filtrar ── */
+.sc{position:relative}
+.sc-lupa{position:absolute; left:12px; top:13px; color:var(--muted); pointer-events:none}
+.sc input{padding-left:36px}
+.sc-lista{position:absolute; z-index:30; left:0; right:0; top:calc(100% + 4px);
+  background:var(--paper); border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 10px 26px rgba(36,26,40,.16); overflow:hidden}
+.sc-item{display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  width:100%; min-height:44px; padding:8px 14px; text-align:left}
+.sc-item + .sc-item{border-top:1px solid var(--line)}
+.sc-item b{font-size:14px; font-weight:600}
+.sc-item i{font-style:normal; font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace}
+.sc-item.marcado{background:var(--blush)}
+.sc-nada{margin:0; padding:12px 14px; font-size:13px; color:var(--muted)}
+/* Escolhida: some a busca e aparece quem é, com um jeito de trocar. */
+.sc-escolhida{display:flex; align-items:center; justify-content:space-between; gap:10px;
+  min-height:44px; padding:8px 8px 8px 14px; border:1px solid var(--line); border-radius:10px;
+  background:var(--paper)}
+.sc-nome{display:flex; flex-direction:column; gap:1px; min-width:0; font-size:14px; font-weight:600}
+.sc-nome i{font-style:normal; font-size:12px; font-weight:400; color:var(--muted);
+  font-family:'IBM Plex Mono',monospace}
+.sc-trocar{display:inline-flex; align-items:center; gap:5px; flex:none; min-height:36px;
+  padding:0 12px; border-radius:999px; font-size:12.5px; font-weight:600; color:var(--muted)}
+.sc-trocar:hover{color:var(--lacquer); background:var(--blush)}
+
+/* ── Campo de data em dd/mm/aaaa ── */
+/* O `<input type=date>` do navegador desenha no formato da língua DELE: num
+   Windows em inglês vira 09/25/2026, e `lang` não muda isso. Numa tela de
+   agenda, ler 09/25 como 9 de maio é um agendamento errado. */
+.cd{position:relative}
+.cd input{padding-right:42px}
+.cd input[aria-invalid="true"]{border-color:var(--erro)}
+.cd-abrir{position:absolute; right:4px; top:4px; width:36px; height:36px; border-radius:8px;
+  display:grid; place-items:center; color:var(--muted)}
+.cd-abrir:hover, .cd-abrir[aria-expanded="true"]{color:var(--lacquer); background:var(--blush)}
+.cd-pop{position:absolute; z-index:40; right:0; top:calc(100% + 6px); width:min(320px, 86vw);
+  padding:14px; box-shadow:0 12px 32px rgba(36,26,40,.2)}
+
+/* A pergunta de data passada, no lugar do botão de criar. */
+.ag-passado{margin-top:10px; padding:14px 16px; border-radius:12px;
+  background:#FBF0DF; border:1px solid #EBDFAE}
+.ag-passado b{display:flex; align-items:center; gap:7px; font-size:14px; color:var(--warn)}
+.ag-passado p{margin:6px 0 12px; font-size:13px; line-height:1.5; color:var(--ink2)}
+.ag-passado-botoes{display:flex; gap:8px; justify-content:flex-end}
+
+/* ── Seletor de profissionais: foto, nome e (na Agenda) vários marcados ── */
+.sp{position:relative}
+.sp-botao{display:inline-flex; align-items:center; gap:9px; min-height:42px; padding:6px 13px;
+  border:1px solid var(--line); border-radius:999px; background:var(--paper);
+  font-size:13.5px; font-weight:600; max-width:100%}
+.sp-botao:hover, .sp-botao[aria-expanded="true"]{border-color:var(--ink)}
+.sp-botao > svg:first-child{color:var(--muted)}
+.sp-rotulo{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+/* As fotos se sobrepõem um pouco, como pilha de fichas: cabem três num botão. */
+.sp-fotos{display:inline-flex}
+.sp-fotos .sp-foto + .sp-foto{margin-left:-8px}
+.sp-foto{width:24px; height:24px; font-size:9px; border:2px solid var(--paper)}
+.sp-todos{background:var(--ink2)}
+.sp-lista{position:absolute; z-index:40; right:0; top:calc(100% + 6px); min-width:260px;
+  max-width:min(320px, 88vw); max-height:340px; overflow-y:auto;
+  background:var(--paper); border:1px solid var(--line); border-radius:14px;
+  box-shadow:0 12px 30px rgba(36,26,40,.18); padding:6px}
+.sp-item{display:flex; align-items:center; gap:10px; width:100%; min-height:44px;
+  padding:7px 10px; border-radius:10px; text-align:left}
+.sp-item:hover{background:var(--porcelain)}
+.sp-item.on{background:var(--blush)}
+.sp-item > svg{color:var(--lacquer); flex:none}
+.sp-nome{flex:1; min-width:0; display:flex; flex-direction:column; font-size:13.5px; font-weight:600}
+.sp-nome i{font-style:normal; font-size:11.5px; font-weight:400; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sp-ajuda{margin:4px 6px 2px; font-size:11.5px; color:var(--muted); line-height:1.4}
+
+/* ── Agenda unificada: topo, abas, mês e recepção ── */
+.ag-topo{margin-bottom:16px}
+.ag-cabeca{display:flex; align-items:flex-start; justify-content:space-between; gap:12px 20px; flex-wrap:wrap}
+.ag-nav{display:flex; align-items:center; gap:6px}
+.ag-periodo{min-width:120px; text-align:center; font-size:14px; font-weight:600}
+.ag-controles{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px}
+.ag-acoes{display:flex; gap:8px; margin-left:auto}
+.ag-abas{display:flex; align-items:center; gap:4px; margin-top:14px;
+  border-bottom:1px solid var(--line)}
+.ag-aba{padding:10px 14px; font-size:14px; font-weight:600; color:var(--muted);
+  border-bottom:2px solid transparent; margin-bottom:-1px}
+.ag-aba:hover{color:var(--ink)}
+.ag-aba.on{color:var(--ink); border-bottom-color:var(--lacquer)}
+.ag-conta{margin-left:auto; font-size:12.5px; color:var(--muted)}
+
+/* Mês: um quadrado por dia, com a contagem. Tocar leva para o dia. */
+.gm{margin-top:4px}
+.gm-semana{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:6px}
+.gm-semana span{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); text-align:center}
+.gm-grade{display:grid; grid-template-columns:repeat(7,1fr); gap:8px}
+.gm-vazio{min-height:86px}
+.gm-dia{display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:86px;
+  padding:9px 10px; border:1px solid var(--line); border-radius:12px; background:var(--paper);
+  text-align:left; transition:border-color .14s}
+.gm-dia:hover{border-color:var(--ink)}
+.gm-dia.hoje{border-color:var(--lacquer); box-shadow:0 0 0 1px var(--lacquer)}
+.gm-dia.fechado{background:var(--porcelain)}
+.gm-num{font-size:13px; font-weight:700}
+.gm-dia.hoje .gm-num{color:var(--lacquer)}
+.gm-hoje{font-size:10px; font-weight:700; color:var(--lacquer); text-transform:uppercase; letter-spacing:.08em}
+.gm-conta{font-family:'Fraunces',serif; font-size:20px; font-weight:400; line-height:1.1; margin-top:auto}
+.gm-rot{font-size:11px; color:var(--muted)}
+.gm-fotos{display:flex; margin-top:4px}
+.gm-foto{width:18px; height:18px; font-size:7px; border:2px solid var(--paper)}
+.gm-fotos .gm-foto + .gm-foto{margin-left:-6px}
+
+/* Recepção: o dia em uma coluna, por horário. */
+.rc{padding:6px 0; overflow:hidden}
+.rc-linha{display:flex; align-items:center; gap:12px; width:100%; padding:11px 18px; text-align:left}
+.rc-linha:hover{background:var(--porcelain)}
+.rc-linha.passou{opacity:.5}
+.rc-hora{display:flex; flex-direction:column; flex:none; width:52px; font-size:14px; font-weight:600}
+.rc-hora i{font-style:normal; font-size:11px; color:var(--muted); font-weight:400}
+.rc-foto{width:34px; height:34px; font-size:12px; flex:none}
+.rc-quem{flex:1; min-width:0; display:flex; flex-direction:column}
+.rc-quem b{font-size:14.5px; font-weight:600}
+.rc-quem i{font-style:normal; font-size:12.5px; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rc-fim{display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none}
+.rc-fim i{font-style:normal; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px}
+.rc-pago{background:#E4F0EA; color:var(--ok)}
+.rc-pendente{background:#F3E8EC; color:var(--lacquer-d)}
+.rc-falta{background:#F3E6E6; color:var(--erro)}
+/* A marca de "agora": o que está acima já passou. */
+.rc-agora{display:flex; align-items:center; gap:8px; padding:2px 18px 4px}
+.rc-agora::after{content:''; flex:1; height:1px; background:var(--lacquer)}
+.rc-agora span{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+  color:var(--lacquer)}
+.rc-rodape{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 18px 6px; margin-top:4px; border-top:1px solid var(--line);
+  font-size:12.5px; color:var(--muted)}
+.rc-rodape span{display:flex; align-items:center; gap:6px}
+.rc-rodape b{font-size:14px; color:var(--ink)}
+
+@media (max-width: 720px){
+  .ag-acoes{margin-left:0; width:100%}
+  .ag-acoes .btn{flex:1; justify-content:center}
+  .gm-semana, .gm-grade{gap:4px}
+  .gm-dia{min-height:66px; padding:6px}
+  .gm-conta{font-size:16px}
+  .gm-fotos{display:none}
+}
+/* A lista dentro da Agenda: o filtro de estado é dela; período e pessoas vêm de cima. */
+.ag-resumo{font-size:13px; color:var(--muted)}

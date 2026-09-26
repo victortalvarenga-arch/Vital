@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-  Cake, Check, Clock, Plus, Send, TriangleAlert, Trophy, User, Wallet,
+  Ban, Cake, Check, Clock, Plus, Send, TriangleAlert, Trophy, User, Wallet,
 } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import SeletorProfissional from './Seletor.jsx';
 import { brl } from '../shared/formato.js';
 import { Dica, Numero } from './Cartoes.jsx';
 import { compacto, rotuloDeValor, tetoDoEixo } from '../shared/graficos.js';
-import { emFaixas, faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
+import { hojeISO, iniciais, toMin } from '../shared/tempo.js';
+import GradeDoDia from './GradeDoDia.jsx';
 
 /**
  * Resumo: a tela que abre primeiro no painel.
@@ -208,7 +209,7 @@ export default function Resumo({ dados, poderes, irPara, fila }) {
         <div className="eyebrow" style={{ marginBottom: 14 }}>
           {poderes.verDeTodos ? 'Como está o dia, por profissional' : 'Como está o meu dia'}
         </div>
-        <TimelineDoDia colunas={colunas} agendamentos={doDia}
+        <GradeDoDia colunas={colunas} agendamentos={doDia}
                        clientes={clientes} servicos={servicos} />
       </div>
     </>
@@ -307,26 +308,32 @@ function Atencao({ alertas }) {
  * fora do App em teste), e aí o alerta vira só informação.
  */
 function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes, irPara }) {
-  const ir = k => (irPara ? () => irPara(k) : undefined);
+  const ir = (k, oQue) => (irPara ? () => irPara(k, oQue) : undefined);
   const lista = [];
 
   const semConfirmar = agendamentos.filter(a =>
     a.data >= hoje && a.status === 'agendado' && doMeuRecorte(a)).length;
   if (semConfirmar) {
     lista.push({
-      k: 'confirmar', icone: <TriangleAlert size={15} />, ir: ir('agendamentos'),
+      k: 'confirmar', icone: <TriangleAlert size={15} />, ir: ir('agenda', 'lista'),
       titulo: `${semConfirmar} ${semConfirmar === 1 ? 'confirmação pendente' : 'confirmações pendentes'}`,
       detalhe: 'Clientes que ainda não responderam.',
     });
   }
 
-  // Atendeu e não recebeu. Só até hoje: o de amanhã ainda não devia ter pago.
+  // Atendeu e não recebeu. Só até hoje (o de amanhã ainda não devia ter pago) e
+  // só `aberto`: um estornado não é pagamento esperando, é dinheiro devolvido —
+  // cobrar de novo seria constrangedor.
+  //
+  // Raro de propósito: o fechamento automático já marca como pago o que passou
+  // da hora (ver `jobs/fechamento.js`). Sobra o caso de alguém ter mexido no
+  // pagamento à mão, que é justamente quando vale avisar.
   const aCobrar = agendamentos.filter(a =>
     a.data <= hoje && a.status === 'concluido'
-    && a.pagamento?.status !== 'pago' && doMeuRecorte(a)).length;
+    && a.pagamento?.status === 'aberto' && doMeuRecorte(a)).length;
   if (aCobrar) {
     lista.push({
-      k: 'cobrar', icone: <Wallet size={15} />, ir: ir('agendamentos'),
+      k: 'cobrar', icone: <Wallet size={15} />, ir: ir('agenda', 'lista'),
       titulo: `${aCobrar} ${aCobrar === 1 ? 'pagamento pendente' : 'pagamentos pendentes'}`,
       detalhe: 'Atendimento feito e ainda não pago.',
     });
@@ -376,15 +383,19 @@ function emSeteDias(nasc, hoje) {
 function AcoesRapidas({ irPara, poderes, naFila }) {
   if (!irPara) return null;
   const acoes = [
-    { k: 'agenda', icone: <Plus size={16} />, nome: 'Novo agendamento' },
-    { k: 'agendamentos', icone: <Wallet size={16} />, nome: 'Registrar pagamento' },
+    { k: 'agenda', oQue: 'novo', icone: <Plus size={16} />, nome: 'Novo agendamento' },
+    // Nada de "registrar pagamento": o fechamento automático já marca como pago
+    // o que passou da hora (`jobs/fechamento.js`), então isso não é rotina — é
+    // conserto, e conserto tem o caminho dele nas pendências. Fechar um horário,
+    // sim, se faz toda semana.
+    { k: 'agenda', oQue: 'bloquear', icone: <Ban size={16} />, nome: 'Bloquear horário' },
     ...(poderes.cadastros ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Novo cliente' }] : []),
     { k: 'crm', icone: <Send size={16} />, nome: 'Enviar lembretes', badge: naFila },
   ];
   return (
     <div className="rs-acoes">
       {acoes.map(a => (
-        <button key={a.k} type="button" className="rs-acao" onClick={() => irPara(a.k)}>
+        <button key={a.nome} type="button" className="rs-acao" onClick={() => irPara(a.k, a.oQue)}>
           {a.icone}<span>{a.nome}</span>
           {a.badge > 0 && <i className="rs-acao-badge">{a.badge}</i>}
         </button>
@@ -511,91 +522,6 @@ function Ranking({ staff, ranking, falhou }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-const PX_H = 34, TOPO = 8;
-const MIN_POR_PX = 60 / PX_H;
-
-/**
- * Grade de um dia, uma coluna por profissional.
- *
- * Não é editável — sem arrastar, sem clique para abrir detalhe. É a versão
- * "de relance" da Agenda, não uma segunda forma de mexer na agenda.
- */
-function TimelineDoDia({ colunas, agendamentos, clientes, servicos }) {
-  if (colunas.length === 0) {
-    return <p className="rs-vazio">Nenhum profissional ativo.</p>;
-  }
-
-  // A grade se estica para caber o que existe, em vez de recortar em 8h–20h:
-  // quem marcava às 7h ficava com `top` negativo e sumia atrás do
-  // `overflow: hidden` da moldura, enquanto os contadores lá em cima
-  // continuavam contando o atendimento invisível.
-  const [H_INI, H_FIM] = faixaDeHoras(agendamentos);
-  const altura = (H_FIM - H_INI) * PX_H + TOPO * 2;
-
-  return (
-    <div className="eq-timeline">
-      <div className="eq-horas">
-        <div className="eq-horas-topo" />
-        <div className="eq-horas-corpo" style={{ height: altura }}>
-          {Array.from({ length: H_FIM - H_INI + 1 }, (_, i) => (
-            <span key={i} className="eq-hlabel" style={{ top: TOPO + i * PX_H }}>
-              {String(H_INI + i).padStart(2, '0')}:00
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="eq-cols">
-        {colunas.map(p => {
-          // Dois atendimentos no mesmo horário dividem a largura da coluna. O
-          // de baixo ficava escondido, e horário ocupado que parece livre é o
-          // pior erro que esta tela pode cometer. Acontece de verdade: marcar
-          // falta libera o horário no servidor, e a falta continua desenhada.
-          const meus = emFaixas(agendamentos
-            .filter(a => a.prof === p.id)
-            .map(a => ({ a, ini: toMin(a.hora), fim: toMin(a.hora) + a.duracao })));
-          return (
-            <div key={p.id} className="eq-col">
-              <div className="eq-colhead">
-                <span className="avatar eq-av" style={{ background: p.cor }}>
-                  {iniciais(p.nome)}
-                </span>
-                <span className="eq-nome">{p.nome.split(' ')[0]}</span>
-              </div>
-              <div className="eq-colbody" style={{ height: altura }}>
-                {Array.from({ length: (H_FIM - H_INI) * 2 + 1 }, (_, i) => (
-                  <div key={i} className={'linha' + (i % 2 ? ' meia' : '')}
-                       style={{ top: TOPO + i * PX_H / 2 }} />
-                ))}
-                {meus.map(({ a, ini, fim, faixa, faixas }) => {
-                  const c = clientes.find(x => x.id === a.cliente);
-                  const s = servicos.find(x => x.id === a.servico);
-                  const largura = 100 / faixas;
-                  return (
-                    <div key={a.id}
-                         className={'appt' + (a.status === 'concluido' ? ' done' : '') + (a.status === 'falta' ? ' falta' : '')}
-                         style={{
-                           top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
-                           height: Math.max((fim - ini) / MIN_POR_PX - 2, 22),
-                           left: `calc(${faixa * largura}% + 3px)`,
-                           width: `calc(${largura}% - 6px)`,
-                           right: 'auto',
-                           background: (p.cor || '#999') + '1f',
-                           borderLeftColor: p.cor || '#999',
-                         }}>
-                      <b>{c?.nome.split(' ')[0]}</b>
-                      <span className="t">{a.hora}</span> · {s?.nome}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

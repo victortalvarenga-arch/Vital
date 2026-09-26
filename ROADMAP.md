@@ -806,6 +806,13 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Código
 
+- [ ] **Erro numa tela do painel apaga o painel inteiro, calado.** Um
+      `ReferenceError` no `NovoAgendamento` (variável `data` que não existia)
+      fazia o Calendário sumir da tela no clique do botão: sem modal, sem aviso,
+      sem nada — só um erro no console que ninguém tem aberto. Foi assim que o
+      botão "Encaixe" passou semanas "não fazendo nada". Falta um *error
+      boundary* em volta de `<main>`, mostrando "essa tela falhou, recarregue" em
+      vez de branco. Consertado o caso; a classe de problema continua.
 - [ ] `web/src/painel/App.jsx` passou de 1300 linhas e junta agenda, clientes,
       serviços, equipe, CRM e financeiro. Cada tela nova que nasce ali aumenta o
       risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e ConfigSite

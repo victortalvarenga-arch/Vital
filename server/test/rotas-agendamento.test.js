@@ -242,3 +242,92 @@ describe('sem login não passa', () => {
     }
   });
 });
+
+/**
+ * Duas coisas na mesma cadeira, na mesma hora.
+ *
+ * A marcação pelo painel manda `forcar: true`, que deixa furar a JORNADA —
+ * encaixe às 19h num dia que termina às 18h é decisão de quem está no balcão.
+ * O que ela não pode furar é outro atendimento: aí seriam duas clientes na
+ * mesma pessoa no mesmo horário, e uma delas ia esperar em pé.
+ *
+ * A conferência vive dentro da transação que grava (`criarAgendamento`), e não
+ * na tela: duas pessoas podem clicar no mesmo segundo, e fora da transação as
+ * duas leriam "livre" antes de qualquer uma gravar.
+ */
+describe('a mesma pessoa não atende dois ao mesmo tempo', () => {
+  const D = '2027-07-08';   // uma quinta-feira
+
+  beforeEach(async () => {
+    await db.db.comEmpresa('default', () => limparAgenda(db));
+  });
+
+  /** Marca pelo painel, do jeito que a janela do balcão marca. */
+  const marcarNoPainel = (hora, extras = {}) => dona('POST', '/api/agendamentos', {
+    clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: D, hora,
+    forcar: true, ...extras,
+  });
+
+  test('o segundo agendamento em cima do primeiro é recusado', async () => {
+    const primeiro = await marcarNoPainel('10:00');
+    assert.equal(primeiro.status, 201, primeiro.corpo?.erro);
+
+    const emCima = await marcarNoPainel('10:00');
+    assert.equal(emCima.status, 409, 'mesmo horário, mesma profissional');
+    assert.match(emCima.corpo.erro, /ocupado/);
+  });
+
+  test('encavalar pelo meio também é conflito, não só começar junto', async () => {
+    // O serviço do cenário dura 60 min. Começar às 10:30 invade o das 10:00.
+    await marcarNoPainel('10:00');
+    const meio = await marcarNoPainel('10:30');
+    assert.equal(meio.status, 409, 'começa dentro do anterior');
+
+    const antes = await marcarNoPainel('09:30');
+    assert.equal(antes.status, 409, 'termina dentro do anterior');
+  });
+
+  test('encostar no fim não é conflito: 11:00 começa quando as 10:00 acabam', async () => {
+    await marcarNoPainel('10:00');
+    const colado = await marcarNoPainel('11:00');
+    assert.equal(colado.status, 201, colado.corpo?.erro);
+  });
+
+  test('`forcar` fura a jornada, nunca o conflito', async () => {
+    // 21:00 está fora do expediente do cenário (9h–18h): o painel deixa.
+    const foraDoHorario = await marcarNoPainel('21:00');
+    assert.equal(foraDoHorario.status, 201, 'encaixe fora da jornada é decisão do balcão');
+
+    // Mas dois encaixes no mesmo horário, não.
+    const dobrado = await marcarNoPainel('21:00');
+    assert.equal(dobrado.status, 409, 'nem forçando');
+  });
+
+  test('a outra profissional continua livre no mesmo horário', async () => {
+    await marcarNoPainel('10:00');
+    const outra = await marcarNoPainel('10:00', { profissionalId: 'p2' });
+    assert.equal(outra.status, 201, 'a cadeira ocupada é a de p1');
+  });
+
+  test('cancelado e falta liberam o horário; concluído não', async () => {
+    const um = await marcarNoPainel('14:00');
+    await dona('PUT', `/api/agendamentos/${um.corpo.id}`, { status: 'cancelado' });
+    const depoisDoCancelamento = await marcarNoPainel('14:00');
+    assert.equal(depoisDoCancelamento.status, 201, 'cancelado não ocupa cadeira');
+
+    await dona('PUT', `/api/agendamentos/${depoisDoCancelamento.corpo.id}`,
+      { status: 'concluido' });
+    const emCimaDoConcluido = await marcarNoPainel('14:00');
+    assert.equal(emCimaDoConcluido.status, 409, 'concluído aconteceu: a hora foi usada');
+  });
+
+  test('o horário bloqueado também não aceita encaixe', async () => {
+    const bloqueio = await dona('POST', '/api/bloqueios', {
+      profissionalId: 'p1', data: D, horaIni: '15:00', horaFim: '16:00', motivo: 'almoço',
+    });
+    assert.equal(bloqueio.status, 201, bloqueio.corpo?.erro);
+
+    const emCima = await marcarNoPainel('15:00');
+    assert.equal(emCima.status, 409, 'bloqueio conta como ocupado na hora de gravar');
+  });
+});

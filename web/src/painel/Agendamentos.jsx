@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, UserX, X } from 'lucide-react';
+import { Check, UserX, X } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
-import SeletorProfissional from './Seletor.jsx';
 import { brl } from '../shared/formato.js';
-import { hojeISO, intervaloDo } from '../shared/tempo.js';
+
 
 /**
  * Agendamentos: quem veio, quem faltou, quem cancelou.
@@ -27,7 +26,6 @@ import { hojeISO, intervaloDo } from '../shared/tempo.js';
  * vazio como se nada tivesse acontecido.
  */
 
-const ESCALAS = [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês']];
 
 /**
  * Quatro estados na tela, cinco no banco.
@@ -49,30 +47,29 @@ const comoAparece = status =>
   ESTADOS[status === 'confirmado' ? 'agendado' : status]
   || { rotulo: status, tom: 'aguarda' };
 
-export default function Agendamentos({ dados, acao, poderes }) {
+export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = [] }) {
   const { staff, clientes, servicos } = dados;
-  const hoje = hojeISO();
 
-  const [escala, setEscala] = useState('dia');
-  const [desloc, setDesloc] = useState(0);
-  const [quem, setQuem] = useState('');
   const [estado, setEstado] = useState('');
   const [lista, setLista] = useState(null);
   const [falhou, setFalhou] = useState(false);
   const [versao, setVersao] = useState(0);
 
-  const { de, ate } = intervaloDo(escala, desloc);
-
+  // O período e as pessoas vêm da Agenda, que é quem manda nas setas agora. Só
+  // o filtro de estado é daqui — é a pergunta desta lista, e não das outras.
+  //
+  // O servidor recorta uma pessoa por vez; com duas ou três marcadas, pede-se
+  // tudo e o recorte acontece aqui. A lista de um período cabe na memória, e
+  // três chamadas para juntar na tela seriam três chances de divergir.
   useEffect(() => {
     let vivo = true;
     setLista(null);
     setFalhou(false);
-    api.listarAgendamentos({ de, ate, profissionalId: quem || undefined,
-                             status: ESTADOS[estado]?.busca })
+    api.listarAgendamentos({ de, ate, status: ESTADOS[estado]?.busca })
       .then(l => { if (vivo) setLista(l); })
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [de, ate, quem, estado, versao]);
+  }, [de, ate, estado, versao]);
 
   // `acao` recarrega o estado global do painel; `versao` recarrega esta lista,
   // que o estado global não conhece.
@@ -84,39 +81,17 @@ export default function Agendamentos({ dados, acao, poderes }) {
     setVersao(v => v + 1);
   };
 
-  const total = (lista || [])
+  const visiveis = (lista || []).filter(a => pessoas.length === 0 || pessoas.includes(a.prof));
+  const total = visiveis
     .filter(a => a.status === 'concluido')
     .reduce((s, a) => s + Number(a.valor || 0), 0);
 
   return (
     <>
-      <div className="head">
-        <div>
-          <h2>Agendamentos</h2>
-          <div className="sub">
-            {lista ? `${lista.length} no período · ${brl(total)} atendidos` : 'Carregando…'}
-          </div>
-        </div>
-        <div className="rs-controles">
-          <div className="chips">
-            {ESCALAS.map(([k, nome]) => (
-              <button key={k} className={'chip' + (escala === k ? ' on' : '')}
-                      onClick={() => { setEscala(k); setDesloc(0); }}>{nome}</button>
-            ))}
-          </div>
-          <div className="rs-nav">
-            <button className="btn btn-g btn-s" title="Período anterior"
-                    onClick={() => setDesloc(d => d - 1)}><ChevronLeft size={15} /></button>
-            {desloc !== 0 && <button className="btn btn-g btn-s" onClick={() => setDesloc(0)}>Agora</button>}
-            <button className="btn btn-g btn-s" title="Período seguinte"
-                    onClick={() => setDesloc(d => d + 1)}><ChevronRight size={15} /></button>
-          </div>
-        </div>
-      </div>
-
       <div className="ag-filtros">
-        <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
-                             podeVerTodos={poderes.verDeTodos} rotuloTodos="Todos" />
+        <span className="ag-resumo">
+          {lista ? `${visiveis.length} no período · ${brl(total)} atendidos` : 'Carregando…'}
+        </span>
         <div className="chips">
           <button className={'chip' + (estado === '' ? ' on' : '')} onClick={() => setEstado('')}>Todo estado</button>
           {Object.entries(ESTADOS).map(([k, e]) => (
@@ -133,11 +108,11 @@ export default function Agendamentos({ dados, acao, poderes }) {
         </div>
       )}
 
-      {lista && lista.length === 0 && (
+      {lista && visiveis.length === 0 && (
         <p className="rs-vazio">Nenhum atendimento neste período com esses filtros.</p>
       )}
 
-      {lista && lista.length > 0 && (
+      {lista && visiveis.length > 0 && (
         <div className="card ag-tabela-env">
           <table className="ag-tabela">
             <thead>
@@ -152,7 +127,7 @@ export default function Agendamentos({ dados, acao, poderes }) {
               </tr>
             </thead>
             <tbody>
-              {lista.map(a => {
+              {visiveis.map(a => {
                 const c = clientes.find(x => x.id === a.cliente);
                 const s = servicos.find(x => x.id === a.servico);
                 const p = staff.find(x => x.id === a.prof);

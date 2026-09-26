@@ -360,9 +360,48 @@ seção inteira invisível, e três coisas impedem que volte a acontecer:
   revelar a página inteira por tempo mataria o efeito para quem está no topo.
 
 **Painel da equipe** (`web/src/painel/`) — navegação lateral agrupada em
-Calendário/Financeiro, Cadastros e Configurações. No computador a lateral é
+Agenda/Financeiro, Cadastros e Configurações. No computador a lateral é
 fixa; no celular vira gaveta. A equipe abre isto do balcão e do próprio
 telefone.
+
+### A Agenda é uma tela só, com três formas de olhar
+
+Havia **Calendário** e **Agendamentos** no menu: uma desenhava a agenda, a outra
+listava a mesma agenda. Duas entradas para a mesma pergunta significavam decidir
+por onde entrar antes de saber o que se queria — e, pior, dois lugares para
+manter em pé o filtro de pessoa e de período. Hoje é **Agenda**, com um cabeçalho
+só mandando em tudo o que está abaixo:
+
+- **Período**: `Hoje`, setas e o rótulo do recorte. A seta anda no tamanho do
+  que se está vendo — um dia, uma semana, um mês (`passoDaEscala`).
+- **Escala**: Dia · Semana · Mês. Some na Recepção, que é sempre o dia.
+- **Quem**: `SeletorPessoas`, que aceita **várias** marcadas. O filtro é na
+  tela, não no servidor, e por isso aqui dá para somar duas ou três pessoas
+  sem mexer em rota nenhuma.
+- **Abas**: **Calendário** (a grade), **Lista** (o que era Agendamentos, com o
+  filtro de estado) e **Recepção**.
+
+As três visões do Calendário respondem perguntas diferentes: **Dia** é a grade
+por profissional (`GradeDoDia`, a mesma do Resumo — lá sem clique, aqui com);
+**Semana** é a grade de sete dias, com arrastar para remarcar; **Mês**
+(`GradeDoMes`) mostra **contagem por dia**, não os atendimentos — trinta dias com
+seis blocos cada não cabem numa tela —, e tocar num dia leva para a visão diária,
+que é onde estão os nomes.
+
+**Recepção** (`Recepcao.jsx`) é o dia inteiro em uma coluna, por horário, com
+uma marca de "agora" separando o que já passou. A grade por profissional
+responde "como está a agenda da Bia"; esta responde "quem é a próxima", que é a
+pergunta de quem recebe quem chega — e quem está no balcão lê de cima para baixo
+em vez de cruzar três colunas.
+
+**A Lista continua pedindo ao servidor**, e não ao estado do painel: o bootstrap
+carrega 120 dias, e um mês mais antigo apareceria vazio como se nada tivesse
+acontecido. Ela recebe período e pessoas de cima, e guarda só o próprio filtro
+de estado.
+
+`Base.jsx` nasceu neste trabalho, com `Modal`, `Campo` e `Switch`: eram eles que
+prendiam qualquer tela dentro do `App.jsx` — extrair um componente significava
+arrastar o `App` junto (import circular) ou copiar o `Modal` de novo.
 
 Em **Configurações → Site da cliente** (`painel/ConfigSite.jsx`) a empresa muda
 identidade, cor, logo, capa, textos, contato, cidade, perguntas frequentes e o
@@ -746,10 +785,21 @@ mais lenta.
 pendente levam para Agendamentos, aniversariante leva para Clientes, mensagem na
 fila leva para Mensagens — avisar sem dizer onde resolver empurra o trabalho de
 volta para quem leu. Só aparece o que existe (alerta com zero é ruído com cara de
-aviso), e sem nenhuma a tela diz "Nada pendente por aqui". Os quatro **atalhos**
-do topo seguem a mesma ideia: levam para a tela onde a coisa se faz, em vez de
-repetir o formulário aqui — um "novo agendamento" em duas telas vira duas regras
-diferentes na primeira mudança.
+aviso), e sem nenhuma a tela diz "Nada pendente por aqui". Os **atalhos** do topo
+seguem a mesma ideia: levam para a tela onde a coisa se faz, em vez de repetir o
+formulário aqui — um "novo agendamento" em duas telas vira duas regras
+diferentes na primeira mudança. Dois deles (novo agendamento, bloquear horário)
+mandam um *pedido* junto da navegação, e a Agenda já monta com a janela certa
+aberta; o pedido é consumido na montagem e some, senão voltar para a Agenda
+depois reabriria a janela sozinha.
+
+**Não há atalho de "registrar pagamento", de propósito.** O fechamento
+automático (`jobs/fechamento.js`, a cada 5 minutos e a cada abertura do painel)
+marca como **pago** o que passou da hora, na forma `local`. Registrar pagamento
+não é rotina, é conserto — e conserto tem o caminho dele nas pendências, que só
+aparecem quando existe algo a consertar. Pelo mesmo motivo a pendência "pagamento
+pendente" olha `pag_status = 'aberto'` e não "diferente de pago": um estornado é
+dinheiro devolvido, não pagamento esperando.
 
 **O ranking do mês é a única rota de relatório que mostra a equipe inteira a um
 funcionário** (`/api/relatorios/ranking`), porque ranking em que a pessoa só vê
@@ -1034,15 +1084,63 @@ o rateio no `valor`.
 
 ### O balcão vende o que o site vende
 
-O encaixe manual não oferecia adicionais nem combos: quem marcava por ali lançava
-o valor na mão, e o que digitasse não batia com o que o site cobraria pelo mesmo
-atendimento — duas verdades para a mesma venda. Agora o formulário alterna entre
-serviço e promoção, oferece os extras daquele serviço, e mostra duração e total
-calculados.
+O agendamento pelo painel não oferecia adicionais nem combos: quem marcava por
+ali lançava o valor na mão, e o que digitasse não batia com o que o site cobraria
+pelo mesmo atendimento — duas verdades para a mesma venda. Hoje o formulário
+alterna entre serviço e promoção, oferece os extras daquele serviço, e mostra
+duração e total calculados. O botão do Calendário e o atalho do Resumo abrem a
+mesma janela (`NovoAgendamento`).
 
-O que continua diferente de propósito é o `forcar: true`: o encaixe pode furar a
-jornada, porque é manual e quem está no balcão sabe o que faz. O que ele não fura
-é conflito com outro atendimento — isso o servidor recusa dos dois lados.
+O que continua diferente de propósito é o `forcar: true`: a marcação pelo balcão
+pode furar a jornada, porque é manual e quem está ali sabe o que faz. O que ela
+**não** fura é conflito — outro atendimento da mesma pessoa, ou um horário
+bloqueado. A conferência vive **dentro da transação que grava**
+(`criarAgendamento` → `conflita`), e não na tela: duas pessoas podem clicar no
+mesmo segundo, e fora da transação as duas leriam "livre" antes de qualquer uma
+gravar. `agendado`, `confirmado` e `concluido` ocupam a cadeira; `falta` e
+`cancelado` a liberam. Coberto em `test/rotas-agendamento.test.js`.
+
+**Data que já passou pergunta, não bloqueia.** Marcar no passado quase sempre é
+erro de digitação, mas às vezes é o caso real: atendeu quem chegou sem agendar e
+quer registrar. Bloquear obrigaria a inventar outro caminho para esse caso — e é
+assim que nasce planilha paralela. Então o botão de criar vira uma pergunta, no
+lugar dele (não uma janela sobre a janela, que no celular esconde justamente o
+que se estava conferindo), dizendo o que vai acontecer de verdade: o fechamento
+automático trata como feito e pago o que já passou da hora. Trocar a data desfaz
+a confirmação.
+
+**Todo aviso precisa aparecer por cima da janela aberta.** O sucesso e o erro
+saem no mesmo `.p-aviso` do rodapé, que nascia com `z-index: 60` — abaixo do véu
+do modal (`.ovl`, 100). Quem clicava em "Criar agendamento" e batia numa recusa
+do servidor (ficha por responder, horário ocupado) não via nada, clicava de novo
+e de novo. Hoje é 120. Campo de aviso que não aparece é pior que aviso nenhum:
+ensina a pessoa a desconfiar do botão.
+
+**Data se escreve e se lê em dd/mm/aaaa** (`CampoData.jsx`, com a conversão em
+`shared/datas-br.js`). O `<input type="date">` do navegador desenha no formato
+da **língua do navegador**, não da página: num Windows em inglês o mesmo campo
+mostra `09/25/2026`, e `lang="pt-BR"` não muda isso — testado. Numa tela de
+agenda, ler 09/05 como 9 de maio quando era 5 de setembro é um agendamento no
+dia errado, então o campo é nosso: texto com máscara mais um calendário. O valor
+que entra e sai continua `'YYYY-MM-DD'`; o formato brasileiro só existe na tela.
+Data que não existe (31/02, ano pela metade) não sobe para o formulário — e é a
+conversão, não o `Date`, que garante isso: `new Date(2026, 1, 31)` vira 3 de
+março caladamente.
+
+**A cliente se escolhe escrevendo, não rolando** (`SeletorCliente.jsx`): filtra
+por nome — ignorando acento e caixa — ou pelos dígitos do WhatsApp, que é o que
+separa duas "Marias". Um `<select>` com a lista inteira funciona com trinta
+clientes e vira uma parede de nomes com trezentas, e o produto é feito para a
+empresa que cresce, não para a do `seed`. Feito à mão, e não com `<datalist>`:
+este mostra o telefone embaixo do nome, desenha igual em todo navegador e abre
+no celular. Escolhida, some a busca e fica quem é, com um "Trocar" — deixar o
+nome dentro do campo faria a próxima letra digitada apagar a escolha sem avisar.
+
+**Ela não é a tela do site, e isso é escolha.** A do site identifica a cliente
+pelo WhatsApp, respeita a jornada e nasce com `origem: 'site'`; a do painel
+escolhe de uma lista de clientes já cadastradas, encaixa fora do horário e
+registra que veio do balcão. Reaproveitar a do site custaria as três coisas —
+decidido em set/2026, com a janela do painel à vista.
 
 ## A agenda do painel
 
