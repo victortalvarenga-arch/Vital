@@ -143,7 +143,7 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    Clinica.jsx (as seções que só o modelo Clínica tem),
                    datas.js, tema.js (aplica a marca em runtime), styles.css
   src/painel/      App.jsx, styles.css, Entrar.jsx (login e primeiro acesso),
-                   Resumo.jsx (o mês, o ano e o dia de quem atende),
+                   Resumo.jsx (o dia, as pendências e o mês de quem atende),
                    Financeiro.jsx (receita, custos e lucro por período),
                    IntervaloDatas.jsx (calendário de "de tal a tal dia"),
                    Cartoes.jsx (o cartão de número e o "!" que o explica),
@@ -719,14 +719,37 @@ agenda e de relatório passam por ele em vez de decidir cada uma. Um funcionári
 sem vínculo com a equipe recebe um id impossível — **falha fechada**: devolver
 `null` ali abriria o negócio inteiro por um cadastro incompleto.
 
-**O Resumo (tela inicial) fala em mês e ano, e o dia fica só na agenda de
-baixo.** Cartões: faturamento do mês, faturamento do ano, ticket médio e faltas
-/ cancelados do mês — mais o **lucro do mês, só para o dono**. Lucro é o
-recebido (concluído e pago, a mesma base do faturamento) menos as comissões,
-cada uma arredondada em centavos **por atendimento**; a sobra do arredondamento
-fica com a empresa. Para o funcionário o servidor manda `lucro: null`: a
-comissão dos colegas não é dado dele. Ficaram de fora, de propósito, "atendimentos" e
-"concluídos" — sem filtro de período, viravam o mesmo número da agenda.
+**O Resumo (tela inicial) responde três perguntas, de cima para baixo, na ordem
+em que alguém abre o painel de manhã**: *como está o dia agora* (saudação pelo
+nome, os atalhos, e o bloco **Hoje** — barra de quantos atendimentos já foram
+concluídos, próximo cliente, recebido e previsto do dia), *o que precisa de mim*
+(as **pendências**) e *como vai o negócio* (cartões do mês, gráfico de lucro por
+mês, ranking, e a grade do dia por profissional).
+
+Cartões do mês: faturamento, atendimentos, ticket médio e faltas / cancelados —
+mais o **lucro do mês, só para o dono**. Lucro é o recebido (concluído e pago, a
+mesma base do faturamento) menos as comissões, cada uma arredondada em centavos
+**por atendimento**; a sobra do arredondamento fica com a empresa. Para o
+funcionário o servidor manda `lucro: null`: a comissão dos colegas não é dado
+dele. "Faturamento do ano" saiu dos cartões quando o gráfico de doze meses
+passou a mostrar o ano inteiro logo abaixo.
+
+**Dinheiro vem do servidor; contagem de agenda vem do estado.** Valor sempre sai
+de `/api/relatorios/*`, onde a conta já existe recortada por `escopoDe` —
+refazê-la no navegador seria a segunda versão da mesma regra. Já quantos
+atendimentos há hoje, quem é o próximo, o que está sem confirmar e quem faz
+aniversário na semana sai de `dados.agendamentos` e `dados.clientes`, que a tela
+já tem na memória: pedir ao servidor o que está aqui do lado só deixaria a tela
+mais lenta.
+
+**As pendências são botões, não avisos.** Confirmação pendente e pagamento
+pendente levam para Agendamentos, aniversariante leva para Clientes, mensagem na
+fila leva para Mensagens — avisar sem dizer onde resolver empurra o trabalho de
+volta para quem leu. Só aparece o que existe (alerta com zero é ruído com cara de
+aviso), e sem nenhuma a tela diz "Nada pendente por aqui". Os quatro **atalhos**
+do topo seguem a mesma ideia: levam para a tela onde a coisa se faz, em vez de
+repetir o formulário aqui — um "novo agendamento" em duas telas vira duas regras
+diferentes na primeira mudança.
 
 **O ranking do mês é a única rota de relatório que mostra a equipe inteira a um
 funcionário** (`/api/relatorios/ranking`), porque ranking em que a pessoa só vê

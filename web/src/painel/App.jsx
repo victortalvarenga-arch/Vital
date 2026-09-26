@@ -270,7 +270,7 @@ function Painel({ sessao, aoSair }) {
       <main className="p-conteudo">
         {secao === 'resumo' && (
           <Resumo dados={{ ...dados, eu: sessao.usuario }} acao={acao}
-                  aviso={setToast} poderes={p} />
+                  aviso={setToast} poderes={p} irPara={irPara} fila={fila} />
         )}
         {secao === 'agenda' && (
           <Agenda dados={{ ...dados, eu: sessao.usuario }} acao={acao}

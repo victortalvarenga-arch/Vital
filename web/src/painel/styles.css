@@ -909,3 +909,57 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   color:var(--ink); white-space:nowrap; transform:translateY(-3px); pointer-events:none}
 /* Muitas colunas com poucos valores: o número encolhe para não roçar no vizinho. */
 .rs-graf-corpo.rotulos-apertados .rs-col-valor{font-size:9px; letter-spacing:-.02em}
+
+/* ── Resumo: saudação, atalhos, o bloco de hoje e as pendências ── */
+/* Os atalhos ficam logo abaixo do nome, e não no fim da tela: quem abre o
+   painel quase sempre abre para FAZER uma coisa, não para ler. */
+.rs-acoes{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px}
+.rs-acao{display:inline-flex; align-items:center; gap:8px; padding:9px 15px; min-height:42px;
+  border:1px solid var(--line); border-radius:999px; background:var(--paper);
+  font-size:13.5px; font-weight:600; transition:border-color .14s, color .14s}
+.rs-acao:hover{border-color:var(--ink)}
+.rs-acao svg{color:var(--lacquer)}
+.rs-acao-badge{font-style:normal; font-size:11px; font-weight:700; color:#fff;
+  background:var(--lacquer); border-radius:999px; padding:1px 7px; margin-left:2px}
+
+.rs-hoje{padding:18px; margin-bottom:12px}
+.rs-hoje-topo{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.rs-hoje-conta{margin:6px 0 0; font-family:'Fraunces',serif; font-size:21px; font-weight:400; line-height:1.25}
+.rs-pendencias{flex:none; font-size:11.5px; font-weight:700; color:var(--warn);
+  background:#FBF0DF; border-radius:999px; padding:5px 11px}
+/* `rs-prog`, e não `rs-barra`: esse nome já é das colunas do gráfico, e as duas
+   regras se atropelaram — a barra do dia virou um toco de 24px e as colunas do
+   gráfico viraram pílulas cinzas de 8px. */
+.rs-prog{height:8px; border-radius:999px; background:var(--line); margin:14px 0; overflow:hidden}
+.rs-prog-feito{height:8px; border-radius:999px; background:var(--lacquer); transition:width .3s}
+.rs-hoje-numeros{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px}
+.rs-hoje-numeros > div{display:flex; flex-direction:column; gap:4px;
+  padding:12px 14px; border:1px solid var(--line); border-radius:12px}
+.rs-hoje-numeros b{font-size:16px; font-weight:600}
+
+/* Cada pendência é um botão que leva para onde ela se resolve. */
+.rs-alertas{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:18px}
+.rs-alerta{display:flex; align-items:flex-start; gap:11px; padding:14px 16px; text-align:left;
+  transition:border-color .14s}
+.rs-alerta:hover{border-color:var(--ink)}
+.rs-alerta-icone{flex:none; width:30px; height:30px; border-radius:50%; display:grid; place-items:center;
+  background:var(--blush); color:var(--lacquer-d)}
+.rs-alerta-texto{display:flex; flex-direction:column; gap:2px; min-width:0}
+.rs-alerta-texto b{font-size:13.5px; font-weight:600}
+.rs-alerta-texto i{font-style:normal; font-size:12.5px; color:var(--muted)}
+.rs-tudo-certo{display:flex; align-items:center; gap:9px; padding:13px 16px;
+  margin-bottom:18px; font-size:13.5px; color:var(--muted)}
+.rs-tudo-certo svg{color:var(--ok)}
+
+/* Confirmado ou pendente, na lista dos próximos. */
+.rs-selo{flex:none; font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px;
+  background:#F3E8EC; color:var(--lacquer-d)}
+.rs-selo.ok{background:#E4F0EA; color:var(--ok)}
+
+@media (max-width: 640px){
+  /* Um atalho por linha empurrava o "Hoje" para fora da primeira tela. */
+  .rs-acoes{display:grid; grid-template-columns:1fr 1fr}
+  .rs-acao{justify-content:center; padding:9px 10px; font-size:12.5px; gap:6px}
+  .rs-acao span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .rs-hoje-numeros{grid-template-columns:1fr 1fr}
+}
