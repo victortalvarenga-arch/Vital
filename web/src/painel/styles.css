@@ -198,7 +198,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
    Mesma linguagem visual da grade semanal da Agenda (.horas/.linha/.appt),
    só com profissional no eixo das colunas em vez de dia — e mais compacta
    (34px/hora contra 56px), porque aqui é pra ver de relance, não editar. */
-.eq-timeline{display:flex; border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--paper)}
+.eq-timeline{display:flex; border:1px solid var(--line); border-radius:16px; overflow:hidden;
+  background:var(--paper); position:relative}   /* a faixa da beirada se posiciona por aqui */
 .eq-horas{border-right:1px solid var(--line); flex:none; width:42px}
 .eq-horas-topo{height:40px; border-bottom:1px solid var(--line)}
 .eq-horas-corpo{position:relative}
@@ -1144,6 +1145,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .ag-borda{position:absolute; top:0; bottom:0; width:44px; z-index:6; pointer-events:none;
   display:grid; place-items:center; color:#fff}
 .ag-borda.esq{left:50px}
+/* A calha das horas da grade do dia é mais estreita que a da semana. */
+.ag-borda.dia.esq{left:42px}
 .ag-borda.dir{right:0}
 .ag-borda::before{content:''; position:absolute; inset:0; background:var(--lacquer);
   transform-origin:var(--origem, right center);
@@ -1212,3 +1215,67 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .at-linha:hover svg{color:var(--lacquer)}
 .at-acoes{margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
 .at-acoes .btn{width:100%; justify-content:center}
+/* Etiquetas de situação e pagamento, dentro do resumo do atendimento. */
+.at-tag{font-style:normal; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px}
+.at-topo-acoes{display:flex; gap:8px; margin:-6px 0 18px}
+.at-topo-acoes .btn{flex:1; justify-content:center}
+
+/* ── Gaveta do atendimento: status em caixa, pagamento em contas, fluxo ── */
+.at-status{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 16px; margin-bottom:12px; border:1px solid var(--line); border-radius:12px;
+  background:var(--paper)}
+.at-status .eyebrow{display:block; margin-bottom:6px}
+.at-todos{margin:-4px 0 14px}
+/* As cores do fluxo: amarelo espera, verde confirmado, azul acontecendo agora,
+   verde-escuro feito, roxo falta. Estado é o único eixo do painel que usa mais
+   de um matiz — pessoas e categorias seguem em tons de uma cor só. */
+.at-tag.espera{background:#FBF0DF; color:#8A6410}
+.at-tag.ok{background:#E4F0EA; color:var(--ok)}
+.at-tag.agora{background:#E4EDF6; color:#1F5C96}
+.at-tag.feito{background:#DCEAE1; color:#20573F}
+.at-tag.falta{background:#EEE8F6; color:#5B3E93}
+.at-tag.ruim{background:#F3E6E6; color:var(--erro)}
+
+.at-pagamento{border:1px solid var(--line); border-radius:12px; background:var(--paper);
+  padding:14px 16px 12px; margin-bottom:16px}
+.at-pag-topo{display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:10px}
+.at-pag-topo .eyebrow{margin:0}
+.at-pagamento > div:not(.at-pag-topo):not(.at-formas){display:flex; justify-content:space-between;
+  gap:12px; padding:6px 0; font-size:13.5px; color:var(--muted)}
+.at-pagamento b{color:var(--ink); font-weight:600}
+.at-formas{margin-top:10px}
+.at-formas .chip{text-transform:capitalize}
+.at-formas .chip:disabled{opacity:.45; cursor:not-allowed}
+/* "Receber agora": rótulo à esquerda, valor à direita, na mesma régua das
+   contas acima — o campo é mais uma linha da conta, não um formulário à parte. */
+.at-entrada{display:flex!important; align-items:center; justify-content:space-between;
+  gap:12px; margin-top:8px; padding-top:10px; border-top:1px solid var(--line);
+  font-size:13.5px; color:var(--muted)}
+.at-entrada input{width:110px; text-align:right; font-family:'IBM Plex Mono',monospace;
+  font-size:14px; padding:7px 10px; border:1px solid var(--line); border-radius:9px;
+  background:var(--porcelain); color:var(--ink)}
+.at-entrada input:focus-visible{outline:2px solid var(--uv); outline-offset:2px}
+.at-dica{margin:8px 0 0; font-size:12px; color:var(--muted)}
+
+.at-fluxo{display:flex; gap:8px; margin-bottom:18px}
+.at-fluxo .btn{flex:1; justify-content:center}
+.at-acoes{display:flex; flex-direction:column; gap:8px}
+/* "Em atendimento" na recepção e na lista: azul, como no fluxo da gaveta. */
+.rc-agora{background:#E4EDF6; color:#1F5C96}
+.ag-estado.agora{background:#E4EDF6; color:#1F5C96}
+
+/* Quem está na cadeira agora: fundo azul e um anel fino por dentro. O anel e
+   não a borda esquerda porque aquela borda diz de quem é o atendimento — é
+   dado, não enfeite, e trocá-la apagaria a profissional para destacar o
+   estado. Mesmo azul da etiqueta `.at-tag.agora`. */
+.appt.agora{background:#EAF2F9!important; box-shadow:inset 0 0 0 1.5px #1F5C96}
+
+/* Fora da jornada de quem está escolhida: cinza leve e listra rala, atrás de
+   tudo. Não é bloqueio (aquele é vermelho, tem motivo e alguém criou) nem
+   horário livre — é hora que não existe para essa pessoa. Sem cor de status,
+   porque não é estado de atendimento nenhum, e sem eventos de ponteiro: passar
+   por cima arrastando tem de continuar valendo o que a grade decide. */
+.fechado{position:absolute; left:0; right:0; z-index:0; pointer-events:none;
+  background:repeating-linear-gradient(45deg,
+    rgba(122,105,117,.085) 0 7px, rgba(122,105,117,.035) 7px 14px)}

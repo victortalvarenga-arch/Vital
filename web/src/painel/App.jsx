@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
-import { emFaixas, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
+import { DIAS, MESES, emFaixas, faixaDeHoras, fmtData, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
 import { podeRemarcar } from '../shared/remarcar.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
@@ -10,7 +10,10 @@ import Agendamentos from './Agendamentos.jsx';
 import Bloqueios from './Bloqueios.jsx';
 import SeletorProfissional from './Seletor.jsx';
 import SeletorPessoas from './SeletorPessoas.jsx';
-import GradeDoDia from './GradeDoDia.jsx';
+import GradeDoDia, { classeDoBloco } from './GradeDoDia.jsx';
+import Remarcar from './Remarcar.jsx';
+import { useArrastar } from './useArrastar.js';
+import { fechadoNoDia } from '../shared/jornada.js';
 import GradeDoMes from './GradeDoMes.jsx';
 import Recepcao from './Recepcao.jsx';
 import SeletorCliente from './SeletorCliente.jsx';
@@ -45,9 +48,7 @@ import {
 const uid = () => Math.random().toString(36).slice(2, 9);
 const addDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dow = iso => new Date(iso + 'T12:00:00').getDay();
-const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const fmtData = iso => { const d = new Date(iso + 'T12:00:00'); return `${DIAS[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()]}`; };
+
 const fmtDataLonga = iso => { const d = new Date(iso + 'T12:00:00'); return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; };
 const soDigitos = s => (s || '').replace(/\D/g, '');
 const fmtFone = s => { const d = soDigitos(s).slice(0, 11); if (d.length <= 2) return d; if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; };
@@ -310,8 +311,6 @@ function Painel({ sessao, aoSair }) {
  */
 const H_INI = 8, H_FIM = 20, PX_H = 56, TOPO = 10;
 const MIN_POR_PX = 60 / PX_H;
-/* Quanto perto da beirada é "segurar na beirada" para virar o período. */
-const BORDA = 48;
 
 /** Os sete dias da semana que contém `iso`, de segunda a domingo. */
 function semanaDe(iso) {
@@ -367,27 +366,6 @@ function rotuloDaEscala(escala, ancora, de, ate) {
 
 
 /**
- * Em que dia e hora o ponteiro está, dentro da grade.
- *
- * Usa `elementsFromPoint` em vez de medir a grade por conta própria: assim a
- * conta continua certa com a semana rolando na horizontal, com a página
- * rolando na vertical e com qualquer largura de coluna — nada disso precisa
- * ser previsto aqui.
- */
-function ondeCaiu(x, y, a, passo) {
-  const alvo = document.elementsFromPoint(x, y).find(el => el.dataset?.dia);
-  if (!alvo) return null;
-
-  const r = alvo.getBoundingClientRect();
-  const bruto = H_INI * 60 + (y - r.top - TOPO) * MIN_POR_PX;
-  const snap = Math.round(bruto / passo) * passo;
-  // Não deixa o atendimento nascer antes da abertura nem terminar depois do
-  // fim da grade — arrastar para fora não pode virar horário impossível.
-  const min = Math.min(Math.max(snap, H_INI * 60), H_FIM * 60 - a.duracao);
-  return { data: alvo.dataset.dia, hora: toHora(min) };
-}
-
-/**
  * A agenda da semana.
  *
  * **Os dias vão no eixo X, não os profissionais.** Com uma coluna por pessoa, a
@@ -402,17 +380,23 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
   const [sel, setSel] = useState(null);
   const [novo, setNovo] = useState(pedido === 'novo');
   const [bloquear, setBloquear] = useState(pedido === 'bloquear' ? {} : null);
-  const [arrasto, setArrasto] = useState(null);
   // Onde o atendimento foi solto, esperando a confirmação. Arrastar move o
   // dinheiro de dia e avisa a cliente — perto demais de um tapa na tela para
   // valer sem perguntar.
   const [remarcar, setRemarcar] = useState(null);
   // Excluir apaga o atendimento do caixa e do histórico da cliente — pergunta
   // antes, numa janelinha no meio da tela, que é o formato que faz parar.
-  const [excluindo, setExcluindo] = useState(null);
-  // Como encerrar o arrasto em curso, se a tela sair do ar antes de soltar.
-  const fimDoArrasto = useRef(null);
-  useEffect(() => () => fimDoArrasto.current?.(), []);
+  const [cancelando, setCancelando] = useState(null);
+  // Reagendar pela gaveta: guarda o novo dia enquanto se escolhe, e a lista de
+  // horários livres vem do mesmo motor que desenha a grade.
+  const [reagendando, setReagendando] = useState(null);
+  const [trocandoStatus, setTrocandoStatus] = useState(false);
+  // Quanto receber agora. Vazio quer dizer "o que falta", que é o caso comum;
+  // um valor menor é a entrada. Mora aqui e não na caixa de pagamento porque
+  // a gaveta inteira é um render só.
+  const [entrada, setEntrada] = useState('');
+  /** Abrir outro atendimento zera o campo: valor digitado não se herda. */
+  const abrirAtendimento = a => { setEntrada(''); setTrocandoStatus(false); setSel(a); };
   // O pedido vale para esta montagem só; `novo` já nasceu com ele acima.
   useEffect(() => { if (pedido) aoConsumirPedido(); }, []);
 
@@ -447,6 +431,10 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
   // hoje, cai em hoje; fora disso, no primeiro dia do recorte.
   const diaParaAcao = hoje >= de && hoje <= ate ? hoje : de;
 
+  // A pessoa escolhida, quando é uma só — é o que destrava pintar a agenda
+  // fechada. Com duas ou mais, não há "a jornada" da grade.
+  const umaPessoa = pessoas.length === 1 ? staff.find(p => p.id === pessoas[0]) : null;
+
   // As colunas do dia: quem está escolhido, ou a equipe ativa inteira.
   const colunasDoDia = poderes.verDeTodos
     ? staff.filter(p => p.ativo && (pessoas.length === 0 || pessoas.includes(p.id)))
@@ -456,142 +444,73 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
   // âncora do fecho ele voltaria sempre para a MESMA semana seguinte.
   const andar = passos => setAncora(atual => passoDaEscala(escalaAtiva, atual, passos));
 
+  // Mexer no atendimento NÃO fecha a gaveta: trocar a situação e receber são
+  // dois toques seguidos no mesmo atendimento, e fechar depois do primeiro
+  // obrigava a achar o bloco de novo na grade. Quem redesenha é `aberto`, que
+  // relê da lista recarregada.
   const mudarStatus = async (id, status) => {
-    await acao(() => api.atualizarAgendamento(id, { status }), 'Agendamento atualizado');
-    setSel(null);
+    await acao(() => api.atualizarAgendamento(id, { status }), 'Situação atualizada');
   };
-  const marcarPago = async (id, forma) => {
+  /**
+   * Receber é escrever quanto já entrou, no total — nunca um incremento.
+   *
+   * Clique duplo, retry de rede ou dois atendentes na mesma tela mandariam o
+   * mesmo número de novo, e o número de novo é o mesmo estado. Com incremento,
+   * seria cobrar duas vezes. Quem decide o status a partir do valor é o
+   * servidor (`lib/pagamento.js`); daqui não vai `status` nenhum.
+   *
+   * Receber não conclui o atendimento. Sinal pago na marcação acontece dias
+   * antes de a cliente sentar, e concluir por causa do dinheiro faria o
+   * atendimento nascer atendido — quem conclui é o botão do fluxo.
+   */
+  const receber = async (id, total, forma) => {
     await acao(() => api.atualizarAgendamento(id, {
-      status: 'concluido', pagamento: { status: 'pago', forma },
+      pagamento: { recebido: Number(total.toFixed(2)), forma },
     }), 'Pagamento registrado');
-    setSel(null);
+    setEntrada('');
   };
-  const excluir = async id => {
-    await acao(() => api.removerAgendamento(id), 'Agendamento removido');
+  const desfazerPagamento = async id => {
+    await acao(() => api.atualizarAgendamento(id, {
+      pagamento: { status: 'aberto' },
+    }), 'Pagamento desfeito');
+    setEntrada('');
+  };
+  /** Trocar a forma de um atendimento já quitado não recebe nada de novo. */
+  const trocarForma = async (id, forma) => {
+    await acao(() => api.atualizarAgendamento(id, { pagamento: { forma } }), 'Forma atualizada');
+  };
+  /**
+   * Cancelar é marcar `cancelado`, não apagar. O horário volta para a agenda e
+   * o atendimento some do caixa, mas a linha fica: quem cancelou, quando, e de
+   * qual estado para qual — é o que responde "essa cliente desmarcou de novo?".
+   * Apagar de verdade continua existindo na rota, para engano de digitação.
+   */
+  const cancelar = async id => {
+    await acao(() => api.atualizarAgendamento(id, { status: 'cancelado' }), 'Atendimento cancelado');
     setSel(null);
   };
 
-  /* ── arrastar para remarcar ──────────────────────────────────────────── *
+  /**
+   * Arrastar para remarcar, nas duas grades desta tela.
    *
-   * Ponteiro, não mouse: o mesmo código atende dedo e cursor, e o painel vai
-   * virar app. No toque, o arrasto só começa depois de segurar — sem isso ele
-   * brigaria com a rolagem da página, e a agenda ficaria impossível de
-   * percorrer no celular.
-   *
-   * Quem decide se o horário novo vale continua sendo o servidor: ele confere
-   * conflito e jornada dentro da mesma transação que grava. Aqui é só a
-   * intenção — e é por isso que soltar em cima de outro atendimento devolve
-   * erro em vez de sobrescrever. */
-  /** O que a tela sabe dizer sobre um destino, enquanto o dedo está em cima. */
-  const conferir = (a, para) => podeRemarcar({
-    agendamento: a, para, profissional: staff.find(p => p.id === a.prof),
-    agendamentos, bloqueios: dados.bloqueios || [],
+   * A da semana anda de semana em semana na beirada; a do dia anda de dia em
+   * dia — é a mesma `andar`, que já conhece a escala à vista. A geometria de
+   * cada grade se resolve sozinha nos `data-dia` / `data-prof` das colunas,
+   * e é por isso que um motor só serve as duas.
+   */
+  const arrastarNa = (grade, faixa, regua) => useArrastar({
+    agendamentos, bloqueios: dados.bloqueios || [], servicos, staff,
     agora: { data: hoje, hora: toHora(new Date().getHours() * 60 + new Date().getMinutes()) },
+    faixa, regua, grade, virarPagina: andar,
+    aoSoltar: setRemarcar, aoTocar: abrirAtendimento, aviso,
   });
-
-  const aoPegar = (e, a) => {
-    // Atendimento que já aconteceu não se remarca; mudar isso é pelo detalhe.
-    if (a.status === 'concluido' || a.status === 'falta') { setSel(a); return; }
-
-    // Duas coisas para o arrasto sobreviver à virada de semana, que desmonta o
-    // bloco arrastado (ele fica na semana que passou):
-    //
-    // 1. Os ouvintes vão na JANELA, não no bloco — no bloco, morriam com ele, e
-    //    o relógio da borda seguia empurrando a agenda para sempre, sem deixar
-    //    voltar.
-    // 2. O ponteiro é preso na GRADE, não no bloco. O navegador prende sozinho
-    //    em quem recebeu o toque e, quando esse elemento sai do DOM, dispara
-    //    `pointercancel` — o arrasto acabava sozinho na primeira virada, a
-    //    sombra sumia e soltar não perguntava nada.
-    // Em try: prender o ponteiro é melhoria, não requisito. Quando o navegador
-    // recusa (ponteiro já solto, evento sintético), a exceção subia do
-    // `onPointerDown` e derrubava o clique inteiro — o atendimento nem abria.
-    try { e.currentTarget.closest('.agenda')?.setPointerCapture(e.pointerId); } catch { /* segue sem */ }
-
-    const inicio = { x: e.clientX, y: e.clientY };
-    const toque = e.pointerType === 'touch';
-    let ativo = false;
-    let destino = null;
-    // Virar a semana segurando na beirada. `lado` guarda em qual borda o dedo
-    // está parado; o relógio dispara enquanto continuar lá.
-    let lado = null;
-    let relogio = null;
-
-    const pararBorda = () => { if (relogio) clearTimeout(relogio); relogio = null; lado = null; };
-
-    const espera = toque
-      ? setTimeout(() => { ativo = true; setArrasto({ id: a.id }); }, 320)
-      : null;
-
-    const encerrar = () => {
-      window.removeEventListener('pointermove', mover);
-      window.removeEventListener('pointerup', soltar);
-      window.removeEventListener('pointercancel', encerrar);
-      if (espera) clearTimeout(espera);
-      pararBorda();
-      setArrasto(null);
-    };
-
-    const mover = ev => {
-      const andou = Math.hypot(ev.clientX - inicio.x, ev.clientY - inicio.y);
-      if (!ativo) {
-        // No toque, mexer antes de segurar é rolagem: desiste do arrasto.
-        if (toque) { if (andou > 8) encerrar(); return; }
-        if (andou < 5) return;
-        ativo = true;
-      }
-
-      // Segurar perto da borda anda no período — é o que permite levar alguém
-      // para a semana que vem sem soltar o dedo. O primeiro salto só acontece
-      // 750ms depois de chegar ali: passar raspando não vira a agenda, e sair
-      // da faixa para o relógio na hora.
-      const grade = document.querySelector('.agenda');
-      const r = grade?.getBoundingClientRect();
-      const perto = r && (ev.clientX < r.left + BORDA ? -1
-        : ev.clientX > r.right - BORDA ? 1 : null);
-      if (perto !== lado) {
-        pararBorda();
-        lado = perto;
-        // O primeiro salto espera mais que os seguintes: quem encosta de
-        // passagem não vira a agenda, e quem fica ali atravessa o mês sem
-        // pressa. Relógio que se remarca, e não `setInterval`, porque os dois
-        // tempos são diferentes.
-        if (perto) {
-          const bater = espera => {
-            relogio = setTimeout(() => { andar(perto); bater(1100); }, espera);
-          };
-          bater(750);
-        }
-      }
-
-      destino = ondeCaiu(ev.clientX, ev.clientY, a, passo);
-      setArrasto(destino
-        ? { id: a.id, dur: a.duracao, lado, ...destino, ...conferir(a, destino) }
-        : { id: a.id, dur: a.duracao, lado });
-    };
-
-    const soltar = () => {
-      const alvoFinal = destino;
-      const arrastou = ativo;
-      encerrar();
-      if (!arrastou) { setSel(a); return; }            // não saiu do lugar: é um toque
-      if (!alvoFinal) return;
-
-      const veredito = conferir(a, alvoFinal);
-      if (veredito.igual) return;                      // voltou para o mesmo lugar
-      // Recusa da tela é aviso, não silêncio: soltar num lugar impossível e
-      // nada acontecer faz parecer que o arrasto está quebrado.
-      if (!veredito.ok) { aviso(`Não dá: ${veredito.motivo}.`); return; }
-      setRemarcar({ a, ...alvoFinal });
-    };
-
-    window.addEventListener('pointermove', mover);
-    window.addEventListener('pointerup', soltar);
-    window.addEventListener('pointercancel', encerrar);
-    // Guardado para o desmonte da tela: trocar de aba no meio do arrasto
-    // deixaria o relógio da borda batendo sozinho.
-    fimDoArrasto.current = encerrar;
-  };
+  // Cada grade tem a sua altura de hora, e a do dia ainda se estica para caber
+  // um atendimento das 7h — a mesma `faixaDeHoras` que ela usa para desenhar.
+  const naSemana = arrastarNa('.agenda', [H_INI, H_FIM], [PX_H, TOPO]);
+  const noDia = arrastarNa('.eq-timeline', faixaDeHoras(doPeriodo), [34, 8]);
+  // O rótulo flutuante ("onde vai cair, e por que não dá") é um só para a tela:
+  // só uma grade está desenhada por vez, e só um dedo arrasta por vez.
+  const arrasto = naSemana.arrasto || noDia.arrasto;
 
   return (
     <>
@@ -654,12 +573,16 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
 
       {aba === 'recepcao' && (
         <Recepcao agendamentos={doPeriodo} clientes={clientes} servicos={servicos}
-                  staff={staff} aoTocar={setSel} />
+                  staff={staff} aoTocar={abrirAtendimento} />
       )}
 
       {aba === 'calendario' && escala === 'dia' && (
         <GradeDoDia colunas={colunasDoDia} agendamentos={doPeriodo}
-                    clientes={clientes} servicos={servicos} aoTocar={setSel} />
+                    clientes={clientes} servicos={servicos} staff={staff}
+                    data={ancora} bloqueios={fechados.filter(b => b.data === ancora)}
+                    mostrarFechado={umaPessoa}
+                    arrasto={noDia.arrasto} aoPegar={noDia.aoPegar}
+                    arrastado={agendamentos.find(x => x.id === noDia.arrasto?.id) || null} />
       )}
 
       {aba === 'calendario' && escala === 'mes' && (
@@ -687,9 +610,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
             e a cada volta a semana vira — é o mesmo aviso que o celular dá
             quando se arrasta para o canto: sem ele, a agenda pula sozinha e
             parece defeito. */}
-        {arrasto?.lado && (
-          <div className={'ag-borda ' + (arrasto.lado < 0 ? 'esq' : 'dir')} aria-hidden="true">
-            {arrasto.lado < 0 ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        {naSemana.arrasto?.lado && (
+          <div className={'ag-borda ' + (naSemana.arrasto.lado < 0 ? 'esq' : 'dir')} aria-hidden="true">
+            {naSemana.arrasto.lado < 0 ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </div>
         )}
 
@@ -716,6 +639,18 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                          style={{ top: TOPO + i * PX_H / 2 }} />
                   ))}
 
+                  {/* Fora da jornada de quem está escolhida. Só com UMA
+                      pessoa: com a equipe inteira na mesma coluna, a faixa
+                      seria a interseção de jornadas diferentes — pintaria de
+                      fechado o horário em que alguém atende. */}
+                  {umaPessoa && fechadoNoDia({
+                    profissional: umaPessoa, data: dia, deMin: H_INI * 60, ateMin: H_FIM * 60,
+                  }).map(f => (
+                    <div key={f.ini} className="fechado" title={f.motivo} aria-hidden="true"
+                         style={{ top: TOPO + (f.ini - H_INI * 60) / MIN_POR_PX,
+                                  height: (f.fim - f.ini) / MIN_POR_PX }} />
+                  ))}
+
                   {/* Bloqueio entra ATRÁS do agendamento: quando os dois se
                       cruzam, o que importa ver é a cliente que já está marcada. */}
                   {fechados.filter(b => b.data === dia).map(b => {
@@ -740,23 +675,23 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                       largar. Sai de `agendamentos`, e não da semana à vista:
                       carregando alguém para outra semana, o de origem já não
                       está mais na tela. */}
-                  {arrasto?.data === dia && arrasto.hora && (() => {
-                    const a = agendamentos.find(x => x.id === arrasto.id);
+                  {naSemana.arrasto?.data === dia && naSemana.arrasto.hora && (() => {
+                    const a = agendamentos.find(x => x.id === naSemana.arrasto.id);
                     if (!a) return null;
                     const c = clientes.find(x => x.id === a.cliente);
                     const s = servicos.find(x => x.id === a.servico);
                     const p = staff.find(x => x.id === a.prof);
                     return (
-                      <div className={'appt sombra' + (arrasto.ok ? '' : ' nao')}
+                      <div className={'appt sombra' + (naSemana.arrasto.ok ? '' : ' nao')}
                            style={{
-                             top: TOPO + (toMin(arrasto.hora) - H_INI * 60) / MIN_POR_PX,
-                             height: Math.max(arrasto.dur / MIN_POR_PX - 2, 26),
+                             top: TOPO + (toMin(naSemana.arrasto.hora) - H_INI * 60) / MIN_POR_PX,
+                             height: Math.max(naSemana.arrasto.dur / MIN_POR_PX - 2, 26),
                              left: 3, right: 3,
                              background: (p?.cor || '#999') + '1f',
                              borderLeftColor: p?.cor || '#999',
                            }}>
                         <b>{c?.nome.split(' ')[0]}</b>
-                        <span className="t">{arrasto.hora}</span> · {s?.nome}
+                        <span className="t">{naSemana.arrasto.hora}</span> · {s?.nome}
                         <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
                       </div>
                     );
@@ -766,12 +701,11 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                     const c = clientes.find(x => x.id === a.cliente);
                     const s = servicos.find(x => x.id === a.servico);
                     const p = staff.find(x => x.id === a.prof);
-                    const puxando = arrasto?.id === a.id;
+                    const puxando = naSemana.arrasto?.id === a.id;
                     const larg = 100 / faixas;
                     return (
                       <button key={a.id}
-                        className={'appt' + (a.status === 'concluido' ? ' done' : '')
-                          + (a.status === 'falta' ? ' falta' : '') + (puxando ? ' puxando' : '')}
+                        className={classeDoBloco(a.status) + (puxando ? ' puxando' : '')}
                         style={{
                           top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
                           height: Math.max((fim - ini) / MIN_POR_PX - 2, 26),
@@ -780,7 +714,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                           background: (p?.cor || '#999') + '1f',
                           borderLeftColor: p?.cor || '#999',
                         }}
-                        onPointerDown={e => aoPegar(e, a)}>
+                        onPointerDown={e => naSemana.aoPegar(e, a)}>
                         <b>{c?.nome.split(' ')[0]}</b>
                         <span className="t">{a.hora}</span> · {s?.nome}
                         {/* Quem atende é dito aqui, já que a coluna virou o dia. */}
@@ -816,79 +750,142 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
       )}
 
       {remarcar && (
-        <Modal onClose={() => setRemarcar(null)}>
-          <h2 style={{ fontSize: 22, marginBottom: 6 }}>Remarcar?</h2>
-          <p className="rm-quem">
-            {clientes.find(c => c.id === remarcar.a.cliente)?.nome || 'A cliente'}
-            {' · '}{servicos.find(s => s.id === remarcar.a.servico)?.nome}
-          </p>
-          <div className="rm-de-para">
-            <div>
-              <span className="eyebrow">De</span>
-              <b>{fmtData(remarcar.a.data)}</b>
-              <i>{remarcar.a.hora}</i>
-            </div>
-            <ArrowRight size={18} />
-            <div className="rm-novo">
-              <span className="eyebrow">Para</span>
-              <b>{fmtData(remarcar.data)}</b>
-              <i>{remarcar.hora}</i>
-            </div>
-          </div>
-          <p className="rm-nota">A cliente não é avisada automaticamente — a mensagem sai pela fila.</p>
-          <div className="rm-botoes">
-            <button className="btn btn-g" onClick={() => setRemarcar(null)}>Cancelar</button>
-            <button className="btn btn-p" onClick={async () => {
-              const { a, data, hora } = remarcar;
-              setRemarcar(null);
-              await acao(
-                () => api.atualizarAgendamento(a.id, { data, hora }),
-                `Remarcado para ${fmtData(data)} às ${hora}`
-              );
-            }}>Remarcar</button>
-          </div>
-        </Modal>
+        <Remarcar alvo={remarcar} clientes={clientes} servicos={servicos} staff={staff}
+                  acao={acao} aoFechar={() => setRemarcar(null)} />
       )}
 
-      {sel && (() => {
-        const c = clientes.find(x => x.id === sel.cliente);
-        const s = servicos.find(x => x.id === sel.servico);
-        const p = staff.find(x => x.id === sel.prof);
+      {/* Uma gaveta de cada vez: com o reagendar aberto, a do atendimento ficava
+          atrás, invisível e ainda assim no caminho. */}
+      {sel && !reagendando && (() => {
+        // Relê da lista recarregada: mudar a situação com a gaveta aberta
+        // precisa mudar o que está na tela, e o `sel` guardado é a foto de
+        // quando se clicou. Se o atendimento sumiu, cai no que se tinha.
+        const at = agendamentos.find(x => x.id === sel.id) || sel;
+        const c = clientes.find(x => x.id === at.cliente);
+        const s = servicos.find(x => x.id === at.servico);
+        const p = staff.find(x => x.id === at.prof);
+        // O dinheiro em três números, um só lugar: a caixa mostra, os botões
+        // decidem, e nenhum dos dois recalcula por conta própria.
+        const total = Number(at.valor || 0);
+        const pago = Number(at.pagamento.recebido || 0);
+        const falta = Math.max(0, Number((total - pago).toFixed(2)));
+        const quitado = falta === 0;
+        const pedido = entrada.trim() ? Number(entrada.replace(',', '.')) : falta;
+        // O que o clique na forma vai receber: o campo, quando tem número
+        // válido que cabe no que falta; o resto, quando está vazio.
+        const vaiReceber = Number.isFinite(pedido) && pedido > 0 && pedido <= falta ? pedido : 0;
+
         const tplLembrete = dados.templates.find(t => t.chave === 'lembrete_dia');
         const msg = renderTemplate(tplLembrete.texto, {
-          cliente: c.nome.split(' ')[0], hora: sel.hora, endereco: dados.config.endereco,
-          servico: s.nome, empresa: dados.config.nome, estudio: dados.config.nome, data: fmtData(sel.data), profissional: p.nome.split(' ')[0], valor: brl(sel.valor),
+          cliente: c.nome.split(' ')[0], hora: at.hora, endereco: dados.config.endereco,
+          servico: s.nome, empresa: dados.config.nome, estudio: dados.config.nome, data: fmtData(at.data), profissional: p.nome.split(' ')[0], valor: brl(at.valor),
         });
         return (
-          <Gaveta onClose={() => setSel(null)} titulo="Atendimento">
-            <div className="eyebrow">{fmtDataLonga(sel.data)} · {sel.hora}</div>
+          <Gaveta onClose={() => { setSel(null); setEntrada(''); }} titulo="Atendimento">
+            <div className="eyebrow">{fmtDataLonga(at.data)} · {at.hora}</div>
             <h2 style={{ fontSize: 26, margin: '6px 0 16px' }}>{c?.nome}</h2>
 
             {/* O resumo em linhas, e não numa frase corrida: quem abre isto
                 está conferindo um dado de cada vez — qual serviço, com quem,
                 quanto — e frase obriga a ler tudo para achar um. */}
+            <div className="at-status">
+              <div>
+                <span className="eyebrow">Status</span>
+                <i className={'at-tag ' + FLUXO[at.status].tom}>{FLUXO[at.status].rotulo}</i>
+              </div>
+              <button className="btn btn-g btn-s" onClick={() => setTrocandoStatus(v => !v)}>
+                {trocandoStatus ? 'Fechar' : 'Alterar'}
+              </button>
+            </div>
+
+            {/* A lista inteira só abre a pedido: é para corrigir, não para o
+                caminho normal. */}
+            {trocandoStatus && (
+              <div className="chips at-todos">
+                {Object.entries(FLUXO).map(([k, f]) => (
+                  <button key={k} className={'chip' + (at.status === k ? ' on' : '')}
+                          onClick={() => mudarStatus(at.id, k)}>{f.rotulo}</button>
+                ))}
+              </div>
+            )}
+
             <div className="at-resumo">
               <div><span>Serviço</span><b>{s?.nome}</b></div>
-              <div><span>Duração</span><b>{sel.duracao} min</b></div>
+              <div><span>Duração</span><b>{at.duracao} min</b></div>
               <div><span>Profissional</span><b>{p?.nome}</b></div>
-              <div><span>Valor</span><b className="mono">{brl(sel.valor)}</b></div>
+              <div><span>Valor</span><b className="mono">{brl(at.valor)}</b></div>
             </div>
+
+            {/* O pagamento em contas fechadas: total, quanto entrou, quanto
+                falta. Três linhas e não uma etiqueta porque "pagou 20 de 45" é
+                a pergunta do balcão, e etiqueta só sabe responder sim ou não. */}
+            <div className="at-pagamento">
+              <div className="at-pag-topo">
+                <span className="eyebrow">Pagamento</span>
+                <i className={'at-tag ' + (quitado ? 'ok' : pago > 0 ? 'agora' : 'espera')}>
+                  {quitado ? 'Pago' : pago > 0 ? 'Entrada' : 'A pagar'}
+                </i>
+              </div>
+              <div><span>Valor total</span><b className="mono">{brl(total)}</b></div>
+              <div><span>Pago</span><b className="mono">{brl(pago)}</b></div>
+              <div><span>Falta receber</span><b className="mono">{brl(falta)}</b></div>
+
+              {/* Vazio recebe o que falta — é o clique de sempre. O campo existe
+                  para o outro caso: entrou parte agora, o resto na saída. */}
+              {!quitado && (
+                <label className="at-entrada">
+                  <span>Receber agora</span>
+                  <input inputMode="decimal" value={entrada} placeholder={brl(falta)}
+                         onChange={e => setEntrada(e.target.value.replace(/[^\d,.]/g, ''))} />
+                </label>
+              )}
+
+              <div className="chips at-formas">
+                {['pix', 'cartao', 'dinheiro'].map(fm => (
+                  <button key={fm} disabled={!quitado && !(vaiReceber > 0)}
+                          className={'chip' + (pago > 0 && at.pagamento.forma === fm ? ' on' : '')}
+                          onClick={() => (quitado && at.pagamento.forma === fm ? desfazerPagamento(at.id)
+                            : quitado ? trocarForma(at.id, fm)
+                            : receber(at.id, pago + vaiReceber, fm))}>{fm}</button>
+                ))}
+              </div>
+              <p className="at-dica">
+                {quitado ? 'Clique na forma marcada para desfazer o recebimento.'
+                  : vaiReceber > 0 ? `Escolha a forma para registrar ${brl(vaiReceber)}.`
+                  : 'Valor inválido — apague o campo para receber o que falta.'}
+              </p>
+            </div>
+
+            {/* Uma ação por etapa: a seguinte. Faltou fica ao lado enquanto a
+                cliente ainda pode não vir; depois de concluído não faz sentido. */}
+            {FLUXO[at.status].proximo && (
+              <div className="at-fluxo">
+                <button className="btn btn-p" onClick={() => mudarStatus(at.id, FLUXO[at.status].proximo)}>
+                  {FLUXO[at.status].acao}
+                </button>
+                {at.status !== 'em_atendimento' && (
+                  <button className="btn btn-g" onClick={() => mudarStatus(at.id, 'falta')}>
+                    Marcar falta
+                  </button>
+                )}
+              </div>
+            )}
             {/* Quem atende precisa saber o que foi comprado junto antes de
                 começar — e o valor só fecha com o total quando os extras
                 aparecem discriminados. */}
             {/* A ficha do atendimento. A cliente não a responde mais pelo site
                 (LGPD — ver ARQUITETURA.md): é aqui que ela é perguntada, com a
                 pessoa presente, e lida antes de começar. */}
-            {/* `sel.servico` e `sel.cliente`, não `servicoId`/`clienteId`: o
+            {/* `at.servico` e `at.cliente`, não `servicoId`/`clienteId`: o
                 painel traduz os nomes do servidor em `painel-api.js`, e aqui
                 dentro o agendamento já chega com os nomes curtos. */}
-            <FichaRespondida agendamentoId={sel.id} servicoId={sel.servico}
-                             clienteId={sel.cliente} aviso={aviso} />
+            <FichaRespondida agendamentoId={at.id} servicoId={at.servico}
+                             clienteId={at.cliente} aviso={aviso} />
 
-            {sel.adicionais.length > 0 && (
+            {at.adicionais.length > 0 && (
               <div className="extras">
                 <span className="eyebrow">Comprou junto</span>
-                {sel.adicionais.map(x => (
+                {at.adicionais.map(x => (
                   <div key={x.id} className="extras-li">
                     <span>{x.nome}</span>
                     <b className="mono">{brl(x.preco)}</b>
@@ -897,22 +894,6 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
               </div>
             )}
             {c?.obs && <div className="card" style={{ padding: 12, fontSize: 13, marginBottom: 16, background: '#FFFBEE', borderColor: '#EBDFAE' }}>📌 {c.obs}</div>}
-
-            <label>Situação</label>
-            <div className="chips" style={{ marginBottom: 18 }}>
-              {[['agendado', 'Agendado'], ['confirmado', 'Confirmado'], ['concluido', 'Concluído'], ['falta', 'Faltou']].map(([k, n]) => (
-                <button key={k} className={'chip' + (sel.status === k ? ' on' : '')} onClick={() => mudarStatus(sel.id, k)}>{n}</button>
-              ))}
-            </div>
-
-            <label>Pagamento</label>
-            {sel.pagamento.status === 'pago'
-              ? <div className="card" style={{ padding: 12, fontSize: 14, marginBottom: 18, borderColor: 'var(--ok)' }}>
-                  <Check size={15} style={{ verticalAlign: -2, color: 'var(--ok)' }} /> Pago via {sel.pagamento.forma}
-                </div>
-              : <div className="chips" style={{ marginBottom: 18 }}>
-                  {['pix', 'cartao', 'dinheiro'].map(fm => <button key={fm} className="chip" onClick={() => marcarPago(sel.id, fm)}>Receber em {fm}</button>)}
-                </div>}
 
             <div className="at-secao">
               <span className="eyebrow">Cliente</span>
@@ -927,8 +908,12 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
             </div>
 
             <div className="at-acoes">
-              <button className="btn btn-g btn-erro" onClick={() => setExcluindo(sel)}>
-                <Trash2 size={16} /> Excluir atendimento
+              <button className="btn btn-g" onClick={() => setReagendando({ a: at, data: at.data, hora: '' })}>
+                <Repeat size={16} /> Reagendar
+              </button>
+              <button className="btn btn-g btn-erro" disabled={at.status === 'cancelado'}
+                      onClick={() => setCancelando(at)}>
+                <Ban size={16} /> {at.status === 'cancelado' ? 'Já cancelado' : 'Cancelar atendimento'}
               </button>
             </div>
           </Gaveta>
@@ -947,13 +932,62 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                          acao={acao} aviso={aviso} fechar={() => setBloquear(null)} />
       )}
 
-      {excluindo && (
+      {/* Reagendar pela gaveta: o mesmo destino que o arrasto produz, para quem
+          prefere escolher numa lista a arrastar na grade. Os horários vêm do
+          motor que desenha a grade; quem decide de verdade é o servidor. */}
+      {reagendando && (() => {
+        const a = reagendando.a;
+        const prof = staff.find(x => x.id === a.prof);
+        const livres = prof ? horariosLivres(prof, reagendando.data, a.duracao, agendamentos, 0) : [];
+        return (
+          <Gaveta onClose={() => setReagendando(null)} titulo="Reagendar">
+            <h2 style={{ fontSize: 24, marginBottom: 6 }}>Reagendar</h2>
+            <p className="rm-quem">
+              {clientes.find(x => x.id === a.cliente)?.nome} · {servicos.find(x => x.id === a.servico)?.nome}
+              {' · '}hoje em {fmtData(a.data)} às {a.hora}
+            </p>
+
+            <Campo label="Novo dia">
+              <CampoData valor={reagendando.data} min={hoje}
+                         aoMudar={d => setReagendando(r => ({ ...r, data: d, hora: '' }))} />
+            </Campo>
+
+            <Campo label="Horário">
+              {livres.length === 0
+                ? <p className="rs-vazio">Sem horário livre nesse dia para {prof?.nome.split(' ')[0]}.</p>
+                : <div className="chips">
+                    {livres.map(h => (
+                      <button key={h} type="button"
+                              className={'chip slot' + (reagendando.hora === h ? ' on' : '')}
+                              onClick={() => setReagendando(r => ({ ...r, hora: h }))}>{h}</button>
+                    ))}
+                  </div>}
+            </Campo>
+
+            <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }}
+                    disabled={!reagendando.hora}
+                    onClick={async () => {
+                      const { data, hora } = reagendando;
+                      setReagendando(null);
+                      setSel(null);
+                      await acao(
+                        () => api.atualizarAgendamento(a.id, { data, hora }),
+                        `Remarcado para ${fmtData(data)} às ${hora}`
+                      );
+                    }}>
+              {reagendando.hora ? `Remarcar para ${fmtData(reagendando.data)} às ${reagendando.hora}` : 'Escolha um horário'}
+            </button>
+          </Gaveta>
+        );
+      })()}
+
+      {cancelando && (
         <Confirmar
-          titulo="Excluir este atendimento?"
-          texto={`${clientes.find(c => c.id === excluindo.cliente)?.nome || 'A cliente'}, ${fmtData(excluindo.data)} às ${excluindo.hora}. Some do caixa e do histórico dela, e não dá para desfazer. Para tirar do dia sem apagar o registro, marque como cancelado.`}
-          rotulo="Excluir" perigo
-          aoFechar={() => setExcluindo(null)}
-          aoConfirmar={async () => { const id = excluindo.id; setExcluindo(null); await excluir(id); }} />
+          titulo="Cancelar este atendimento?"
+          texto={`${clientes.find(c => c.id === cancelando.cliente)?.nome || 'A cliente'}, ${fmtData(cancelando.data)} às ${cancelando.hora}. O horário volta a ficar livre e o atendimento sai do caixa — o registro fica, com quem cancelou e quando.`}
+          rotulo="Cancelar atendimento" perigo
+          aoFechar={() => setCancelando(null)}
+          aoConfirmar={async () => { const id = cancelando.id; setCancelando(null); await cancelar(id); }} />
       )}
     </>
   );
@@ -981,6 +1015,25 @@ function todoDiaDaSemana(iso) {
 }
 
 /** Os motivos que se escreve o tempo todo. Um toque preenche o campo. */
+/**
+ * O caminho de um atendimento, do dia marcado até o fim.
+ *
+ * Cada etapa mostra **uma** ação: a seguinte. A lista inteira de estados fica
+ * atrás do "Alterar" — quem precisa dela está corrigindo alguma coisa, e
+ * corrigir é o caso raro. Mostrar os seis botões o tempo todo fazia a pessoa
+ * escolher entre seis quando só um fazia sentido naquele momento.
+ */
+const FLUXO = {
+  agendado:       { rotulo: 'Agendado',       tom: 'espera',  proximo: 'confirmado',     acao: 'Confirmar' },
+  confirmado:     { rotulo: 'Confirmado',     tom: 'ok',      proximo: 'em_atendimento', acao: 'Cliente chegou' },
+  em_atendimento: { rotulo: 'Em atendimento', tom: 'agora',   proximo: 'concluido',      acao: 'Concluir' },
+  concluido:      { rotulo: 'Concluído',      tom: 'feito' },
+  falta:          { rotulo: 'Faltou',         tom: 'falta' },
+  cancelado:      { rotulo: 'Cancelado',      tom: 'ruim' },
+};
+const ROTULO_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, v.rotulo]));
+const TOM_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, v.tom]));
+
 const MOTIVOS = [
   { emoji: '🍽️', texto: 'Almoço' },
   { emoji: '☕', texto: 'Pausa' },

@@ -121,7 +121,7 @@ bloqueios.post('/', rota(async (req, res) => {
     `SELECT a.id, a.data, a.hora, a.duracao, c.nome AS cliente
        FROM appointments a JOIN clients c ON c.id = a.client_id
       WHERE a.data IN (${datas.map(() => '?').join(',')})
-        AND a.status IN ('agendado','confirmado')
+        AND a.status IN ('agendado','confirmado','em_atendimento')
         ${staffId ? 'AND a.staff_id = ?' : ''}
       ORDER BY a.data, a.hora`,
     ...datas, ...(staffId ? [staffId] : [])

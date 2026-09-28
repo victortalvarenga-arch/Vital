@@ -9,6 +9,7 @@ import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adici
 import { comboCompleto, profissionaisDoCombo, ratearCombo } from '../lib/combos.js';
 import { formsDoServico, validarRespostas, gravarRespostas, respostasDoAgendamento } from '../lib/formularios.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
+import { pagamentoDe } from '../lib/pagamento.js';
 
 export const agendamentos = Router();
 
@@ -18,8 +19,11 @@ const nomeDaCliente = async id => {
   return c ? c.nome.split(' ')[0] : 'alguém';
 };
 
-const STATUS = ['agendado', 'confirmado', 'concluido', 'falta', 'cancelado'];
+const STATUS = ['agendado', 'confirmado', 'em_atendimento', 'concluido', 'falta', 'cancelado'];
 const FORMAS = ['pix', 'cartao', 'dinheiro', 'local'];
+
+/** Reais para o texto do registro — quem lê "recebeu 20" quer ver R$ 20,00. */
+const brl = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
 
 /**
  * Funcionário mexe na própria agenda e só nela; dono mexe em todas.
@@ -212,6 +216,10 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
     return { erro: `${prof.nome} não trabalha nesse horário`, codigo: 409 };
   }
 
+  // Nascer pago é o caminho do gateway e do combo vendido no balcão. Mesmo
+  // helper do PUT, para o status nunca vir de um lugar e o valor de outro.
+  const nasce = pagamentoDe(null, b.pagamento, valor);
+
   const id = uid();
   const resultado = await db.transacao(async tx => {
     if (await conflita({ staffId: b.profissionalId, data: b.data, hora: b.hora, duracao }, tx)) {
@@ -219,14 +227,14 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
     }
     await tx.run(
       `INSERT INTO appointments (id,client_id,service_id,staff_id,unit_id,data,hora,duracao,valor,
-                                 status,pag_status,pag_forma,origem,obs,criado_em)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                                 status,pag_status,pag_recebido,pag_forma,origem,obs,criado_em)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       // A unidade vem de quem atende: é ela que ocupa a cadeira num endereço.
       // Guardar aqui congela onde aconteceu, mesmo que a pessoa mude de loja.
       id, b.clienteId, b.servicoId, b.profissionalId, prof.unit_id, b.data, b.hora, duracao,
       valor,
       b.status || 'agendado',
-      b.pagamento?.status || 'aberto', b.pagamento?.forma || 'local',
+      nasce.status, nasce.recebido, nasce.forma,
       origem, b.obs || '', `${hoje()} ${agora()}`
     );
     await gravarAdicionais(tx, id, extras.itens);
@@ -282,7 +290,8 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
   let inicio = toMin(b.hora);
   const aGravar = partes.map(svc => {
     const dur = svc.duracao + (svc.intervalo || 0);
-    const item = { svc, hora: toHora(inicio), duracao: dur, valor: svc.valor };
+    const item = { svc, hora: toHora(inicio), duracao: dur, valor: svc.valor,
+      pag: pagamentoDe(null, b.pagamento, svc.valor) };
     inicio += dur;
     return item;
   });
@@ -301,10 +310,10 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
       }
       await tx.run(
         `INSERT INTO appointments (id,client_id,service_id,staff_id,unit_id,data,hora,duracao,valor,
-                                   status,pag_status,pag_forma,origem,obs,combo_id,combo_grupo,criado_em)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                                   status,pag_status,pag_recebido,pag_forma,origem,obs,combo_id,combo_grupo,criado_em)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         uid(), b.clienteId, item.svc.id, prof.id, prof.unit_id, b.data, item.hora, item.duracao, item.valor,
-        'agendado', b.pagamento?.status || 'aberto', b.pagamento?.forma || 'local',
+        'agendado', item.pag.status, item.pag.recebido, item.pag.forma,
         origem, b.obs || '', combo.id, grupo, `${hoje()} ${agora()}`
       );
     }
@@ -365,6 +374,10 @@ agendamentos.put('/:id', rota(async (req, res) => {
   if (b.pagamento?.forma && !FORMAS.includes(b.pagamento.forma)) {
     return res.status(400).json({ erro: 'forma de pagamento inválida' });
   }
+  if (b.pagamento?.recebido != null
+      && (!Number.isFinite(Number(b.pagamento.recebido)) || Number(b.pagamento.recebido) < 0)) {
+    return res.status(400).json({ erro: 'valor recebido inválido' });
+  }
 
   const data = b.data || atual.data;
   const hora = b.hora || atual.hora;
@@ -372,20 +385,23 @@ agendamentos.put('/:id', rota(async (req, res) => {
   const duracao = b.duracao != null ? +b.duracao : atual.duracao;
   const mudouHorario = data !== atual.data || hora !== atual.hora || staffId !== atual.staff_id;
 
+  const valor = b.valor != null ? +b.valor : atual.valor;
+  const pag = pagamentoDe(atual, b.pagamento, valor);
+
   const resultado = await db.transacao(async tx => {
     if (mudouHorario && await conflita({ staffId, data, hora, duracao, ignorarId: atual.id }, tx)) {
       return { erro: 'conflito com outro agendamento' };
     }
     await tx.run(
       `UPDATE appointments SET client_id=?, service_id=?, staff_id=?, data=?, hora=?, duracao=?,
-              valor=?, status=?, pag_status=?, pag_forma=?, pag_ref=?, obs=? WHERE id=?`,
+              valor=?, status=?, pag_status=?, pag_recebido=?, pag_forma=?, pag_ref=?, obs=?
+         WHERE id=?`,
       b.clienteId || atual.client_id,
       b.servicoId || atual.service_id,
       staffId, data, hora, duracao,
-      b.valor != null ? +b.valor : atual.valor,
+      valor,
       b.status || atual.status,
-      b.pagamento?.status || atual.pag_status,
-      b.pagamento?.forma || atual.pag_forma,
+      pag.status, pag.recebido, pag.forma,
       b.pagamento?.ref ?? atual.pag_ref,
       b.obs ?? atual.obs,
       req.params.id
@@ -421,14 +437,22 @@ agendamentos.put('/:id', rota(async (req, res) => {
 
   // Três frases diferentes porque são três coisas diferentes de procurar: o
   // horário que mudou, o dinheiro que entrou, e a cliente que não vem mais.
+  // Quanto trocou de mão agora: é o número das frases de dinheiro, e é o que
+  // separa "recebeu" de "desfez" sem ter de ler o estado anterior.
+  const entrou = Number(depois.pagamento.recebido) - Number(atual.pag_recebido || 0);
+  const falta = Number(depois.valor) - Number(depois.pagamento.recebido);
   const acao = depois.status === 'cancelado' ? 'agendamento.cancelado'
     : mudouHorario ? 'agendamento.remarcado'
-    : depois.pagamento.status === 'pago' && atual.pag_status !== 'pago' ? 'agendamento.pago'
+    : entrou < 0 ? 'agendamento.pagamento_desfeito'
+    : entrou > 0 && depois.pagamento.status === 'pago' ? 'agendamento.pago'
+    : entrou > 0 ? 'agendamento.entrada'
     : 'agendamento.alterado';
   const resumo = {
     'agendamento.cancelado': `cancelou o horário de ${quem} · ${atual.data} ${atual.hora}`,
     'agendamento.remarcado': `remarcou ${quem} de ${atual.data} ${atual.hora} para ${depois.data} ${depois.hora}`,
-    'agendamento.pago': `recebeu de ${quem} em ${depois.pagamento.forma}`,
+    'agendamento.pago': `recebeu ${brl(entrou)} de ${quem} em ${depois.pagamento.forma}`,
+    'agendamento.entrada': `recebeu entrada de ${brl(entrou)} de ${quem} em ${depois.pagamento.forma} · falta ${brl(falta)}`,
+    'agendamento.pagamento_desfeito': `desfez ${brl(-entrou)} recebido de ${quem}`,
     'agendamento.alterado': `alterou o horário de ${quem}`,
   }[acao];
 

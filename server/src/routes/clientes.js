@@ -12,7 +12,7 @@ export const clientes = Router();
 async function comMetricas(c) {
   const m = await db.get(
     `SELECT COUNT(*) visitas,
-            SUM(CASE WHEN pag_status='pago' THEN valor ELSE 0 END) gasto,
+            SUM(pag_recebido) gasto,
             MAX(CASE WHEN data <= ? THEN data END) ultima,
             SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas
        FROM appointments WHERE client_id=? AND status <> 'cancelado'`,

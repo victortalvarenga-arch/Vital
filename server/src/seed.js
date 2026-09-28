@@ -232,6 +232,20 @@ async function primeiraClienteReal() {
       { id: 's3', nome: 'Karen Souza', funcao: 'Estética facial', cor: '#C2476C', comissao: 45, fone: '47977776666',
         jornada: { 1: ['13:00', '19:00'], 3: ['13:00', '19:00'], 5: ['13:00', '19:00'] } },
     ];
+
+    // As jornadas são diferentes de propósito — a Karen só faz tarde, a Bia não
+    // abre segunda —, mas o cenário marca atendimentos em hoje, amanhã e depois,
+    // e `hoje` cai em qualquer dia da semana. Sem este ajuste, metade das
+    // máquinas nascia com atendimento marcado em dia de folga: a agenda pinta o
+    // dia inteiro de fechado, arrastar responde "ela não trabalha nesse dia" e
+    // o painel parece quebrado quando na verdade é o dado que se contradiz.
+    // Os dias que o cenário usa entram na jornada com o horário de sempre.
+    const usados = [0, 1, 2].map(d => String(new Date(addDias(h, d) + 'T12:00:00').getDay()));
+    for (const p of staff) {
+      const faixa = Object.values(p.jornada)[0];
+      for (const d of usados) if (!p.jornada[d]) p.jornada[d] = faixa;
+    }
+
     for (const p of staff) {
       await db.run(
         `INSERT INTO staff (id,nome,funcao,fone,cor,comissao,jornada,ativo,criado_em) VALUES (?,?,?,?,?,?,?,1,?)`,
@@ -293,26 +307,34 @@ async function primeiraClienteReal() {
     // Devolve o id porque as fichas de exemplo, mais abaixo, precisam se
     // pendurar num atendimento — resposta de anamnese existe presa a um
     // atendimento, nunca solta na cliente.
-    const mk = async (cli, svc, prof, dia, hora, status, pagStatus, forma) => {
+    const mk = async (cli, svc, prof, dia, hora, status, pagStatus, forma, recebido) => {
       const s = await db.get('SELECT * FROM services WHERE id=?', svc);
       const id = uid();
       await db.run(
-        `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_forma,origem,criado_em)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,'site',?)`,
+        `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,pag_status,pag_recebido,pag_forma,origem,criado_em)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'site',?)`,
         id, cli, svc, prof, addDias(h, dia), hora, s.duracao + s.intervalo, s.preco,
-        status, pagStatus, forma, h
+        status, pagStatus, recebido != null ? recebido : (pagStatus === 'pago' ? s.preco : 0), forma, h
       );
       return id;
     };
     await mk('c1', 'v1', 's1', 0, '09:00', 'concluido', 'pago', 'pix');
     await mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
-    await mk('c3', 'v4', 's1', 0, '11:00', 'confirmado', 'aberto', 'local');
+    // A cliente das 11h está na cadeira, não só confirmada: é o que a Recepção
+    // mostra como "na cadeira" e o que a gaveta abre já oferecendo "Concluir".
+    // O estado é passageiro de propósito — passada a hora o fechamento fecha
+    // este atendimento como fecha qualquer outro, e numa máquina reiniciada à
+    // tarde ele aparece como concluído. É o comportamento real do sistema.
+    await mk('c3', 'v4', 's1', 0, '11:00', 'em_atendimento', 'aberto', 'local');
     // Limpeza de pele de hoje: fica com a ficha PENDENTE de propósito. É o
     // estado normal de quem agendou pelo site, e é o que a profissional vai
     // encontrar ao abrir o atendimento.
     await mk('c5', 'v10', 's3', 0, '14:00', 'agendado', 'aberto', 'local');
     await mk('c4', 'v2', 's1', 0, '14:30', 'confirmado', 'pago', 'cartao');
-    await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'aberto', 'local');
+    // Entrada: a cliente adiantou R$ 20 no pix e paga o resto na saída. É o
+    // caso que `pag_status` sozinho não sabia contar, e é o que a gaveta mostra
+    // como "Pago R$ 20,00 · Falta receber R$ 25,00".
+    await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'parcial', 'pix', 20);
     await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
     await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
     await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');

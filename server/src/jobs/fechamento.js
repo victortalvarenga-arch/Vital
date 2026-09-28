@@ -53,7 +53,7 @@ export async function fecharAtendimentos() {
   const pendentes = await db.all(
     `SELECT id, client_id, data, hora, duracao, valor
        FROM appointments
-      WHERE status IN ('agendado', 'confirmado')
+      WHERE status IN ('agendado', 'confirmado', 'em_atendimento')
         AND (data < ?
              OR (data = ? AND to_char(
                    (hora::time + make_interval(mins => duracao)), 'HH24:MI') <= ?))
@@ -66,7 +66,11 @@ export async function fecharAtendimentos() {
   await db.run(
     `UPDATE appointments
         SET status = 'concluido',
-            pag_status = CASE WHEN pag_status = 'aberto' THEN 'pago' ELSE pag_status END
+            -- Quem tinha entrada é quitado junto: o atendimento aconteceu e
+            -- ninguém voltou para dizer o contrário. Fica a forma do primeiro
+            -- recebimento, que é mais informação do que o 'local' genérico.
+            pag_recebido = valor,
+            pag_status = 'pago'
       WHERE id IN (${ids.map(() => '?').join(',')})`,
     ...ids
   );

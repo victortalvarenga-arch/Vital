@@ -7,8 +7,10 @@ import SeletorProfissional from './Seletor.jsx';
 import { brl } from '../shared/formato.js';
 import { Dica, Numero } from './Cartoes.jsx';
 import { compacto, rotuloDeValor, tetoDoEixo } from '../shared/graficos.js';
-import { hojeISO, iniciais, toMin } from '../shared/tempo.js';
+import { faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
 import GradeDoDia from './GradeDoDia.jsx';
+import Remarcar from './Remarcar.jsx';
+import { useArrastar } from './useArrastar.js';
 
 /**
  * Resumo: a tela que abre primeiro no painel.
@@ -31,7 +33,7 @@ import GradeDoDia from './GradeDoDia.jsx';
  * Nada aqui é editável. É a versão de relance da Agenda, não uma segunda forma
  * de mexer nela — o que existe são atalhos que levam para a tela certa.
  */
-export default function Resumo({ dados, poderes, irPara, fila }) {
+export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const { staff, clientes, servicos, agendamentos } = dados;
   const hoje = hojeISO();
 
@@ -102,6 +104,21 @@ export default function Resumo({ dados, poderes, irPara, fila }) {
   const colunas = poderes.verDeTodos
     ? staff.filter(p => p.ativo && (!quem || p.id === quem))
     : staff.filter(p => p.id === dados.eu?.profissionalId);
+
+  // A agenda do dia aqui também se arrasta: é a mesma grade da Agenda, e quem
+  // abre o painel de manhã e vê que a de 9h não vem quer empurrar ali mesmo,
+  // sem trocar de tela. Sem beirada, porque esta grade mostra hoje e só hoje —
+  // não há para onde virar a página.
+  const [remarcando, setRemarcando] = useState(null);
+  const arrastar = useArrastar({
+    agendamentos, bloqueios: dados.bloqueios || [], servicos, staff,
+    agora: { data: hoje, hora: `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}` },
+    faixa: faixaDeHoras(doDia), regua: [34, 8], grade: '.eq-timeline',
+    aoSoltar: setRemarcando, aviso,
+    // Tocar sem arrastar leva para a Agenda: aqui não há gaveta de atendimento,
+    // e bloco que não faz nada ao ser clicado parece defeito.
+    aoTocar: () => irPara?.('agenda'),
+  });
 
   // Rótulo honesto: "Faturamento" sozinho, filtrado numa pessoa, faria o dono
   // ler o número dela como o da empresa.
@@ -210,8 +227,25 @@ export default function Resumo({ dados, poderes, irPara, fila }) {
           {poderes.verDeTodos ? 'Como está o dia, por profissional' : 'Como está o meu dia'}
         </div>
         <GradeDoDia colunas={colunas} agendamentos={doDia}
-                       clientes={clientes} servicos={servicos} />
+                       clientes={clientes} servicos={servicos} staff={staff}
+                       data={hoje} bloqueios={(dados.bloqueios || []).filter(b => b.data === hoje)}
+                       arrasto={arrastar.arrasto} aoPegar={arrastar.aoPegar}
+                       arrastado={agendamentos.find(x => x.id === arrastar.arrasto?.id) || null} />
       </div>
+
+      {/* O mesmo rótulo flutuante da Agenda: onde vai cair, e por que não dá. */}
+      {arrastar.arrasto?.hora && (
+        <div className={'arrasto-aviso' + (arrastar.arrasto.ok ? '' : ' nao')}>
+          {arrastar.arrasto.ok || arrastar.arrasto.igual
+            ? arrastar.arrasto.hora
+            : arrastar.arrasto.motivo}
+        </div>
+      )}
+
+      {remarcando && (
+        <Remarcar alvo={remarcando} clientes={clientes} servicos={servicos} staff={staff}
+                  acao={acao} aoFechar={() => setRemarcando(null)} />
+      )}
     </>
   );
 }

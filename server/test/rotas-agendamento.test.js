@@ -331,3 +331,69 @@ describe('a mesma pessoa não atende dois ao mesmo tempo', () => {
     assert.equal(emCima.status, 409, 'bloqueio conta como ocupado na hora de gravar');
   });
 });
+
+/**
+ * "Em atendimento": a cliente já está na cadeira.
+ *
+ * O estado existe para separar "ela vem hoje" de "ela está aqui agora". As duas
+ * consequências que importam — e que um estado novo esquece com facilidade —
+ * são: a cadeira segue ocupada, e o fechamento automático não deixa ninguém
+ * preso nesse estado quando o dia acaba.
+ */
+describe('em atendimento', () => {
+  const D = '2027-09-09';   // uma quinta-feira
+
+  beforeEach(async () => {
+    await db.db.comEmpresa('default', () => limparAgenda(db));
+  });
+
+  const marcar = (hora, extras = {}) => dona('POST', '/api/agendamentos', {
+    clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: D, hora,
+    forcar: true, ...extras,
+  });
+
+  test('a rota aceita o estado novo', async () => {
+    const r = await marcar('10:00');
+    const mudou = await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'em_atendimento' });
+    assert.equal(mudou.status, 200, mudou.corpo?.erro);
+    assert.equal(mudou.corpo.status, 'em_atendimento');
+  });
+
+  test('quem está na cadeira continua ocupando o horário', async () => {
+    const r = await marcar('10:00');
+    await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'em_atendimento' });
+
+    const emCima = await marcar('10:00');
+    assert.equal(emCima.status, 409, 'a cadeira está ocupada por quem está sendo atendida');
+  });
+
+  test('o horário some da lista que o site oferece', async () => {
+    const antes = await dona('GET', `/api/agendamentos/horarios?servicoId=s1&profissionalId=p1&data=${D}`);
+    assert.ok(antes.corpo.horarios.includes('10:00'));
+
+    const r = await marcar('10:00');
+    await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'em_atendimento' });
+
+    const depois = await dona('GET', `/api/agendamentos/horarios?servicoId=s1&profissionalId=p1&data=${D}`);
+    assert.ok(!depois.corpo.horarios.includes('10:00'), 'não se oferece a cadeira de quem está nela');
+  });
+
+  test('o fechamento automático não deixa ninguém preso nesse estado', async () => {
+    // Ontem, esquecido em atendimento: sem isto, o dinheiro nunca entraria no
+    // caixa e o pós-atendimento nunca sairia.
+    const { hoje, addDias } = await import('../src/lib/dates.js');
+    const ontem = addDias(hoje(), -1);
+    const r = await dona('POST', '/api/agendamentos', {
+      clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: ontem, hora: '10:00', forcar: true,
+    });
+    await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'em_atendimento' });
+
+    const { fecharAtendimentos } = await import('../src/jobs/fechamento.js');
+    await db.db.comEmpresa('default', () => fecharAtendimentos());
+
+    const depois = await dona('GET', `/api/agendamentos?de=${ontem}&ate=${ontem}`);
+    const fechado = depois.corpo.find(a => a.id === r.corpo.id);
+    assert.equal(fechado.status, 'concluido', 'o dia virou e o atendimento conta');
+    assert.equal(fechado.pagamento.status, 'pago');
+  });
+});

@@ -127,3 +127,76 @@ describe('o que não pode', () => {
     }
   });
 });
+
+/**
+ * Arrastar para a coluna ao lado, na grade do dia, é trocar quem atende.
+ *
+ * A grade da semana tem dia no eixo X e a profissional nunca muda; a do dia tem
+ * uma coluna por pessoa, e ali o movimento horizontal quer dizer outra coisa.
+ * A mesma função responde as duas, e é por isso que o destino manda em tudo:
+ * jornada, conflito e bloqueio são os de quem vai receber o atendimento.
+ */
+describe('trocar de profissional arrastando', () => {
+  // Bia trabalha de terça a sábado e não faz o corte da Ana.
+  const BIA = {
+    id: 'p2', nome: 'Bia Menezes',
+    jornada: { 2: ['09:00', '18:00'], 3: ['09:00', '18:00'], 4: ['09:00', '18:00'],
+               5: ['09:00', '18:00'], 6: ['09:00', '18:00'] },
+  };
+  const CORTE_P2 = { ...CORTE, servico: 'sv1' };
+  const paraBia = (para, extra = {}) => podeRemarcar({
+    agendamento: CORTE_P2, para: { ...para, prof: 'p2' }, profissional: BIA,
+    agendamentos: [CORTE_P2], bloqueios: [], agora: AGORA, ...extra,
+  });
+
+  test('passa quando ela faz o serviço e o horário está livre', () => {
+    const svc = { id: 'sv1', profissionais: ['p1', 'p2'] };
+    assert.deepEqual(paraBia({ data: SEXTA, hora: '10:00' }, { servico: svc }), { ok: true },
+      'mesmo horário, outra pessoa: é uma troca, não o mesmo lugar');
+  });
+
+  test('serviço sem vínculo nenhum vale para qualquer uma', () => {
+    assert.deepEqual(paraBia({ data: SEXTA, hora: '14:00' }, { servico: { profissionais: [] } }),
+      { ok: true });
+  });
+
+  test('recusa quem não faz o serviço', () => {
+    const svc = { id: 'sv1', nome: 'Corte', profissionais: ['p1'] };
+    const r = paraBia({ data: SEXTA, hora: '14:00' }, { servico: svc });
+    assert.equal(r.ok, false);
+    assert.match(r.motivo, /Bia não faz esse serviço/);
+  });
+
+  test('a jornada conferida é a de quem recebe', () => {
+    // Segunda-feira: a Ana trabalha, a Bia não.
+    const svc = { profissionais: ['p1', 'p2'] };
+    const r = paraBia({ data: '2027-03-08', hora: '10:00' }, { servico: svc });
+    assert.equal(r.ok, false);
+    assert.match(r.motivo, /Bia não trabalha nesse dia/);
+  });
+
+  test('o conflito conferido é o da agenda de quem recebe', () => {
+    const svc = { profissionais: ['p1', 'p2'] };
+    const daBia = { id: 'a9', prof: 'p2', data: SEXTA, hora: '14:00', duracao: 60, status: 'agendado' };
+    const r = paraBia({ data: SEXTA, hora: '14:30' }, { servico: svc, agendamentos: [CORTE_P2, daBia] });
+    assert.equal(r.ok, false);
+    assert.match(r.motivo, /ocupado/);
+
+    // O mesmo horário na agenda da Ana não atrapalha a Bia.
+    const daAna = { id: 'a8', prof: 'p1', data: SEXTA, hora: '15:00', duracao: 60, status: 'agendado' };
+    assert.deepEqual(
+      paraBia({ data: SEXTA, hora: '15:00' }, { servico: svc, agendamentos: [CORTE_P2, daAna] }),
+      { ok: true }, 'a cadeira ocupada é a da outra');
+  });
+
+  test('o bloqueio conferido é o de quem recebe', () => {
+    const svc = { profissionais: ['p1', 'p2'] };
+    const almocoDaBia = { data: SEXTA, horaIni: '12:00', horaFim: '13:00', profissionalId: 'p2' };
+    assert.match(paraBia({ data: SEXTA, hora: '12:00' }, { servico: svc, bloqueios: [almocoDaBia] }).motivo,
+      /bloqueado/);
+
+    const almocoDaAna = { data: SEXTA, horaIni: '12:00', horaFim: '13:00', profissionalId: 'p1' };
+    assert.equal(paraBia({ data: SEXTA, hora: '12:00' }, { servico: svc, bloqueios: [almocoDaAna] }).ok,
+      true, 'o almoço de quem larga o atendimento não fecha a agenda de quem recebe');
+  });
+});

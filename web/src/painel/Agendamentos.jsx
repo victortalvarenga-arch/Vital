@@ -28,15 +28,19 @@ import { brl } from '../shared/formato.js';
 
 
 /**
- * Quatro estados na tela, cinco no banco.
+ * Cinco estados na tela, seis no banco.
  *
  * `confirmado` existe porque a cliente responde ao WhatsApp, mas para quem
  * opera é a mesma coisa que `agendado`: tem hora marcada e ainda não foi
  * atendida. Duas abas dizendo isso seriam duas abas para conferir toda vez.
  * O filtro "Agendado" pede os dois ao servidor.
+ *
+ * `em_atendimento` tem aba própria: é o único estado que responde "quem está
+ * aqui agora", e é isso que se pergunta a uma lista no meio do dia.
  */
 const ESTADOS = {
   agendado: { rotulo: 'Agendado', tom: 'aguarda', busca: 'agendado,confirmado' },
+  em_atendimento: { rotulo: 'Em atendimento', tom: 'agora', busca: 'em_atendimento' },
   concluido: { rotulo: 'Atendido', tom: 'feito', busca: 'concluido' },
   falta: { rotulo: 'Faltou', tom: 'ruim', busca: 'falta' },
   cancelado: { rotulo: 'Cancelado', tom: 'ruim', busca: 'cancelado' },

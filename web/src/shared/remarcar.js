@@ -14,10 +14,14 @@ import { toMin } from './tempo.js';
  * vira rótulo flutuante embaixo do cursor, não parágrafo.
  */
 export function podeRemarcar({
-  agendamento, para, profissional, agendamentos, bloqueios = [], agora,
+  agendamento, para, profissional, servico, agendamentos, bloqueios = [], agora,
 }) {
   const { data, hora } = para;
-  if (data === agendamento.data && hora === agendamento.hora) {
+  // Na grade do dia, a coluna é a profissional: soltar na coluna ao lado é
+  // trocar quem atende, no mesmo horário. Por isso o "é o mesmo lugar" tem de
+  // olhar os três, e não só dia e hora.
+  const destino = para.prof || agendamento.prof;
+  if (data === agendamento.data && hora === agendamento.hora && destino === agendamento.prof) {
     return { ok: false, motivo: 'mesmo horário', igual: true };
   }
 
@@ -38,6 +42,15 @@ export function podeRemarcar({
     if (data === agora.data && ini < toMin(agora.hora)) return { ok: false, motivo: 'já passou' };
   }
 
+  // Quem vai atender precisa fazer o serviço. Lista vazia quer dizer "qualquer
+  // uma" — é como o cadastro representa serviço sem restrição —, e por isso a
+  // recusa só vale quando há lista. Sem esta conferência, arrastar para a
+  // coluna ao lado marcava a manicure para fazer limpeza de pele.
+  if (destino !== agendamento.prof && servico?.profissionais?.length
+      && !servico.profissionais.includes(destino)) {
+    return { ok: false, motivo: `${primeiroNome(profissional)} não faz esse serviço` };
+  }
+
   // Jornada de quem atende, no dia da semana do destino.
   const dia = String(new Date(`${data}T12:00:00`).getDay());
   const jornada = profissional?.jornada?.[dia];
@@ -50,7 +63,7 @@ export function podeRemarcar({
   // para o lado não é conflito consigo.
   const bate = agendamentos.some(o =>
     o.id !== agendamento.id
-    && o.prof === agendamento.prof
+    && o.prof === destino
     && o.data === data
     && o.status !== 'cancelado'
     && ini < toMin(o.hora) + o.duracao && fim > toMin(o.hora));
@@ -59,7 +72,7 @@ export function podeRemarcar({
   // Bloqueio sem dono fecha a empresa toda.
   const fechado = bloqueios.some(b =>
     b.data === data
-    && (!b.profissionalId || b.profissionalId === agendamento.prof)
+    && (!b.profissionalId || b.profissionalId === destino)
     && ini < toMin(b.horaFim) && fim > toMin(b.horaIni));
   if (fechado) return { ok: false, motivo: 'horário bloqueado' };
 

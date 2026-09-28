@@ -12,7 +12,9 @@ import { toMin, toHora, diaSemana, hoje, agora, addDias } from './dates.js';
  * está sendo criado ao lado.
  */
 
-const STATUS_OCUPA = ['agendado', 'confirmado', 'concluido'];
+// `em_atendimento` ocupa a cadeira pelo motivo mais óbvio de todos: a pessoa
+// está nela. Esquecer daqui ofereceria o horário de quem está sendo atendida.
+const STATUS_OCUPA = ['agendado', 'confirmado', 'em_atendimento', 'concluido'];
 
 /**
  * Bloqueios que fecham a cadeira de alguém num dia.

@@ -181,10 +181,15 @@ describe('lucro do dono e ranking do mês', () => {
     const D2 = `${MES2}-05`;
     await db.db.comEmpresa('default', () =>
       db.db.run(`UPDATE staff SET comissao = 33.33 WHERE id = 'p1'`));
-    const a = await marcar({ hora: '09:00', data: D2, status: 'concluido', pago: true, prof: 'p1' });
-    const b = await marcar({ hora: '10:00', data: D2, status: 'concluido', pago: true, prof: 'p1' });
+    // O valor antes do pagamento: quem paga pela rota recebe o valor que o
+    // atendimento tem naquela hora, e mudar o preço depois não move o caixa.
+    const a = await marcar({ hora: '09:00', data: D2, status: 'concluido', prof: 'p1' });
+    const b = await marcar({ hora: '10:00', data: D2, status: 'concluido', prof: 'p1' });
     await db.db.comEmpresa('default', () =>
       db.db.run(`UPDATE appointments SET valor = 10.10 WHERE id IN (?, ?)`, a.id, b.id));
+    for (const x of [a, b]) {
+      await dona('PUT', `/api/agendamentos/${x.id}`, { pagamento: { status: 'pago', forma: 'pix' } });
+    }
 
     const { corpo } = await dona('GET', `/api/relatorios/resumo?mes=${MES2}`);
     assert.equal(corpo.recebido, 20.2);
@@ -238,9 +243,12 @@ describe('gráfico dos últimos 12 meses', () => {
 
   const concluidoPago = async (data, hora, prof, pago = true) => {
     await agendar(db, { prof, data, hora, status: 'concluido' });
+    // Os dois juntos, sempre: `pag_status` é derivado de `pag_recebido`, e
+    // escrever só um deixaria a linha dizendo "pago" com o caixa vazio — um
+    // estado que a rota não produz e que faria o teste provar o que não existe.
     await db.db.run(
-      `UPDATE appointments SET pag_status = ? WHERE id = ?`,
-      pago ? 'pago' : 'aberto', `a-${data}-${hora}-${prof}`
+      `UPDATE appointments SET pag_status = ?, pag_recebido = ? WHERE id = ?`,
+      pago ? 'pago' : 'aberto', pago ? 100 : 0, `a-${data}-${hora}-${prof}`
     );
   };
 
@@ -306,7 +314,8 @@ describe('série do gráfico do Financeiro', () => {
   const concluidoPago = async (data, hora, prof) => {
     await agendar(db, { prof, data, hora, status: 'concluido' });
     await db.db.run(
-      `UPDATE appointments SET pag_status = 'pago' WHERE id = ?`, `a-${data}-${hora}-${prof}`
+      `UPDATE appointments SET pag_status = 'pago', pag_recebido = valor WHERE id = ?`,
+      `a-${data}-${hora}-${prof}`
     );
   };
 

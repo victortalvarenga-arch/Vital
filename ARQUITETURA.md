@@ -54,6 +54,8 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `014_suporte` | `plataforma.tickets`: a empresa fala com a Vital de dentro do produto |
 | `015_funil` | `funil`: em qual passo a visita some, sem guardar dado de ninguém |
 | `016_funil_compactado` | `funil_diario`: o dia antigo vira uma linha, e o cru sai |
+| `017_em_atendimento` | Sexto status: a cliente na cadeira, entre confirmada e atendida |
+| `018_pagamento_parcial` | `pag_recebido`: quanto entrou, para a entrada caber no caixa |
 
 ## Visão geral
 
@@ -375,6 +377,28 @@ por profissional (`GradeDoDia`, a mesma do Resumo — lá sem clique, aqui com);
 (`GradeDoMes`) mostra **contagem por dia**, não os atendimentos — trinta dias com
 seis blocos cada não cabem numa tela —, e tocar num dia leva para a visão diária,
 que é onde estão os nomes.
+
+**Com uma profissional escolhida, a grade pinta o que está fechado.** Fora da
+jornada dela vira uma faixa cinza listrada (`.fechado`, a partir de
+`shared/jornada.js`); o bloqueio continua vermelho, com o motivo, porque é outra
+coisa — alguém fechou aquele horário de propósito. Antes, quem atende das 13h às
+19h tinha cinco horas de grade branca que não eram horário vago: eram horário
+que não existe, e a diferença só aparecia ao tentar marcar, com o servidor
+recusando o que a tela tinha oferecido.
+
+**Só com uma.** Com a equipe inteira na mesma coluna, a faixa teria de ser a
+interseção de jornadas diferentes — pintaria de fechado o horário em que alguém
+atende, que é o oposto do que ela existe para dizer. Por isso a regra é
+`pessoas.length === 1`, e não "quando dá".
+
+A faixa é desenho: não recusa nada, e não tem eventos de ponteiro, para o
+arrasto passar por cima dela sem tropeço. Quem recusa continua sendo
+`shared/remarcar.js` na tela e `lib/availability.js` no servidor — a faixa só
+antecipa a recusa, que é o que ninguém tinha como ver.
+
+A visão **Dia** passou a mostrar bloqueio também. Ela não mostrava: quem abria o
+dia de uma pessoa via uma hora livre onde havia almoço fechado, e a mesma hora
+aparecia bloqueada na semana. Duas telas discordando sobre o que cabe na agenda.
 
 **Recepção** (`Recepcao.jsx`) é o dia inteiro em uma coluna, por horário, com
 uma marca de "agora" separando o que já passou. A grade por profissional
@@ -1179,6 +1203,31 @@ Onde o ponteiro está sai de `elementsFromPoint`, e não de medir a grade: assim
 conta continua certa com a semana rolando na horizontal, a página rolando na
 vertical e qualquer largura de coluna — nada disso precisa ser previsto.
 
+**Três grades arrastam, com um motor só** (`painel/useArrastar.js`). A da semana
+(coluna é dia), a do Dia na Agenda e a do Dia no Resumo (coluna é profissional).
+A mecânica é a mesma e a geometria não: cada grade diz a sua faixa de horas e a
+sua régua (56px por hora na semana, 34 no dia), e a coluna se identifica sozinha
+nos `data-dia` / `data-prof` do próprio elemento — é o que deixa
+`elementsFromPoint` servir às duas sem saber qual está desenhada. O motor ficou
+fora das telas porque três cópias dele seriam três cópias de um código que já
+custou quatro defeitos difíceis, dos quais dois estão descritos logo abaixo.
+
+**Na grade do dia, a coluna é uma pessoa: arrastar para o lado troca quem
+atende.** É a leitura natural de colunas lado a lado, e a validação acompanha —
+jornada, conflito e bloqueio conferidos passam a ser os de **quem recebe**, não
+os de quem larga. Entra também uma regra que a semana não precisava: a
+profissional de destino tem de fazer aquele serviço (`servico.profissionais`;
+lista vazia quer dizer "qualquer uma", que é como o cadastro representa serviço
+sem restrição). Sem ela, arrastar uma coluna para o lado marcava a manicure para
+fazer limpeza de pele. A confirmação mostra a troca — "de 15:00 · Bia para
+16:30 · Karen" — e só manda `profissionalId` quando ela existe, senão toda
+remarcação apareceria como troca no registro.
+
+**No Resumo não há beirada.** A grade ali mostra hoje e só hoje: não existe para
+onde virar a página, e por isso o `virarPagina` não é passado. Tocar sem
+arrastar leva para a Agenda — bloco que não faz nada ao ser clicado parece
+defeito, e é lá que mora a gaveta do atendimento.
+
 **O arrasto é só a intenção.** Quem decide se o horário novo vale é o servidor,
 que confere conflito e jornada dentro da mesma transação que grava — é o único
 lugar onde duas pessoas arrastando para o mesmo buraco no mesmo segundo podem
@@ -1196,8 +1245,11 @@ cor de quem atende, nome da cliente e serviço dentro. Era um retângulo
 pontilhado, que dizia "vai cair aqui" mas não dizia *o quê* — e mostrar o bloco
 inteiro resolve as duas perguntas de uma vez: o **tamanho** (meia hora a mais
 muda o que ainda cabe depois) e a **identidade** (é essa cliente mesmo que estou
-movendo?). Ela sai de `agendamentos`, e não da semana à vista: carregando alguém
-para outra semana, o bloco de origem já não está mais na tela. Sem isso a pessoa
+movendo?). Ela sai do atendimento arrastado, e não da lista à vista: virando a
+página, o bloco de origem já não está mais nela — na semana isso vinha de
+`agendamentos` inteiro, e na grade do dia a tela passa o próprio atendimento
+(`arrastado`), porque ali a lista é de um dia só e o dedo pode estar levando
+alguém para o dia seguinte. Sem isso a pessoa
 arrastava até um lugar impossível e só descobria depois de soltar, e tentava de
 novo no mesmo lugar. **Isso não substitui o servidor**, e o arquivo diz isso no
 alto: é palpite de tela, feito com o que o painel já tem na memória.
@@ -1208,9 +1260,12 @@ janela mostra de onde para onde, e avisa que a cliente não é avisada
 automaticamente (a mensagem sai pela fila). Soltar num destino recusado vira
 aviso com o motivo, porque não acontecer nada faz parecer que o arrasto quebrou.
 
-**Segurar na beirada anda no período.** Com o dedo parado a menos de 48px da
-borda da grade, uma **faixa aparece e vai enchendo** — o mesmo aviso que o
-celular dá quando se arrasta para o canto —, e a cada volta a semana vira. Sem
+**Segurar na beirada anda no período, nas duas grades.** Com o dedo parado a
+menos de 48px da borda da grade, uma **faixa aparece e vai enchendo** — o mesmo
+aviso que o celular dá quando se arrasta para o canto —, e a cada volta a página
+vira: uma semana na grade da semana, um dia na do dia. É a mesma `andar`, que já
+sabe a escala à vista. A faixa é desenhada por quem desenha a grade, porque ela
+se posiciona dentro dela e a calha das horas tem largura diferente nas duas. Sem
 ela a agenda pulava sozinha e parecia defeito. O primeiro salto vem 750ms depois
 de chegar ali e os seguintes a cada 1,1s: passar raspando não vira a agenda,
 quem fica atravessa o mês sem pressa, e sair da faixa para o relógio na hora. É
@@ -1229,7 +1284,8 @@ escritos:
 - **O navegador prende o ponteiro sozinho em quem recebeu o toque** e, quando
   esse elemento sai do DOM, dispara `pointercancel`. O arrasto acabava calado na
   primeira virada: a sombra sumia e soltar não perguntava nada. Por isso o
-  ponteiro é preso **na grade** (`.agenda`), que não desmonta.
+  ponteiro é preso **na grade** (`.agenda` na semana, `.eq-timeline` no dia),
+  que não desmonta.
 
 Os dois só aparecem quando a virada acontece no meio do arrasto — o caminho que
 a funcionalidade da beirada criou.
@@ -1459,9 +1515,10 @@ de alguém em silêncio seria pior que o conflito.
 ## Quem veio, quem faltou
 
 **Passou a hora do fim, o atendimento vira concluído e pago, sozinho.** Um cron
-a cada quinze minutos (`jobs/fechamento.js`) fecha o que ficou em `agendado` ou
-`confirmado` depois do horário. A exceção — falta e cancelamento — é que se
-registra, pela tela **Atendimentos**.
+a cada cinco minutos (`jobs/fechamento.js`) fecha o que ficou em `agendado`,
+`confirmado` ou `em_atendimento` depois do horário. A exceção — falta e
+cancelamento — é que se registra, na gaveta do atendimento ou na aba Lista da
+Agenda.
 
 **Por que o padrão é "veio".** Quase toda cliente aparece. Exigir um clique por
 atendimento fazia registrar a *regra* muitas vezes ao dia para que a *exceção*
@@ -1488,18 +1545,114 @@ depois corrigido para falta continuava somando lá, e a divisão por forma passa
 a discordar do recebido logo acima. Hoje as duas consultas pedem
 `status='concluido'`.
 
-**Quatro estados na tela, cinco no banco.** A tela **Agendamentos** mostra
-agendado, atendido, faltou e cancelado. `confirmado` continua existindo — é o
-que a resposta da cliente no WhatsApp vai gravar —, mas para quem opera é a
-mesma coisa que `agendado`: tem hora marcada e ainda não foi atendida. Duas abas
-dizendo isso seriam duas abas para conferir toda vez. A aba "Agendado" pede os
-dois status ao servidor, e a linha de um confirmado aparece como "Agendado".
-
 **O rastro é a contrapartida.** O fechamento automático grava uma linha em
 `logs` como `sistema`, com `user_id` nulo — sem isso o dono veria faturamento
 aparecer sem autor. E toda correção feita à mão passa pelo `PUT` de sempre, que
 registra quem fez, quando, e de qual estado para qual. É o que torna aceitável
 o sistema mexer no caixa por conta própria: nada acontece sem ficar escrito.
+
+### Seis estados, e um caminho só entre eles
+
+O banco guarda `agendado`, `confirmado`, `em_atendimento`, `concluido`, `falta`
+e `cancelado` — a migration 017 documenta a lista, porque a coluna é TEXT livre
+desde a 001 e não há CHECK para consultar. Os quatro primeiros são um
+**percurso**, e a gaveta do atendimento mostra **só o passo seguinte**, nunca os
+seis de uma vez:
+
+| Estado | Cor | Ação que a gaveta oferece |
+|---|---|---|
+| Agendado | amarelo | Confirmar |
+| Confirmado | verde | Cliente chegou |
+| Em atendimento | azul | Concluir |
+| Concluído | verde escuro | — |
+| Faltou | roxo | — |
+| Cancelado | cinza | — |
+
+**Um botão por etapa, e não uma lista de estados.** A lista inteira transfere
+para quem está no balcão a pergunta "qual destes seis?", quando a resposta certa
+é quase sempre uma só: quem clica está reagindo a algo que acabou de acontecer
+na sala. "Marcar falta" fica ao lado, como a exceção que é, e a lista completa
+continua alcançável pelo "Alterar" dentro da caixa de situação — para quem
+adiantou um passo por engano e precisa voltar.
+
+**Mudar a situação não fecha a gaveta.** Quem confirma a chegada de uma cliente
+costuma fazer mais uma coisa ali mesmo (receber, ver a ficha, olhar o
+telefone), e fechar a cada clique obrigava a reabrir. A gaveta lê o agendamento
+do estado recarregado — `agendamentos.find(...)` a cada render, não a cópia que
+abriu —, então a etiqueta troca sozinha depois do `PUT`.
+
+**As cores de status são a exceção à paleta de um tom só.** O resto do painel
+varia tom da mesma cor de propósito (ver `DESIGN.md`), mas status é o único eixo
+em que a distinção precisa sobreviver à visão periférica: numa grade cheia, a
+diferença entre "está aqui agora" e "já foi" tem de aparecer sem leitura. Cor
+diferente por estado é informação, não enfeite.
+
+**`em_atendimento` ocupa a cadeira e entra no fechamento.** Está em
+`STATUS_OCUPA` (`lib/availability.js`), na consulta de conflito de
+`routes/bloqueios.js` e no `WHERE` de `jobs/fechamento.js`. Os três se esquecem
+separadamente, e cada esquecimento tem seu próprio estrago: encaixe marcado em
+cima de cliente presente, bloqueio por cima de atendimento em curso, e
+atendimento que nunca fecha — este último silencioso, porque o dinheiro
+simplesmente não aparece no caixa.
+
+**Cancelar não apaga.** O botão vermelho no fim da gaveta grava
+`status='cancelado'` e devolve o horário para a agenda; apagar de verdade é só o
+`DELETE`, que a tela não oferece mais. A diferença importa no registro: linha
+apagada não tem como ser explicada depois.
+
+**Na Lista, `confirmado` aparece como "Agendado".** Para quem opera é a mesma
+coisa — tem hora marcada e ainda não foi atendida —, e duas abas dizendo isso
+seriam duas abas para conferir toda vez; a aba "Agendado" pede os dois status ao
+servidor. `em_atendimento` tem aba própria, porque é o único que responde "quem
+está aqui agora"; na Recepção o mesmo estado aparece como "na cadeira".
+
+### Pagamento: quanto entrou, e não se entrou
+
+`appointments.pag_recebido` guarda **quanto já foi pago**; `pag_status` continua
+existindo, mas virou consequência — `aberto`, `parcial` ou `pago`, derivado do
+valor por `lib/pagamento.js` e por mais ninguém. Dois lugares dizendo a mesma
+coisa é um lugar para divergir, e a divergência de dinheiro aparece no fim do
+mês, quando já não dá para reconstruir.
+
+A gaveta mostra **Valor total · Pago · Falta receber**, um campo "Receber agora"
+e as três formas. Vazio, o campo vale o que falta — o clique de sempre. Com um
+número menor, é a entrada: "recebi 20 no pix, o resto ela paga na saída".
+
+**O painel manda o total recebido, nunca um incremento.** Clique duplo, retry de
+rede e dois atendentes na mesma tela mandariam o mesmo número de novo; com
+incremento, cada repetição cobraria outra vez. Mandar "recebido: 45" duas vezes
+é o mesmo estado duas vezes, e o servidor ainda corta no valor do atendimento —
+não se recebe mais do que se vendeu.
+
+**Clicar na forma já marcada desfaz o recebimento** (volta a zero e larga a
+forma); clicar em outra forma, com o atendimento quitado, troca só o método e
+não recebe nada de novo. Trocar de pix para cartão nunca registrou um segundo
+pagamento: há uma linha por atendimento, e a forma é uma coluna dela.
+
+**Receber não conclui o atendimento.** Sinal pago na marcação acontece dias
+antes de a cliente sentar, e concluir por causa do dinheiro faria o atendimento
+nascer atendido. Quem conclui é o botão do fluxo — ver "Seis estados".
+
+**Toda consulta de caixa passou a somar `pag_recebido`**: `recebido`, a divisão
+por forma, o gasto da cliente e a comissão. A comissão é a que mais muda de
+sentido: sai do que entrou, e não do que foi vendido. Comissão cheia sobre quem
+pagou metade tira da empresa dinheiro que ainda não chegou — e receita, custo e
+lucro lado a lado precisam contar a mesma coisa. "A receber" também deixou de
+cobrar o valor inteiro de quem já adiantou parte: cobra o que falta.
+
+**O fechamento automático quita a entrada esquecida.** Passada a hora, o
+atendimento vira concluído e `pag_recebido` vira o valor cheio, mantendo a forma
+da entrada — que diz mais do que o `local` genérico. É a mesma aposta do
+fechamento: no balcão, o caso comum é a cliente ter pagado.
+
+**O histórico está no registro, não numa tabela de pagamentos.** Entrada,
+quitação e estorno viram três ações distintas em `logs`
+(`agendamento.entrada`, `agendamento.pago`, `agendamento.pagamento_desfeito`),
+cada uma com o valor na frase. O que uma tabela de pagamentos daria a mais é
+**duas formas no mesmo atendimento** — entrada em pix, resto em dinheiro: hoje
+`pag_forma` guarda a última, e a divisão por forma credita a ela o valor
+inteiro. O caixa total continua certo; só o recorte por forma erra. Está em
+"Achados", no `ROADMAP.md`.
 
 ## O registro do painel
 
@@ -1801,13 +1954,22 @@ O `seed` cria duas empresas de exemplo, de ramos diferentes, porque com uma só
 nada na tela mostra que o sistema é multiempresa — e o erro que o RLS previne
 precisa de duas para aparecer.
 
+**As jornadas do cenário se ajustam ao dia em que o `reset` roda.** Elas são
+diferentes de propósito — a Karen só atende à tarde, a Bia não abre segunda —,
+mas os atendimentos de exemplo caem em hoje, amanhã e depois, e "hoje" é
+qualquer dia da semana. Sem o ajuste, metade das máquinas nascia com atendimento
+marcado em dia de folga: a agenda pinta a coluna inteira de fechada, arrastar
+responde "ela não trabalha nesse dia", e o painel parece quebrado quando o que
+se contradiz é o dado.
+
 ## Testes
 
 `cd server && npm test`. Roda com o `node:test` nativo — sem framework, sem
-dependência a mais. Nove arquivos: o motor de horários e o rateio de combos,
-chamados direto; as rotas de agendamento, combos, cadastro, unidades,
-formulários, registro e plataforma, faladas por HTTP; o isolamento entre
-empresas; e a fila de WhatsApp.
+dependência a mais. Um arquivo por assunto: as contas puras (horários, combos,
+período, datas, remarcação, pagamento, jornada na grade) chamadas direto; as
+rotas faladas por HTTP, como o navegador falaria; o isolamento entre empresas; e
+a fila de WhatsApp. Contar quantos são aqui só garante um número errado na
+próxima semana — `ls server/test` responde melhor.
 
 **A fila tem teste porque é o único código que roda sozinho e alcança gente de
 verdade.** O cron chama, e a mensagem sai para o telefone da cliente de um

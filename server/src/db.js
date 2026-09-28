@@ -263,7 +263,8 @@ export const clientOut = r => r && ({
 export const apptOut = r => r && ({
   id: r.id, clienteId: r.client_id, servicoId: r.service_id, profissionalId: r.staff_id,
   data: r.data, hora: r.hora, duracao: r.duracao, valor: r.valor, status: r.status,
-  pagamento: { status: r.pag_status, forma: r.pag_forma, ref: r.pag_ref },
+  pagamento: { status: r.pag_status, forma: r.pag_forma, ref: r.pag_ref,
+    recebido: Number(r.pag_recebido || 0) },
   origem: r.origem, obs: r.obs, criadoEm: r.criado_em,
   unidadeId: r.unit_id || null,
   // `comboGrupo` amarra os irmãos da mesma venda; cancelar um cancela o grupo.

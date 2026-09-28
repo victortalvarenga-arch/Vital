@@ -542,12 +542,28 @@ Integrações, Logs, Configurar App/Website).
 - [x] Shell com navegação lateral e identidade própria — veio no Bloco 4
 - [x] Agenda com colunas por profissional e blocos proporcionais à duração
 - [x] **Arrastar para remarcar**, com toque e cursor. Ver `ARQUITETURA.md`
+- [x] Arrastar também na visão Dia e no Resumo, com um motor só
+      (`useArrastar.js`); na grade do dia, a coluna ao lado troca quem atende.
+      Ver `ARQUITETURA.md`
 - [x] Agenda por semana, com os dias no eixo X e quem atende dentro do bloco
 - [x] Bloqueio de horário na agenda (almoço, folga, feriado), integrado ao
       `availability.js`, ao calendário do site e à gravação. Funcionário fecha
       só a própria agenda; feriado da empresa é do dono. Ver `ARQUITETURA.md`.
 - [x] Cadastro de unidades, com a profissional vinculada ao endereço e o site
       perguntando onde a cliente quer ser atendida. Ver `ARQUITETURA.md`
+- [x] **Agenda é uma tela só** — Calendário e Agendamentos unificados, com Dia /
+      Semana / Mês, seleção de profissionais e as abas Calendário, Lista e
+      Recepção. Atendimento, novo agendamento e bloqueio abrem em gaveta
+      lateral. Ver `ARQUITETURA.md`
+- [x] **Fluxo de status**: agendado → confirmado → em atendimento → concluído,
+      com um botão por etapa na gaveta e cor própria por estado. Ver
+      `ARQUITETURA.md`
+- [x] **Indisponibilidade na grade**: com uma profissional escolhida, fora da
+      jornada aparece em faixa cinza, e a visão Dia passou a mostrar bloqueio.
+      Ver `ARQUITETURA.md`
+- [x] **Entrada (pagamento parcial).** `appointments.pag_recebido` guarda quanto
+      entrou, `pag_status` virou derivado, e toda consulta de caixa passou a
+      somar o recebido — inclusive a comissão. Ver `ARQUITETURA.md`
 - [ ] Cadastros redesenhados: serviços, equipe com jornada, clientes
 - [x] Financeiro: recebido, a receber, previsto do dia, ticket médio, faltas,
       ranking por serviço, comissões e formas de pagamento
@@ -670,6 +686,21 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Produto
 
+- [ ] **Não dá para desfazer um pagamento fechado pelo sistema.** Desfazer, na
+      gaveta, é clicar na forma acesa — e quem o fechamento automático quitou
+      fica com `pag_forma = 'local'`, que não tem chip. A dica ainda diz "clique
+      na forma marcada", que nesse caso não existe. É justo o caso em que mais
+      se quer desfazer: a cliente não pagou, o sistema deu como paga. Sai com um
+      botão "Desfazer" explícito quando há valor recebido, em vez de pendurar a
+      ação no chip aceso.
+- [ ] **Uma forma de pagamento por atendimento.** `pag_forma` guarda a forma do
+      último recebimento, então entrada em pix quitada em dinheiro credita os
+      dois ao dinheiro na divisão por forma do Financeiro. O caixa total
+      continua certo; só o recorte por forma erra, e só quando a cliente troca
+      de método no meio. A correção é uma tabela `appointment_payments` (uma
+      linha por recebimento, com forma e valor), que também daria o histórico
+      sem depender do `logs` — custa RLS, rota e mudar de novo toda consulta de
+      dinheiro, e por isso ficou para quando o caso aparecer de verdade.
 - [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
       seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
       Menos urgente desde que a ficha saiu do site (2026-09-23): quem responde

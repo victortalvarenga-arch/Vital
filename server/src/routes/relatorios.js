@@ -36,7 +36,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
 
   const g = await db.get(
     `SELECT
-        SUM(CASE WHEN status='concluido' AND pag_status='pago' THEN valor ELSE 0 END) recebido,
+        SUM(CASE WHEN status='concluido' THEN pag_recebido ELSE 0 END) recebido,
         SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos,
         SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas,
         SUM(CASE WHEN status='cancelado' THEN 1 ELSE 0 END) cancelados,
@@ -51,8 +51,8 @@ relatorios.get('/resumo', rota(async (req, res) => {
   );
 
   const aReceber = (await db.get(
-    `SELECT SUM(valor) v FROM appointments
-      WHERE pag_status='aberto' AND data <= ? AND status IN ('agendado','confirmado','concluido') ${meu}`,
+    `SELECT SUM(valor - pag_recebido) v FROM appointments
+      WHERE pag_status <> 'pago' AND data <= ? AND status IN ('agendado','confirmado','concluido') ${meu}`,
     h, ...arg
   )).v || 0;
 
@@ -66,8 +66,8 @@ relatorios.get('/resumo', rota(async (req, res) => {
   // é dinheiro que se espera —, e é por isso que não dá para tirar isto de
   // `previsto - recebido`: ali a falta entra, e a tela prometeria o que não vem.
   const aReceberNoPeriodo = (await db.get(
-    `SELECT SUM(valor) v FROM appointments
-      WHERE data >= ? AND data <= ? AND pag_status='aberto'
+    `SELECT SUM(valor - pag_recebido) v FROM appointments
+      WHERE data >= ? AND data <= ? AND pag_status <> 'pago'
         AND status IN ('agendado','confirmado','concluido') ${meu}`,
     de, ate, ...arg
   )).v || 0;
@@ -121,14 +121,20 @@ relatorios.get('/resumo', rota(async (req, res) => {
     ...r, comissaoValor: (r.producao || 0) * (r.comissao || 0) / 100,
   }));
 
-  // `status='concluido'` junto, e não só `pag_status='pago'`: um atendimento
-  // que entrou como pago e depois virou falta continuava somando aqui, e a
-  // divisão por forma passava a discordar do recebido logo acima. Com o
-  // fechamento automático isso deixou de ser hipótese — é o caminho normal de
-  // quem corrige um no-show.
+  // `status='concluido'` junto, e não só o dinheiro: um atendimento que entrou
+  // como pago e depois virou falta continuava somando aqui, e a divisão por
+  // forma passava a discordar do recebido logo acima. Com o fechamento
+  // automático isso deixou de ser hipótese — é o caminho normal de quem corrige
+  // um no-show.
+  //
+  // `pag_recebido > 0` no lugar de `pag_status='pago'`: a entrada aparece na
+  // divisão no dia em que entra, e a soma das formas continua batendo com o
+  // recebido. O desacerto conhecido é a entrada em pix quitada em dinheiro —
+  // `pag_forma` guarda a última, e ela leva o crédito do valor inteiro. Duas
+  // formas no mesmo atendimento pedem tabela de pagamentos; está em `ROADMAP.md`.
   const porForma = await db.all(
-    `SELECT pag_forma forma, SUM(valor) total FROM appointments
-      WHERE data >= ? AND data <= ? AND pag_status='pago' AND status='concluido' ${meu}
+    `SELECT pag_forma forma, SUM(pag_recebido) total FROM appointments
+      WHERE data >= ? AND data <= ? AND pag_recebido > 0 AND status='concluido' ${meu}
       GROUP BY pag_forma ORDER BY total DESC`,
     de, ate, ...arg
   );
@@ -137,7 +143,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
   // sozinho não diz se o mês está indo bem ou mal.
   const dias = diasEntre(de, ate) + 1;
   const anterior = await db.get(
-    `SELECT SUM(CASE WHEN status='concluido' AND pag_status='pago' THEN valor ELSE 0 END) recebido,
+    `SELECT SUM(CASE WHEN status='concluido' THEN pag_recebido ELSE 0 END) recebido,
             SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos
        FROM appointments WHERE data >= ? AND data <= ? ${meu}`,
     addDias(de, -dias), addDias(de, -1), ...arg
@@ -145,18 +151,20 @@ relatorios.get('/resumo', rota(async (req, res) => {
 
   const recebido = g.recebido || 0;
 
-  // Custos: as comissões pagas sobre o que entrou. Mesma base do `recebido`
-  // (concluído e pago), senão receita, custos e lucro lado a lado contariam
-  // coisas diferentes. A comissão é arredondada em centavos POR atendimento e a
+  // Custos: as comissões pagas sobre o que entrou. Mesma base do `recebido` —
+  // `pag_recebido` de atendimento concluído —, senão receita, custos e lucro
+  // lado a lado contariam coisas diferentes. Com entrada isso deixou de ser
+  // detalhe: comissão sobre o valor cheio de quem pagou metade tiraria da
+  // empresa dinheiro que ainda não entrou. A comissão é arredondada em centavos POR atendimento e a
   // sobra do arredondamento fica com a empresa. Vale para todos: para o
   // funcionário o `escopoDe` já recortou nas comissões DELE (é o que ele recebe).
   //
   // Lucro é do dono. Funcionário recebe `null`: a comissão dos colegas não é
   // dado dele — e para ele "lucro da empresa" nem existe.
   const { c: comissaoCentavos } = await db.get(
-    `SELECT SUM(ROUND(a.valor * 100 * COALESCE(p.comissao, 0) / 100)) c
+    `SELECT SUM(ROUND(a.pag_recebido * 100 * COALESCE(p.comissao, 0) / 100)) c
        FROM appointments a JOIN staff p ON p.id = a.staff_id
-      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' AND a.pag_status='pago' ${meuA}`,
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' ${meuA}`,
     de, ate, ...arg
   );
   const custos = (comissaoCentavos || 0) / 100;
@@ -238,10 +246,10 @@ relatorios.get('/serie', rota(async (req, res) => {
   }
 
   const linhas = await db.all(
-    `SELECT ${DEGRAUS[por]} chave, SUM(a.valor) recebido,
-            SUM(ROUND(a.valor * 100 * COALESCE(p.comissao, 0) / 100)) comissao
+    `SELECT ${DEGRAUS[por]} chave, SUM(a.pag_recebido) recebido,
+            SUM(ROUND(a.pag_recebido * 100 * COALESCE(p.comissao, 0) / 100)) comissao
        FROM appointments a JOIN staff p ON p.id = a.staff_id
-      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' AND a.pag_status='pago'
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido'
         ${so ? 'AND a.staff_id = ?' : ''}
       GROUP BY ${DEGRAUS[por]}`,
     de, ate, ...(so ? [so] : [])
@@ -289,10 +297,10 @@ relatorios.get('/mensal', rota(async (req, res) => {
   const so = escopo || (req.query.profissionalId || null);
 
   const linhas = await db.all(
-    `SELECT substr(a.data, 1, 7) mes, SUM(a.valor) recebido,
-            SUM(ROUND(a.valor * 100 * COALESCE(p.comissao, 0) / 100)) comissao
+    `SELECT substr(a.data, 1, 7) mes, SUM(a.pag_recebido) recebido,
+            SUM(ROUND(a.pag_recebido * 100 * COALESCE(p.comissao, 0) / 100)) comissao
        FROM appointments a JOIN staff p ON p.id = a.staff_id
-      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' AND a.pag_status='pago'
+      WHERE a.data >= ? AND a.data <= ? AND a.status='concluido'
         ${so ? 'AND a.staff_id = ?' : ''}
       GROUP BY substr(a.data, 1, 7)`,
     de, ate, ...(so ? [so] : [])

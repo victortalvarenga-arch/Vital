@@ -33,6 +33,8 @@ const TOM = {
   'acesso.removido': 'ruim',
   'profissional.apagada': 'ruim',
   'agendamento.pago': 'bom',
+  'agendamento.entrada': 'bom',
+  'agendamento.pagamento_desfeito': 'ruim',
   'agendamento.criado': 'bom',
   'agendamento.combo': 'bom',
   'cliente.criado': 'bom',

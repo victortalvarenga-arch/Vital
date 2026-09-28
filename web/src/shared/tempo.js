@@ -10,6 +10,15 @@
  */
 
 /** 'HH:MM' → minutos desde a meia-noite. */
+export const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+export const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "sex, 5 mar" — a data como ela aparece em botão, aviso e confirmação. */
+export const fmtData = iso => {
+  const d = new Date(iso + 'T12:00:00');
+  return `${DIAS[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()]}`;
+};
+
 export const toMin = h => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
 
 /** Minutos desde a meia-noite → 'HH:MM'. */
