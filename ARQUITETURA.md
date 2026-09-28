@@ -176,22 +176,10 @@ ser remarcado e sai da agenda; um bloqueio é a empresa dizendo que ali não se
 atende. Guardar "almoço" como se fosse atendimento faria cancelar o almoço
 aparecer como cancelamento no relatório.
 
-**A tela monta antes de criar, e manda as datas prontas.** O primeiro desenho
-pedia uma data e uma repetição, e não dava conta do caso mais comum: "fecho
-segunda e quarta, das 8 às 10, pelas próximas seis semanas" — eram dois
-bloqueios criados separadamente, com a conta do calendário feita de cabeça duas
-vezes. Hoje se monta uma lista de faixas (dias da semana + horas), a repetição
-vale para o conjunto, e só então se cria.
-
-Por isso o `POST` aceita `datas: [...]` além de `data` + `repetir`: o calendário
-já foi calculado na tela para a pessoa conferir na prévia, e refazer a conta no
-servidor seria uma segunda versão da mesma regra, livre para divergir do que ela
-viu antes de clicar. O servidor valida cada data, recusa a criação inteira se
-uma estiver torta (metade gravada seria pior que nada) e descarta repetidas.
-
-**Bloquear não desmarca ninguém.** Se já havia cliente no intervalo, a rota
-devolve a lista e a tela avisa — cancelar sozinho o atendimento de alguém seria
-decidir pela empresa uma coisa que ela precisa saber que aconteceu.
+Bloqueio que se repete, as duas portas que criam um e por que a tela manda as
+datas prontas: tudo em **[Horários fechados](#horários-fechados)**. Estava
+escrito aqui também, palavra por palavra — e dois lugares com o mesmo assunto é
+o começo de dois lugares com versões diferentes dele.
 
 **Conflito de horário se valida no servidor, dentro da transação que grava.**
 `lib/availability.js` é o único lugar que decide se um horário está livre. O
@@ -398,6 +386,26 @@ em vez de cruzar três colunas.
 carrega 120 dias, e um mês mais antigo apareceria vazio como se nada tivesse
 acontecido. Ela recebe período e pessoas de cima, e guarda só o próprio filtro
 de estado.
+
+**Abrir coisa por cima da agenda é gaveta; perguntar "tem certeza?" é modal.**
+São duas intenções diferentes, e por isso duas formas (`Gaveta` e `Confirmar`,
+em `Base.jsx`):
+
+- A **gaveta** entra pela direita e deixa a agenda visível ao lado — abrir um
+  atendimento com modal centrado escondia a grade que se estava lendo, e fechar
+  virava a única forma de voltar a ver o dia. Vale para o detalhe do
+  atendimento, o novo agendamento e o bloqueio. No celular sobe de baixo, que é
+  o gesto que o telefone já ensina, e para em 92% da altura: a faixa que sobra
+  em cima é o que diz que aquilo é uma camada, não a tela inteira.
+- O **modal de confirmação** continua no meio, pequeno, para excluir e
+  cancelar. O que ele pede é que a pessoa **pare** — gaveta convida a seguir
+  olhando a agenda, e aqui é o contrário. O texto diz o que se perde ("some do
+  caixa e do histórico dela") e oferece a saída mais branda: marcar como
+  cancelado em vez de apagar.
+
+A animação da gaveta move **só a posição, nunca a opacidade**: animando opacidade
+ela ficava translúcida ao entrar e a página aparecia por baixo do texto — bonito
+parado, ilegível em movimento.
 
 `Base.jsx` nasceu neste trabalho, com `Modal`, `Campo` e `Switch`: eram eles que
 prendiam qualquer tela dentro do `App.jsx` — extrair um componente significava
@@ -1172,9 +1180,63 @@ conta continua certa com a semana rolando na horizontal, a página rolando na
 vertical e qualquer largura de coluna — nada disso precisa ser previsto.
 
 **O arrasto é só a intenção.** Quem decide se o horário novo vale é o servidor,
-que confere conflito e jornada dentro da mesma transação que grava — soltar em
-cima de outro atendimento volta 409 e nada muda. Atendimento concluído ou com
-falta não se arrasta: mexer no passado é pelo detalhe, de propósito.
+que confere conflito e jornada dentro da mesma transação que grava — é o único
+lugar onde duas pessoas arrastando para o mesmo buraco no mesmo segundo podem
+ser separadas. Atendimento concluído ou com falta não se arrasta: mexer no
+passado é pelo detalhe, de propósito.
+
+**A tela responde antes de soltar** (`shared/remarcar.js`, testada em
+`server/test/remarcar.test.js`). Enquanto o dedo está em cima, uma **sombra**
+ocupa o lugar de destino e o rótulo flutuante diz dia e hora — ou, em vermelho
+nos dois, por que não dá: já passou, fora do horário de trabalho, horário
+ocupado, horário bloqueado.
+
+A sombra é **o próprio atendimento, esmaecido**: mesma marcação `.appt`, mesma
+cor de quem atende, nome da cliente e serviço dentro. Era um retângulo
+pontilhado, que dizia "vai cair aqui" mas não dizia *o quê* — e mostrar o bloco
+inteiro resolve as duas perguntas de uma vez: o **tamanho** (meia hora a mais
+muda o que ainda cabe depois) e a **identidade** (é essa cliente mesmo que estou
+movendo?). Ela sai de `agendamentos`, e não da semana à vista: carregando alguém
+para outra semana, o bloco de origem já não está mais na tela. Sem isso a pessoa
+arrastava até um lugar impossível e só descobria depois de soltar, e tentava de
+novo no mesmo lugar. **Isso não substitui o servidor**, e o arquivo diz isso no
+alto: é palpite de tela, feito com o que o painel já tem na memória.
+
+**Soltar não remarca: pergunta.** Arrastar move o dinheiro de dia e muda a hora
+que a cliente combinou — perto demais de um tapa na tela para valer sozinho. A
+janela mostra de onde para onde, e avisa que a cliente não é avisada
+automaticamente (a mensagem sai pela fila). Soltar num destino recusado vira
+aviso com o motivo, porque não acontecer nada faz parecer que o arrasto quebrou.
+
+**Segurar na beirada anda no período.** Com o dedo parado a menos de 48px da
+borda da grade, uma **faixa aparece e vai enchendo** — o mesmo aviso que o
+celular dá quando se arrasta para o canto —, e a cada volta a semana vira. Sem
+ela a agenda pulava sozinha e parecia defeito. O primeiro salto vem 750ms depois
+de chegar ali e os seguintes a cada 1,1s: passar raspando não vira a agenda,
+quem fica atravessa o mês sem pressa, e sair da faixa para o relógio na hora. É
+um `setTimeout` que se remarca, e não um `setInterval`, justamente porque os
+dois tempos são diferentes.
+
+**Virar a semana desmonta o bloco que está sendo arrastado** — ele fica na
+semana que passou —, e isso quebrou a coisa toda de dois jeitos que valem ficar
+escritos:
+
+- **Ouvintes no bloco morriam com ele.** `pointerup` nunca chegava, o arrasto
+  não terminava, e o relógio da borda seguia empurrando a agenda para sempre:
+  a tela travava na semana seguinte sem deixar voltar. Hoje `pointermove`,
+  `pointerup` e `pointercancel` ficam na **janela**, e um `useEffect` de
+  desmonte encerra o arrasto se alguém trocar de aba no meio dele.
+- **O navegador prende o ponteiro sozinho em quem recebeu o toque** e, quando
+  esse elemento sai do DOM, dispara `pointercancel`. O arrasto acabava calado na
+  primeira virada: a sombra sumia e soltar não perguntava nada. Por isso o
+  ponteiro é preso **na grade** (`.agenda`), que não desmonta.
+
+Os dois só aparecem quando a virada acontece no meio do arrasto — o caminho que
+a funcionalidade da beirada criou.
+
+O destino encaixa no passo da empresa (`config.passoAgenda`, 30 minutos por
+padrão), e não em minuto solto: a agenda é vendida nesse passo, e deixar o
+arrasto parar às 10h07 criaria horário que nenhum outro caminho do sistema cria.
 
 ## Unidades
 
@@ -1296,6 +1358,12 @@ O caminho que sobrou tem três peças:
 resposta só era gravada no momento da criação e a maioria dos agendamentos vem
 do site.
 
+**O botão de preencher só aparece em serviço que pede ficha** — a gaveta do
+atendimento pergunta ao servidor (`/formularios/servico/:id`) antes de oferecer.
+Aparecia em todos: num corte de cabelo, clicar abria um espaço vazio com "Gravar
+ficha" e nada para responder. Botão que promete uma tela inexistente é pior que
+botão ausente, porque ensina a desconfiar dos outros.
+
 Responder de novo **acrescenta**; não reescreve (`REVOKE UPDATE` na migration
 012). As duas versões ficam no histórico, cada uma com a sua data — corrigir uma
 ficha é registrar o que se sabe agora, não apagar o que se declarou antes.
@@ -1357,6 +1425,19 @@ O custo é escrever N linhas; para um mês de férias são vinte e poucas. A col
 semanas" ser um comando e não três. `?serie=1` no DELETE apaga o grupo — e a
 rota confere que o laço existe antes, senão pedir série num bloqueio avulso
 rodaria `WHERE serie IS NULL` e levaria junto todo avulso da empresa.
+
+**Duas portas para a mesma coisa, de propósito.** O botão **Bloquear horário**
+da Agenda resolve o caso de balcão numa janela só: um dia, um intervalo e um
+**Repetir** com quatro opções — *não repetir*, *todos os dias*, *toda semana* ou
+*até uma data*. As três primeiras viram `repetir: { cada, vezes }`; "até uma
+data" monta a lista de dias na própria tela e manda `datas: [...]`, o que
+também tira do caminho o teto de 52 repetições — férias longas cabem. A linha
+embaixo diz por extenso o que vai acontecer ("Todo domingo, das 12:00 às 13:00.
+Fecha até dom, 18 out"), porque "4 semanas" sozinho não responde à pergunta que
+se faz na hora, que é *até quando fica fechado*.
+
+A tela **Horários fechados** é a outra porta, para o caso composto — e é ela que
+explica o resto desta seção.
 
 **A tela monta antes de criar, e manda as datas prontas.** O primeiro desenho
 pedia uma data e uma repetição, e não dava conta do caso mais comum: "fecho

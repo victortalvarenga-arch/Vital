@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { emFaixas, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
+import { podeRemarcar } from '../shared/remarcar.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
@@ -14,7 +15,7 @@ import GradeDoMes from './GradeDoMes.jsx';
 import Recepcao from './Recepcao.jsx';
 import SeletorCliente from './SeletorCliente.jsx';
 import CampoData from './CampoData.jsx';
-import { Campo, Modal, Switch } from './Base.jsx';
+import { Campo, Confirmar, Gaveta, Modal, Switch } from './Base.jsx';
 import Suporte from './Suporte.jsx';
 import Formularios from './Formularios.jsx';
 import Ficha from './Ficha.jsx';
@@ -309,6 +310,8 @@ function Painel({ sessao, aoSair }) {
  */
 const H_INI = 8, H_FIM = 20, PX_H = 56, TOPO = 10;
 const MIN_POR_PX = 60 / PX_H;
+/* Quanto perto da beirada é "segurar na beirada" para virar o período. */
+const BORDA = 48;
 
 /** Os sete dias da semana que contém `iso`, de segunda a domingo. */
 function semanaDe(iso) {
@@ -400,6 +403,16 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
   const [novo, setNovo] = useState(pedido === 'novo');
   const [bloquear, setBloquear] = useState(pedido === 'bloquear' ? {} : null);
   const [arrasto, setArrasto] = useState(null);
+  // Onde o atendimento foi solto, esperando a confirmação. Arrastar move o
+  // dinheiro de dia e avisa a cliente — perto demais de um tapa na tela para
+  // valer sem perguntar.
+  const [remarcar, setRemarcar] = useState(null);
+  // Excluir apaga o atendimento do caixa e do histórico da cliente — pergunta
+  // antes, numa janelinha no meio da tela, que é o formato que faz parar.
+  const [excluindo, setExcluindo] = useState(null);
+  // Como encerrar o arrasto em curso, se a tela sair do ar antes de soltar.
+  const fimDoArrasto = useRef(null);
+  useEffect(() => () => fimDoArrasto.current?.(), []);
   // O pedido vale para esta montagem só; `novo` já nasceu com ele acima.
   useEffect(() => { if (pedido) aoConsumirPedido(); }, []);
 
@@ -439,7 +452,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
     ? staff.filter(p => p.ativo && (pessoas.length === 0 || pessoas.includes(p.id)))
     : staff.filter(p => p.id === dados.eu?.profissionalId);
 
-  const andar = passos => setAncora(passoDaEscala(escalaAtiva, ancora, passos));
+  // Forma funcional: o relógio da borda dispara de novo a cada 750ms, e com a
+  // âncora do fecho ele voltaria sempre para a MESMA semana seguinte.
+  const andar = passos => setAncora(atual => passoDaEscala(escalaAtiva, atual, passos));
 
   const mudarStatus = async (id, status) => {
     await acao(() => api.atualizarAgendamento(id, { status }), 'Agendamento atualizado');
@@ -467,29 +482,57 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
    * conflito e jornada dentro da mesma transação que grava. Aqui é só a
    * intenção — e é por isso que soltar em cima de outro atendimento devolve
    * erro em vez de sobrescrever. */
+  /** O que a tela sabe dizer sobre um destino, enquanto o dedo está em cima. */
+  const conferir = (a, para) => podeRemarcar({
+    agendamento: a, para, profissional: staff.find(p => p.id === a.prof),
+    agendamentos, bloqueios: dados.bloqueios || [],
+    agora: { data: hoje, hora: toHora(new Date().getHours() * 60 + new Date().getMinutes()) },
+  });
+
   const aoPegar = (e, a) => {
     // Atendimento que já aconteceu não se remarca; mudar isso é pelo detalhe.
     if (a.status === 'concluido' || a.status === 'falta') { setSel(a); return; }
 
-    const alvo = e.currentTarget;
-    alvo.setPointerCapture(e.pointerId);
+    // Duas coisas para o arrasto sobreviver à virada de semana, que desmonta o
+    // bloco arrastado (ele fica na semana que passou):
+    //
+    // 1. Os ouvintes vão na JANELA, não no bloco — no bloco, morriam com ele, e
+    //    o relógio da borda seguia empurrando a agenda para sempre, sem deixar
+    //    voltar.
+    // 2. O ponteiro é preso na GRADE, não no bloco. O navegador prende sozinho
+    //    em quem recebeu o toque e, quando esse elemento sai do DOM, dispara
+    //    `pointercancel` — o arrasto acabava sozinho na primeira virada, a
+    //    sombra sumia e soltar não perguntava nada.
+    // Em try: prender o ponteiro é melhoria, não requisito. Quando o navegador
+    // recusa (ponteiro já solto, evento sintético), a exceção subia do
+    // `onPointerDown` e derrubava o clique inteiro — o atendimento nem abria.
+    try { e.currentTarget.closest('.agenda')?.setPointerCapture(e.pointerId); } catch { /* segue sem */ }
 
     const inicio = { x: e.clientX, y: e.clientY };
     const toque = e.pointerType === 'touch';
     let ativo = false;
     let destino = null;
+    // Virar a semana segurando na beirada. `lado` guarda em qual borda o dedo
+    // está parado; o relógio dispara enquanto continuar lá.
+    let lado = null;
+    let relogio = null;
+
+    const pararBorda = () => { if (relogio) clearTimeout(relogio); relogio = null; lado = null; };
 
     const espera = toque
       ? setTimeout(() => { ativo = true; setArrasto({ id: a.id }); }, 320)
       : null;
 
     const encerrar = () => {
-      alvo.onpointermove = alvo.onpointerup = alvo.onpointercancel = null;
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      window.removeEventListener('pointercancel', encerrar);
       if (espera) clearTimeout(espera);
+      pararBorda();
       setArrasto(null);
     };
 
-    alvo.onpointermove = ev => {
+    const mover = ev => {
       const andou = Math.hypot(ev.clientX - inicio.x, ev.clientY - inicio.y);
       if (!ativo) {
         // No toque, mexer antes de segurar é rolagem: desiste do arrasto.
@@ -497,25 +540,57 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
         if (andou < 5) return;
         ativo = true;
       }
+
+      // Segurar perto da borda anda no período — é o que permite levar alguém
+      // para a semana que vem sem soltar o dedo. O primeiro salto só acontece
+      // 750ms depois de chegar ali: passar raspando não vira a agenda, e sair
+      // da faixa para o relógio na hora.
+      const grade = document.querySelector('.agenda');
+      const r = grade?.getBoundingClientRect();
+      const perto = r && (ev.clientX < r.left + BORDA ? -1
+        : ev.clientX > r.right - BORDA ? 1 : null);
+      if (perto !== lado) {
+        pararBorda();
+        lado = perto;
+        // O primeiro salto espera mais que os seguintes: quem encosta de
+        // passagem não vira a agenda, e quem fica ali atravessa o mês sem
+        // pressa. Relógio que se remarca, e não `setInterval`, porque os dois
+        // tempos são diferentes.
+        if (perto) {
+          const bater = espera => {
+            relogio = setTimeout(() => { andar(perto); bater(1100); }, espera);
+          };
+          bater(750);
+        }
+      }
+
       destino = ondeCaiu(ev.clientX, ev.clientY, a, passo);
-      setArrasto(destino ? { id: a.id, ...destino } : { id: a.id });
+      setArrasto(destino
+        ? { id: a.id, dur: a.duracao, lado, ...destino, ...conferir(a, destino) }
+        : { id: a.id, dur: a.duracao, lado });
     };
 
-    alvo.onpointerup = async () => {
+    const soltar = () => {
       const alvoFinal = destino;
       const arrastou = ativo;
       encerrar();
       if (!arrastou) { setSel(a); return; }            // não saiu do lugar: é um toque
       if (!alvoFinal) return;
-      if (alvoFinal.data === a.data && alvoFinal.hora === a.hora) return;
 
-      await acao(
-        () => api.atualizarAgendamento(a.id, { data: alvoFinal.data, hora: alvoFinal.hora }),
-        `Remarcado para ${fmtData(alvoFinal.data)} às ${alvoFinal.hora}`
-      );
+      const veredito = conferir(a, alvoFinal);
+      if (veredito.igual) return;                      // voltou para o mesmo lugar
+      // Recusa da tela é aviso, não silêncio: soltar num lugar impossível e
+      // nada acontecer faz parecer que o arrasto está quebrado.
+      if (!veredito.ok) { aviso(`Não dá: ${veredito.motivo}.`); return; }
+      setRemarcar({ a, ...alvoFinal });
     };
 
-    alvo.onpointercancel = encerrar;
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('pointercancel', encerrar);
+    // Guardado para o desmonte da tela: trocar de aba no meio do arrasto
+    // deixaria o relógio da borda batendo sozinho.
+    fimDoArrasto.current = encerrar;
   };
 
   return (
@@ -608,6 +683,16 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
           </div>
         </div>
 
+        {/* A faixa que carrega na beirada. Enquanto o dedo fica ali ela enche,
+            e a cada volta a semana vira — é o mesmo aviso que o celular dá
+            quando se arrasta para o canto: sem ele, a agenda pula sozinha e
+            parece defeito. */}
+        {arrasto?.lado && (
+          <div className={'ag-borda ' + (arrasto.lado < 0 ? 'esq' : 'dir')} aria-hidden="true">
+            {arrasto.lado < 0 ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </div>
+        )}
+
         <div className="semana">
           {semana.map(dia => {
             const daqui = doPeriodo.filter(a => a.data === dia);
@@ -647,6 +732,35 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                       </button>
                     );
                   })}
+
+                  {/* A sombra é o próprio atendimento, esmaecido, e não um
+                      contorno pontilhado: mostra a altura (meia hora a mais
+                      muda o que cabe depois) e também o que é aquilo — de quem
+                      é e qual serviço —, que é o que se confere antes de
+                      largar. Sai de `agendamentos`, e não da semana à vista:
+                      carregando alguém para outra semana, o de origem já não
+                      está mais na tela. */}
+                  {arrasto?.data === dia && arrasto.hora && (() => {
+                    const a = agendamentos.find(x => x.id === arrasto.id);
+                    if (!a) return null;
+                    const c = clientes.find(x => x.id === a.cliente);
+                    const s = servicos.find(x => x.id === a.servico);
+                    const p = staff.find(x => x.id === a.prof);
+                    return (
+                      <div className={'appt sombra' + (arrasto.ok ? '' : ' nao')}
+                           style={{
+                             top: TOPO + (toMin(arrasto.hora) - H_INI * 60) / MIN_POR_PX,
+                             height: Math.max(arrasto.dur / MIN_POR_PX - 2, 26),
+                             left: 3, right: 3,
+                             background: (p?.cor || '#999') + '1f',
+                             borderLeftColor: p?.cor || '#999',
+                           }}>
+                        <b>{c?.nome.split(' ')[0]}</b>
+                        <span className="t">{arrasto.hora}</span> · {s?.nome}
+                        <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
+                      </div>
+                    );
+                  })()}
 
                   {blocos.map(({ a, ini, fim, faixa, faixas }) => {
                     const c = clientes.find(x => x.id === a.cliente);
@@ -690,9 +804,50 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
       </div>
       )}
 
-      {/* Onde vai cair, enquanto o dedo ainda está em cima. */}
+      {/* Onde vai cair, enquanto o dedo ainda está em cima — e, quando não dá,
+          por que não. Descobrir o motivo só depois de soltar faz a pessoa
+          tentar de novo no mesmo lugar. */}
       {arrasto?.hora && (
-        <div className="arrasto-aviso">{fmtData(arrasto.data)} às {arrasto.hora}</div>
+        <div className={'arrasto-aviso' + (arrasto.ok ? '' : ' nao')}>
+          {arrasto.ok || arrasto.igual
+            ? `${fmtData(arrasto.data)} às ${arrasto.hora}`
+            : arrasto.motivo}
+        </div>
+      )}
+
+      {remarcar && (
+        <Modal onClose={() => setRemarcar(null)}>
+          <h2 style={{ fontSize: 22, marginBottom: 6 }}>Remarcar?</h2>
+          <p className="rm-quem">
+            {clientes.find(c => c.id === remarcar.a.cliente)?.nome || 'A cliente'}
+            {' · '}{servicos.find(s => s.id === remarcar.a.servico)?.nome}
+          </p>
+          <div className="rm-de-para">
+            <div>
+              <span className="eyebrow">De</span>
+              <b>{fmtData(remarcar.a.data)}</b>
+              <i>{remarcar.a.hora}</i>
+            </div>
+            <ArrowRight size={18} />
+            <div className="rm-novo">
+              <span className="eyebrow">Para</span>
+              <b>{fmtData(remarcar.data)}</b>
+              <i>{remarcar.hora}</i>
+            </div>
+          </div>
+          <p className="rm-nota">A cliente não é avisada automaticamente — a mensagem sai pela fila.</p>
+          <div className="rm-botoes">
+            <button className="btn btn-g" onClick={() => setRemarcar(null)}>Cancelar</button>
+            <button className="btn btn-p" onClick={async () => {
+              const { a, data, hora } = remarcar;
+              setRemarcar(null);
+              await acao(
+                () => api.atualizarAgendamento(a.id, { data, hora }),
+                `Remarcado para ${fmtData(data)} às ${hora}`
+              );
+            }}>Remarcar</button>
+          </div>
+        </Modal>
       )}
 
       {sel && (() => {
@@ -705,12 +860,19 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
           servico: s.nome, empresa: dados.config.nome, estudio: dados.config.nome, data: fmtData(sel.data), profissional: p.nome.split(' ')[0], valor: brl(sel.valor),
         });
         return (
-          <Modal onClose={() => setSel(null)}>
+          <Gaveta onClose={() => setSel(null)} titulo="Atendimento">
             <div className="eyebrow">{fmtDataLonga(sel.data)} · {sel.hora}</div>
-            <h2 style={{ fontSize: 26, margin: '6px 0 4px' }}>{c?.nome}</h2>
-            <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: sel.adicionais.length ? 10 : 18 }}>
-              {s?.nome} · {sel.duracao} min · com {p?.nome} · <b className="mono">{brl(sel.valor)}</b>
-            </p>
+            <h2 style={{ fontSize: 26, margin: '6px 0 16px' }}>{c?.nome}</h2>
+
+            {/* O resumo em linhas, e não numa frase corrida: quem abre isto
+                está conferindo um dado de cada vez — qual serviço, com quem,
+                quanto — e frase obriga a ler tudo para achar um. */}
+            <div className="at-resumo">
+              <div><span>Serviço</span><b>{s?.nome}</b></div>
+              <div><span>Duração</span><b>{sel.duracao} min</b></div>
+              <div><span>Profissional</span><b>{p?.nome}</b></div>
+              <div><span>Valor</span><b className="mono">{brl(sel.valor)}</b></div>
+            </div>
             {/* Quem atende precisa saber o que foi comprado junto antes de
                 começar — e o valor só fecha com o total quando os extras
                 aparecem discriminados. */}
@@ -752,11 +914,24 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
                   {['pix', 'cartao', 'dinheiro'].map(fm => <button key={fm} className="chip" onClick={() => marcarPago(sel.id, fm)}>Receber em {fm}</button>)}
                 </div>}
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <a className="btn btn-wa" href={waLink(c.fone, msg)} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> Avisar no WhatsApp</a>
-              <button className="btn btn-g btn-erro" onClick={() => excluir(sel.id)}><Trash2 size={16} /> Excluir</button>
+            <div className="at-secao">
+              <span className="eyebrow">Cliente</span>
+              {c?.fone && (
+                <a className="at-linha" href={`tel:${soDigitos(c.fone)}`}>
+                  <Phone size={14} /> {fmtFone(c.fone)}
+                </a>
+              )}
+              <a className="at-linha" href={waLink(c.fone, msg)} target="_blank" rel="noopener noreferrer">
+                <MessageCircle size={14} /> Avisar no WhatsApp
+              </a>
             </div>
-          </Modal>
+
+            <div className="at-acoes">
+              <button className="btn btn-g btn-erro" onClick={() => setExcluindo(sel)}>
+                <Trash2 size={16} /> Excluir atendimento
+              </button>
+            </div>
+          </Gaveta>
         );
       })()}
 
@@ -771,6 +946,15 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
         <BloquearHorario dados={dados} poderes={poderes} data={bloquear.data || diaParaAcao}
                          acao={acao} aviso={aviso} fechar={() => setBloquear(null)} />
       )}
+
+      {excluindo && (
+        <Confirmar
+          titulo="Excluir este atendimento?"
+          texto={`${clientes.find(c => c.id === excluindo.cliente)?.nome || 'A cliente'}, ${fmtData(excluindo.data)} às ${excluindo.hora}. Some do caixa e do histórico dela, e não dá para desfazer. Para tirar do dia sem apagar o registro, marque como cancelado.`}
+          rotulo="Excluir" perigo
+          aoFechar={() => setExcluindo(null)}
+          aoConfirmar={async () => { const id = excluindo.id; setExcluindo(null); await excluir(id); }} />
+      )}
     </>
   );
 }
@@ -782,20 +966,75 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
  * avisa e a equipe remarca à mão — cancelar sozinho o atendimento de alguém
  * seria decidir pela empresa uma coisa que ela precisa saber que aconteceu.
  */
+/**
+ * Repetir o bloqueio. O servidor grava **uma linha por ocorrência** (migration
+ * 013), e não uma regra: cancelar uma terça sem desfazer as outras é o caso
+ * normal, e o motor de horários continua conferindo por data.
+ *
+ * `vezes` acompanha o tipo: quatro semanas é um mês de folga, catorze dias são
+ * duas semanas de almoço. O teto do servidor é 52.
+ */
+/** "Todo domingo", "Toda terça-feira" — domingo e sábado são masculinos. */
+function todoDiaDaSemana(iso) {
+  const d = new Date(iso + 'T12:00:00').getDay();
+  return `${d === 0 || d === 6 ? 'Todo' : 'Toda'} ${DIA_LONGO[d]}`;
+}
+
+/** Os motivos que se escreve o tempo todo. Um toque preenche o campo. */
+const MOTIVOS = [
+  { emoji: '🍽️', texto: 'Almoço' },
+  { emoji: '☕', texto: 'Pausa' },
+  { emoji: '🏖️', texto: 'Férias' },
+  { emoji: '🔧', texto: 'Manutenção' },
+];
+
+const REPETICOES = [
+  { k: 'nao', rotulo: 'Não repetir' },
+  { k: 'dia', rotulo: 'Todos os dias', vezes: 14, unidade: 'dias' },
+  { k: 'semana', rotulo: 'Toda semana', vezes: 4, unidade: 'semanas' },
+  // Férias: fecha todo dia até a data escolhida. Manda a lista pronta em vez de
+  // `vezes`, como faz a tela de Horários fechados — assim não esbarra no teto
+  // de 52 repetições, e o servidor grava exatamente o que se viu na tela.
+  { k: 'ate', rotulo: 'Até uma data' },
+];
+
+/** Todos os dias de `de` a `ate`, inclusive. O servidor aceita até 400. */
+function diasAte(de, ate) {
+  const lista = [];
+  for (let d = de; d <= ate && lista.length < 400; d = addDias(d, 1)) lista.push(d);
+  return lista;
+}
+
 function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
   const [f, setF] = useState({
     // Funcionário só fecha a própria agenda; para ele o campo nem faz escolha.
     profissionalId: poderes.verDeTodos ? '' : (dados.eu?.profissionalId || ''),
     data, horaIni: '12:00', horaFim: '13:00', motivo: '',
   });
+  const [repete, setRepete] = useState('nao');
+  const [vezes, setVezes] = useState(14);
+  const [ate, setAte] = useState(addDias(data, 7));
   const [ocupado, setOcupado] = useState(false);
   const [conflitos, setConflitos] = useState(null);
+
+  const tipo = REPETICOES.find(r => r.k === repete);
+  const datasAte = repete === 'ate' ? diasAte(f.data, ate) : null;
+  // Até quando vai, dito por extenso: "4 semanas" sozinho não responde a
+  // pergunta que se faz na hora, que é "até quando fica fechado".
+  const ultima = repete === 'nao' ? null
+    : repete === 'ate' ? datasAte.at(-1)
+    : addDias(f.data, (vezes - 1) * (repete === 'semana' ? 7 : 1));
+  const quantas = repete === 'ate' ? datasAte.length : vezes;
 
   const salvar = async e => {
     e.preventDefault();
     setOcupado(true);
     try {
-      const r = await api.criarBloqueio(f);
+      const r = await api.criarBloqueio(
+        repete === 'nao' ? f
+          : repete === 'ate' ? { ...f, datas: datasAte }
+          : { ...f, repetir: { cada: repete, vezes } }
+      );
       if (r.jaAgendados?.length) {
         // Não fecha a janela: a equipe precisa ler quem ficou no meio.
         setConflitos(r.jaAgendados);
@@ -811,7 +1050,7 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
   };
 
   if (conflitos) return (
-    <Modal onClose={fechar}>
+    <Gaveta onClose={fechar} titulo="Bloqueado, mas atenção">
       <h2 style={{ fontSize: 22, marginBottom: 10 }}>Bloqueado, mas atenção</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
         {conflitos.length === 1 ? 'Já havia uma cliente' : `Já havia ${conflitos.length} clientes`} nesse
@@ -826,11 +1065,11 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
               onClick={async () => { await acao(() => Promise.resolve(), 'Horário bloqueado'); fechar(); }}>
         Entendi
       </button>
-    </Modal>
+    </Gaveta>
   );
 
   return (
-    <Modal onClose={fechar}>
+    <Gaveta onClose={fechar} titulo="Bloquear horário">
       <form onSubmit={salvar}>
         <h2 style={{ fontSize: 24, marginBottom: 6 }}>Bloquear horário</h2>
         <p style={{ color: 'var(--muted)', fontSize: 13.5, marginBottom: 18 }}>
@@ -858,19 +1097,74 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
                  onChange={e => setF(v => ({ ...v, horaFim: e.target.value }))} /></Campo>
         </div>
 
+        <Campo label="Repetir">
+          <div className="fin-seg bl-rep" role="group" aria-label="Repetir">
+            {REPETICOES.map(r => (
+              <button key={r.k} type="button" className={repete === r.k ? 'on' : ''}
+                      aria-pressed={repete === r.k}
+                      onClick={() => { setRepete(r.k); if (r.vezes) setVezes(r.vezes); }}>
+                {r.rotulo}
+              </button>
+            ))}
+          </div>
+        </Campo>
+
+        {repete !== 'nao' && (
+          <div className={'bl-quantas' + (repete === 'ate' ? ' data' : '')}>
+            {repete === 'ate' ? (
+              <>
+                <label htmlFor="bl-ate">Fechar até</label>
+                <CampoData id="bl-ate" valor={ate} aoMudar={setAte} min={f.data} />
+                <span>
+                  Todos os dias, das {f.horaIni} às {f.horaFim} —{' '}
+                  {quantas} {quantas === 1 ? 'dia' : 'dias'} no total.
+                </span>
+              </>
+            ) : (
+              <>
+                <label htmlFor="bl-vezes">Por quantas {tipo.unidade}?</label>
+                <input id="bl-vezes" type="number" min="2" max="52" value={vezes}
+                       onChange={e => setVezes(Math.min(Math.max(+e.target.value || 2, 2), 52))} />
+                <span>
+                  {repete === 'semana'
+                    ? `${todoDiaDaSemana(f.data)}, das ${f.horaIni} às ${f.horaFim}.`
+                    : `Todos os dias, das ${f.horaIni} às ${f.horaFim}.`}
+                  {' '}Fecha até {fmtData(ultima)}.
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
         <Campo label="Motivo (aparece só para a equipe)">
-          <input placeholder="Almoço, folga, feriado…" value={f.motivo}
+          {/* Os quatro que se escreve o tempo todo, a um toque. O campo continua
+              aberto: motivo é texto livre porque cada empresa fecha a agenda
+              pelos próprios motivos — lista fixa aqui viraria lista errada na
+              segunda empresa. */}
+          <div className="bl-tipos">
+            {MOTIVOS.map(m => (
+              <button key={m.texto} type="button"
+                      className={'chip' + (f.motivo === m.texto ? ' on' : '')}
+                      onClick={() => setF(v => ({ ...v, motivo: v.motivo === m.texto ? '' : m.texto }))}>
+                <span aria-hidden="true">{m.emoji}</span> {m.texto}
+              </button>
+            ))}
+          </div>
+          <input placeholder="Ou escreva outro" value={f.motivo}
                  onChange={e => setF(v => ({ ...v, motivo: e.target.value }))} />
         </Campo>
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-p" style={{ flex: 1 }} type="submit" disabled={ocupado}>
-            {ocupado ? 'Bloqueando…' : 'Bloquear'}
+            {ocupado ? 'Bloqueando…'
+              : repete === 'nao' ? 'Bloquear'
+              : repete === 'ate' ? `Bloquear ${quantas} ${quantas === 1 ? 'dia' : 'dias'}`
+              : `Bloquear ${vezes} ${tipo.unidade}`}
           </button>
           <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
         </div>
       </form>
-    </Modal>
+    </Gaveta>
   );
 }
 
@@ -972,7 +1266,7 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
   };
 
   return (
-    <Modal onClose={fechar}>
+    <Gaveta onClose={fechar} titulo="Novo agendamento">
       <h2 style={{ fontSize: 24, marginBottom: 18 }}>Novo agendamento</h2>
 
       {combos.length > 0 && (
@@ -1114,7 +1408,7 @@ function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
           {ocupado ? 'Criando…' : ehCombo ? 'Agendar promoção' : 'Criar agendamento'}
         </button>
       )}
-    </Modal>
+    </Gaveta>
   );
 }
 
@@ -1211,6 +1505,7 @@ function FichasDaCliente({ cliente, aviso }) {
  */
 function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
   const [fichas, setFichas] = useState(null);
+  const [temFormulario, setTemFormulario] = useState(false);
   const [respostas, setRespostas] = useState({});
   const [abrindo, setAbrindo] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -1222,6 +1517,18 @@ function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
       .catch(() => { if (valeu) setFichas([]); });
     return () => { valeu = false; };
   }, [agendamentoId]);
+
+  // Só oferece preencher se o serviço PEDE ficha. Antes o botão aparecia em
+  // todo atendimento e, em serviço sem formulário, abria um espaço vazio com
+  // "Gravar ficha" — botão que promete uma tela que não existe.
+  useEffect(() => {
+    if (!servicoId) return setTemFormulario(false);
+    let valeu = true;
+    api.formulariosDoServico(servicoId)
+      .then(fs => { if (valeu) setTemFormulario(fs.length > 0); })
+      .catch(() => { if (valeu) setTemFormulario(false); });
+    return () => { valeu = false; };
+  }, [servicoId]);
 
   const gravar = async () => {
     setSalvando(true);
@@ -1260,7 +1567,7 @@ function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
             <button className="btn btn-g btn-s" onClick={() => setAbrindo(false)}>Cancelar</button>
           </div>
         </div>
-      ) : (
+      ) : temFormulario && (
         // "Responder de novo" e não "editar": resposta dada não se reescreve
         // (REVOKE UPDATE na migration 012) — corrigir é acrescentar a versão
         // nova, e as duas ficam no histórico com a data de cada uma.

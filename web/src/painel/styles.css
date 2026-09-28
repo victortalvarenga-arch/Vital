@@ -143,7 +143,9 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
    onde ela precisa estar para ser lida junto com a grade; TOPO no JSX reserva
    a folga para a primeira não sair cortada. */
 .agenda{display:grid; grid-template-columns:50px 1fr; background:var(--paper);
-  border:1px solid var(--line); border-radius:16px; overflow:hidden}
+  border:1px solid var(--line); border-radius:16px; overflow:hidden;
+  /* A faixa que carrega na beirada se posiciona por aqui. */
+  position:relative}
 
 .horas{border-right:1px solid var(--line)}
 .horas-topo{height:44px; border-bottom:1px solid var(--line)}
@@ -1116,3 +1118,97 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 }
 /* A lista dentro da Agenda: o filtro de estado é dela; período e pessoas vêm de cima. */
 .ag-resumo{font-size:13px; color:var(--muted)}
+
+/* ── Arrastar para remarcar: o fantasma e a confirmação ── */
+.arrasto-aviso.nao{background:var(--erro); color:#fff}
+.rm-quem{margin:0 0 16px; font-size:14px; color:var(--muted)}
+.rm-de-para{display:flex; align-items:center; gap:14px}
+.rm-de-para > div{flex:1; display:flex; flex-direction:column; gap:2px; padding:12px 14px;
+  border:1px solid var(--line); border-radius:12px}
+.rm-de-para b{font-size:14.5px; font-weight:600}
+.rm-de-para i{font-style:normal; font-family:'IBM Plex Mono',monospace; font-size:18px}
+.rm-de-para > svg{flex:none; color:var(--muted)}
+.rm-novo{border-color:var(--lacquer) !important; background:var(--blush)}
+.rm-nota{margin:14px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5}
+.rm-botoes{display:flex; gap:8px; justify-content:flex-end; margin-top:18px}
+/* A sombra é o próprio atendimento, esmaecido: herda `.appt`, então a cor de
+   quem atende, o recorte e o texto são os mesmos — muda só a força. Era um
+   retângulo pontilhado, que dizia "vai cair aqui" mas não dizia o quê. */
+.sombra{opacity:.45; pointer-events:none; z-index:4;
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent)}
+.sombra.nao{background:rgba(138,43,43,.14) !important; border-left-color:var(--erro) !important;
+  opacity:.7}
+.sombra.nao b, .sombra.nao .appt-quem{color:var(--erro) !important}
+
+/* A beirada que carrega enquanto o dedo fica ali: enche, vira a semana, recomeça. */
+.ag-borda{position:absolute; top:0; bottom:0; width:44px; z-index:6; pointer-events:none;
+  display:grid; place-items:center; color:#fff}
+.ag-borda.esq{left:50px}
+.ag-borda.dir{right:0}
+.ag-borda::before{content:''; position:absolute; inset:0; background:var(--lacquer);
+  transform-origin:var(--origem, right center);
+  animation:ag-carrega 750ms linear infinite}
+.ag-borda.esq{--origem:left center}
+.ag-borda svg{position:relative; z-index:1}
+@keyframes ag-carrega{
+  from{opacity:.16; transform:scaleX(.35)}
+  to{opacity:.85; transform:scaleX(1)}
+}
+
+/* Repetir o bloqueio: as três opções e o "por quantas vezes". */
+.bl-rep{display:grid; grid-template-columns:1fr 1fr; width:100%; overflow:visible}
+.bl-rep button{justify-content:center; padding:8px 10px}
+.bl-quantas{display:grid; grid-template-columns:auto 84px; gap:6px 10px; align-items:center;
+  margin:-6px 0 16px; padding:12px 14px; border:1px solid var(--line); border-radius:12px}
+.bl-quantas label{margin:0; text-transform:none; letter-spacing:0; font-size:13.5px;
+  font-weight:600; color:var(--ink)}
+.bl-quantas span{grid-column:1 / -1; font-size:12.5px; color:var(--muted); line-height:1.5}
+.bl-quantas.data{grid-template-columns:auto minmax(0, 190px)}
+
+/* ── Gaveta lateral: a forma padrão de abrir coisa por cima da agenda ── */
+.gv-fundo{position:fixed; inset:0; z-index:100; background:rgba(36,26,40,.45);
+  backdrop-filter:blur(2px); display:flex; justify-content:flex-end}
+.gv{position:relative; width:min(430px, 100%); height:100%; background:var(--porcelain);
+  box-shadow:-12px 0 40px rgba(36,26,40,.22); display:flex; flex-direction:column;
+  animation:gv-entra .18s ease-out}
+.gv-corpo{flex:1; overflow-y:auto; padding:26px 24px 28px}
+.gv-fechar{position:absolute; top:14px; right:14px; z-index:2; width:36px; height:36px;
+  border-radius:50%; display:grid; place-items:center; color:var(--muted); background:var(--porcelain)}
+.gv-fechar:hover{background:var(--blush); color:var(--lacquer)}
+@keyframes gv-entra{ from{transform:translateX(26px)} to{transform:none} }
+
+/* Confirmação curta: pergunta de uma linha, no meio, para a pessoa parar. */
+.cf{max-width:400px; padding:26px 24px 22px}
+.cf h2{font-size:21px; margin-bottom:8px}
+.cf p{font-size:14px; line-height:1.55; color:var(--muted); margin:0}
+.cf-botoes{display:flex; gap:8px; justify-content:flex-end; margin-top:22px}
+.btn-perigo{background:var(--erro)}
+
+@media (max-width: 640px){
+  /* No celular a gaveta sobe de baixo: é o gesto que o telefone já ensina. */
+  .gv-fundo{align-items:flex-end; justify-content:stretch}
+  .gv{width:100%; height:auto; max-height:92vh; border-radius:20px 20px 0 0;
+    box-shadow:0 -12px 40px rgba(36,26,40,.24); animation:gv-sobe .2s ease-out}
+  .gv-corpo{padding:24px 18px 26px}
+  @keyframes gv-sobe{ from{transform:translateY(30px)} to{transform:none} }
+}
+/* Motivos prontos do bloqueio: um toque preenche o campo, que segue livre. */
+.bl-tipos{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px}
+.bl-tipos .chip{padding:7px 12px; min-height:36px; font-size:13px; gap:5px}
+
+/* ── Gaveta do atendimento: resumo em linhas, cliente, ações ── */
+.at-resumo{border:1px solid var(--line); border-radius:12px; background:var(--paper);
+  padding:4px 14px; margin-bottom:18px}
+.at-resumo > div{display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  padding:9px 0; font-size:13.5px}
+.at-resumo > div + div{border-top:1px solid var(--line)}
+.at-resumo span{color:var(--muted)}
+.at-resumo b{font-weight:600; text-align:right}
+.at-secao{margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
+.at-secao .eyebrow{display:block; margin-bottom:10px}
+.at-linha{display:flex; align-items:center; gap:9px; padding:7px 0; font-size:13.5px; color:var(--ink)}
+.at-linha svg{color:var(--muted); flex:none}
+.at-linha:hover{color:var(--lacquer)}
+.at-linha:hover svg{color:var(--lacquer)}
+.at-acoes{margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
+.at-acoes .btn{width:100%; justify-content:center}
