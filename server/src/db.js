@@ -290,6 +290,7 @@ export const unitOut = r => r && ({
 export const blockOut = r => r && ({
   id: r.id, profissionalId: r.staff_id || null, unidadeId: r.unit_id || null,
   data: r.data, horaIni: r.hora_ini, horaFim: r.hora_fim, motivo: r.motivo,
+  obs: r.obs || '',
   // Qual criação gerou esta linha. A tela junta as irmãs sob uma entrada só e
   // oferece "apagar as três semanas" — ver migration 013.
   serie: r.serie || null,

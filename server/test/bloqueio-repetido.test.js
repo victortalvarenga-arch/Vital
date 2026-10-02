@@ -246,3 +246,26 @@ describe('quem pode fechar a agenda de quem', () => {
     assert.equal(r.status, 403);
   });
 });
+
+describe('observação', () => {
+  test('vai para cada data da série, separada do motivo', async () => {
+    const r = await dona('POST', '/api/bloqueios', {
+      profissionalId: 'p1', horaIni: '00:00', horaFim: '23:59', motivo: 'Férias',
+      obs: 'Volta dia 15, a Bia cobre', datas: ['2027-03-02', '2027-03-03'],
+    });
+    assert.equal(r.status, 201);
+    const { corpo } = await bloqueiosDe('2027-03-01', '2027-03-05');
+    assert.deepEqual(corpo.map(b => [b.motivo, b.obs]), [
+      ['Férias', 'Volta dia 15, a Bia cobre'],
+      ['Férias', 'Volta dia 15, a Bia cobre'],
+    ]);
+  });
+
+  test('sem observação volta texto vazio, não nulo', async () => {
+    await dona('POST', '/api/bloqueios', {
+      profissionalId: 'p1', data: TERCA, horaIni: '12:00', horaFim: '13:00',
+    });
+    const { corpo } = await bloqueiosDe(TERCA, TERCA);
+    assert.equal(corpo[0].obs, '');
+  });
+});

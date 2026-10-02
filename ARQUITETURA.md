@@ -56,6 +56,7 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `016_funil_compactado` | `funil_diario`: o dia antigo vira uma linha, e o cru sai |
 | `017_em_atendimento` | Sexto status: a cliente na cadeira, entre confirmada e atendida |
 | `018_pagamento_parcial` | `pag_recebido`: quanto entrou, para a entrada caber no caixa |
+| `019_observacao_do_bloqueio` | `obs` em `blocks`: o detalhe, separado do motivo que vira filtro |
 
 ## Visão geral
 
@@ -1495,18 +1496,46 @@ se faz na hora, que é *até quando fica fechado*.
 A tela **Horários fechados** é a outra porta, para o caso composto — e é ela que
 explica o resto desta seção.
 
-**A tela monta antes de criar, e manda as datas prontas.** O primeiro desenho
-pedia uma data e uma repetição, e não dava conta do caso mais comum: "fecho
-segunda e quarta, das 8 às 10, pelas próximas seis semanas" — eram dois
-bloqueios criados separadamente, com a conta do calendário feita de cabeça duas
-vezes. Hoje se monta uma lista de faixas (dias da semana + horas), a repetição
-vale para o conjunto, e só então se cria.
+**O formulário segue o modelo de agenda de celular, e manda as datas prontas.**
+Abre numa gaveta com profissional, data inicial e final, horário ou *dia
+inteiro*, motivo e observação. Só cresce se a pessoa escolher repetição
+(todos os dias, semanal com os dias da semana marcados, ou mensal), e então pede
+quando termina: *nunca*, *em uma data* ou *após N ocorrências*. Com repetição a
+data final some, para não haver dois campos dizendo até quando vale.
+
+*Dia inteiro* vai como `00:00`–`23:59`, sem coluna nova: o motor de horários já
+entende intervalo. *Nunca* fecha os próximos 12 meses, e a tela diz isso: com
+uma linha por data não existe "para sempre". Uma linha de resumo mostra quantas
+datas serão fechadas, e a tela recusa antes de passar de 400, o teto em que o
+servidor corta sem avisar.
+
+A **observação** (migration 019) é separada do motivo de propósito: o motivo é o
+rótulo curto que vira o filtro de tipo, e "volta dia 15, a Bia cobre" ali faria
+cada bloqueio virar um tipo diferente.
+
+O desenho anterior montava uma lista de faixas (dias + horas) para criar de uma
+vez "segunda e quarta das 8 às 10, sexta das 14 às 16". O semanal com vários
+dias cobre o caso comum (mesma faixa em vários dias); horas diferentes por dia
+viram duas criações.
 
 Por isso o `POST` aceita `datas: [...]` além de `data` + `repetir`: o calendário
 já foi calculado na tela para a pessoa conferir na prévia, e refazer a conta no
 servidor seria uma segunda versão da mesma regra, livre para divergir do que ela
 viu antes de clicar. O servidor valida cada data, recusa a criação inteira se
 uma estiver torta (metade gravada seria pior que nada) e descarta repetidas.
+
+**A tela deduz o tipo pela forma das datas, sem coluna nova.** A visão geral
+separa *bloqueios de hoje*, *próximos* e *recorrentes*, mas o banco só conhece
+ocorrências ligadas por `serie`. Data única é avulso; dias seguidos fechando o
+dia inteiro são um período (férias: um cartão com começo e fim); qualquer outra
+série é recorrente (almoço de segunda a sexta: uma linha de regra, fora dos
+"próximos" para não afogar a lista com um cartão por dia útil). "Dia inteiro"
+também é conta da tela: o bloqueio cobre a jornada de quem ele fecha. O período
+exige o dia inteiro porque um almoço de todo dia também é sequência sem buraco.
+Uma coluna `tipo` teria de ser preenchida pelas duas portas de criação e poderia
+contradizer as datas. O custo é que "a cada duas semanas" aparece como "Todas as
+terças", porque a tela lê o dia da semana e não o intervalo. O filtro de tipo
+usa os motivos que a empresa já escreveu: não há lista fixa.
 
 **Bloquear não desmarca ninguém.** Se já havia cliente no intervalo, a resposta
 devolve quem é, em todas as datas da repetição, e a tela avisa. Furar a agenda

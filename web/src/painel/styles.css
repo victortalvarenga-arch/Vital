@@ -622,45 +622,44 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 }
 
 /* ── Horários fechados ── */
-.bl-form{padding:0; margin-bottom:16px; overflow:hidden}
-/* Três passos numerados: escolher quando, por quanto tempo, de quem. É a ordem
-   em que a pessoa pensa, e numerar evita que o terceiro campo pareça opcional. */
-.bl-passo{display:flex; gap:14px; padding:18px; border-bottom:1px solid var(--line)}
-.bl-num-passo{flex:none; width:24px; height:24px; border-radius:999px; display:grid;
-  place-items:center; background:var(--ink); color:var(--porcelain);
-  font-size:12px; font-weight:700}
-.bl-passo-corpo{flex:1; min-width:0}
-.bl-titulo{display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700;
-  margin-bottom:12px}
-
-.bl-dias{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px}
-.bl-dia{font:inherit; font-size:13px; cursor:pointer; min-width:46px; min-height:40px;
+/* Formulário de novo bloqueio, na gaveta. Os dias da semana são botões de
+   toque e não checkbox: no celular, sete caixinhas de 16px são alvo ruim. */
+.bl-novo h2{font-size:24px; margin-bottom:4px; padding-right:40px}
+.bl-novo-sub{color:var(--muted); font-size:13.5px; margin:0 0 20px}
+.bl-novo input[type=time]:disabled{opacity:.45}
+.bl-dias{display:flex; flex-wrap:wrap; gap:6px}
+.bl-dia{font:inherit; font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  cursor:pointer; min-width:46px; min-height:44px; flex:1;
   border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink)}
 .bl-dia:hover{border-color:var(--ink)}
 .bl-dia.on{background:var(--ink); color:var(--porcelain); border-color:var(--ink)}
 
-/* `flex-wrap` e largura mínima nos campos de hora: sem isso o input[type=time]
-   encolhia até cortar os dígitos quando a coluna ficava estreita. */
-.bl-horas{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px}
-.bl-horas label{display:flex; align-items:center; gap:7px; color:var(--muted)}
-.bl-horas input[type=time]{min-width:112px}
-.bl-horas input[type=date]{min-width:150px}
-.bl-horas input, .bl-horas select{
-  background:var(--paper); border:1px solid var(--line); border-radius:10px;
-  padding:9px 11px; outline:none; font:inherit; font-size:16px; color:var(--ink)}
-.bl-motivo-campo{flex:1; min-width:200px}
-.bl-num{width:66px; text-align:center}
+/* O label global é rótulo de campo, em caixa alta; aqui é uma opção inteira
+   clicável, então desfaz aquele estilo. */
+.bl-check, .bl-opcao{display:flex; align-items:flex-start; gap:10px; cursor:pointer;
+  text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink); margin:0}
+.bl-check input, .bl-opcao input{width:18px; height:18px; flex:none; margin:2px 0 0; padding:0;
+  accent-color:var(--lacquer)}
+.bl-check{border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  background:var(--paper)}
+.bl-check.on{border-color:var(--lacquer); background:#FDF5F7}
+.bl-check span{display:flex; flex-direction:column; gap:2px}
+.bl-check small{color:var(--muted); font-size:12.5px}
 
-.bl-faixas{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
-.bl-faixa{display:inline-flex; align-items:center; gap:8px; font-size:13px;
-  background:var(--blush); color:var(--lacquer-d); border-radius:999px; padding:6px 8px 6px 14px}
-.bl-faixa button{border:0; background:none; cursor:pointer; color:inherit; opacity:.7;
-  display:grid; place-items:center; width:24px; height:24px; border-radius:999px}
-.bl-faixa button:hover{opacity:1; background:rgba(0,0,0,.08)}
+.bl-repeticao{border-left:3px solid var(--blush); padding-left:14px; margin-bottom:14px}
+.bl-termina{display:flex; flex-direction:column; gap:10px}
+.bl-opcao{min-height:28px; align-items:center}
+.bl-opcao input{margin:0}
+.bl-opcao-campo{padding-left:28px; max-width:260px}
+.bl-opcao-dica{padding-left:28px; color:var(--muted); font-size:12.5px; margin-top:-6px}
+.bl-apos{display:flex; align-items:center; gap:10px; font-size:14px; color:var(--muted)}
+.bl-apos input{width:90px}
 
-.bl-rodape{display:flex; align-items:center; gap:14px; padding:16px 18px; flex-wrap:wrap}
-.bl-previa{font-size:13px; color:var(--muted)}
-.bl-rodape .btn{margin-left:auto}
+.bl-resumo{font-size:13.5px; color:var(--muted); background:var(--paper); border:1px solid var(--line);
+  border-radius:10px; padding:10px 12px; margin:4px 0 16px}
+.bl-resumo.ruim{color:var(--erro); background:#F8E7E7; border-color:transparent}
+.bl-novo-botoes{display:flex; gap:8px; justify-content:flex-end}
+.bl-obs{font-size:12.5px; color:var(--muted); font-style:italic; margin-top:4px; white-space:pre-line}
 
 /* Conflito não é erro: o bloqueio foi criado. É aviso de que alguém precisa ser
    remarcada à mão — por isso fica em --warn, e não em --erro. */
@@ -669,25 +668,68 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bl-conflito ul{margin:6px 0 0; padding-left:18px}
 .bl-conflito .btn{margin-left:auto; flex:none}
 
-.bl-item{display:flex; align-items:center; gap:14px; padding:14px 18px; margin-bottom:10px}
-.bl-item-info{flex:1; min-width:0}
-.bl-quando{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:14.5px}
-.bl-quando .mono{color:var(--muted); font-size:13px}
-.bl-selo{display:inline-flex; align-items:center; gap:4px; background:var(--blush);
-  color:var(--lacquer-d); border-radius:999px; padding:2px 9px; font-size:11.5px; font-weight:700}
-.bl-quem{font-size:13px; color:var(--muted); margin-top:3px}
-.bl-motivo{font-style:italic}
-.bl-datas{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
+
+/* Visão geral: números, busca e filtros, depois hoje | próximos, e as regras
+   que se repetem embaixo, que são as que menos mudam. */
+.bl-stats{margin-bottom:16px}
+.bl-stat-sub{font-size:12.5px; color:var(--muted)}
+.bl-busca{position:relative; margin-bottom:10px}
+.bl-busca svg{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted)}
+.bl-busca input{padding-left:38px; min-height:44px}
+.bl-filtros{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px}
+.bl-filtros select{width:auto; flex:1 1 180px; min-height:44px}
+.bl-colunas{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; align-items:start}
+.bl-secao{padding:18px}
+.bl-secao-t{margin-bottom:12px}
+.bl-cartoes{display:flex; flex-direction:column; gap:10px}
+
+.bl-cartao{display:flex; flex-wrap:wrap; align-items:flex-start; gap:10px;
+  border:1px solid var(--line); border-radius:12px; padding:12px 8px 12px 14px}
+.bl-cadeado{flex:none; color:var(--lacquer); margin-top:2px}
+.bl-cartao-corpo{flex:1; min-width:0}
+.bl-cartao-topo{display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap}
+.bl-quando-t{font-size:14.5px; font-weight:700}
+.bl-badge{font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px;
+  background:var(--blush); color:var(--lacquer-d); white-space:nowrap}
+.bl-badge.rec{background:#ECE8F8; color:var(--uv)}
+.bl-motivo-t{font-size:14px; margin-top:3px}
+.bl-pessoa{font-size:13px; color:var(--muted)}
+.bl-rodinha{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--muted); margin-top:5px}
+
+/* O ⋮ abre as ações no lugar, por toque: no celular não existe hover para
+   revelar o botão de liberar. */
+.bl-mais{flex:none; width:40px; height:40px; border-radius:10px; display:grid; place-items:center;
+  color:var(--muted)}
+.bl-mais:hover, .bl-mais[aria-expanded="true"]{background:var(--porcelain); color:var(--ink)}
+.bl-acoes{flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+  padding-top:10px; border-top:1px dashed var(--line)}
+.bl-acoes-dica{flex-basis:100%; font-size:12.5px; color:var(--muted)}
+
+.bl-linha{display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+  border:1px solid var(--line); border-radius:12px; padding:10px 8px 10px 12px}
+.bl-linha-ic{flex:none; width:34px; height:34px; border-radius:10px; display:grid; place-items:center;
+  background:#ECE8F8; color:var(--uv)}
+.bl-linha-info{flex:1; min-width:180px}
+.bl-linha-info b{font-size:14px}
+.bl-linha-meta{font-size:13px; color:var(--muted); margin-top:1px}
+.bl-ativo{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600;
+  color:var(--ok); white-space:nowrap}
+.bl-ativo::before{content:''; width:8px; height:8px; border-radius:50%; background:currentColor}
+.bl-ativo.futuro{color:var(--muted)}
+
+.bl-datas{display:flex; flex-wrap:wrap; gap:6px; flex-basis:100%}
 .bl-data{display:inline-flex; align-items:center; gap:5px; font:inherit; font-size:12px;
   cursor:pointer; background:var(--porcelain); border:1px solid var(--line);
   border-radius:999px; padding:5px 10px; color:var(--muted); min-height:32px}
 .bl-data:hover{border-color:var(--erro); color:var(--erro)}
 
 @media (max-width: 720px){
-  .bl-passo{padding:14px}
-  .bl-horas{gap:8px}
-  .bl-rodape .btn{margin-left:0; width:100%}
-  .bl-item{flex-direction:column; align-items:stretch}
+  .bl-novo-botoes .btn{flex:1}
+  .bl-colunas{grid-template-columns:1fr}
+  .bl-filtros select{flex-basis:100%}
+  .bl-secao{padding:14px}
+  .bl-ativo{order:3; flex-basis:100%; padding-left:46px}
+  .bl-linha .bl-acoes{order:4}
 }
 
 /* Filtro por profissional do Financeiro. Linha própria, e não junto da escala

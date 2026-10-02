@@ -686,6 +686,16 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Produto
 
+- [ ] **Bloqueio que "nunca termina" termina em 12 meses, sem aviso.** Com uma
+      linha por data (migration 013), o *Nunca* do formulário de Fechar
+      horários cria os próximos 365 dias, e a tela diz isso só na hora de
+      criar. Passado um ano, a folga semanal some e a agenda volta a oferecer
+      o horário. Precisa de um alerta no Resumo quando um recorrente estiver a
+      um mês do fim, ou de um job que estenda a série.
+- [ ] **Horas diferentes por dia viram duas criações.** O formulário novo de
+      bloqueio tem um horário só para todos os dias marcados; o antigo montava
+      uma lista de faixas ("seg e qua 8–10, sex 14–16") de uma vez. Se aparecer
+      pedido, entra como "adicionar outro horário" dentro da repetição semanal.
 - [ ] **Não dá para desfazer um pagamento fechado pelo sistema.** Desfazer, na
       gaveta, é clicar na forma acesa — e quem o fechamento automático quitou
       fica com `pag_forma = 'local'`, que não tem chip. A dica ainda diz "clique

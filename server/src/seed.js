@@ -382,23 +382,31 @@ async function oResto() {
   const h = hoje();
 
   /* ── horários fechados ────────────────────────────────────────────────── */
-  // Dois casos, porque são as duas formas de fechar a agenda e elas se parecem
-  // pouco: o almoço avulso de amanhã, e as férias que se repetem por três
-  // semanas (uma linha por ocorrência, ligadas por `serie` — ver migration
-  // 013). Sem os dois no seed, a tela de Horários fechados nasce vazia numa
-  // máquina nova e a repetição parece não existir.
-  await db.run(
-    `INSERT INTO blocks (id,staff_id,data,hora_ini,hora_fim,motivo,criado_em)
-     VALUES (?,?,?,?,?,?,?)`,
-    uid(), 's2', addDias(h, 1), '12:00', '13:30', 'Almoço', h
+  // Um exemplo de cada forma que a tela distingue pelas datas (ver
+  // Bloqueios.jsx): avulso, período de dias seguidos, recorrente, e um da
+  // equipe toda. Ocorrências da mesma criação se ligam por `serie` (migration
+  // 013). Sem os quatro, a tela nasce com seções vazias numa máquina nova e
+  // parece que a repetição não existe.
+  const bloqueio = (staffId, data, ini, fim, motivo, serie = null, obs = '') => db.run(
+    `INSERT INTO blocks (id,staff_id,data,hora_ini,hora_fim,motivo,obs,serie,criado_em)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    uid(), staffId, data, ini, fim, motivo, obs, serie, h
   );
+  await bloqueio('s2', addDias(h, 1), '12:00', '13:30', 'Almoço');
+  await bloqueio(null, addDias(h, 5), '08:00', '09:00', 'Reunião de equipe');
+
   const ferias = uid();
-  for (let i = 0; i < 3; i++) {
-    await db.run(
-      `INSERT INTO blocks (id,staff_id,data,hora_ini,hora_fim,motivo,serie,criado_em)
-       VALUES (?,?,?,?,?,?,?,?)`,
-      uid(), 's3', addDias(h, 14 + i * 7), '09:00', '19:00', 'Férias', ferias, h
-    );
+  for (let i = 0; i < 7; i++) {
+    await bloqueio('s3', addDias(h, 14 + i), '00:00', '23:59', 'Férias', ferias,
+      'Clientes fixas remarcadas para a semana seguinte');
+  }
+
+  // Almoço de segunda a sexta, por quatro semanas a partir de hoje.
+  const almoco = uid();
+  for (let i = 0; i < 28; i++) {
+    const d = addDias(h, i);
+    const dia = new Date(d + 'T12:00:00').getDay();
+    if (dia >= 1 && dia <= 5) await bloqueio('s1', d, '12:00', '13:00', 'Almoço', almoco);
   }
 
   /* ── serviços adicionais ──────────────────────────────────────────────── */

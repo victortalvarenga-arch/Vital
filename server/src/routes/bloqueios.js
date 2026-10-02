@@ -105,10 +105,10 @@ bloqueios.post('/', rota(async (req, res) => {
   for (const data of datas) {
     const id = uid();
     await db.run(
-      `INSERT INTO blocks (id, staff_id, data, hora_ini, hora_fim, motivo, serie, criado_em)
-       VALUES (?,?,?,?,?,?,?,?)`,
+      `INSERT INTO blocks (id, staff_id, data, hora_ini, hora_fim, motivo, obs, serie, criado_em)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
       id, staffId, data, b.horaIni, b.horaFim,
-      String(b.motivo || '').slice(0, 200), serie, hoje()
+      String(b.motivo || '').slice(0, 200), String(b.obs || '').slice(0, 500), serie, hoje()
     );
     criados.push(id);
   }
