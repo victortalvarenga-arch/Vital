@@ -1582,6 +1582,7 @@ img { max-width: 100%; display: block; }
 .destaque-valor { font-size: clamp(40px, 6vw, 60px); font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 2px 0; }
 .destaque-economia { font-size: var(--t-corpo-pq); font-weight: 600; }
 .destaque-dur { font-size: var(--t-legenda); opacity: .75; margin-top: var(--e-2); }
+.destaque-quando { font-size: var(--t-legenda); font-weight: 600; margin-top: var(--e-2); }
 
 /* ── promoções ──────────────────────────────────────────────────────────── */
 .promos { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1612,6 +1613,7 @@ img { max-width: 100%; display: block; }
 .promo-economia { font-size: var(--t-legenda); font-weight: 700; color: var(--marca-legivel); margin: 2px 0 0;
   letter-spacing: .02em; }
 .promo-dur { font-size: var(--t-legenda); color: var(--fraco); margin: 6px 0 0; }
+.promo-quando { font-size: var(--t-legenda); font-weight: 600; margin: 6px 0 0; }
 .promo-btn { margin-top: var(--e-3); }
 
 /* ── ficha de intake, no agendamento ────────────────────────────────────── */

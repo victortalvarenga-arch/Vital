@@ -8,7 +8,7 @@ import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
 import { horariosDeAtendimento } from '../lib/horarios.js';
 import { marcar, etapaDoNavegador, sessaoValida } from '../lib/funil.js';
 import { limite } from '../lib/limite.js';
-import { combosAtivos, comboCompleto, profissionaisDoCombo } from '../lib/combos.js';
+import { combosAtivos, comboCompleto, profissionaisDoCombo, valeNoDia } from '../lib/combos.js';
 
 export const publico = Router();
 
@@ -51,8 +51,13 @@ const LIMITES = {
 async function comPrecoEExtras(servicos, cfg) {
   const saida = [];
   for (const s of servicos) {
+    // Comissão e observação são da equipe: quanto a empresa paga a quem atende
+    // não é assunto de quem agenda. Tirados pelo nome, porque o resto do
+    // serviço sai inteiro — campo interno novo precisa entrar nesta lista.
+    // eslint-disable-next-line no-unused-vars
+    const { comissao, comissoes, obs, ...publico } = s;
     saida.push({
-      ...s,
+      ...publico,
       preco: cfg.exibir?.preco && s.mostrarPreco ? s.preco : null,
       adicionais: await adicionaisDe(s.id, s.categoria),
     });
@@ -82,7 +87,7 @@ async function vitrineDeCombos(cfg) {
     saida.push({
       id: c.id, nome: c.nome, descricao: c.descricao, foto: c.foto,
       preco: c.preco, precoCheio: c.precoCheio, economia: c.economia,
-      duracao: c.duracao, validoAte: c.validoAte,
+      duracao: c.duracao, validoAte: c.validoAte, diasSemana: c.diasSemana,
       servicos: c.servicos.map(s => ({ id: s.id, nome: s.nome, preco: s.preco })),
       profissionais,
     });
@@ -162,9 +167,12 @@ publico.get('/horarios', rota(async (req, res) => {
   // aparece — a mesma pessoa atende do começo ao fim.
   if (req.query.comboId) {
     const combo = await comboCompleto(req.query.comboId);
-    if (!combo || !combo.ativo || combo.vencido) {
+    if (!combo || combo.situacao !== 'ativa') {
       return res.status(404).json({ erro: 'promoção não encontrada' });
     }
+    // Dia fora do período ou da semana da promoção: nenhum horário, em vez de
+    // horário que a venda recusaria no fim.
+    if (!valeNoDia(combo, data)) return res.json({ data, porProfissional: [] });
     const equipe = await profissionaisDoCombo(combo.id);
     const so = profissionalId ? equipe.filter(id => id === profissionalId) : equipe;
     return res.json({ data, porProfissional: await horariosPorEquipe({ staffIds: so, data, duracao: combo.duracao }) });
@@ -222,14 +230,15 @@ publico.get('/dias-livres', rota(async (req, res) => {
   }
   if (req.query.comboId) {
     const combo = await comboCompleto(req.query.comboId);
-    if (!combo || !combo.ativo || combo.vencido) {
+    if (!combo || combo.situacao !== 'ativa') {
       return res.status(404).json({ erro: 'promoção não encontrada' });
     }
     const ids = await profissionaisDoCombo(combo.id);
     const equipe = ids.length
       ? await db.all(`SELECT * FROM staff WHERE id = ANY(?) AND ativo = 1`, ids)
       : [];
-    return res.json({ mes, dias: await diasComVagaPara({ equipe, mes, duracao: combo.duracao }) });
+    const dias = await diasComVagaPara({ equipe, mes, duracao: combo.duracao });
+    return res.json({ mes, dias: dias.filter(d => valeNoDia(combo, d)) });
   }
 
   if (!servicoId) return res.status(400).json({ erro: 'informe servicoId ou comboId' });

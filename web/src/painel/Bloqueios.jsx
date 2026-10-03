@@ -60,7 +60,7 @@ const PERIODOS = [
   ['tudo', 'Todo o período'],
 ];
 
-export default function Bloqueios({ dados, aviso, poderes }) {
+export default function Bloqueios({ dados, aviso, poderes, acao, pedido, aoConsumirPedido }) {
   const { staff } = dados;
   const eu = dados.eu?.profissionalId || '';
   const hoje = hojeISO();
@@ -69,7 +69,19 @@ export default function Bloqueios({ dados, aviso, poderes }) {
   const [falhou, setFalhou] = useState(false);
   const [versao, setVersao] = useState(0);
   const [conflitos, setConflitos] = useState(null);
-  const [criando, setCriando] = useState(false);
+  // O formulário aberto, e com que dia. O botão Bloquear da Agenda e do Resumo
+  // chega aqui com `pedido = { novo: true, data }`, e a gaveta já nasce aberta
+  // no dia que a pessoa estava olhando — dia passado vira hoje, que é o
+  // primeiro que dá para fechar.
+  const [criando, setCriando] = useState(
+    pedido?.novo ? { data: pedido.data && pedido.data > hoje ? pedido.data : hoje } : null
+  );
+  useEffect(() => { if (pedido) aoConsumirPedido?.(); }, []);
+
+  // A grade da Agenda lê os bloqueios do estado geral do painel, não desta
+  // lista: sem recarregar lá, o que se fecha aqui só aparece na Agenda depois
+  // de um F5.
+  const avisarPainel = mensagem => acao?.(() => Promise.resolve(), mensagem);
   const [aberto, setAberto] = useState(null);
 
   const [busca, setBusca] = useState('');
@@ -96,6 +108,7 @@ export default function Bloqueios({ dados, aviso, poderes }) {
       await api.removerBloqueio(b.id, { serie });
       setAberto(null);
       setVersao(v => v + 1);
+      avisarPainel(serie ? 'Datas liberadas' : 'Horário liberado');
     } catch (e) {
       aviso(e.message || 'Não deu para liberar.');
     }
@@ -182,19 +195,21 @@ export default function Bloqueios({ dados, aviso, poderes }) {
               : 'Folgas, pausas e outros períodos em que você não atende. Feriado da empresa quem marca é o dono.'}
           </div>
         </div>
-        <button className="btn btn-p btn-s" onClick={() => setCriando(true)}>
+        <button className="btn btn-p btn-s" onClick={() => setCriando({ data: hoje })}>
           <Plus size={16} /> Novo bloqueio
         </button>
       </div>
 
       {criando && (
         <NovoBloqueio staff={staff} eu={eu} hoje={hoje} aviso={aviso} poderes={poderes}
+                      dataInicial={criando.data}
                       motivos={tipos.map(([, nome]) => nome)}
-                      fechar={() => setCriando(false)}
+                      fechar={() => setCriando(null)}
                       criado={avisos => {
                         setConflitos(avisos.length ? avisos : null);
-                        setCriando(false);
+                        setCriando(null);
                         setVersao(v => v + 1);
+                        avisarPainel('Horário fechado');
                       }} />
       )}
 
@@ -406,17 +421,17 @@ function Cartao({ aberto, alternar, quando, selo, seloTom, motivo, obs, pessoa, 
  * Com repetição, a data final some: quem diz até quando vale é o "Termina".
  * Os dois juntos fariam a pessoa perguntar qual dos dois manda.
  */
-function NovoBloqueio({ staff, eu, hoje, motivos, aviso, poderes, fechar, criado }) {
+function NovoBloqueio({ staff, eu, hoje, dataInicial = hoje, motivos, aviso, poderes, fechar, criado }) {
   const [quem, setQuem] = useState(poderes.verDeTodos ? '' : eu);
-  const [inicio, setInicio] = useState(hoje);
-  const [fim, setFim] = useState(hoje);
+  const [inicio, setInicio] = useState(dataInicial);
+  const [fim, setFim] = useState(dataInicial);
   const [horaIni, setHoraIni] = useState('12:00');
   const [horaFim, setHoraFim] = useState('13:00');
   const [inteiro, setInteiro] = useState(false);
   const [repetir, setRepetir] = useState('nao');
   const [diasSemana, setDiasSemana] = useState([]);
   const [termina, setTermina] = useState('data');
-  const [ateData, setAteData] = useState(addDias(hoje, 90));
+  const [ateData, setAteData] = useState(addDias(dataInicial, 90));
   const [vezes, setVezes] = useState(10);
   const [motivo, setMotivo] = useState('');
   const [obs, setObs] = useState('');

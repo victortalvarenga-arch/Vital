@@ -151,8 +151,13 @@ describe('cadastro do combo', () => {
   test('arquivar não apaga — os agendamentos vendidos apontam para ele', async () => {
     const { corpo: combo } = await novoCombo();
     assert.equal((await dona('DELETE', `/api/combos/${combo.id}`)).status, 200);
+    // A linha fica, marcada como arquivada; quem sai é a promoção da lista do
+    // painel — pausar é que a mantém à vista (migration 021).
+    const linha = await db.db.comEmpresa('default', () =>
+      db.db.get('SELECT ativo, arquivado FROM combos WHERE id = ?', combo.id));
+    assert.deepEqual({ ...linha }, { ativo: 0, arquivado: 1 });
     const { corpo: lista } = await dona('GET', '/api/combos');
-    assert.equal(lista.find(c => c.id === combo.id).ativo, false);
+    assert.equal(lista.some(c => c.id === combo.id), false);
   });
 });
 

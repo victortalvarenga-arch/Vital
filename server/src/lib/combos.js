@@ -85,9 +85,17 @@ export async function comboCompleto(id) {
   );
 
   const precoCheio = servicos.reduce((n, s) => n + Number(s.preco), 0);
+  const usos = await usosDe(id);
+  const regras = {
+    validoDe: c.valido_de || null, validoAte: c.valido_ate || null,
+    diasSemana: c.dias_semana?.length ? [...c.dias_semana].sort() : null,
+    limiteUsos: c.limite_usos ?? null, usos,
+    ativo: !!c.ativo, arquivado: !!c.arquivado,
+  };
   return {
     id: c.id, nome: c.nome, descricao: c.descricao, preco: Number(c.preco),
-    foto: c.foto, validoAte: c.valido_ate, ativo: !!c.ativo, ordem: c.ordem,
+    foto: c.foto, ordem: c.ordem, ...regras,
+    situacao: situacao(regras),
     servicos: servicos.map(s => ({
       id: s.id, nome: s.nome, preco: Number(s.preco),
       duracao: s.duracao, intervalo: s.intervalo || 0,
@@ -99,6 +107,48 @@ export async function comboCompleto(id) {
     duracao: servicos.reduce((n, s) => n + s.duracao + (s.intervalo || 0), 0),
     vencido: vencido(c.valido_ate),
   };
+}
+
+/**
+ * Vendas que contam para o limite: uma por `combo_grupo`, sem as canceladas.
+ * A falta conta — a vaga foi vendida e ocupou a agenda. Ver migration 021.
+ */
+export async function usosDe(comboId, conexao = db) {
+  const { n } = await conexao.get(
+    `SELECT COUNT(DISTINCT combo_grupo) n FROM appointments
+      WHERE combo_id = ? AND status <> 'cancelado'`,
+    comboId
+  );
+  return Number(n) || 0;
+}
+
+/**
+ * Em que pé a promoção está hoje. A ordem importa: arquivada e pausada são
+ * decisão de alguém e valem acima do calendário; esgotada só faz sentido para
+ * o que ainda estaria no ar.
+ *
+ *   arquivada · pausada · encerrada · esgotada · agendada · ativa
+ *
+ * Só "ativa" vende — no site e no balcão.
+ */
+export function situacao(c, dia = hoje()) {
+  if (c.arquivado) return 'arquivada';
+  if (!c.ativo) return 'pausada';
+  if (c.validoAte && c.validoAte < dia) return 'encerrada';
+  if (c.limiteUsos != null && c.usos >= c.limiteUsos) return 'esgotada';
+  if (c.validoDe && c.validoDe > dia) return 'agendada';
+  return 'ativa';
+}
+
+/**
+ * A promoção vale para um atendimento nesta data? Período e dias da semana
+ * olham a data do ATENDIMENTO, não a de hoje — ver migration 021.
+ */
+export function valeNoDia(c, data) {
+  if (c.validoDe && data < c.validoDe) return false;
+  if (c.validoAte && data > c.validoAte) return false;
+  if (c.diasSemana?.length && !c.diasSemana.includes(new Date(data + 'T12:00:00').getDay())) return false;
+  return true;
 }
 
 /** Promoção de Natal não pode continuar no ar em março. */
@@ -113,13 +163,13 @@ export const vencido = validoAte => Boolean(validoAte) && validoAte < hoje();
  */
 export async function combosAtivos({ incluirVencidos = false } = {}) {
   const linhas = await db.all(
-    `SELECT id FROM combos WHERE ativo = 1 ORDER BY ordem, nome`
+    `SELECT id FROM combos WHERE arquivado = 0 ${incluirVencidos ? '' : 'AND ativo = 1'} ORDER BY ordem, nome`
   );
   const lista = [];
   for (const { id } of linhas) {
     const c = await comboCompleto(id);
     // Combo sem serviço nenhum é cadastro pela metade: não vai para a vitrine.
-    if (c && c.servicos.length && (incluirVencidos || !c.vencido)) lista.push(c);
+    if (c && c.servicos.length && (incluirVencidos || c.situacao === 'ativa')) lista.push(c);
   }
   return lista;
 }

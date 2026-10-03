@@ -243,12 +243,20 @@ export const staffOut = r => r && ({
   id: r.id, nome: r.nome, funcao: r.funcao, fone: r.fone, cor: r.cor,
   comissao: r.comissao, jornada: r.jornada || {}, ativo: !!r.ativo,
   unidadeId: r.unit_id || null,
+  // O padrão dela pode ser fixo por atendimento (migration 022); `comissao`
+  // continua sendo o percentual, usado quando o tipo é 'percentual'.
+  comissaoTipo: r.comissao_tipo || 'percentual',
+  comissaoFixo: r.comissao_fixo ?? null,
 });
 
-export const serviceOut = (r, profs = []) => r && ({
+export const serviceOut = (r, profs = [], comissoes = {}) => r && ({
   id: r.id, nome: r.nome, categoria: r.categoria, descricao: r.descricao,
   preco: r.preco, duracao: r.duracao, intervalo: r.intervalo, ativo: !!r.ativo,
   ordem: r.ordem, profissionais: profs,
+  // Internos: a vitrine pública os tira antes de responder (routes/publico.js).
+  // `comissao` nulo = vale a da profissional; `comissoes` só traz quem tem
+  // exceção neste serviço. Ver migration 020.
+  comissao: r.comissao ?? null, comissoes, obs: r.obs || '',
   foto: r.foto || '', mostrarPreco: r.mostrar_preco == null ? true : !!r.mostrar_preco,
   // Não aparece sozinho na vitrine nem pode ser o serviço principal.
   somenteAdicional: !!r.somente_adicional,
@@ -323,7 +331,13 @@ export async function listarServicos({ somenteAtivos = false } = {}) {
     `SELECT * FROM services ${somenteAtivos ? 'WHERE ativo = 1' : ''} ORDER BY ordem, nome`
   );
   const vinculos = await db.all('SELECT * FROM service_staff');
-  return rows.map(r => serviceOut(r, vinculos.filter(v => v.service_id === r.id).map(v => v.staff_id)));
+  return rows.map(r => {
+    const meus = vinculos.filter(v => v.service_id === r.id);
+    const comissoes = Object.fromEntries(
+      meus.filter(v => v.comissao != null).map(v => [v.staff_id, v.comissao])
+    );
+    return serviceOut(r, meus.map(v => v.staff_id), comissoes);
+  });
 }
 
 export async function listarUnidades({ somenteAtivas = false } = {}) {
@@ -341,12 +355,38 @@ export async function listarBloqueios({ de, ate }) {
   return rows.map(blockOut);
 }
 
-export async function salvarVinculos(serviceId, staffIds) {
+/**
+ * Quem faz o serviço, e com que comissão cada um (nulo = a de sempre dela).
+ *
+ * Sem `comissoes`, guarda as que já existiam: o vínculo é refeito do zero, e
+ * quem só mexeu na lista de quem executa (o seed, o assistente de começo) não
+ * pode apagar a exceção que o dono configurou na tela de serviços.
+ */
+export async function salvarVinculos(serviceId, staffIds, comissoes) {
+  if (comissoes === undefined) {
+    const atuais = await db.all(
+      'SELECT staff_id, comissao FROM service_staff WHERE service_id = ? AND comissao IS NOT NULL',
+      serviceId
+    );
+    comissoes = Object.fromEntries(atuais.map(v => [v.staff_id, v.comissao]));
+  }
   await db.run('DELETE FROM service_staff WHERE service_id = ?', serviceId);
   for (const s of staffIds || []) {
     await db.run(
-      'INSERT INTO service_staff (service_id, staff_id) VALUES (?,?) ON CONFLICT DO NOTHING',
-      serviceId, s
+      'INSERT INTO service_staff (service_id, staff_id, comissao) VALUES (?,?,?) ON CONFLICT DO NOTHING',
+      serviceId, s, comissaoValida(comissoes?.[s])
     );
   }
+}
+
+/** Percentual de 0 a 100, ou nulo ("não decide aqui"). Vazio vira nulo, não zero. */
+export function comissaoValida(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0 || n > 100) {
+    const erro = new Error('comissão precisa ser um percentual de 0 a 100');
+    erro.status = 400;
+    throw erro;
+  }
+  return Math.round(n * 100) / 100;
 }

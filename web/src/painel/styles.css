@@ -471,15 +471,103 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bloqueio span { display: block; line-height: 1.25; }
 
 /* ── promoções ──────────────────────────────────────────────────────────── */
-.combo-li{gap:12px}
-.combo-li.off{opacity:.5}
-.combo-selo{width:34px; height:34px; border-radius:10px; flex:none; display:grid; place-items:center;
+.pr-stats{margin-bottom:16px}
+.pr-stat-sub{font-size:12.5px; color:var(--muted)}
+.pr-filtros{display:flex; flex-wrap:wrap; gap:10px; padding:12px; margin-bottom:16px}
+.pr-filtros select{width:auto; flex:1 1 150px; min-height:44px}
+.pr-busca{position:relative; flex:2 1 220px}
+.pr-busca svg{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted)}
+.pr-busca input{padding-left:38px; min-height:44px}
+.pr-vazio{padding:30px; text-align:center; margin-bottom:16px}
+.pr-vazio p{margin:0 0 6px}
+.pr-secao{padding:18px; margin-bottom:16px}
+.pr-secao-t{margin-bottom:12px}
+.pr-meu{margin:10px 0 0}
+.pr-lista{display:flex; flex-direction:column; gap:10px}
+
+.pr-linha{display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap;
+  border:1px solid var(--line); border-radius:12px; padding:12px 8px 12px 12px}
+.pr-linha.fora{opacity:.65}
+.pr-ic{flex:none; width:34px; height:34px; border-radius:10px; display:grid; place-items:center;
   background:var(--blush); color:var(--lacquer-d)}
-.combo-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
-  margin-left:8px; padding:2px 7px; border-radius:6px; background:var(--line); color:var(--muted)}
-.combo-preco{display:flex; flex-direction:column; align-items:flex-end; flex:none; line-height:1.25}
-.combo-cheio{font-size:12px; color:var(--muted); text-decoration:line-through}
-.combo-preco b{font-size:15px}
+.pr-info{flex:1; min-width:200px}
+.pr-topo{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.pr-nome{font-size:15px; font-weight:700; text-align:left; padding:0}
+.pr-nome:hover{color:var(--lacquer)}
+.pr-off{font-size:14px; color:var(--lacquer)}
+.pr-meta{display:flex; align-items:center; gap:5px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin:3px 0 0}
+.pr-uso b{color:var(--ink); font-weight:600}
+
+.pr-selo{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600;
+  white-space:nowrap; margin-top:8px}
+.pr-selo::before{content:''; width:8px; height:8px; border-radius:50%; background:currentColor}
+.pr-selo.on{color:var(--ok)}
+.pr-selo.espera{color:var(--warn)}
+.pr-selo.off{color:var(--muted)}
+
+.pr-acoes{position:relative; flex:none}
+.pr-mais{width:40px; height:40px; border-radius:10px; display:grid; place-items:center; color:var(--muted)}
+.pr-mais:hover, .pr-mais[aria-expanded="true"]{background:var(--porcelain); color:var(--ink)}
+.pr-menu{position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px;
+  display:flex; flex-direction:column; padding:6px; background:var(--paper);
+  border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
+.pr-menu button{text-align:left; padding:10px 12px; border-radius:8px; font-size:14px; min-height:40px}
+.pr-menu button:hover{background:var(--porcelain)}
+
+.pr-cartoes{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px}
+.pr-cartao{border:1px solid var(--line); border-radius:12px; padding:12px 8px 14px 14px;
+  display:flex; flex-direction:column; gap:4px}
+.pr-cartao-topo{display:flex; align-items:center; gap:10px}
+.pr-cartao-topo .pr-nome{flex:1; min-width:0}
+.pr-cartao-oferta{margin:6px 0 0; font-size:14px; font-weight:600}
+
+.pr-resto summary{cursor:pointer; list-style-position:inside; margin-bottom:0; min-height:24px}
+.pr-resto[open] summary{margin-bottom:12px}
+
+/* formulário */
+.pr-form h2{font-size:24px; margin-bottom:4px; padding-right:40px}
+.pr-form-sub{color:var(--muted); font-size:13.5px; margin:0 0 20px}
+.pr-servicos{display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; padding:2px}
+.pr-servico, .pr-opcao, .pr-check{display:flex; align-items:center; gap:10px; cursor:pointer; margin:0;
+  text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
+.pr-servico input[type=checkbox], .pr-opcao input[type=radio], .pr-check input{width:18px; height:18px;
+  flex:none; margin:0; padding:0; accent-color:var(--lacquer)}
+.pr-servico{border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-height:44px; background:var(--paper)}
+.pr-servico.on{border-color:var(--lacquer); background:#FDF5F7}
+.pr-servico-nome{flex:1; min-width:0}
+.pr-servico-preco{font-size:13px; color:var(--muted)}
+
+.pr-periodo{display:flex; align-items:flex-start; gap:8px; flex-wrap:wrap}
+.pr-data{flex:1 1 170px; display:flex; flex-direction:column; gap:4px}
+.pr-data-rotulo{font-size:12px; color:var(--muted)}
+.pr-seta{align-self:center; color:var(--muted); padding-top:14px}
+.pr-limpar{align-self:flex-start; display:inline-flex; align-items:center; gap:4px; font-size:12px;
+  color:var(--muted); padding:4px 0; min-height:28px}
+.pr-limpar:hover{color:var(--erro)}
+.pr-limpar.vazio{visibility:hidden}
+
+.pr-dias{display:flex; gap:6px}
+.pr-dia{flex:1; min-width:40px; min-height:44px; border:1px solid var(--line); border-radius:10px;
+  background:var(--paper); font-weight:700; font-size:13px}
+.pr-dia:hover{border-color:var(--ink)}
+.pr-dia.on{background:var(--ink); color:var(--porcelain); border-color:var(--ink)}
+
+.pr-limite{display:flex; flex-direction:column; gap:10px}
+.pr-opcao{min-height:32px; flex-wrap:wrap}
+.pr-limite-n{width:90px !important}
+
+.pr-check{align-items:flex-start; border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+  margin-bottom:14px; background:var(--paper)}
+.pr-check input{margin-top:2px}
+.pr-check span{display:flex; flex-direction:column; gap:2px}
+.pr-check small{color:var(--muted); font-size:12.5px}
+
+@media (max-width: 720px){
+  .pr-filtros select{flex-basis:100%}
+  .pr-secao{padding:14px}
+  .pr-linha .pr-selo{order:3; flex-basis:100%; padding-left:46px; margin-top:0}
+  .pr-seta{display:none}
+}
 
 /* a conta aparecendo enquanto a empresa decide o preço */
 .combo-conta{border-radius:12px; padding:11px 13px; margin-bottom:16px; font-size:13.5px}
@@ -1200,15 +1288,6 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   to{opacity:.85; transform:scaleX(1)}
 }
 
-/* Repetir o bloqueio: as três opções e o "por quantas vezes". */
-.bl-rep{display:grid; grid-template-columns:1fr 1fr; width:100%; overflow:visible}
-.bl-rep button{justify-content:center; padding:8px 10px}
-.bl-quantas{display:grid; grid-template-columns:auto 84px; gap:6px 10px; align-items:center;
-  margin:-6px 0 16px; padding:12px 14px; border:1px solid var(--line); border-radius:12px}
-.bl-quantas label{margin:0; text-transform:none; letter-spacing:0; font-size:13.5px;
-  font-weight:600; color:var(--ink)}
-.bl-quantas span{grid-column:1 / -1; font-size:12.5px; color:var(--muted); line-height:1.5}
-.bl-quantas.data{grid-template-columns:auto minmax(0, 190px)}
 
 /* ── Gaveta lateral: a forma padrão de abrir coisa por cima da agenda ── */
 .gv-fundo{position:fixed; inset:0; z-index:100; background:rgba(36,26,40,.45);
@@ -1237,9 +1316,6 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .gv-corpo{padding:24px 18px 26px}
   @keyframes gv-sobe{ from{transform:translateY(30px)} to{transform:none} }
 }
-/* Motivos prontos do bloqueio: um toque preenche o campo, que segue livre. */
-.bl-tipos{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px}
-.bl-tipos .chip{padding:7px 12px; min-height:36px; font-size:13px; gap:5px}
 
 /* ── Gaveta do atendimento: resumo em linhas, cliente, ações ── */
 .at-resumo{border:1px solid var(--line); border-radius:12px; background:var(--paper);
@@ -1321,3 +1397,232 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .fechado{position:absolute; left:0; right:0; z-index:0; pointer-events:none;
   background:repeating-linear-gradient(45deg,
     rgba(122,105,117,.085) 0 7px, rgba(122,105,117,.035) 7px 14px)}
+
+/* ── Serviços: números, filtros e a tabela que vira cartão no celular ── */
+.sv-stats{margin-bottom:16px}
+.sv-stat-sub{font-size:12.5px; color:var(--muted)}
+/* O "mais agendado" é um nome, não um número: quebra em duas linhas no máximo
+   em vez de encolher até ficar ilegível como o .v faz com valores. */
+.stat .v.sv-v-texto{font-size:clamp(15px, 9cqw, 21px); white-space:normal; line-height:1.2;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+
+.sv-filtros{display:flex; flex-wrap:wrap; gap:10px; padding:12px; margin-bottom:16px}
+.sv-filtros select{width:auto; flex:1 1 170px; min-height:44px}
+.sv-busca{position:relative; flex:2 1 240px}
+.sv-busca svg{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted)}
+.sv-busca input{padding-left:38px; min-height:44px}
+
+.sv-tabela{padding:0; overflow:visible}
+.sv-linha{display:grid; align-items:center; gap:12px; padding:12px 14px 12px 18px;
+  grid-template-columns:minmax(0,2.2fr) minmax(0,1.2fr) 80px 100px minmax(0,1.1fr) 104px 40px;
+  border-bottom:1px solid var(--line); font-size:13.5px}
+.sv-linha:last-child{border-bottom:0}
+.sv-cab{font-size:var(--t-rotulo,11px); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; padding-top:12px; padding-bottom:12px}
+.sv-nome{display:flex; align-items:center; gap:10px; text-align:left; min-width:0; padding:0; min-height:40px}
+.sv-nome span{display:flex; flex-direction:column; min-width:0}
+.sv-nome b{font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sv-nome small{font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sv-nome:hover b{color:var(--lacquer)}
+.sv-cor{flex:none; width:10px; height:10px; border-radius:50%}
+.sv-cat{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sv-com{display:flex; flex-direction:column}
+.sv-com i{color:var(--muted); font-style:normal}
+.sv-com small{font-size:11.5px; color:var(--uv)}
+.sv-status{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; white-space:nowrap}
+.sv-status::before{content:''; width:8px; height:8px; border-radius:50%; background:currentColor}
+.sv-status.on{color:var(--ok)}
+.sv-status.off{color:var(--muted)}
+.sv-status.extra{color:var(--uv)}
+.sv-acoes{position:relative; justify-self:end}
+.sv-mais{width:40px; height:40px; border-radius:10px; display:grid; place-items:center; color:var(--muted)}
+.sv-mais:hover, .sv-mais[aria-expanded="true"]{background:var(--porcelain); color:var(--ink)}
+.sv-menu{position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:180px;
+  display:flex; flex-direction:column; padding:6px; background:var(--paper);
+  border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
+.sv-menu button{text-align:left; padding:10px 12px; border-radius:8px; font-size:14px; min-height:40px}
+.sv-menu button:hover{background:var(--porcelain)}
+.sv-vazio{padding:28px; text-align:center; color:var(--muted); font-size:14px; margin:0}
+
+/* ── formulário do serviço, na gaveta ── */
+.sv-form h2{font-size:24px; margin-bottom:18px; padding-right:40px}
+.campo-pre, .campo-pct{position:relative; display:block}
+.campo-pre i, .campo-pct i{position:absolute; top:50%; transform:translateY(-50%);
+  font-style:normal; font-size:13.5px; color:var(--muted); pointer-events:none}
+.campo-pre i{left:12px}
+.campo-pre input{padding-left:38px}
+.campo-pct i{right:12px}
+.campo-pct input{padding-right:30px}
+.sv-com-campo{max-width:180px}
+
+.sv-profs{display:flex; flex-direction:column; gap:6px}
+.sv-prof{display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px;
+  padding:6px 8px 6px 12px; background:var(--paper)}
+.sv-prof.on{border-color:var(--lacquer); background:#FDF5F7}
+.sv-prof-marca{flex:1; min-width:0; display:flex; align-items:center; gap:10px; margin:0; cursor:pointer;
+  min-height:40px; text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
+.sv-prof-marca input{width:18px; height:18px; flex:none; margin:0; padding:0; accent-color:var(--lacquer)}
+.sv-av{width:28px; height:28px; font-size:11px}
+.sv-prof-nome{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sv-prof-pct{flex:none; width:92px}
+.sv-prof-pct input{padding-top:8px; padding-bottom:8px}
+
+.sv-check{display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin:0 0 14px;
+  border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--paper);
+  text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
+.sv-check input{width:18px; height:18px; flex:none; margin:2px 0 0; padding:0; accent-color:var(--lacquer)}
+.sv-check span{display:flex; flex-direction:column; gap:2px}
+.sv-check small{color:var(--muted); font-size:12.5px}
+
+/* O que muda pouco fica dobrado: aberto por toque, sem esconder nada de vez. */
+.sv-mais-campos{border:1px solid var(--line); border-radius:12px; margin-bottom:12px; background:var(--paper)}
+.sv-mais-campos summary{cursor:pointer; padding:14px; font-weight:600; font-size:14px; min-height:48px;
+  list-style-position:inside}
+.sv-mais-campos[open] summary{border-bottom:1px solid var(--line); margin-bottom:14px}
+.sv-mais-campos > :not(summary){margin-left:14px; margin-right:14px}
+.sv-mais-campos > :last-child{margin-bottom:14px}
+.sv-switch{display:flex; align-items:center; gap:10px; font-size:14px}
+.sv-switch small{color:var(--muted); font-size:13px}
+
+.sv-problema{font-size:13px; color:var(--erro); background:#F8E7E7; border-radius:10px; padding:10px 12px; margin:4px 0 12px}
+.sv-botoes{display:flex; gap:8px; justify-content:flex-end; margin-top:6px}
+
+
+@media (max-width: 720px){
+  .sv-filtros select{flex-basis:100%}
+  .sv-cab{display:none}
+  /* Cada linha vira um cartão: nome e ações em cima, o resto em pares. */
+  .sv-linha{grid-template-columns:1fr 1fr auto; grid-template-areas:
+      "nome nome acoes" "cat dur preco" "com status status"; gap:6px 10px; padding:12px 8px 12px 14px}
+  .sv-nome{grid-area:nome}
+  .sv-acoes{grid-area:acoes}
+  .sv-cat{grid-area:cat}
+  .sv-dur{grid-area:dur}
+  .sv-preco{grid-area:preco; text-align:right; font-weight:600}
+  .sv-com{grid-area:com}
+  .sv-status{grid-area:status; justify-self:end}
+  .sv-botoes .btn{flex:1}
+}
+
+/* ── Profissionais: lista e ficha ── */
+.pf-stats{margin-bottom:16px}
+.pf-stat-sub{font-size:12.5px; color:var(--muted)}
+.pf-filtros{display:flex; flex-wrap:wrap; gap:10px; padding:12px; margin-bottom:16px}
+.pf-filtros select{width:auto; flex:1 1 160px; min-height:44px}
+.pf-busca{position:relative; flex:2 1 220px}
+.pf-busca svg{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted)}
+.pf-busca input{padding-left:38px; min-height:44px}
+.pf-secao{padding:18px}
+.pf-secao-t{margin-bottom:12px}
+.pf-lista{display:flex; flex-direction:column}
+
+.pf-linha{display:grid; align-items:center; gap:6px 14px; padding:14px 0;
+  grid-template-columns:minmax(0,1.6fr) 96px minmax(0,1fr) minmax(0,1fr) 40px;
+  border-bottom:1px solid var(--line)}
+.pf-linha:last-child{border-bottom:0}
+.pf-linha.fora{opacity:.6}
+.pf-pessoa{display:flex; align-items:center; gap:12px; min-width:0; text-align:left; padding:0; min-height:44px}
+.pf-av{width:40px; height:40px; font-size:14px}
+.pf-pessoa-txt{display:flex; flex-direction:column; min-width:0}
+.pf-pessoa-txt b{font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pf-pessoa-txt small{font-size:12.5px; color:var(--muted)}
+.pf-pessoa:hover b{color:var(--lacquer)}
+.pf-status{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; white-space:nowrap}
+.pf-status::before{content:''; width:8px; height:8px; border-radius:50%; background:currentColor}
+.pf-status.on{color:var(--ok)}
+.pf-status.off{color:var(--muted)}
+.pf-status.agora{color:var(--uv)}
+.pf-num{font-size:13px; color:var(--muted); white-space:nowrap}
+.pf-num b{color:var(--ink); font-weight:600}
+.pf-acoes{position:relative; justify-self:end}
+.pf-mais{width:40px; height:40px; border-radius:10px; display:grid; place-items:center; color:var(--muted)}
+.pf-mais:hover, .pf-mais[aria-expanded="true"]{background:var(--porcelain); color:var(--ink)}
+.pf-menu{position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px;
+  display:flex; flex-direction:column; padding:6px; background:var(--paper);
+  border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
+.pf-menu button{text-align:left; padding:10px 12px; border-radius:8px; font-size:14px; min-height:40px}
+.pf-menu button:hover{background:var(--porcelain)}
+.pf-servicos{grid-column:1 / -1; margin:0; padding-left:52px; font-size:13px; color:var(--muted)}
+.pf-servicos span{font-weight:600; color:var(--ink)}
+
+/* a ficha */
+.pf-ficha-topo{display:flex; align-items:center; gap:14px; margin-bottom:8px; padding-right:40px}
+.pf-ficha-av{width:56px; height:56px; font-size:20px}
+.pf-ficha-topo h2{font-size:24px; margin-bottom:2px}
+.pf-parte{border-top:1px solid var(--line); padding-top:16px; margin-top:16px}
+.pf-parte-t{font-family:inherit; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; margin:0 0 14px}
+.pf-cores{display:flex; gap:8px; flex-wrap:wrap}
+.pf-cor{width:36px; height:36px; border-radius:50%; border:3px solid transparent}
+.pf-cor.on{border-color:var(--ink)}
+.pf-switch{display:flex; align-items:center; gap:10px; font-size:14px}
+.pf-switch small{color:var(--muted); font-size:13px}
+
+/* Rolagem própria, com a borda dizendo que há mais: catálogo grande não pode
+   empurrar comissão e horários para fora da ficha. */
+.pf-servs{display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;
+  padding:8px; border:1px solid var(--line); border-radius:12px; background:var(--porcelain);
+  overscroll-behavior:contain}
+.pf-busca-serv{margin-bottom:8px}
+.pf-servs-vazio{margin:6px 4px}
+.pf-servs-conta{margin:6px 0 0}
+.pf-serv{display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px;
+  padding:4px 6px 4px 12px; background:var(--paper)}
+.pf-serv.on{border-color:var(--lacquer); background:#FDF5F7}
+.pf-serv-marca{flex:1; min-width:0; display:flex; align-items:center; gap:10px; margin:0; cursor:pointer;
+  min-height:42px; text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
+.pf-serv-marca input, .pf-opcao input{width:18px; height:18px; flex:none; margin:0; padding:0; accent-color:var(--lacquer)}
+.pf-serv-nome{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pf-serv-pct{flex:none; width:92px}
+.pf-serv-pct input{padding-top:8px; padding-bottom:8px}
+
+.pf-tipo{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:12px}
+.pf-opcao{display:flex; align-items:center; gap:8px; cursor:pointer; margin:0; min-height:36px;
+  text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
+.pf-com-campo{max-width:200px}
+
+.pf-horas{display:flex; flex-direction:column; gap:2px}
+.pf-hora{display:grid; grid-template-columns:110px 1fr 104px 82px; align-items:center; gap:10px;
+  min-height:34px; font-size:13.5px}
+.pf-hora-dia{font-weight:600}
+.pf-hora-barra{position:relative; height:6px; border-radius:6px; background:var(--line)}
+.pf-hora-barra i{position:absolute; top:0; bottom:0; border-radius:6px; background:var(--lacquer)}
+.pf-hora-txt{font-size:12.5px; color:var(--muted); text-align:right}
+.pf-hora-st{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600}
+.pf-hora-st::before{content:''; width:8px; height:8px; border-radius:50%; border:2px solid currentColor}
+.pf-hora-st.on{color:var(--ok)}
+.pf-hora-st.on::before{background:currentColor}
+.pf-hora-st.off{color:var(--muted)}
+.pf-editar-horas{margin-top:12px}
+.pf-horas-edit{display:flex; flex-direction:column; gap:6px}
+.pf-hora-edit{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.pf-dia{width:92px; min-height:40px; border:1px solid var(--line); border-radius:10px; background:var(--paper);
+  font-size:13px; font-weight:600}
+.pf-dia.on{background:var(--ink); color:var(--porcelain); border-color:var(--ink)}
+.pf-hora-campos{display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px}
+.pf-hora-campos input{width:118px}
+.pf-folga{font-size:13px; color:var(--muted)}
+
+.pf-desemp{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px}
+.pf-desemp div{border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex;
+  flex-direction:column; gap:2px; background:var(--paper)}
+.pf-desemp span{font-size:12px; color:var(--muted)}
+.pf-desemp b{font-size:17px}
+.pf-botoes{margin-top:18px}
+
+@media (max-width: 720px){
+  .pf-filtros select{flex-basis:100%}
+  .pf-secao{padding:14px}
+  .pf-linha{grid-template-columns:1fr auto; grid-template-areas:
+      "pessoa acoes" "status status" "num1 num2" "serv serv"}
+  .pf-pessoa{grid-area:pessoa}
+  .pf-acoes{grid-area:acoes}
+  .pf-linha > .pf-status{grid-area:status; padding-left:52px}
+  .pf-qtd{grid-area:num1; padding-left:52px}
+  .pf-com{grid-area:num2; justify-self:end}
+  .pf-servicos{grid-area:serv}
+  .pf-hora{grid-template-columns:96px 1fr 76px; }
+  .pf-hora-txt{display:none}
+  .pf-desemp{grid-template-columns:1fr 1fr 1fr; gap:6px}
+  .pf-desemp b{font-size:14px}
+}

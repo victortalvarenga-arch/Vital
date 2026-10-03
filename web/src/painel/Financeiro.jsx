@@ -335,6 +335,9 @@ function pct(v, total) {
 function Detalhes({ r, staff, meu }) {
   const formas = r.porForma.filter(f => f.total > 0);
   const producaoPor = Object.fromEntries(r.porProfissional.map(p => [p.id, p.producao]));
+  // O valor vem do servidor, atendimento a atendimento: cada serviço pode pagar
+  // uma taxa diferente, e produção × taxa padrão daria outro número.
+  const comissaoPor = Object.fromEntries(r.porProfissional.map(p => [p.id, p.comissaoValor]));
   const max = r.porServico[0]?.total || 1;
   // Tudo o que foi marcado no período, cancelado incluído: é a base que faz
   // "10% faltaram" querer dizer alguma coisa.
@@ -432,7 +435,7 @@ function Detalhes({ r, staff, meu }) {
                 </span>
                 <span>
                   <b className="mono">{brl(prod)}</b>
-                  <i className="fin-pct">{p.comissao}% · {brl(prod * p.comissao / 100)}</i>
+                  <i className="fin-pct">comissão {brl(comissaoPor[p.id] || 0)}</i>
                 </span>
               </div>
             );

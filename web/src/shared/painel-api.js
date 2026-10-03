@@ -33,6 +33,7 @@ const servicoParaTela = s => ({
   ativo: s.ativo, profs: s.profissionais,
   foto: s.foto || '', mostrarPreco: s.mostrarPreco !== false,
   somenteAdicional: !!s.somenteAdicional,
+  comissao: s.comissao ?? null, comissoes: s.comissoes || {}, obs: s.obs || '',
 });
 
 const servicoParaApi = s => ({
@@ -40,6 +41,7 @@ const servicoParaApi = s => ({
   duracao: s.duracao, intervalo: s.intervalo, ativo: s.ativo, profissionais: s.profs,
   foto: s.foto || '', mostrarPreco: s.mostrarPreco !== false,
   somenteAdicional: !!s.somenteAdicional,
+  comissao: s.comissao ?? null, comissoes: s.comissoes || {}, obs: s.obs || '',
 });
 
 const clienteParaTela = c => ({
@@ -147,6 +149,8 @@ export const api = {
     ? req(`/combos/${c.id}`, { method: 'PUT', body: c })
     : req('/combos', { method: 'POST', body: c }),
   removerCombo: id => req(`/combos/${id}`, { method: 'DELETE' }),
+  // Vendas, receita e desconto das promoções, por data do atendimento.
+  desempenhoCombos: (de, ate) => req(`/combos/desempenho?de=${de}&ate=${ate}`),
   agendarCombo: a => req('/agendamentos/combo', { method: 'POST', body: a }),
 
   /* ── clientes ── */
@@ -159,6 +163,9 @@ export const api = {
     ? req(`/servicos/${s.id}`, { method: 'PUT', body: servicoParaApi(s) })
     : req('/servicos', { method: 'POST', body: servicoParaApi(s) }),
   removerServico: id => req(`/servicos/${id}`, { method: 'DELETE' }),
+  // { [servicoId]: percentual | null } — nulo volta a valer a do serviço.
+  salvarComissoesDaProfissional: (id, comissoes) =>
+    req(`/profissionais/${id}/comissoes`, { method: 'PUT', body: { comissoes } }),
 
   /* ── login ── */
   precisaConfigurar: () => req('/auth/precisa-configurar'),
@@ -204,6 +211,9 @@ export const api = {
     ? req(`/profissionais/${p.id}`, { method: 'PUT', body: p })
     : req('/profissionais', { method: 'POST', body: p }),
   removerProfissional: id => req(`/profissionais/${id}`, { method: 'DELETE' }),
+  // Os serviços que ela faz e a exceção de comissão em cada um, de uma vez.
+  salvarServicosDaProfissional: (id, servicos, comissoes) =>
+    req(`/profissionais/${id}/servicos`, { method: 'PUT', body: { servicos, comissoes } }),
 
   /* ── mensagens ── */
   fila: () => req('/mensagens/fila'),

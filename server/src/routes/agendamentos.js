@@ -6,7 +6,7 @@ import { rota } from '../lib/rota.js';
 import { escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
-import { comboCompleto, profissionaisDoCombo, ratearCombo } from '../lib/combos.js';
+import { comboCompleto, profissionaisDoCombo, ratearCombo, usosDe, valeNoDia } from '../lib/combos.js';
 import { formsDoServico, validarRespostas, gravarRespostas, respostasDoAgendamento } from '../lib/formularios.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 import { pagamentoDe } from '../lib/pagamento.js';
@@ -264,7 +264,8 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
 export async function criarCombo(b, { origem = 'painel' } = {}) {
   const combo = await comboCompleto(b.comboId);
   if (!combo) return { erro: 'combo não encontrado', codigo: 404 };
-  if (!combo.ativo || combo.vencido) return { erro: 'esta promoção não está mais no ar', codigo: 409 };
+  if (combo.situacao === 'esgotada') return { erro: 'as vagas desta promoção acabaram', codigo: 409 };
+  if (combo.situacao !== 'ativa') return { erro: 'esta promoção não está no ar', codigo: 409 };
   if (!combo.servicos.length) return { erro: 'combo sem serviços', codigo: 409 };
 
   const prof = await db.get('SELECT * FROM staff WHERE id=? AND ativo=1', b.profissionalId);
@@ -273,6 +274,10 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
   if (!cli) return { erro: 'cliente não encontrada', codigo: 404 };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.data || '') || !/^\d{2}:\d{2}$/.test(b.hora || '')) {
     return { erro: 'data (YYYY-MM-DD) e hora (HH:MM) inválidas', codigo: 400 };
+  }
+  // Período e dias da semana olham a data do atendimento (migration 021).
+  if (!valeNoDia(combo, b.data)) {
+    return { erro: 'esta promoção não vale para essa data', codigo: 409 };
   }
 
   // Uma pessoa faz o combo inteiro; se ela não faz algum dos serviços, o
@@ -290,7 +295,10 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
   let inicio = toMin(b.hora);
   const aGravar = partes.map(svc => {
     const dur = svc.duracao + (svc.intervalo || 0);
-    const item = { svc, hora: toHora(inicio), duracao: dur, valor: svc.valor,
+    // O desconto da linha é gravado agora, com o preço de tabela de hoje — o
+    // mesmo motivo do rateio: o relatório de amanhã não pode refazer a conta.
+    const desconto = Math.max(0, Math.round((svc.preco - svc.valor) * 100) / 100);
+    const item = { svc, hora: toHora(inicio), duracao: dur, valor: svc.valor, desconto,
       pag: pagamentoDe(null, b.pagamento, svc.valor) };
     inicio += dur;
     return item;
@@ -304,17 +312,25 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
 
   const grupo = uid();
   const resultado = await db.transacao(async tx => {
+    // Uma venda desta promoção por vez: sem a trava, duas clientes no mesmo
+    // segundo leriam "49 de 50" e as duas levariam a última vaga.
+    if (combo.limiteUsos != null) {
+      await tx.get('SELECT pg_advisory_xact_lock(hashtext(?))', 'combo:' + combo.id);
+      if (await usosDe(combo.id, tx) >= combo.limiteUsos) {
+        return { erro: 'as vagas desta promoção acabaram', codigo: 409 };
+      }
+    }
     for (const item of aGravar) {
       if (await conflita({ staffId: prof.id, data: b.data, hora: item.hora, duracao: item.duracao }, tx)) {
         return { erro: 'esse horário acabou de ser ocupado', codigo: 409 };
       }
       await tx.run(
         `INSERT INTO appointments (id,client_id,service_id,staff_id,unit_id,data,hora,duracao,valor,
-                                   status,pag_status,pag_recebido,pag_forma,origem,obs,combo_id,combo_grupo,criado_em)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                                   status,pag_status,pag_recebido,pag_forma,origem,obs,combo_id,combo_grupo,criado_em,desconto)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         uid(), b.clienteId, item.svc.id, prof.id, prof.unit_id, b.data, item.hora, item.duracao, item.valor,
         'agendado', item.pag.status, item.pag.recebido, item.pag.forma,
-        origem, b.obs || '', combo.id, grupo, `${hoje()} ${agora()}`
+        origem, b.obs || '', combo.id, grupo, `${hoje()} ${agora()}`, item.desconto
       );
     }
     return { criados: await tx.all('SELECT * FROM appointments WHERE combo_grupo=? ORDER BY hora', grupo) };

@@ -289,6 +289,15 @@ async function primeiraClienteReal() {
       await salvarVinculos(id, profs);
     }
 
+    // Os três níveis de comissão (migration 020), um de cada: o peeling paga
+    // 30% a quem fizer, menos que os 45% da Karen; no design, a Karen tem
+    // exceção de 50%, e a Bia segue na padrão dela. O resto não decide nada no
+    // serviço e cai na comissão de cada profissional.
+    await db.run(`UPDATE services SET comissao = 30,
+                  obs = 'Não fazer em pele com acne ativa: oferecer a limpeza no lugar.'
+                  WHERE id = 'v11'`);
+    await db.run(`UPDATE service_staff SET comissao = 50 WHERE service_id = 'v8' AND staff_id = 's3'`);
+
     const clientes = [
       ['c1', 'Amanda Ribeiro', '47991234567', '1994-09-02', 'Rua das Palmeiras, 210 — Costa e Silva', 'Prefere tons nude.', -240],
       ['c2', 'Juliana Kruger', '47992345678', '1988-03-05', 'Av. Getúlio Vargas, 1180 — Anita Garibaldi', '', -180],
@@ -434,6 +443,40 @@ async function oResto() {
   );
   await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k1','v10',0)`);
   await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k1','v8',1)`);
+
+  // Uma venda de ontem, atendida e paga, para o desempenho das promoções não
+  // nascer zerado. O rateio de 199 sobre 180 + 45 é o que `ratearCombo` faria:
+  // 159,20 e 39,80; o desconto de cada linha é o que ficou do preço de tabela.
+  for (const [svc, hora, dur, valor, desconto] of [
+    ['v10', '13:00', 100, 159.2, 20.8],
+    ['v8', '14:40', 45, 39.8, 5.2],
+  ]) {
+    await db.run(
+      `INSERT INTO appointments (id,client_id,service_id,staff_id,data,hora,duracao,valor,status,
+                                 pag_status,pag_recebido,pag_forma,origem,combo_id,combo_grupo,desconto,criado_em)
+       VALUES (?,'c2',?,'s3',?,?,?,?,'concluido','pago',?,'pix','painel','k1','venda-k1-1',?,?)`,
+      uid(), svc, addDias(h, -1), hora, dur, valor, valor, desconto, h
+    );
+  }
+
+  // As regras da migration 021, uma de cada: só às terças e com vagas
+  // contadas; e outra que ainda vai começar, para "Próximas" não nascer vazia.
+  // Esmaltação (85) + plástica dos pés (95) = 180 avulso, as duas da Laura.
+  await db.run(
+    `INSERT INTO combos (id,nome,descricao,preco,foto,valido_ate,ativo,ordem,criado_em,dias_semana,limite_usos)
+     VALUES ('k2','Terça das unhas','Mãos e pés no mesmo horário',150,'',NULL,1,1,?,'{2}',20)`,
+    h
+  );
+  await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k2','v1',0)`);
+  await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k2','v5',1)`);
+  // Cílios (190) + laminação (120) = 310 avulso, as duas da Bia.
+  await db.run(
+    `INSERT INTO combos (id,nome,descricao,preco,foto,valido_de,valido_ate,ativo,ordem,criado_em)
+     VALUES ('k3','Semana do olhar','',260,'',?,?,1,2,?)`,
+    addDias(h, 10), addDias(h, 17), h
+  );
+  await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k3','v6',0)`);
+  await db.run(`INSERT INTO combo_services (combo_id, service_id, ordem) VALUES ('k3','v13',1)`);
 
   /* ── formulário ───────────────────────────────────────────────────────── */
   await db.run(
@@ -686,6 +729,9 @@ async function segundaEmpresa() {
       );
       await salvarVinculos(id, ['b1', 'b2']);
     }
+    // Comissão fixa (migration 022), o jeito comum de barbearia: o Rafa ganha
+    // R$ 15 por atendimento, e o João segue nos 40%.
+    await db.run(`UPDATE staff SET comissao_tipo = 'fixo', comissao_fixo = 15 WHERE id = 'b2'`);
 
     // Um funil bem pior que o da Laura, de propósito: é com duas empresas
     // diferentes lado a lado que a tela da Vital mostra para que serve —

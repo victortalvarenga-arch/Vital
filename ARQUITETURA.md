@@ -57,6 +57,9 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `017_em_atendimento` | Sexto status: a cliente na cadeira, entre confirmada e atendida |
 | `018_pagamento_parcial` | `pag_recebido`: quanto entrou, para a entrada caber no caixa |
 | `019_observacao_do_bloqueio` | `obs` em `blocks`: o detalhe, separado do motivo que vira filtro |
+| `020_comissao_por_servico` | Comissão no serviço e por pessoa no serviço; `obs` interna do serviço |
+| `021_promocao_com_regras` | Começo, dias da semana, limite e pausa nas promoções; desconto gravado na venda |
+| `022_comissao_fixa` | A comissão padrão da profissional pode ser valor fixo por atendimento |
 
 ## Visão geral
 
@@ -179,7 +182,7 @@ ser remarcado e sai da agenda; um bloqueio é a empresa dizendo que ali não se
 atende. Guardar "almoço" como se fosse atendimento faria cancelar o almoço
 aparecer como cancelamento no relatório.
 
-Bloqueio que se repete, as duas portas que criam um e por que a tela manda as
+Bloqueio que se repete, a porta única que cria um e por que a tela manda as
 datas prontas: tudo em **[Horários fechados](#horários-fechados)**. Estava
 escrito aqui também, palavra por palavra — e dois lugares com o mesmo assunto é
 o começo de dois lugares com versões diferentes dele.
@@ -419,7 +422,8 @@ em `Base.jsx`):
 - A **gaveta** entra pela direita e deixa a agenda visível ao lado — abrir um
   atendimento com modal centrado escondia a grade que se estava lendo, e fechar
   virava a única forma de voltar a ver o dia. Vale para o detalhe do
-  atendimento, o novo agendamento e o bloqueio. No celular sobe de baixo, que é
+  atendimento, o novo agendamento e o novo bloqueio (este, na tela de Horários
+  fechados). No celular sobe de baixo, que é
   o gesto que o telefone já ensina, e para em 92% da altura: a faixa que sobra
   em cima é o que diz que aquilo é uma camada, não a tela inteira.
 - O **modal de confirmação** continua no meio, pequeno, para excluir e
@@ -806,6 +810,45 @@ funcionário o servidor manda `lucro: null`: a comissão dos colegas não é dad
 dele. "Faturamento do ano" saiu dos cartões quando o gráfico de doze meses
 passou a mostrar o ano inteiro logo abaixo.
 
+**De quanto é a comissão: três níveis, o mais específico vence** (migration
+020). A exceção daquela pessoa naquele serviço (`service_staff.comissao`), senão
+a comissão do serviço (`services.comissao`), senão a padrão da pessoa
+(`staff.comissao`). Nulo em cada nível quer dizer "não decide aqui"; zero é zero.
+Assim o salão paga 10% num procedimento caro e 40% num corte, e a sênior pode
+ganhar mais que a colega no mesmo serviço, sem cadastrar tabela nenhuma para o
+caso comum.
+
+**O padrão da pessoa pode ser valor fixo** (migration 022): R$ 15 por
+atendimento, o jeito comum de barbearia. O fixo existe só nesse nível. A
+comissão do serviço e a exceção da pessoa continuam em percentual e, quando
+preenchidas, passam por cima do padrão, fixo ou não. Com pagamento parcial, o
+fixo é proporcional ao que entrou (pagou metade, sai metade), pela mesma razão
+do percentual incidir sobre o recebido. O fixo mora em `staff.comissao_fixo`,
+com `staff.comissao_tipo`; `staff.comissao` continua sendo só o percentual, para
+nenhuma consulta antiga ler "R$ 15" como 15%.
+
+A regra mora em `comissaoCentavos()`, no topo de `routes/relatorios.js`, que
+calcula a comissão de um atendimento em centavos com `TAXA` e `COM_TAXA`. As
+quatro contas de comissão (resumo, série, mês e produção por profissional) usam
+essa função, e **nenhuma tela refaz a conta**: a tela de Profissionais lê a
+produção e a comissão de cada pessoa do `/relatorios/resumo`, como o Financeiro.
+Antes ela calculava no navegador e discordava do Financeiro.
+
+Edita-se pelos dois lados: na tela de Serviços (comissão do serviço e a de cada
+pessoa habilitada) e na ficha da profissional, que liga e desliga os serviços
+dela e grava a exceção em cada um de uma vez
+(`PUT /api/profissionais/:id/servicos`). Os dois escrevem em `service_staff`.
+
+A taxa é a do serviço **principal** e vale para o atendimento inteiro, extras
+incluídos; dividir um pagamento parcial entre principal e extras pediria decidir
+qual parte foi paga primeiro. A comissão também não é congelada no atendimento:
+mudar a taxa hoje muda o lucro dos meses passados. Os dois limites estão em
+`ROADMAP.md`, em "Achados".
+
+`services.obs` é nota interna. A vitrine pública copia o serviço inteiro, então
+`comissao`, `comissoes` e `obs` são tirados pelo nome em `comPrecoEExtras`
+(`routes/publico.js`), e um teste confere que não aparecem no site.
+
 **Dinheiro vem do servidor; contagem de agenda vem do estado.** Valor sempre sai
 de `/api/relatorios/*`, onde a conta já existe recortada por `escopoDe` —
 refazê-la no navegador seria a segunda versão da mesma regra. Já quantos
@@ -1066,11 +1109,37 @@ combinações para garantir que a soma das partes é exatamente o preço do paco
 Ratear na hora de fechar a comissão, em vez de na venda, daria outra resposta a
 cada mudança na tabela de preços — e comissão paga não se recalcula.
 
-**A validade é conferida na leitura, não por um job.** `vencido()` compara com a
-data de hoje toda vez que o combo é lido, então a promoção some do site sozinha
-no dia certo sem depender de nada ter rodado, e volta se a empresa esticar o
-prazo. Apagar um combo arquiva (`ativo = 0`) em vez de remover a linha: os
-agendamentos vendidos apontam para ele.
+**A situação é conferida na leitura, não por um job.** `situacao()` (em
+`lib/combos.js`) responde, toda vez que o combo é lido, em que pé ele está:
+*arquivada*, *pausada*, *encerrada* (passou o fim), *esgotada* (bateu o
+limite), *agendada* (o começo ainda não chegou) ou *ativa*, nessa ordem. Só a
+ativa vende, no site e no balcão, e a tela recebe a situação pronta para nunca
+discordar da venda. Assim a promoção entra e sai do site sozinha no dia certo,
+sem depender de nada ter rodado.
+
+**Período e dias da semana olham a data do atendimento** (migration 021), não a
+do dia em que a cliente agenda: "Terça da beleza" vale para quem é atendida na
+terça. `valeNoDia()` confere na venda, e as rotas públicas de dias livres e
+horários usam a mesma função para o calendário do site só oferecer os dias
+certos. O texto que descreve a regra para a cliente ("Às terças · até 15/10")
+sai de `shared/promocao.js`, o mesmo no site e no painel.
+
+**O limite conta vendas não canceladas, com trava.** Uma venda é um
+`combo_grupo`; a falta conta, porque ocupou a vaga. A conferência acontece
+dentro da transação da venda, depois de `pg_advisory_xact_lock` na chave do
+combo: sem a trava, duas clientes no mesmo segundo leriam "49 de 50" e as duas
+levariam a última vaga. Há teste com as duas vendas em paralelo.
+
+**Pausar não é arquivar.** `ativo` é o liga e desliga da tela; `arquivado` é o
+"apagar" de quem já vendeu, porque os agendamentos apontam para o combo e a
+linha não pode sumir. Arquivada sai da lista do painel; pausada continua à vista.
+
+**O desconto é gravado na venda** (`appointments.desconto`): preço de tabela do
+dia menos o `valor` rateado, pelo mesmo motivo do rateio, que é o relatório de
+amanhã não refazer a conta com a tabela de hoje. É dele que sai o "desconto
+concedido" de `GET /api/combos/desempenho`, que também devolve vendas e receita
+(sem faltas) por data de atendimento, recortado por `escopoDe`. As vendas
+anteriores à 021 receberam o desconto pela tabela do dia da migração.
 
 **Quem vende o pacote é uma profissional só, do começo ao fim.** É o caso comum
 do balcão e mantém a reserva sendo uma pergunta só — "cabem 90 minutos seguidos
@@ -1483,18 +1552,19 @@ semanas" ser um comando e não três. `?serie=1` no DELETE apaga o grupo — e a
 rota confere que o laço existe antes, senão pedir série num bloqueio avulso
 rodaria `WHERE serie IS NULL` e levaria junto todo avulso da empresa.
 
-**Duas portas para a mesma coisa, de propósito.** O botão **Bloquear horário**
-da Agenda resolve o caso de balcão numa janela só: um dia, um intervalo e um
-**Repetir** com quatro opções — *não repetir*, *todos os dias*, *toda semana* ou
-*até uma data*. As três primeiras viram `repetir: { cada, vezes }`; "até uma
-data" monta a lista de dias na própria tela e manda `datas: [...]`, o que
-também tira do caminho o teto de 52 repetições — férias longas cabem. A linha
-embaixo diz por extenso o que vai acontecer ("Todo domingo, das 12:00 às 13:00.
-Fecha até dom, 18 out"), porque "4 semanas" sozinho não responde à pergunta que
-se faz na hora, que é *até quando fica fechado*.
+**Uma porta só.** Até outubro de 2026 a Agenda tinha a própria gaveta de
+**Bloquear horário** (um dia, um intervalo e um *Repetir* de quatro opções), e
+a tela de Horários fechados era a segunda porta, para o caso composto. As duas
+divergiam: cada uma tinha seus campos, sua prévia e seu jeito de repetir. Hoje o
+botão **Bloquear horário** da Agenda e o atalho do Resumo levam para Horários
+fechados com o formulário já aberto (`irPara('bloqueios', { novo: true, data })`),
+no dia que se estava olhando. Perde-se ver a grade ao lado enquanto se bloqueia;
+ganha-se um formulário só para manter, e a pessoa vê a lista do que já está
+fechado logo atrás da gaveta.
 
-A tela **Horários fechados** é a outra porta, para o caso composto — e é ela que
-explica o resto desta seção.
+Como a grade da Agenda lê os bloqueios do estado geral do painel, a tela de
+Horários fechados recarrega esse estado (`acao`) depois de criar ou liberar.
+Sem isso, o bloqueio só apareceria na Agenda depois de recarregar a página.
 
 **O formulário segue o modelo de agenda de celular, e manda as datas prontas.**
 Abre numa gaveta com profissional, data inicial e final, horário ou *dia
@@ -1532,7 +1602,7 @@ série é recorrente (almoço de segunda a sexta: uma linha de regra, fora dos
 "próximos" para não afogar a lista com um cartão por dia útil). "Dia inteiro"
 também é conta da tela: o bloqueio cobre a jornada de quem ele fecha. O período
 exige o dia inteiro porque um almoço de todo dia também é sequência sem buraco.
-Uma coluna `tipo` teria de ser preenchida pelas duas portas de criação e poderia
+Uma coluna `tipo` teria de ser preenchida na criação e poderia
 contradizer as datas. O custo é que "a cada duas semanas" aparece como "Todas as
 terças", porque a tela lê o dia da semana e não o intervalo. O filtro de tipo
 usa os motivos que a empresa já escreveu: não há lista fixa.

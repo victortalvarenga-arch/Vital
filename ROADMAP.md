@@ -527,6 +527,29 @@ Detalhes e o porquê do modelo em `ARQUITETURA.md`.
       pessoa só, do começo ao fim
 - [x] Encaixe de combo pelo painel, no mesmo formulário do serviço avulso
 - [x] Foto própria do combo, com upload na tela de cadastro
+- [x] Começo, dias da semana, limite de vendas, pausa e desempenho (vendas,
+      receita, desconto concedido) — migration 021
+
+### Bloco 6e — Promoção de desconto em serviço avulso
+A primeira etapa (começo, dias da semana, limite, pausa, desconto gravado e
+desempenho) foi feita sobre os pacotes e está em `ARQUITETURA.md`. Esta é a
+segunda, combinada com o dono do produto em 2026-10-03: o desenho da tela de
+Promoções pede promoções que não são pacote.
+
+- [ ] Tipos: **desconto percentual** e **preço promocional** sobre um ou mais
+      serviços avulsos ("Limpeza de R$ 150 por R$ 120", "15% em estética"),
+      além do pacote de hoje. Campo "Tipo" no formulário e filtro "Tipo" na
+      lista — os dois ficaram de fora da primeira etapa por só existir um tipo
+- [ ] O preço com desconto vale **no servidor**, na criação do agendamento
+      (site e balcão), e grava `valor` e `appointments.desconto` como o combo
+      já faz. O site mostra o preço cheio riscado ao lado
+- [ ] Decidir antes de codar: duas promoções valendo para o mesmo serviço no
+      mesmo dia (a melhor para a cliente? a mais recente? não deixar
+      cadastrar?); se o desconto incide sobre os adicionais; e se a comissão
+      sai do valor com desconto (hoje sai, porque sai do `valor`)
+- [ ] As regras da 021 (período e dias olhando a data do atendimento, limite
+      com trava por promoção) valem igual; a tabela provavelmente deixa de se
+      chamar `combos`, e a migração precisa manter `combo_id` dos agendamentos
 
 ### Bloco 7 — Painel da equipe
 O shell já foi refeito no Bloco 4 (navegação lateral agrupada, gaveta no
@@ -686,6 +709,28 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Produto
 
+- [ ] **A função da profissional não se edita mais, mas ainda aparece no site.**
+      O campo saiu da ficha de Profissionais (os serviços já dizem o que a
+      pessoa faz), mas `staff.funcao` continua indo para a vitrine e a Clínica
+      mostra embaixo do nome (`site/Clinica.jsx`). Quem já tinha função fica
+      com ela para sempre; quem é cadastrado agora, sem. Decidir: tirar do
+      site também, ou mostrar ali os serviços no lugar.
+- [ ] **A comissão não é congelada no atendimento.** Ela é calculada com a
+      taxa de hoje (`comissaoCentavos()`, em `routes/relatorios.js`), então mudar a comissão
+      de um serviço ou de uma pessoa muda o lucro e a comissão dos meses
+      passados no Resumo e no Financeiro. Já valia para `staff.comissao`; com
+      três níveis (migration 020) fica mais fácil de acontecer. O conserto é
+      gravar a taxa em `appointments` quando o atendimento é concluído e somar
+      a gravada, como o combo já faz com o `valor` rateado.
+- [ ] **Extras pagam a comissão do serviço principal.** O atendimento inteiro,
+      adicionais incluídos, usa a taxa do serviço principal. Se o extra tiver
+      comissão diferente, ela é ignorada. Dividir certo exige decidir a que
+      parte do atendimento um pagamento parcial se refere.
+- [ ] **O funcionário recebe as taxas de comissão dos colegas.** O
+      `/api/estado` manda `staff.comissao` de todos e, agora, `comissao` e
+      `comissoes` de cada serviço, para qualquer papel. O valor em reais
+      continua recortado por `escopoDe`, mas o percentual da colega aparece na
+      resposta. Recortar no `/api/estado` para quem não tem `verDeTodos`.
 - [ ] **Bloqueio que "nunca termina" termina em 12 meses, sem aviso.** Com uma
       linha por data (migration 013), o *Nunca* do formulário de Fechar
       horários cria os próximos 365 dias, e a tela diz isso só na hora de

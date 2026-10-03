@@ -28,13 +28,14 @@ import Entrar from './Entrar.jsx';
 import Usuarios from './Usuarios.jsx';
 import Resumo from './Resumo.jsx';
 import Financeiro from './Financeiro.jsx';
-import { prepararImagem } from '../shared/imagem.js';
+import Equipe from './Equipe.jsx';
+import Servicos from './Servicos.jsx';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
-  Upload, Image as ImageIcon, LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
+  LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
   ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy,
 } from 'lucide-react';
 
@@ -54,30 +55,6 @@ const soDigitos = s => (s || '').replace(/\D/g, '');
 const fmtFone = s => { const d = soDigitos(s).slice(0, 11); if (d.length <= 2) return d; if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; };
 const waLink = (fone, texto) => `https://wa.me/55${soDigitos(fone)}?text=${encodeURIComponent(texto)}`;
 const diasEntre = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
-
-// Uma cor só, em seis tons — o vinho da marca do painel. Cada pessoa e cada
-// categoria se distingue pelo tom, não pelo matiz: a tela ficava um arco-íris.
-// A ordem é a de maior contraste entre vizinhos (meio, escuro, claro, ...), para
-// as três primeiras pessoas já saírem bem diferentes; todos passam de 4,5:1
-// contra o branco das iniciais.
-const PALETA = ['#A32A4E', '#59182B', '#C2476C', '#711E37', '#B03B5E', '#892443'];
-
-/**
- * Cor de uma categoria, deduzida do nome.
- *
- * Era um mapa fixo — 'Unhas', 'Olhar', 'Facial', 'Corpo' —, e categoria de fora
- * dessa lista caía num cinza. Barbearia, clínica e petshop ficavam todas com o
- * mesmo cinza, e cada ramo novo pedia uma linha aqui.
- *
- * A cor sai de um resumo do próprio nome, então é estável (a mesma categoria
- * tem sempre a mesma cor) sem depender de ninguém cadastrar nada. A paleta é a
- * mesma das profissionais: uma só para o painel inteiro.
- */
-const corDaCategoria = nome => {
-  let n = 0;
-  for (const c of String(nome || '')) n = (n * 31 + c.codePointAt(0)) % 100003;
-  return PALETA[n % PALETA.length];
-};
 
 /* ─────────── estado vindo do servidor ─────────── */
 
@@ -146,9 +123,9 @@ function Painel({ sessao, aoSair }) {
   const { dados, erro, recarregar } = useEstado();
   const [secao, setSecao] = useState('resumo');
   // Um atalho pode pedir mais do que a tela: 'novo' abre a janela de
-  // agendamento (ou a de bloqueio) assim que a Agenda montar. O pedido é
-  // consumido lá e some —
-  // senão voltar para a Agenda depois reabriria a janela sozinha.
+  // agendamento assim que a Agenda montar; `{ novo: true, data }` abre o
+  // formulário de Horários fechados. O pedido é consumido lá e some —
+  // senão voltar para a tela depois reabriria a janela sozinha.
   const [pedido, setPedido] = useState(null);
   const [menuAberto, setMenuAberto] = useState(false);
   const [toast, setToast] = useState(null);
@@ -273,7 +250,7 @@ function Painel({ sessao, aoSair }) {
         )}
         {secao === 'agenda' && (
           <Agenda dados={{ ...dados, eu: sessao.usuario }} acao={acao}
-                  aviso={setToast} poderes={p} pedido={pedido}
+                  aviso={setToast} poderes={p} pedido={pedido} irPara={irPara}
                   aoConsumirPedido={() => setPedido(null)} />
         )}
         {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
@@ -281,7 +258,8 @@ function Painel({ sessao, aoSair }) {
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'bloqueios' && (
-          <Bloqueios dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} poderes={p} />
+          <Bloqueios dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} poderes={p}
+                     acao={acao} pedido={pedido} aoConsumirPedido={() => setPedido(null)} />
         )}
         {secao === 'registro' && <Registro dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} />}
         {secao === 'suporte' && <Suporte aviso={setFalha} />}
@@ -374,12 +352,11 @@ function rotuloDaEscala(escala, ancora, de, ate) {
  * diferente a cada dia. Com os dias fixos, a quem pertence cada atendimento é
  * dito dentro do próprio bloco — cor e primeiro nome.
  */
-function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
+function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara }) {
   const { staff, servicos, clientes, agendamentos } = dados;
   const [ancora, setAncora] = useState(hojeISO());
   const [sel, setSel] = useState(null);
   const [novo, setNovo] = useState(pedido === 'novo');
-  const [bloquear, setBloquear] = useState(pedido === 'bloquear' ? {} : null);
   // Onde o atendimento foi solto, esperando a confirmação. Arrastar move o
   // dinheiro de dia e avisa a cliente — perto demais de um tapa na tela para
   // valer sem perguntar.
@@ -544,7 +521,10 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
           <SeletorPessoas staff={staff} valor={pessoas} aoMudar={setPessoas}
                           podeVerTodos={poderes.verDeTodos} multiplo />
           <div className="ag-acoes">
-            <button className="btn btn-g btn-s" onClick={() => setBloquear({ data: diaParaAcao })}>
+            {/* Bloquear tem uma casa só: a tela de Horários fechados, com o
+                formulário já aberto no dia que se está olhando. */}
+            <button className="btn btn-g btn-s"
+                    onClick={() => irPara('bloqueios', { novo: true, data: diaParaAcao })}>
               <Ban size={16} /> Bloquear horário
             </button>
             <button className="btn btn-p btn-s" onClick={() => setNovo(true)}>
@@ -922,14 +902,10 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
 
       {/* `diaParaAcao`, não `data`: essa variável não existe aqui, e a referência
           solta derrubava a Agenda inteira no clique — a tela sumia sem modal e
-          sem erro visível. Vale para os dois modais. */}
+          sem erro visível. */}
       {novo && (
         <NovoAgendamento dados={dados} acao={acao} data={diaParaAcao}
                          fechar={() => setNovo(false)} aviso={aviso} />
-      )}
-      {bloquear && (
-        <BloquearHorario dados={dados} poderes={poderes} data={bloquear.data || diaParaAcao}
-                         acao={acao} aviso={aviso} fechar={() => setBloquear(null)} />
       )}
 
       {/* Reagendar pela gaveta: o mesmo destino que o arrasto produz, para quem
@@ -994,28 +970,6 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido }) {
 }
 
 /**
- * Fecha um pedaço da agenda: almoço, folga, feriado.
- *
- * Bloquear NÃO desmarca ninguém. Se já havia cliente no intervalo, a tela
- * avisa e a equipe remarca à mão — cancelar sozinho o atendimento de alguém
- * seria decidir pela empresa uma coisa que ela precisa saber que aconteceu.
- */
-/**
- * Repetir o bloqueio. O servidor grava **uma linha por ocorrência** (migration
- * 013), e não uma regra: cancelar uma terça sem desfazer as outras é o caso
- * normal, e o motor de horários continua conferindo por data.
- *
- * `vezes` acompanha o tipo: quatro semanas é um mês de folga, catorze dias são
- * duas semanas de almoço. O teto do servidor é 52.
- */
-/** "Todo domingo", "Toda terça-feira" — domingo e sábado são masculinos. */
-function todoDiaDaSemana(iso) {
-  const d = new Date(iso + 'T12:00:00').getDay();
-  return `${d === 0 || d === 6 ? 'Todo' : 'Toda'} ${DIA_LONGO[d]}`;
-}
-
-/** Os motivos que se escreve o tempo todo. Um toque preenche o campo. */
-/**
  * O caminho de um atendimento, do dia marcado até o fim.
  *
  * Cada etapa mostra **uma** ação: a seguinte. A lista inteira de estados fica
@@ -1034,193 +988,6 @@ const FLUXO = {
 const ROTULO_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, v.rotulo]));
 const TOM_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, v.tom]));
 
-const MOTIVOS = [
-  { emoji: '🍽️', texto: 'Almoço' },
-  { emoji: '☕', texto: 'Pausa' },
-  { emoji: '🏖️', texto: 'Férias' },
-  { emoji: '🔧', texto: 'Manutenção' },
-];
-
-const REPETICOES = [
-  { k: 'nao', rotulo: 'Não repetir' },
-  { k: 'dia', rotulo: 'Todos os dias', vezes: 14, unidade: 'dias' },
-  { k: 'semana', rotulo: 'Toda semana', vezes: 4, unidade: 'semanas' },
-  // Férias: fecha todo dia até a data escolhida. Manda a lista pronta em vez de
-  // `vezes`, como faz a tela de Horários fechados — assim não esbarra no teto
-  // de 52 repetições, e o servidor grava exatamente o que se viu na tela.
-  { k: 'ate', rotulo: 'Até uma data' },
-];
-
-/** Todos os dias de `de` a `ate`, inclusive. O servidor aceita até 400. */
-function diasAte(de, ate) {
-  const lista = [];
-  for (let d = de; d <= ate && lista.length < 400; d = addDias(d, 1)) lista.push(d);
-  return lista;
-}
-
-function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
-  const [f, setF] = useState({
-    // Funcionário só fecha a própria agenda; para ele o campo nem faz escolha.
-    profissionalId: poderes.verDeTodos ? '' : (dados.eu?.profissionalId || ''),
-    data, horaIni: '12:00', horaFim: '13:00', motivo: '',
-  });
-  const [repete, setRepete] = useState('nao');
-  const [vezes, setVezes] = useState(14);
-  const [ate, setAte] = useState(addDias(data, 7));
-  const [ocupado, setOcupado] = useState(false);
-  const [conflitos, setConflitos] = useState(null);
-
-  const tipo = REPETICOES.find(r => r.k === repete);
-  const datasAte = repete === 'ate' ? diasAte(f.data, ate) : null;
-  // Até quando vai, dito por extenso: "4 semanas" sozinho não responde a
-  // pergunta que se faz na hora, que é "até quando fica fechado".
-  const ultima = repete === 'nao' ? null
-    : repete === 'ate' ? datasAte.at(-1)
-    : addDias(f.data, (vezes - 1) * (repete === 'semana' ? 7 : 1));
-  const quantas = repete === 'ate' ? datasAte.length : vezes;
-
-  const salvar = async e => {
-    e.preventDefault();
-    setOcupado(true);
-    try {
-      const r = await api.criarBloqueio(
-        repete === 'nao' ? f
-          : repete === 'ate' ? { ...f, datas: datasAte }
-          : { ...f, repetir: { cada: repete, vezes } }
-      );
-      if (r.jaAgendados?.length) {
-        // Não fecha a janela: a equipe precisa ler quem ficou no meio.
-        setConflitos(r.jaAgendados);
-        setOcupado(false);
-      } else {
-        await acao(() => Promise.resolve(), 'Horário bloqueado');
-        fechar();
-      }
-    } catch (erro) {
-      aviso(erro.message);
-      setOcupado(false);
-    }
-  };
-
-  if (conflitos) return (
-    <Gaveta onClose={fechar} titulo="Bloqueado, mas atenção">
-      <h2 style={{ fontSize: 22, marginBottom: 10 }}>Bloqueado, mas atenção</h2>
-      <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 16 }}>
-        {conflitos.length === 1 ? 'Já havia uma cliente' : `Já havia ${conflitos.length} clientes`} nesse
-        intervalo. Ninguém foi desmarcado — combine a remarcação com {conflitos.length === 1 ? 'ela' : 'elas'}.
-      </p>
-      {conflitos.map(c => (
-        <div key={c.id} className="card" style={{ padding: '10px 14px', marginBottom: 8 }}>
-          <b className="mono">{c.hora}</b> · {c.cliente}
-        </div>
-      ))}
-      <button className="btn btn-p" style={{ width: '100%', marginTop: 10 }}
-              onClick={async () => { await acao(() => Promise.resolve(), 'Horário bloqueado'); fechar(); }}>
-        Entendi
-      </button>
-    </Gaveta>
-  );
-
-  return (
-    <Gaveta onClose={fechar} titulo="Bloquear horário">
-      <form onSubmit={salvar}>
-        <h2 style={{ fontSize: 24, marginBottom: 6 }}>Bloquear horário</h2>
-        <p style={{ color: 'var(--muted)', fontSize: 13.5, marginBottom: 18 }}>
-          O site para de oferecer esse intervalo na hora.
-        </p>
-
-        {poderes.verDeTodos && (
-          <Campo label="Quem">
-            <select value={f.profissionalId}
-                    onChange={e => setF(v => ({ ...v, profissionalId: e.target.value }))}>
-              <option value="">A empresa toda (feriado, reforma…)</option>
-              {dados.staff.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
-          </Campo>
-        )}
-
-        <Campo label="Dia">
-          <CampoData valor={f.data} aoMudar={d => setF(v => ({ ...v, data: d }))} />
-        </Campo>
-
-        <div className="mrow">
-          <Campo label="Das"><input type="time" required value={f.horaIni}
-                 onChange={e => setF(v => ({ ...v, horaIni: e.target.value }))} /></Campo>
-          <Campo label="Até"><input type="time" required value={f.horaFim}
-                 onChange={e => setF(v => ({ ...v, horaFim: e.target.value }))} /></Campo>
-        </div>
-
-        <Campo label="Repetir">
-          <div className="fin-seg bl-rep" role="group" aria-label="Repetir">
-            {REPETICOES.map(r => (
-              <button key={r.k} type="button" className={repete === r.k ? 'on' : ''}
-                      aria-pressed={repete === r.k}
-                      onClick={() => { setRepete(r.k); if (r.vezes) setVezes(r.vezes); }}>
-                {r.rotulo}
-              </button>
-            ))}
-          </div>
-        </Campo>
-
-        {repete !== 'nao' && (
-          <div className={'bl-quantas' + (repete === 'ate' ? ' data' : '')}>
-            {repete === 'ate' ? (
-              <>
-                <label htmlFor="bl-ate">Fechar até</label>
-                <CampoData id="bl-ate" valor={ate} aoMudar={setAte} min={f.data} />
-                <span>
-                  Todos os dias, das {f.horaIni} às {f.horaFim} —{' '}
-                  {quantas} {quantas === 1 ? 'dia' : 'dias'} no total.
-                </span>
-              </>
-            ) : (
-              <>
-                <label htmlFor="bl-vezes">Por quantas {tipo.unidade}?</label>
-                <input id="bl-vezes" type="number" min="2" max="52" value={vezes}
-                       onChange={e => setVezes(Math.min(Math.max(+e.target.value || 2, 2), 52))} />
-                <span>
-                  {repete === 'semana'
-                    ? `${todoDiaDaSemana(f.data)}, das ${f.horaIni} às ${f.horaFim}.`
-                    : `Todos os dias, das ${f.horaIni} às ${f.horaFim}.`}
-                  {' '}Fecha até {fmtData(ultima)}.
-                </span>
-              </>
-            )}
-          </div>
-        )}
-
-        <Campo label="Motivo (aparece só para a equipe)">
-          {/* Os quatro que se escreve o tempo todo, a um toque. O campo continua
-              aberto: motivo é texto livre porque cada empresa fecha a agenda
-              pelos próprios motivos — lista fixa aqui viraria lista errada na
-              segunda empresa. */}
-          <div className="bl-tipos">
-            {MOTIVOS.map(m => (
-              <button key={m.texto} type="button"
-                      className={'chip' + (f.motivo === m.texto ? ' on' : '')}
-                      onClick={() => setF(v => ({ ...v, motivo: v.motivo === m.texto ? '' : m.texto }))}>
-                <span aria-hidden="true">{m.emoji}</span> {m.texto}
-              </button>
-            ))}
-          </div>
-          <input placeholder="Ou escreva outro" value={f.motivo}
-                 onChange={e => setF(v => ({ ...v, motivo: e.target.value }))} />
-        </Campo>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-p" style={{ flex: 1 }} type="submit" disabled={ocupado}>
-            {ocupado ? 'Bloqueando…'
-              : repete === 'nao' ? 'Bloquear'
-              : repete === 'ate' ? `Bloquear ${quantas} ${quantas === 1 ? 'dia' : 'dias'}`
-              : `Bloquear ${vezes} ${tipo.unidade}`}
-          </button>
-          <button className="btn btn-g" type="button" onClick={fechar}>Cancelar</button>
-        </div>
-      </form>
-    </Gaveta>
-  );
-}
-
 /**
  * Agendamento pelo balcão — o botão "Agendar" do Calendário e o atalho do Resumo.
  *
@@ -1235,7 +1002,8 @@ function BloquearHorario({ dados, poderes, data, acao, aviso, fechar }) {
  */
 function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
   const { staff, clientes, agendamentos } = dados;
-  const combos = (dados.combos || []).filter(c => c.ativo && !c.vencido);
+  // Só a que está no ar vende, no balcão como no site; o dia o servidor confere.
+  const combos = (dados.combos || []).filter(c => c.situacao === 'ativa');
 
   // Extra que só se vende junto não é serviço principal — nem aqui.
   const vendaveis = dados.servicos.filter(s => s.ativo && !s.somenteAdicional);
@@ -1756,375 +1524,6 @@ function EditarCliente({ c, acao, fechar, aviso }) {
   );
 }
 
-/* ── Serviços ── */
-function Servicos({ dados, acao, aviso }) {
-  const { servicos, staff } = dados;
-  const [edit, setEdit] = useState(null);
-  return (
-    <>
-      <div className="head">
-        <div><h2>Serviços</h2><div className="sub">{servicos.filter(s => s.ativo).length} ativos no site · preço e duração alimentam a agenda automaticamente</div></div>
-        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', cat: '', desc: '', preco: 0, duracao: 60, intervalo: 10, ativo: true, profs: [], foto: '', mostrarPreco: true, somenteAdicional: false })}><Plus size={16} /> Novo serviço</button>
-      </div>
-      <div className="card list">
-        {servicos.map(s => (
-          <div key={s.id} className="li">
-            <span className="dot" style={{ background: corDaCategoria(s.cat), marginTop: 0, width: 12, height: 12 }} />
-            <div style={{ flex: 1 }}>
-              <div className="nm">{s.nome} {!s.ativo && <span className="tag" style={{ background: '#EEE', color: '#777' }}>oculto</span>}</div>
-              <div className="mt"><span>{s.cat}</span><span>{s.duracao} min</span>
-                <span>{s.profs.map(p => staff.find(x => x.id === p)?.nome.split(' ')[0]).join(', ') || 'sem profissional'}</span></div>
-            </div>
-            <span className="mono" style={{ fontWeight: 600 }}>{brl(s.preco)}</span>
-            <button className="btn btn-g btn-s" onClick={() => setEdit(s)}><Pencil size={15} /></button>
-          </div>
-        ))}
-      </div>
-      {edit && <EditarServico s={edit} staff={staff} servicos={servicos} acao={acao}
-                              fechar={() => setEdit(null)} aviso={aviso}
-                              categorias={[...new Set(servicos.map(x => x.cat).filter(Boolean))].sort()} />}
-    </>
-  );
-}
-
-function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categorias = [] }) {
-  const [f, setF] = useState({ ...s });
-  // Duas direções, porque a empresa pensa das duas formas:
-  //   ofertados  → "este serviço oferece estes extras"   (editando o principal)
-  //   ondeSouExtra → "este serviço é extra nestes grupos" (editando o extra)
-  const [ofertados, setOfertados] = useState(null);
-  const [ondeSouExtra, setOndeSouExtra] = useState(null);
-  // Qual categoria está sendo folheada na lista de extras. Não é o que está
-  // marcado — é só o recorte visível, para não despejar o catálogo inteiro.
-  const [folheando, setFolheando] = useState(s.cat || '');
-  const entradaFoto = useRef(null);
-  const [subindo, setSubindo] = useState(false);
-  const toggleProf = id => setF(v => ({ ...v, profs: v.profs.includes(id) ? v.profs.filter(x => x !== id) : [...v.profs, id] }));
-
-  // Carrega as duas regras de adicional ao abrir; sem isso não dá para saber o
-  // que já está marcado e o formulário apagaria tudo ao salvar.
-  useEffect(() => {
-    let vivo = true;
-    api.adicionais()
-      .then(r => {
-        if (!vivo) return;
-        setOfertados(s.id ? (r.porServico[s.id] || []) : []);
-        // A volta: varre as categorias procurando onde este serviço aparece.
-        setOndeSouExtra(
-          Object.entries(r.porCategoria)
-            .filter(([, ids]) => ids.includes(s.id))
-            .map(([cat]) => cat)
-        );
-      })
-      .catch(() => { if (vivo) { setOfertados([]); setOndeSouExtra([]); } });
-    return () => { vivo = false; };
-  }, [s.id]);
-
-  // Enquanto não carregou, não dá para desenhar chip desmarcado: pareceria que
-  // a empresa não tem nada cadastrado.
-  const carregando = ofertados === null || ondeSouExtra === null;
-  const alternar = (lista, set, valor) =>
-    set(lista.includes(valor) ? lista.filter(x => x !== valor) : [...lista, valor]);
-
-  const candidatos = servicos.filter(x => x.id !== s.id);
-  // Serviço novo ainda não tem categoria, e a dele pode ter sido renomeada:
-  // sem esta volta, o filtro ficaria apontando para o nada e a lista vazia.
-  const catAtiva = categorias.includes(folheando) ? folheando : (categorias[0] || '');
-  const visiveisParaExtra = categorias.length > 1
-    ? candidatos.filter(x => x.cat === catAtiva)
-    : candidatos;
-  const marcadosForaDaVista = (ofertados || [])
-    .map(id => candidatos.find(x => x.id === id))
-    .filter(x => x && !visiveisParaExtra.includes(x));
-
-  const salvar = async () => {
-    const ok = await acao(async () => {
-      // Serviço novo só ganha id ao ser criado, e os extras precisam dele.
-      const salvo = await api.salvarServico(f);
-      const id = s.id || salvo?.id;
-      if (ofertados && id) await api.salvarAdicionaisDoServico(id, ofertados);
-      if (ondeSouExtra && id) await api.salvarCategoriasDoAdicional(id, ondeSouExtra);
-    }, 'Serviço salvo');
-    if (ok) fechar();
-  };
-
-  const enviarFoto = async e => {
-    const arquivo = e.target.files?.[0];
-    e.target.value = '';
-    if (!arquivo) return;
-    setSubindo(true);
-    try {
-      const dataUrl = await prepararImagem(arquivo, { largura: 900 });
-      const { url } = await api.enviarImagem(dataUrl, 'servico');
-      setF(v => ({ ...v, foto: url }));
-    } catch (erro) {
-      aviso?.(erro.message);
-    } finally {
-      setSubindo(false);
-    }
-  };
-
-  return (
-    <Modal onClose={fechar}>
-      <h2 style={{ fontSize: 24, marginBottom: 18 }}>{s.id ? 'Editar serviço' : 'Novo serviço'}</h2>
-      <Campo label="Nome"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
-      <Campo label="Descrição (aparece no site)"><textarea rows={2} value={f.desc} onChange={e => setF(v => ({ ...v, desc: e.target.value }))} /></Campo>
-
-      <Campo label="Foto (aparece no site)">
-        <div className="svc-foto-campo">
-          <div className="svc-foto-previa">
-            {f.foto ? <img src={f.foto} alt="" /> : <ImageIcon size={18} />}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-g btn-s" disabled={subindo} onClick={() => entradaFoto.current?.click()}>
-              <Upload size={14} /> {subindo ? 'Enviando…' : f.foto ? 'Trocar' : 'Enviar'}
-            </button>
-            {f.foto && <button className="btn btn-g btn-s" onClick={() => setF(v => ({ ...v, foto: '' }))}><Trash2 size={14} /></button>}
-          </div>
-          <input ref={entradaFoto} type="file" accept="image/*" hidden onChange={enviarFoto} />
-        </div>
-      </Campo>
-
-      <div className="mrow">
-        <Campo label="Categoria">
-          {/* Texto livre com sugestões, não lista fixa: cada ramo tem os
-              próprios grupos, e uma lista no código só serviria a um deles. */}
-          <input list="categorias-existentes" value={f.cat}
-                 /* O exemplo sai do que a própria empresa já cadastrou: um
-                    exemplo escrito no código é sempre o ramo de outra pessoa. */
-                 placeholder={categorias[0] ? `Ex.: ${categorias[0]}` : 'Como você agrupa seus serviços'}
-                 onChange={e => setF(v => ({ ...v, cat: e.target.value }))} />
-          <datalist id="categorias-existentes">
-            {categorias.map(c => <option key={c} value={c} />)}
-          </datalist>
-        </Campo>
-        <Campo label="Preço (R$)"><input type="number" value={f.preco} onChange={e => setF(v => ({ ...v, preco: +e.target.value }))} /></Campo>
-      </div>
-      <Campo label="Duração (minutos)"><input type="number" step={15} value={f.duracao} onChange={e => setF(v => ({ ...v, duracao: +e.target.value }))} /></Campo>
-      <Campo label="Quem executa">
-        <div className="chips">
-          {staff.map(p => <button key={p.id} className={'chip' + (f.profs.includes(p.id) ? ' on' : '')} onClick={() => toggleProf(p.id)}>{p.nome.split(' ')[0]}</button>)}
-        </div>
-      </Campo>
-      {carregando ? (
-        <Campo label="Serviços adicionais"><p className="add-ajuda">Carregando…</p></Campo>
-      ) : (
-        <>
-          <Campo label={`Adicionais oferecidos com "${f.nome || 'este serviço'}"`}>
-            <p className="add-ajuda">
-              Quem escolher este serviço no site vai poder incluir os que você
-              marcar aqui. Cada um soma o próprio preço e a própria duração.
-            </p>
-
-            {/* Categoria primeiro: com catálogo grande, despejar tudo de uma
-                vez vira uma parede de pílulas onde não se acha nada. */}
-            {categorias.length > 1 && (
-              <div className="chips filtro-cat">
-                {categorias.map(c => {
-                  const marcadosAqui = servicos.filter(x => x.cat === c && ofertados.includes(x.id)).length;
-                  return (
-                    <button key={c}
-                            className={'chip chip-cat' + (catAtiva === c ? ' on' : '')}
-                            onClick={() => setFolheando(c)}>
-                      {c}
-                      {marcadosAqui > 0 && <span className="chip-n">{marcadosAqui}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="chips chips-rolagem">
-              {visiveisParaExtra.length === 0
-                ? <p className="add-ajuda">Nenhum outro serviço nesta categoria.</p>
-                : visiveisParaExtra.map(x => (
-                    <button key={x.id}
-                            className={'chip' + (ofertados.includes(x.id) ? ' on' : '')}
-                            onClick={() => alternar(ofertados, setOfertados, x.id)}>
-                      {x.nome}
-                    </button>
-                  ))}
-            </div>
-
-            {/* O que está marcado fora do recorte visível precisa aparecer,
-                senão some da vista e a pessoa acha que perdeu. */}
-            {marcadosForaDaVista.length > 0 && (
-              <p className="add-ajuda">
-                Também marcados em outras categorias:{' '}
-                {marcadosForaDaVista.map(x => x.nome).join(', ')}
-              </p>
-            )}
-            {ofertados.length === 0 && (
-              <p className="add-ajuda">Nenhum marcado: o passo de adicionais não aparece para este serviço.</p>
-            )}
-          </Campo>
-
-          <Campo label={`Oferecer "${f.nome || 'este serviço'}" como adicional em`}>
-            <p className="add-ajuda">
-              O caminho inverso: marque as categorias em que ele deve ser
-              oferecido como extra. Serve para o que quase nunca é vendido
-              sozinho, e sim junto de outra coisa.
-            </p>
-            {categorias.length === 0
-              ? <p className="add-ajuda">Cadastre uma categoria em algum serviço primeiro.</p>
-              : (
-                <div className="chips">
-                  {categorias.map(c => (
-                    <button key={c}
-                            className={'chip' + (ondeSouExtra.includes(c) ? ' on' : '')}
-                            onClick={() => alternar(ondeSouExtra, setOndeSouExtra, c)}>
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              )}
-          </Campo>
-        </>
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <Switch on={f.ativo} onChange={() => setF(v => ({ ...v, ativo: !v.ativo }))} />
-        <span style={{ fontSize: 14 }}>Visível no site</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <Switch on={f.mostrarPreco !== false} onChange={() => setF(v => ({ ...v, mostrarPreco: v.mostrarPreco === false }))} />
-        <span style={{ fontSize: 14 }}>Mostrar o preço <span style={{ color: 'var(--muted)' }}>— desligado, aparece “Sob consulta”</span></span>
-      </div>
-      {/* Diferente de arquivar: continua ativo e continua valendo como extra.
-          O que ele deixa de ser é serviço principal. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <Switch on={!!f.somenteAdicional}
-                onChange={() => setF(v => ({ ...v, somenteAdicional: !v.somenteAdicional }))} />
-        <span style={{ fontSize: 14 }}>
-          Vender só como adicional
-          <span style={{ color: 'var(--muted)' }}> — some da vitrine, continua sendo oferecido junto de outro</span>
-        </span>
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-p" style={{ flex: 1 }} disabled={!f.nome || f.profs.length === 0} onClick={salvar}>Salvar</button>
-        {s.id && <button className="btn btn-g btn-erro" onClick={async () => { await acao(() => api.removerServico(s.id), 'Serviço removido'); fechar(); }}><Trash2 size={16} /></button>}
-      </div>
-    </Modal>
-  );
-}
-
-/* ── Equipe ── */
-function Equipe({ dados, acao, aviso }) {
-  const { staff, agendamentos, servicos } = dados;
-  const [edit, setEdit] = useState(null);
-  const mesAtual = hojeISO().slice(0, 7);
-
-  return (
-    <>
-      <div className="head">
-        <div><h2>Equipe</h2><div className="sub">Jornada, comissão e produção do mês</div></div>
-        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', funcao: '', fone: '', cor: PALETA[staff.length % 6], comissao: 40, jornada: {} })}><Plus size={16} /> Nova profissional</button>
-      </div>
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))' }}>
-        {staff.map(p => {
-          const meus = agendamentos.filter(a => a.prof === p.id && a.data.startsWith(mesAtual) && a.status === 'concluido');
-          const prod = meus.reduce((s, a) => s + a.valor, 0);
-          const dias = Object.keys(p.jornada).map(Number).sort();
-          return (
-            <div key={p.id} className="card" style={{ padding: 18 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
-                <div className="avatar" style={{ background: p.cor, width: 44, height: 44, fontSize: 16 }}>{iniciais(p.nome)}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{p.nome}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.funcao}</div>
-                </div>
-                <button className="btn btn-g btn-s" onClick={() => setEdit(p)}><Pencil size={15} /></button>
-              </div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
-                {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                  <div key={d} title={p.jornada[d] ? `${p.jornada[d][0]}–${p.jornada[d][1]}` : 'folga'}
-                    style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, padding: '6px 0', borderRadius: 7,
-                      background: p.jornada[d] ? p.cor + '22' : 'transparent', color: p.jornada[d] ? p.cor : '#C9BCC5',
-                      border: '1px solid ' + (p.jornada[d] ? 'transparent' : 'var(--line)') }}>
-                    {DIAS[d].toUpperCase()}
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 18, fontSize: 13 }}>
-                <div><div className="eyebrow">Produção/mês</div><b className="mono">{brl(prod)}</b></div>
-                <div><div className="eyebrow">Comissão {p.comissao}%</div><b className="mono">{brl(prod * p.comissao / 100)}</b></div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {edit && <EditarStaff p={edit} unidades={dados.unidades || []} acao={acao}
-                            fechar={() => setEdit(null)} aviso={aviso} />}
-    </>
-  );
-}
-
-function EditarStaff({ p, unidades, acao, fechar, aviso }) {
-  const [f, setF] = useState({ ...p, jornada: { ...p.jornada } });
-  const toggleDia = d => setF(v => {
-    const j = { ...v.jornada };
-    if (j[d]) delete j[d]; else j[d] = ['09:00', '18:00'];
-    return { ...v, jornada: j };
-  });
-  const setHora = (d, i, val) => setF(v => { const j = { ...v.jornada }; const par = [...j[d]]; par[i] = val; j[d] = par; return { ...v, jornada: j }; });
-  const salvar = async () => {
-    const ok = await acao(() => api.salvarProfissional(f), 'Profissional salva');
-    if (ok) fechar();
-  };
-  return (
-    <Modal onClose={fechar} wide>
-      <h2 style={{ fontSize: 24, marginBottom: 18 }}>{p.id ? 'Editar profissional' : 'Nova profissional'}</h2>
-      <div className="mrow">
-        <Campo label="Nome"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
-        <Campo label="Função"><input value={f.funcao} onChange={e => setF(v => ({ ...v, funcao: e.target.value }))} placeholder="O que essa pessoa faz" /></Campo>
-        {/* Só aparece quando há mais de um endereço: empresa de uma loja só não
-            deve ver um campo que não tem o que responder. */}
-        {unidades.filter(u => u.ativo).length > 0 && (
-          <Campo label="Atende na unidade">
-            <select value={f.unidadeId || ''}
-                    onChange={e => setF(v => ({ ...v, unidadeId: e.target.value || null }))}>
-              <option value="">Todas as unidades</option>
-              {unidades.filter(u => u.ativo).map(u => (
-                <option key={u.id} value={u.id}>{u.nome}</option>
-              ))}
-            </select>
-          </Campo>
-        )}
-      </div>
-      <div className="mrow">
-        <Campo label="WhatsApp"><input value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>
-        <Campo label="Comissão (%)"><input type="number" value={f.comissao} onChange={e => setF(v => ({ ...v, comissao: +e.target.value }))} /></Campo>
-      </div>
-      <Campo label="Cor na agenda">
-        <div className="chips">{PALETA.map(c => (
-          <button key={c} onClick={() => setF(v => ({ ...v, cor: c }))} aria-label={c}
-            style={{ width: 32, height: 32, borderRadius: '50%', background: c, border: f.cor === c ? '3px solid var(--ink)' : '3px solid transparent' }} />
-        ))}</div>
-      </Campo>
-      <label>Jornada de trabalho</label>
-      <div style={{ display: 'grid', gap: 6, marginBottom: 18 }}>
-        {[1, 2, 3, 4, 5, 6, 0].map(d => (
-          <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className={'chip' + (f.jornada[d] ? ' on' : '')} style={{ width: 74, justifyContent: 'center' }} onClick={() => toggleDia(d)}>
-              {DIAS[d]}
-            </button>
-            {f.jornada[d] ? (
-              <>
-                <input type="time" style={{ width: 118 }} value={f.jornada[d][0]} onChange={e => setHora(d, 0, e.target.value)} />
-                <span style={{ color: 'var(--muted)' }}>até</span>
-                <input type="time" style={{ width: 118 }} value={f.jornada[d][1]} onChange={e => setHora(d, 1, e.target.value)} />
-              </>
-            ) : <span style={{ fontSize: 13, color: 'var(--muted)' }}>Folga</span>}
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-p" style={{ flex: 1 }} disabled={!f.nome} onClick={salvar}>Salvar</button>
-        {p.id && <button className="btn btn-g btn-erro" onClick={async () => { await acao(() => api.removerProfissional(p.id), 'Profissional removida'); fechar(); }}><Trash2 size={16} /></button>}
-      </div>
-    </Modal>
-  );
-}
 
 /* ── CRM / WhatsApp ── */
 function CRM({ dados, acao, aviso, fila, recarregarFila }) {

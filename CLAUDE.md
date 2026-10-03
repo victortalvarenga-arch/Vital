@@ -80,6 +80,11 @@ escrito, não aconteceu.
   correspondente. Já aconteceu de `.chip` sumir numa divisão de arquivo: os
   botões viraram texto solto, o clique continuou funcionando e a tela parecia
   quebrada sem nenhum erro no console.
+- Prefixo de classe é de uma tela só (`sv-` Serviços, `pf-` Profissionais, `bl-`
+  Horários fechados…). Antes de escolher um, procure-o no `styles.css`: a ficha
+  de Profissionais nasceu com `eq-`, que já era da grade do Resumo, e herdou a
+  borda de `.eq-horas` (uma linha solta sobre os dias da semana) e ainda
+  dobrou o avatar do Resumo com `.eq-av` — sem erro nenhum, só tela torta.
 - **`className` nunca começa com `ad-`, nem se chama `banner`, `anuncio`,
   `patrocinado` ou `sponsor`.** Bloqueador de anúncio esconde por nome de
   classe, e as listas de filtro pegam qualquer coisa com cara de propaganda.
@@ -144,6 +149,12 @@ escrito, não aconteceu.
   vira varredura de quem é cliente de quem.
 - Campo novo na config não entra na vitrine sozinho — `/api/publico/vitrine`
   monta a resposta a dedo, para não publicar segredo por descuido.
+  O serviço é a exceção: sai inteiro, e campo interno novo em `services`
+  (como `comissao` e `obs`) precisa ser tirado pelo nome em `comPrecoEExtras`.
+- Conta de comissão passa por `comissaoCentavos()` (`routes/relatorios.js`),
+  nunca por `p.comissao` direto: a comissão tem três níveis e pode ser fixa, e
+  uma conta escrita à mão é o Resumo e o Financeiro discordando sem aviso. Tela
+  não refaz a conta: lê o valor do `/relatorios`.
 - Nada de lista fixa de categoria, ramo ou serviço no código: cada empresa tem
   as suas. Use texto livre com sugestões do que já existe.
 - Nada de conteúdo de um ramo só no que o produto entrega — nem serviço de

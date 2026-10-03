@@ -7,6 +7,45 @@ import { escopoDe } from '../lib/auth.js';
 export const relatorios = Router();
 
 /**
+ * Quanto do atendimento é de quem atendeu, em percentual. Ver migration 020.
+ *
+ * O mais específico vence: a exceção desta pessoa neste serviço, senão a
+ * comissão do serviço, senão a da pessoa. Nulo em cada nível é "não decide
+ * aqui"; zero é zero.
+ *
+ * A taxa é a do serviço PRINCIPAL e vale para o atendimento inteiro, extras
+ * incluídos: dividir um pagamento parcial entre o principal e cada extra pediria
+ * decidir qual parte foi paga primeiro. O desacerto está em ROADMAP.md.
+ *
+ * Toda conta de comissão passa por `comissaoCentavos()`, que usa estas duas
+ * constantes. Um COALESCE escrito à mão em outra consulta é o Resumo e o
+ * Financeiro discordando sem aviso.
+ */
+const COM_TAXA = `JOIN staff p ON p.id = a.staff_id
+  LEFT JOIN services sv ON sv.id = a.service_id
+  LEFT JOIN service_staff ss ON ss.service_id = a.service_id AND ss.staff_id = a.staff_id`;
+const TAXA = 'COALESCE(ss.comissao, sv.comissao, p.comissao, 0)';
+
+/**
+ * A comissão de UM atendimento, em centavos, sobre `base` (a coluna do que
+ * conta: `a.pag_recebido` para o caixa, `a.valor` para a produção).
+ *
+ * Se nem o serviço nem a exceção da pessoa decidem, e o padrão dela é fixo
+ * (migration 022), sai o fixo — proporcional ao quanto de `a.valor` a base
+ * representa: pagou metade, metade do fixo. Atendimento de valor zero paga o
+ * fixo inteiro, porque o trabalho foi feito. No resto, o percentual de `TAXA`.
+ *
+ * Arredonda por atendimento; somar e arredondar no fim mudaria o centavo de
+ * alguém. Precisa de `COM_TAXA` no FROM.
+ */
+const comissaoCentavos = base => `CASE
+    WHEN ss.comissao IS NULL AND sv.comissao IS NULL AND p.comissao_tipo = 'fixo'
+      THEN ROUND(COALESCE(p.comissao_fixo, 0) * 100
+                 * CASE WHEN a.valor > 0 THEN LEAST(1, ${base} / a.valor) ELSE 1 END)
+    ELSE ROUND(${base} * 100 * ${TAXA} / 100)
+  END`;
+
+/**
  * Resumo financeiro de um período.
  *
  * Aceita `de`/`ate` ('YYYY-MM-DD') ou `mes` ('YYYY-MM'), que continua valendo
@@ -111,14 +150,17 @@ relatorios.get('/resumo', rota(async (req, res) => {
   );
 
   const producao = await db.all(
-    `SELECT p.id, p.nome, p.comissao, COUNT(*) qtd, SUM(a.valor) producao
-       FROM appointments a JOIN staff p ON p.id=a.staff_id
+    `SELECT p.id, p.nome, p.comissao, COUNT(*) qtd, SUM(a.valor) producao,
+            SUM(${comissaoCentavos('a.valor')}) comissao_centavos
+       FROM appointments a ${COM_TAXA}
       WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' ${meuA}
       GROUP BY p.id, p.nome, p.comissao ORDER BY producao DESC`,
     de, ate, ...arg
   );
-  const porProfissional = producao.map(r => ({
-    ...r, comissaoValor: (r.producao || 0) * (r.comissao || 0) / 100,
+  // `comissao` continua sendo a da pessoa (o padrão dela); o valor vem da conta
+  // atendimento a atendimento, porque cada serviço pode pagar diferente.
+  const porProfissional = producao.map(({ comissao_centavos: centavos, ...r }) => ({
+    ...r, comissaoValor: (centavos || 0) / 100,
   }));
 
   // `status='concluido'` junto, e não só o dinheiro: um atendimento que entrou
@@ -161,14 +203,14 @@ relatorios.get('/resumo', rota(async (req, res) => {
   //
   // Lucro é do dono. Funcionário recebe `null`: a comissão dos colegas não é
   // dado dele — e para ele "lucro da empresa" nem existe.
-  const { c: comissaoCentavos } = await db.get(
-    `SELECT SUM(ROUND(a.pag_recebido * 100 * COALESCE(p.comissao, 0) / 100)) c
-       FROM appointments a JOIN staff p ON p.id = a.staff_id
+  const { c: comissaoDoPeriodo } = await db.get(
+    `SELECT SUM(${comissaoCentavos('a.pag_recebido')}) c
+       FROM appointments a ${COM_TAXA}
       WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' ${meuA}`,
     de, ate, ...arg
   );
-  const custos = (comissaoCentavos || 0) / 100;
-  const lucro = escopo ? null : lucroEmReais(recebido, comissaoCentavos);
+  const custos = (comissaoDoPeriodo || 0) / 100;
+  const lucro = escopo ? null : lucroEmReais(recebido, comissaoDoPeriodo);
 
   res.json({
     mes, de, ate, dias,
@@ -247,8 +289,8 @@ relatorios.get('/serie', rota(async (req, res) => {
 
   const linhas = await db.all(
     `SELECT ${DEGRAUS[por]} chave, SUM(a.pag_recebido) recebido,
-            SUM(ROUND(a.pag_recebido * 100 * COALESCE(p.comissao, 0) / 100)) comissao
-       FROM appointments a JOIN staff p ON p.id = a.staff_id
+            SUM(${comissaoCentavos('a.pag_recebido')}) comissao
+       FROM appointments a ${COM_TAXA}
       WHERE a.data >= ? AND a.data <= ? AND a.status='concluido'
         ${so ? 'AND a.staff_id = ?' : ''}
       GROUP BY ${DEGRAUS[por]}`,
@@ -298,8 +340,8 @@ relatorios.get('/mensal', rota(async (req, res) => {
 
   const linhas = await db.all(
     `SELECT substr(a.data, 1, 7) mes, SUM(a.pag_recebido) recebido,
-            SUM(ROUND(a.pag_recebido * 100 * COALESCE(p.comissao, 0) / 100)) comissao
-       FROM appointments a JOIN staff p ON p.id = a.staff_id
+            SUM(${comissaoCentavos('a.pag_recebido')}) comissao
+       FROM appointments a ${COM_TAXA}
       WHERE a.data >= ? AND a.data <= ? AND a.status='concluido'
         ${so ? 'AND a.staff_id = ?' : ''}
       GROUP BY substr(a.data, 1, 7)`,

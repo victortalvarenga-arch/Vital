@@ -3,7 +3,7 @@ import {
   Ban, Cake, Check, Clock, Plus, Send, TriangleAlert, Trophy, User, Wallet,
 } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
-import SeletorProfissional from './Seletor.jsx';
+import SeletorPessoas from './SeletorPessoas.jsx';
 import { brl } from '../shared/formato.js';
 import { Dica, Numero } from './Cartoes.jsx';
 import { compacto, rotuloDeValor, tetoDoEixo } from '../shared/graficos.js';
@@ -136,8 +136,10 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
           <h2>Olá, {primeiroNome(dados.eu?.nome)}</h2>
           <div className="sub">{doDiaPorExtenso(hoje)}</div>
         </div>
-        <SeletorProfissional staff={staff} valor={quem} aoMudar={setQuem}
-                             podeVerTodos={poderes.verDeTodos} rotuloTodos="A equipe toda" />
+        {/* O mesmo seletor da Agenda, mas de uma pessoa só: os números do Resumo
+            vêm somados do servidor, que recorta uma pessoa por vez. */}
+        <SeletorPessoas staff={staff} valor={quem ? [quem] : []} aoMudar={l => setQuem(l[0] || '')}
+                        podeVerTodos={poderes.verDeTodos} rotuloTodos="A equipe toda" />
       </div>
 
       <AcoesRapidas irPara={irPara} poderes={poderes} naFila={fila?.itens.length || 0} />
@@ -422,7 +424,7 @@ function AcoesRapidas({ irPara, poderes, naFila }) {
     // o que passou da hora (`jobs/fechamento.js`), então isso não é rotina — é
     // conserto, e conserto tem o caminho dele nas pendências. Fechar um horário,
     // sim, se faz toda semana.
-    { k: 'agenda', oQue: 'bloquear', icone: <Ban size={16} />, nome: 'Bloquear horário' },
+    { k: 'bloqueios', oQue: { novo: true }, icone: <Ban size={16} />, nome: 'Bloquear horário' },
     ...(poderes.cadastros ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Novo cliente' }] : []),
     { k: 'crm', icone: <Send size={16} />, nome: 'Enviar lembretes', badge: naFila },
   ];

@@ -11,6 +11,7 @@ import { aplicarSeo } from './seo.js';
 import { linkGeral, linkServico } from './whatsapp.js';
 import { passo } from './medir.js';
 import Agendar from './Agendar.jsx';
+import { quandoVale } from '../shared/promocao.js';
 import Grade from './Grade.jsx';
 import {
   HeroClinica, TituloClinica, CartoesClinica, SecaoEquipe, SecaoAntesDepois,
@@ -610,6 +611,7 @@ function Destaque({ combo: c, exibir, aoAgendar }) {
           <strong className="destaque-valor">{brl(c.preco)}</strong>
           <span className="destaque-economia">economize {brl(c.economia)}</span>
           {exibir?.duracao && <span className="destaque-dur">{duracaoTexto(c.duracao)} no total</span>}
+          {quandoVale(c) && <span className="destaque-quando">{quandoVale(c)}</span>}
         </div>
       </article>
     </Revela>
@@ -647,6 +649,9 @@ function Promocoes({ itens, exibir, aoAgendar }) {
             </div>
             <p className="promo-economia">economize {brl(c.economia)}</p>
             {exibir?.duracao && <p className="promo-dur">{duracaoTexto(c.duracao)} no total</p>}
+            {/* A regra de quando vale, dita antes do clique: descobrir no
+                calendário que só há terças é descobrir tarde. */}
+            {quandoVale(c) && <p className="promo-quando">{quandoVale(c)}</p>}
 
             <button className="b b-p b-peq promo-btn" onClick={() => aoAgendar(c.id)}>
               <Calendar size={15} /> Aproveitar
