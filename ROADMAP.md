@@ -944,9 +944,19 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       contexto da empresa — falta a rota no painel e um lugar na tela de
       Resumo. Foi deixado de fora de propósito: a primeira pergunta era
       nossa ("a tela de agendamento funciona?"), e a dela vem depois.
-- [ ] Não há como exportar os dados de uma empresa, nem para ela levar embora
-      nem para backup por empresa. Vira exigência de LGPD no dia do primeiro
-      cliente de verdade.
+- [ ] Não há como importar. Empresa que chega de outro sistema, de planilha ou
+      de caderno precisa redigitar clientes e agendamentos futuros um a um —
+      atrito justamente no "se configura sozinha" do cadastro self-service. A
+      exportação já existe (ver `ARQUITETURA.md`, "Exportar dados"); começar
+      pela importação de clientes no mesmo formato, com prévia antes de gravar.
+      Agendamento importado é mais delicado: conflita com horário e equipe.
+- [ ] `server/src/lib/auth.js` tem um caractere NUL literal no id impossível
+      de `escopoDe` (`'␀sem-vinculo'`). O Git trata o arquivo como binário e
+      esconde o diff dele em `git diff` e em revisão de PR — justamente no
+      arquivo dos papéis. Trocar pelo escape `'\0sem-vinculo'`, que dá o mesmo
+      valor em texto puro.
+- [ ] A exportação é só de clientes e agendamentos. Serviços, equipe, promoções
+      e bloqueios ficam de fora — a empresa leva a base, não a configuração.
 - [ ] `npm run reset` recria o cenário inteiro de exemplo, mas empresas criadas
       pelo cadastro self-service somem. Aceitável em desenvolvimento; anotado
       para não surpreender.
@@ -1070,8 +1080,9 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       (`optin`, transacional vs. marketing) passam a valer de fato — ver
       `ARQUITETURA.md`.
 - [ ] Definir por quanto tempo guardar histórico de quem não é mais cliente.
-- [ ] Ter um caminho para exportar e apagar os dados de uma empresa que sair da
-      plataforma.
+- [ ] Ter um caminho para apagar os dados de uma empresa que sair da
+      plataforma. Exportar já existe (o dono baixa clientes e agendamentos em
+      CSV); apagar ainda não tem caminho nenhum.
 
 ## Fora de escopo por enquanto
 

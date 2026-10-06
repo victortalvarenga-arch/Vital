@@ -22,6 +22,7 @@ const FILTROS = [
   ['acesso', 'Acessos'],
   ['bloqueio', 'Bloqueios'],
   ['config', 'Configuração'],
+  ['exportacao', 'Exportações'],
 ];
 
 /** Cor por família de ação: o olho acha antes de ler. */

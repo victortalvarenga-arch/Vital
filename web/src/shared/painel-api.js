@@ -25,6 +25,34 @@ async function req(caminho, { method = 'GET', body } = {}) {
   return json;
 }
 
+/**
+ * Baixa um arquivo da API e entrega ao navegador como download.
+ *
+ * Por `fetch`, e não um `<a href>` direto: com o link, um 403 ou uma sessão
+ * vencida viraria um arquivo `.csv` com `{"erro": …}` dentro, salvo na pasta
+ * de downloads sem aviso nenhum na tela. Aqui o erro volta como erro.
+ */
+async function baixar(caminho) {
+  const r = await fetch(BASE + caminho, { credentials: 'same-origin' });
+  if (!r.ok) {
+    const json = await r.json().catch(() => null);
+    throw new Error(json?.erro || `Falha no download (${r.status})`);
+  }
+  // O nome vem do servidor, que sabe a empresa e a data.
+  const nome = /filename="([^"]+)"/.exec(r.headers.get('Content-Disposition') || '')?.[1]
+    || caminho.split('/').pop();
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revogado depois de um respiro: alguns navegadores ainda leem a URL logo
+  // após o clique, e revogar na hora cancela o download.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /* ── tradução servidor → tela ── */
 
 const servicoParaTela = s => ({
@@ -232,6 +260,10 @@ export const api = {
   chamados: () => req('/suporte'),
   abrirChamado: ({ assunto, mensagem }) =>
     req('/suporte', { method: 'POST', body: { assunto, mensagem } }),
+
+  /* ── exportação ── */
+  // 'clientes' ou 'agendamentos'. Só o dono; o servidor recusa o resto.
+  exportar: oQue => baixar(`/exportar/${oQue}.csv`),
 
   /* ── relatórios ── */
   // Aceita mês fechado ou intervalo livre. Mês continua sendo o caso comum.

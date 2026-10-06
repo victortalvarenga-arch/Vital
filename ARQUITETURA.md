@@ -783,6 +783,7 @@ tela e rota. Voltar a criar um é barato se o caso aparecer.
 | Cadastros, equipe e acesso | sim | não |
 | Agenda | de todos | **a própria** |
 | Financeiro | do negócio | **o próprio** |
+| Exportar dados (CSV) | sim | não |
 
 **Funcionário TEM financeiro — o dele.** A própria produção e a própria
 comissão, não o caixa da empresa. É informação que ele tem direito de
@@ -1840,6 +1841,41 @@ de `appointments`.
 
 `DELETE` não é concedido a ninguém: chamado é histórico.
 
+## Exportar dados
+
+O dono baixa duas planilhas em **Configurações → Exportar dados**: clientes e
+agendamentos (`routes/exportar.js`). É a portabilidade da LGPD do lado de quem
+contrata — a empresa é a controladora dos dados das clientes dela, e a Vital não
+pode ser o lugar de onde eles não saem — e é também o backup que a dona
+consegue fazer sozinha.
+
+**Poder próprio, `exportar`, e não `verDeTodos`.** Enxergar a agenda na tela e
+levar a base inteira de clientes num arquivo são riscos diferentes: o segundo é
+o que alguém que sai da empresa levaria. Hoje só o dono tem os dois, mas um papel
+futuro pode ter um sem o outro. A rota de agendamentos passa por `escopoDe`
+mesmo assim, para não virar porta dos fundos no dia em que isso acontecer.
+
+**A ficha de saúde não sai.** Anamnese se lê uma por vez, com rastro
+(`GET /clientes/:id/fichas`); uma planilha com a de todo mundo seria a cópia que
+ninguém controla mais. A tela diz isso, para ninguém procurar a coluna.
+
+**O formato é o do Excel em português, não o "CSV padrão"** (`lib/csv.js`):
+`;` como separador (com `,` o arquivo abre todo na coluna A, porque a vírgula é
+o decimal daqui), BOM no início (sem ele os acentos viram `Ã§`), dinheiro com
+vírgula decimal e telefone formatado (só dígitos o Excel transforma em número).
+Célula de texto que começa com `=`, `+`, `-` ou `@` ganha um apóstrofo na
+frente: o nome da cliente vem do site, sem login, e `=HIPERLINK(...)` viraria
+link clicável na planilha da dona.
+
+**Cada download fica no registro do painel** (`exportacao.clientes`,
+`exportacao.agendamentos`, filtro "Exportações"), com quem baixou e quantas
+linhas — não o conteúdo, que está no arquivo. A resposta vai com
+`Cache-Control: no-store`.
+
+O download é por `fetch` + `Blob`, não por `<a href>`: com o link, um 403 ou a
+sessão vencida virariam um `.csv` com `{"erro": …}` salvo em silêncio na pasta
+de downloads.
+
 ## Onde as pessoas somem
 
 Até o Bloco do funil, o produto media **resultado** — quantos agendamentos,
@@ -2147,3 +2183,7 @@ O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal
 respeitado em `jobs/mensagens.js` e nas campanhas. Lembretes de agendamento são
 comunicação transacional e não dependem de opt-in. Ao adicionar qualquer disparo
 novo, decida em qual das duas categorias ele cai.
+
+A empresa leva os próprios dados quando quiser: ver "Exportar dados". Apagar os
+dados de uma empresa que sai da plataforma ainda não tem caminho — está em
+`ROADMAP.md`.

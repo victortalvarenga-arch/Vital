@@ -261,7 +261,7 @@ export async function subirApi() {
         res.on('end', () => {
           let json;
           try { json = texto ? JSON.parse(texto) : null; } catch { json = texto; }
-          ok({ status: res.statusCode, corpo: json });
+          ok({ status: res.statusCode, corpo: json, cabecalhos: res.headers });
         });
       });
       req.on('error', falha);

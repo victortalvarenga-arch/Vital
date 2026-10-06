@@ -872,6 +872,23 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .sup-quando{margin-left:0; width:100%}
 }
 
+/* ── Exportar dados ── */
+.ex-lista{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  margin-bottom:18px}
+.ex-item{padding:18px; display:flex; flex-direction:column; gap:8px}
+.ex-titulo{display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700}
+.ex-texto{margin:0; flex:1; font-size:13px; color:var(--muted); line-height:1.5}
+/* Alvo de toque inteiro no celular; no computador, do tamanho do texto. */
+.ex-btn{align-self:flex-start; margin-top:6px}
+.ex-nota{display:flex; gap:10px; align-items:flex-start; padding:14px 16px; border-radius:12px;
+  background:var(--porcelain); color:var(--cinza)}
+.ex-nota svg{flex-shrink:0; margin-top:2px}
+.ex-nota p{margin:0; font-size:12.5px; line-height:1.5}
+
+@media (max-width: 720px){
+  .ex-btn{align-self:stretch; justify-content:center}
+}
+
 /* ── Resumo: o "!" que explica cada número ── */
 .stat, .rs-relativo{position:relative}
 .stat .eyebrow{padding-right:22px}

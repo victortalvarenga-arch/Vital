@@ -20,6 +20,7 @@ import SeletorCliente from './SeletorCliente.jsx';
 import CampoData from './CampoData.jsx';
 import { Campo, Confirmar, Gaveta, Modal, Switch } from './Base.jsx';
 import Suporte from './Suporte.jsx';
+import Exportar from './Exportar.jsx';
 import Formularios from './Formularios.jsx';
 import Ficha from './Ficha.jsx';
 import Comecar from './Comecar.jsx';
@@ -36,7 +37,7 @@ import {
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
   LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
-  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy,
+  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download,
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -194,6 +195,7 @@ function Painel({ sessao, aoSair }) {
       ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
       // Sem guarda: funcionário vê o próprio rastro, e é o servidor que recorta.
       { k: 'registro', nome: 'Registro', icon: ScrollText },
+      ...(p.exportar ? [{ k: 'exportar', nome: 'Exportar dados', icon: Download }] : []),
       { k: 'suporte', nome: 'Suporte técnico', icon: LifeBuoy },
     ] },
   ].filter(g => g.itens.length);
@@ -263,6 +265,7 @@ function Painel({ sessao, aoSair }) {
         )}
         {secao === 'registro' && <Registro dados={{ ...dados, eu: sessao.usuario }} aviso={setFalha} />}
         {secao === 'suporte' && <Suporte aviso={setFalha} />}
+        {secao === 'exportar' && p.exportar && <Exportar aviso={setFalha} />}
         {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}

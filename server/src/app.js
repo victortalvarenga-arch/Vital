@@ -15,6 +15,7 @@ import { auth } from './routes/auth.js';
 import { cadastro } from './routes/cadastro.js';
 import { plataforma } from './routes/plataforma.js';
 import { bloqueios } from './routes/bloqueios.js';
+import { exportar } from './routes/exportar.js';
 import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { rota } from './lib/rota.js';
 import { comRegistro } from './lib/registro.js';
@@ -50,7 +51,12 @@ if (process.env.TRUST_PROXY) {
   app.set('trust proxy', /^\d+$/.test(v) ? Number(v) : v);
 }
 
-app.use(cors({ origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',') }));
+app.use(cors({
+  origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+  // Sem isto, com a API em outro domínio, o navegador esconde o nome do arquivo
+  // da exportação e o download sai como "clientes.csv", sem empresa nem data.
+  exposedHeaders: ['Content-Disposition'],
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
@@ -126,6 +132,7 @@ app.use('/api', exigeLogin);
 // quem não pode; recusar aqui é o que impede a chamada direta.
 app.use('/api/uploads', exige('cadastros'), uploads);
 app.use('/api/relatorios', exige('financeiro'), relatorios);
+app.use('/api/exportar', exige('exportar'), exportar);
 app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);
