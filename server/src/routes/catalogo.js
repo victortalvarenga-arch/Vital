@@ -13,13 +13,22 @@ export const catalogo = Router();
 /* ── Configuração do negócio ── */
 catalogo.get('/config', rota(async (req, res) => res.json(await getConfig())));
 catalogo.put('/config', exige('site'), rota(async (req, res) => {
-  const salva = await setConfig(req.body || {});
+  const corpo = { ...(req.body || {}) };
+  // O que vem de conta conectada não se escreve por aqui. Avaliação digitada
+  // seria depoimento inventado; e a tela manda a config inteira ao salvar,
+  // então uma aba aberta antes da sincronização desfaria o que o job trouxe.
+  delete corpo.avaliacoesGoogle;
+  if (await db.get(`SELECT 1 FROM conexoes WHERE provedor = 'instagram'`)) {
+    delete corpo.instagramPosts;
+    delete corpo.instagram;
+  }
+  const salva = await setConfig(corpo);
   // Só as seções tocadas: a config inteira no registro seria ilegível, e o que
   // se quer saber é "quem mexeu na marca do site na terça".
   await req.registrar('config.alterada', {
     alvoId: 'config',
-    resumo: `mudou a configuração (${Object.keys(req.body || {}).join(', ') || 'nada'})`,
-    detalhe: { secoes: Object.keys(req.body || {}) },
+    resumo: `mudou a configuração (${Object.keys(corpo).join(', ') || 'nada'})`,
+    detalhe: { secoes: Object.keys(corpo) },
   });
   res.json(salva);
 }));

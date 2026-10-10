@@ -16,6 +16,7 @@ import { cadastro } from './routes/cadastro.js';
 import { plataforma } from './routes/plataforma.js';
 import { bloqueios } from './routes/bloqueios.js';
 import { exportar } from './routes/exportar.js';
+import { conexoes, retornoOauth } from './routes/conexoes.js';
 import { sessaoDe, NOME_COOKIE, exige, escopoDe } from './lib/auth.js';
 import { rota } from './lib/rota.js';
 import { comRegistro } from './lib/registro.js';
@@ -96,14 +97,17 @@ app.use('/uploads', express.static(PASTA_UPLOADS, {
 }));
 
 /**
- * As duas rotas que rodam SEM empresa definida, e por isso vêm antes do
- * middleware que prende a conexão a uma:
+ * As rotas que rodam SEM empresa definida pelo endereço, e por isso vêm antes
+ * do middleware que prende a conexão a uma:
  *
  *  - `/api/cadastro` cria empresa, então não pode depender de haver uma;
- *  - `/api/plataforma` é o nosso back-office, que olha todas de uma vez.
+ *  - `/api/plataforma` é o nosso back-office, que olha todas de uma vez;
+ *  - `/api/oauth` é o retorno do Google e da Meta, num endereço só para todas
+ *    as empresas — a empresa vem no `state` assinado (ver routes/conexoes.js).
  */
 app.use('/api/cadastro', cadastro);
 app.use('/api/plataforma', plataforma);
+app.use('/api/oauth', retornoOauth);
 
 /**
  * Toda rota de dado passa por aqui antes de qualquer outra coisa: descobre a
@@ -133,6 +137,7 @@ app.use('/api', exigeLogin);
 app.use('/api/uploads', exige('cadastros'), uploads);
 app.use('/api/relatorios', exige('financeiro'), relatorios);
 app.use('/api/exportar', exige('exportar'), exportar);
+app.use('/api/conexoes', exige('site'), conexoes);
 app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);

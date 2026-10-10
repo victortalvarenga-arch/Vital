@@ -176,6 +176,11 @@ zera tudo e a tela de primeiro acesso volta.
 **Porta 3333 ou 5173 ocupada** — mude `PORT` no `server/.env` (a API) ou
 `server.port` em `web/vite.config.js` (o front).
 
+**"Conectar Google" e "Conectar Instagram" aparecem desligados** — é o normal
+sem `CONEXOES_SEGREDO` e as credenciais de cada provedor no `server/.env`. O
+resto do sistema roda sem elas. O cadastro nos consoles do Google e da Meta
+está no `ROADMAP.md`, Bloco 6b.
+
 ## Ver o banco por interface gráfica
 
 O próprio painel da Neon tem o que precisa: *Tables* mostra e edita as linhas, e

@@ -230,6 +230,16 @@ export const api = {
   /* ── configuração do site ── */
   salvarConfig: patch => req('/config', { method: 'PUT', body: patch }),
 
+  /* ── contas conectadas (Google, Instagram) ── */
+  // Nunca devolve token: só se está conectado, com que conta e se deu erro.
+  conexoes: () => req('/conexoes'),
+  // Devolve `{ url }` da tela de autorização; quem chama navega para lá.
+  iniciarConexao: (provedor, voltar) =>
+    req(`/conexoes/${provedor}/iniciar`, { method: 'POST', body: { voltar } }),
+  sincronizarConexao: provedor => req(`/conexoes/${provedor}/sincronizar`, { method: 'POST' }),
+  escolherFichaGoogle: ficha => req('/conexoes/google/ficha', { method: 'PUT', body: { ficha } }),
+  desconectar: provedor => req(`/conexoes/${provedor}`, { method: 'DELETE' }),
+
   /** Sobe uma imagem já reduzida pelo navegador e devolve a URL pública. */
   enviarImagem: (dataUrl, uso) =>
     req('/uploads', { method: 'POST', body: { arquivo: dataUrl, uso } }),

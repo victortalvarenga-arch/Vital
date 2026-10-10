@@ -122,7 +122,10 @@ export default function App() {
 
 function Painel({ sessao, aoSair }) {
   const { dados, erro, recarregar } = useEstado();
-  const [secao, setSecao] = useState('resumo');
+  // Quem volta da autorização do Google ou da Meta cai na tela de onde saiu,
+  // não no Resumo — é lá que está o recado de como foi.
+  const [secao, setSecao] = useState(() =>
+    new URLSearchParams(window.location.search).has('conexao') ? 'site' : 'resumo');
   // Um atalho pode pedir mais do que a tela: 'novo' abre a janela de
   // agendamento assim que a Agenda montar; `{ novo: true, data }` abre o
   // formulário de Horários fechados. O pedido é consumido lá e some —

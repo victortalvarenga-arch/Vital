@@ -666,6 +666,38 @@ body {
 }
 [data-template="clinica"] .vazio-cartao svg { color: var(--ouro); flex: none; margin-top: 4px; }
 
+/* ── avaliações do Google (só Clínica, ver SecaoAvaliacoes) ──
+   A nota grande primeiro, com o total ao lado: o número que conta todas as
+   avaliações é o que dá crédito às poucas em destaque embaixo. */
+.aval-resumo { display: flex; align-items: center; flex-wrap: wrap; gap: var(--e-4); }
+.aval-nota { font-family: var(--fonte-display); font-size: var(--t-hero); line-height: 1; color: var(--texto); }
+.aval-resumo p { margin: 4px 0 0; color: var(--cinza); font-size: var(--t-corpo-pq); }
+.aval-link { margin-left: auto; }
+.aval-estrelas { display: inline-flex; gap: 2px; color: var(--ouro); }
+.aval-grade {
+  display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: var(--e-6);
+}
+@media (min-width: 720px) { .aval-grade { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1080px) { .aval-grade { grid-template-columns: repeat(3, 1fr); } }
+.aval-cartao {
+  margin: 0; height: 100%; display: flex; flex-direction: column; gap: var(--e-3);
+  padding: var(--e-6); border: 1px solid var(--linha); border-radius: var(--raio);
+  background: color-mix(in srgb, var(--fundo) 70%, transparent);
+}
+.aval-cartao blockquote {
+  margin: 0; flex: 1; color: var(--texto); font-size: var(--t-corpo); line-height: 1.6;
+  /* Avaliação longa não estica a linha inteira da grade: seis linhas e
+     reticências; o texto inteiro está a um toque, na ficha do Google. */
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+}
+.aval-cartao figcaption { display: flex; align-items: center; gap: 10px; }
+.aval-cartao figcaption b { display: block; font-size: var(--t-corpo-pq); }
+.aval-cartao figcaption small { color: var(--fraco); font-size: var(--t-legenda); }
+.aval-inicial {
+  width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: var(--marca-escura); color: var(--sobre-marca-escura); font-weight: 700; font-size: 14px;
+}
+
 /* ── serviços em cartão (só Clínica, ver CartoesClinica) ──
    Duas colunas a partir do tablet, uma no celular, 12px entre eles como na
    referência — o pouco espaço é o que faz os cartões lerem como uma grade e

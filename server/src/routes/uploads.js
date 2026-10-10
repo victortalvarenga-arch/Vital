@@ -66,24 +66,38 @@ uploads.post(
       return res.status(413).json({ erro: 'imagem muito grande (máximo 3 MB)' });
     }
 
-    const rotulo = String(uso || 'img').replace(/[^a-z0-9-]/gi, '').slice(0, 20) || 'img';
-    const nome = `${rotulo}-${crypto.randomBytes(8).toString('hex')}.${extensao}`;
-    // Uma pasta por empresa nos dois destinos: imagem de uma nunca fica ao
-    // lado da de outra, e apagar tudo de um cliente que saiu vira apagar uma
-    // pasta (ou tudo sob o prefixo, no bucket).
-    const chave = `${req.tenantId}/${nome}`;
-
-    if (R2_PRONTO) {
-      await subirParaR2(chave, bytes, m[1]);
-      return res.status(201).json({ url: `${BASE_R2}/${chave}`, bytes: bytes.length });
-    }
-
-    // Sem R2 configurado: disco local, como sempre — o que faz `npm run dev`
-    // funcionar sem nenhuma credencial de nuvem. Único ponto do produto que
-    // ainda depende de disco persistir entre deploys (ver ROADMAP.md).
-    const destino = path.join(PASTA, req.tenantId);
-    await fs.promises.mkdir(destino, { recursive: true });
-    await fs.promises.writeFile(path.join(destino, nome), bytes);
-    res.status(201).json({ url: `/uploads/${chave}`, bytes: bytes.length });
+    const url = await guardarImagem(req.tenantId, bytes, m[1], uso);
+    res.status(201).json({ url, bytes: bytes.length });
   })
 );
+
+/**
+ * Grava a imagem e devolve a URL pública. Também é o caminho do job que traz
+ * as publicações do Instagram (`conexoes/instagram.js`): a mesma pasta por
+ * empresa e o mesmo nome decidido aqui, venha a imagem da tela ou da Meta.
+ */
+export async function guardarImagem(tenantId, bytes, tipo, uso) {
+  const extensao = TIPOS[tipo];
+  if (!extensao) throw new Error(`tipo de imagem não aceito: ${tipo}`);
+  const rotulo = String(uso || 'img').replace(/[^a-z0-9-]/gi, '').slice(0, 20) || 'img';
+  const nome = `${rotulo}-${crypto.randomBytes(8).toString('hex')}.${extensao}`;
+  // Uma pasta por empresa nos dois destinos: imagem de uma nunca fica ao
+  // lado da de outra, e apagar tudo de um cliente que saiu vira apagar uma
+  // pasta (ou tudo sob o prefixo, no bucket).
+  const chave = `${tenantId}/${nome}`;
+
+  if (R2_PRONTO) {
+    await subirParaR2(chave, bytes, tipo);
+    return `${BASE_R2}/${chave}`;
+  }
+
+  // Sem R2 configurado: disco local, como sempre — o que faz `npm run dev`
+  // funcionar sem nenhuma credencial de nuvem. Único ponto do produto que
+  // ainda depende de disco persistir entre deploys (ver ROADMAP.md).
+  const destino = path.join(PASTA, tenantId);
+  await fs.promises.mkdir(destino, { recursive: true });
+  await fs.promises.writeFile(path.join(destino, nome), bytes);
+  return `/uploads/${chave}`;
+}
+
+export const TIPOS_DE_IMAGEM = TIPOS;

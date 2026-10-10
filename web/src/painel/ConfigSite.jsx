@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, Image, Plus, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, Image, Link2, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { prepararImagem } from '../shared/imagem.js';
 
@@ -36,6 +36,17 @@ export default function ConfigSite({ dados, acao, aviso }) {
     setSalvando(false);
   };
 
+  const { contas, recarregarContas, retorno } = useConexoes();
+  const insta = contas.find(c => c.provedor === 'instagram');
+  const google = contas.find(c => c.provedor === 'google');
+  // Uma ação de conexão muda a config no servidor (o job escreve nela); o
+  // `acao` recarrega o painel, e aqui recarrega a situação das contas.
+  const agirNaConta = async (fn, mensagem) => {
+    const ok = await acao(fn, mensagem);
+    await recarregarContas();
+    return ok;
+  };
+
   return (
     <div className="cs">
       <header className="cs-topo">
@@ -52,6 +63,8 @@ export default function ConfigSite({ dados, acao, aviso }) {
           </button>
         </div>
       </header>
+
+      {retorno && <p className={'cx-retorno' + (retorno.ok ? '' : ' cx-retorno-falha')} role="status">{retorno.texto}</p>}
 
       <Secao titulo="Identidade" ajuda="Nome e descrição que aparecem no topo do site.">
         <Texto rotulo="Nome do negócio" valor={cfg.nome} aoMudar={v => mudar('nome', v)} />
@@ -106,10 +119,24 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
       </Secao>
 
+      <Secao titulo="Avaliações do Google"
+             ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora.">
+        <Conexao info={google} nome="Google" agir={agirNaConta}
+                 explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
+      </Secao>
+
       <Secao titulo="Instagram" ajuda="O perfil vai para o rodapé e, no modelo Clínica, ganha uma seção com as publicações.">
-        <Texto rotulo="Perfil" valor={cfg.instagram} aoMudar={v => mudar('instagram', v)}
-               dica="Só o nome do perfil, sem @." />
-        <Publicacoes lista={cfg.instagramPosts || []} aoMudar={v => mudar('instagramPosts', v)} aviso={aviso} />
+        <Conexao info={insta} nome="Instagram" agir={agirNaConta}
+                 explica="Conecte a conta e as 6 publicações mais recentes entram no site sozinhas. Precisa ser conta profissional (comercial ou criador)." />
+        {insta?.conectado ? (
+          <PreviaPublicacoes lista={cfg.instagramPosts || []} />
+        ) : (
+          <>
+            <Texto rotulo="Perfil" valor={cfg.instagram} aoMudar={v => mudar('instagram', v)}
+                   dica="Só o nome do perfil, sem @." />
+            <Publicacoes lista={cfg.instagramPosts || []} aoMudar={v => mudar('instagramPosts', v)} aviso={aviso} />
+          </>
+        )}
       </Secao>
 
       <Secao titulo="O que mostrar" ajuda="Cada item liga ou desliga um pedaço do site.">
@@ -343,10 +370,10 @@ function Perguntas({ lista, aoMudar }) {
 /**
  * As publicações do Instagram que o site mostra — até 6, na ordem da lista.
  *
- * Cada uma é foto + link do post. É a empresa quem escolhe e sobe, porque o
- * site não tem acesso à conta dela: a Meta só abre isso para perfil
- * profissional, com app revisado (ver ROADMAP.md). Quando a conexão existir,
- * ela preenche esta mesma lista, e a tela vira só uma prévia do que veio.
+ * Cada uma é foto + link do post, escolhida e enviada pela empresa. É o
+ * caminho de quem não conectou a conta — perfil pessoal, por exemplo, que a
+ * Meta não deixa conectar. Conectada, a lista vem da conta e a tela vira
+ * `PreviaPublicacoes`.
  */
 const MAX_POSTS = 6;
 
@@ -393,6 +420,162 @@ function Publicacoes({ lista, aoMudar, aviso }) {
         )}
         <input ref={entrada} type="file" accept="image/*" hidden onChange={escolher} />
       </div>
+    </Linha>
+  );
+}
+
+/* ── contas conectadas ── */
+
+const RETORNOS = {
+  ok: 'Conectado. O site já mostra o que veio da conta.',
+  escolher: 'Conectado. Falta escolher qual ficha do Google aparece no site.',
+  cancelado: 'Conexão cancelada — nada foi alterado.',
+  erro: 'Não deu certo conectar. Veja o aviso abaixo e tente de novo.',
+};
+
+/**
+ * A situação das contas, mais o recado de quem acabou de voltar do Google ou
+ * da Meta. A volta chega como `?conexao=google&resultado=ok` na URL do painel;
+ * o recado é lido uma vez e o parâmetro sai da barra, senão recarregar a
+ * página repetiria "Conectado" para sempre.
+ */
+function useConexoes() {
+  const [contas, setContas] = useState([]);
+  const [retorno] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    const resultado = q.get('resultado');
+    if (!q.get('conexao') || !RETORNOS[resultado]) return null;
+    q.delete('conexao');
+    q.delete('resultado');
+    const resto = q.toString();
+    window.history.replaceState(null, '', window.location.pathname + (resto ? `?${resto}` : '') + window.location.hash);
+    return { ok: resultado === 'ok' || resultado === 'escolher', texto: RETORNOS[resultado] };
+  });
+
+  const recarregarContas = async () => {
+    try { setContas(await api.conexoes()); } catch { /* a tela continua sem a seção de status */ }
+  };
+  useEffect(() => { recarregarContas(); }, []);
+
+  return { contas, recarregarContas, retorno };
+}
+
+const quando = iso => iso
+  ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  : null;
+
+/**
+ * Um cartão por conta: desligado, pronto para conectar, conectado ou com
+ * problema. O botão leva para a tela do próprio Google ou da Meta — a senha da
+ * dona nunca passa por aqui.
+ */
+function Conexao({ info, nome, explica, agir }) {
+  const [indo, setIndo] = useState(false);
+  const [ficha, setFicha] = useState('');
+  if (!info) return null;
+
+  const conectar = async () => {
+    setIndo(true);
+    try {
+      const { url } = await api.iniciarConexao(info.provedor, window.location.href);
+      window.location.assign(url);
+    } catch (erro) {
+      setIndo(false);
+      await agir(() => Promise.reject(erro));
+    }
+  };
+
+  if (!info.disponivel) {
+    return (
+      <div className="cx">
+        <p className="cx-txt">{explica}</p>
+        <p className="cs-dica">A conexão com o {nome} ainda não foi ativada pela Vital.</p>
+      </div>
+    );
+  }
+
+  if (!info.conectado) {
+    return (
+      <div className="cx">
+        <p className="cx-txt">{explica}</p>
+        <button className="btn btn-p btn-s" disabled={indo} onClick={conectar}>
+          <Link2 size={14} /> {indo ? 'Abrindo…' : `Conectar ${nome}`}
+        </button>
+      </div>
+    );
+  }
+
+  const atualizado = quando(info.sincronizadoEm);
+  return (
+    <div className={'cx' + (info.situacao === 'erro' ? ' cx-falha' : '')}>
+      <div className="cx-cab">
+        <span className="cx-ponto" aria-hidden="true" />
+        <div>
+          <b>{info.conta || `Conta do ${nome}`}</b>
+          <span className="cs-dica">
+            {info.situacao === 'erro' ? 'Com problema'
+              : info.situacao === 'escolher' ? 'Falta escolher a ficha'
+              : atualizado ? `Atualizado em ${atualizado}` : 'Conectado'}
+          </span>
+        </div>
+      </div>
+
+      {info.situacao === 'erro' && <p className="cx-erro">{info.erro}</p>}
+
+      {info.situacao === 'escolher' && (
+        <div className="cx-ficha">
+          <label htmlFor="cx-ficha">Qual ficha aparece no site?</label>
+          <select id="cx-ficha" value={ficha} onChange={e => setFicha(e.target.value)}>
+            <option value="">Escolha…</option>
+            {info.fichas.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
+          <button className="btn btn-p btn-s" disabled={!ficha}
+                  onClick={() => agir(() => api.escolherFichaGoogle(ficha), 'Ficha escolhida')}>
+            Usar esta
+          </button>
+        </div>
+      )}
+
+      <div className="cx-btns">
+        {info.situacao === 'erro' ? (
+          <button className="btn btn-p btn-s" disabled={indo} onClick={conectar}>
+            <Link2 size={14} /> Conectar de novo
+          </button>
+        ) : info.situacao === 'ok' && (
+          <button className="btn btn-g btn-s"
+                  onClick={() => agir(() => api.sincronizarConexao(info.provedor), 'Atualizado')}>
+            <RefreshCw size={14} /> Atualizar agora
+          </button>
+        )}
+        <button className="btn btn-g btn-s btn-erro"
+                onClick={() => {
+                  if (window.confirm(`Desconectar o ${nome}? O que veio da conta sai do site.`)) {
+                    agir(() => api.desconectar(info.provedor), `${nome} desconectado`);
+                  }
+                }}>
+          Desconectar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Com a conta conectada, a grade é a da conta: só se olha, não se edita. */
+function PreviaPublicacoes({ lista }) {
+  return (
+    <Linha rotulo="Publicações no site"
+           dica="Vêm da conta conectada e se atualizam sozinhas. Para escolher à mão, desconecte.">
+      {lista.length ? (
+        <div className="cs-posts">
+          {lista.slice(0, MAX_POSTS).map((p, i) => (
+            <a key={p.imagem + i} className="cs-post" href={p.link || undefined} target="_blank" rel="noreferrer">
+              <img src={p.imagem} alt="" />
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p className="cs-dica">Nenhuma publicação ainda. Use “Atualizar agora” se acabou de conectar.</p>
+      )}
     </Linha>
   );
 }

@@ -75,10 +75,14 @@ cadastro.post('/', rota(async (req, res) => {
  * O endereço do painel da empresa recém-criada.
  *
  * `BASE_DOMINIO` é o domínio em que os subdomínios das empresas vivem. Sem ele
- * — desenvolvimento local, onde não há DNS —, devolve o caminho relativo, e a
- * pessoa continua na mesma origem.
+ * — desenvolvimento local —, o subdomínio vai na frente do host que pediu:
+ * `localhost:5173` vira `<slug>.localhost:5173`, que o navegador resolve sem
+ * DNS. Já foi o caminho relativo `/painel.html`, que mantinha a pessoa no
+ * endereço da Vital — a empresa padrão — e o login com a senha recém-criada
+ * dava "e-mail ou senha incorretos".
  */
 function enderecoDoPainel(req, slug) {
-  const base = process.env.BASE_DOMINIO;
+  // IP não tem subdomínio: aí não há endereço de empresa a montar.
+  const base = process.env.BASE_DOMINIO || (req.hostname === 'localhost' ? req.get('host') : null);
   return base ? `${req.protocol}://${slug}.${base}/painel.html` : '/painel.html';
 }

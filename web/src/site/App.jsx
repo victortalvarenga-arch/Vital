@@ -355,7 +355,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
         <>
           <SecaoEquipe profissionais={dados.profissionais} />
           <SecaoAntesDepois casos={dados.antesDepois} />
-          <SecaoAvaliacoes />
+          <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />
           <SecaoAgende textos={textos} aoAgendar={aoAgendar} />
           <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
         </>

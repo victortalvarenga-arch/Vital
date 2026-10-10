@@ -86,8 +86,8 @@ deploy.
   faturando" — ver `ROADMAP.md`.
 - **Pagamento online da cliente não existe.** `pag_status`/`pag_ref`
   esperam um gateway que nunca veio (Pix/cartão via Asaas ou Mercado Pago).
-- **Login da cliente com Google ainda não existe** (Bloco 5 do roadmap);
-  hoje a identidade da cliente é só o WhatsApp.
+- **Login da cliente com Google não existe** e saiu do roteiro (está em
+  "Ideias guardadas" no `ROADMAP.md`); a identidade da cliente é só o WhatsApp.
 - Datas e horas são texto, não `Date` — o negócio opera num fuso só.
 - Telefone guardado só com dígitos, sem `+55`.
 
@@ -143,6 +143,11 @@ vem de uma cliente e não de nós.
 fabricado** em nenhuma superfície — a primeira cliente real ainda não
 publicou nada, e a página de cadastro (`vital.html`) continua podendo falar
 só do que o produto faz, nunca de quem já usa.
+
+As avaliações do Google no site de uma empresa não furam essa regra: vêm da
+ficha dela, pela conta que ela mesma conectou, com a nota e o total reais ao
+lado. O que não existe — e não pode existir — é campo para a empresa
+digitar avaliação.
 
 ## Product Principles
 

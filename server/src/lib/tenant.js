@@ -209,11 +209,17 @@ export const configPadrao = {
   antesDepois: [],
 
   // Publicações do Instagram que o site mostra em grade: `{ imagem, link }`,
-  // até 6, na ordem em que aparecem. Hoje quem preenche é a empresa, pelo
-  // painel (foto + link do post); quando a conexão com a conta existir, é um
-  // job que vai escrever esta mesma lista — o site não precisa saber quem
-  // preencheu. Vazio, a seção mostra só o link para o perfil.
+  // até 6, na ordem em que aparecem. Quem preenche é a empresa, pelo painel
+  // (foto + link do post), ou o job da conta conectada (`conexoes/instagram.js`,
+  // que acrescenta `id` e `tipo`) — o site não precisa saber quem preencheu.
+  // Vazio, a seção mostra só o link para o perfil.
   instagramPosts: [],
+
+  // Avaliações do Google, escritas SÓ pelo job da conta conectada
+  // (`conexoes/google.js`) — nunca digitadas: avaliação que a empresa escreve
+  // é depoimento inventado. `nota` e `total` contam todas; `lista` traz até
+  // 6 de 4 ou 5 estrelas com texto. Vazio, o site mostra o estado vazio.
+  avaliacoesGoogle: { nota: null, total: 0, link: '', lista: [] },
 
   // O que o negócio chama cada coisa. Sem isto, white-label para na cor e não
   // chega na linguagem: quem tem barbearia não fala "profissional".

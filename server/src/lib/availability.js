@@ -66,6 +66,31 @@ export async function conflita({ staffId, data, hora, duracao, ignorarId = null 
   return dentroDeBloqueio(ini, fim, await bloqueios(staffId, data, exec));
 }
 
+/**
+ * O que o site pode oferecer no tempo: de hoje até o fim da janela, e hoje só
+ * depois da antecedência. As mesmas três regras que `diasComVagaPara` usa para
+ * pintar o calendário — aqui para a lista de horas e para a gravação, que
+ * aceitavam data passada: o calendário escondia, mas a rota recebia, e o
+ * fechamento automático transformava o agendamento de anteontem em
+ * atendimento concluído e pago.
+ *
+ * Só para o site. O painel registra atendimento passado e encaixa fora da
+ * regra de propósito.
+ *
+ * @returns {Promise<string|null>} o motivo da recusa, ou null se pode
+ */
+export async function foraDoPrazoDoSite(data, hora = null) {
+  const cfg = await getConfig();
+  const h = hoje();
+  const janela = cfg.janelaDias || 30;
+  if (data < h) return 'essa data já passou';
+  if (data > addDias(h, janela)) return `dá para agendar até ${janela} dias à frente`;
+  if (hora && data === h && toMin(hora) < toMin(agora()) + (cfg.antecedenciaHoras ?? 2) * 60) {
+    return 'esse horário já não pode ser agendado pelo site';
+  }
+  return null;
+}
+
 /** Confere se o horário cabe na jornada daquele dia da semana. */
 export function dentroDaJornada(staff, data, hora, duracao) {
   const j = staff.jornada[String(diaSemana(data))];

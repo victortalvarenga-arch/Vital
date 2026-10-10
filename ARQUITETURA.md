@@ -28,6 +28,7 @@ você for mexer.
 | [O registro do painel](#o-registro-do-painel) | Quem fez o quê, dentro da empresa |
 | [O back-office da Vital](#o-back-office-da-vital) | Ver todas as empresas sem ver o dado de nenhuma |
 | [Testes](#testes) | O que a suíte cobre e como ela roda |
+| [Contas conectadas](#contas-conectadas) | Google e Instagram: token cifrado, retorno assinado, job de hora em hora |
 | [WhatsApp](#whatsapp) | Fila, provider manual e Cloud API |
 | [LGPD](#lgpd) | Dado pessoal, optin, dado sensível |
 
@@ -60,6 +61,7 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `020_comissao_por_servico` | Comissão no serviço e por pessoa no serviço; `obs` interna do serviço |
 | `021_promocao_com_regras` | Começo, dias da semana, limite e pausa nas promoções; desconto gravado na venda |
 | `022_comissao_fixa` | A comissão padrão da profissional pode ser valor fixo por atendimento |
+| `023_conexoes` | Tokens do Google e do Instagram por empresa, cifrados e com RLS |
 
 ## Visão geral
 
@@ -132,14 +134,19 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
                    templates.js (mensagens),
                    dates.js (datas como texto), migrate.js (migrations),
                    rota.js (erro em handler async), contexto.js (conexão da
-                   requisição), tenant.js (resolve a empresa + config padrão)
+                   requisição), tenant.js (resolve a empresa + config padrão),
+                   segredo.js (assina o retorno OAuth, cifra tokens)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
                    relatorios | uploads (imagens da empresa) | bloqueios
-                   (horário fechado) | cadastro e plataforma (as duas rotas
-                   sem empresa definida)
+                   (horário fechado) | conexoes (Google e Instagram) |
+                   cadastro, plataforma e o retorno OAuth (as rotas sem
+                   empresa definida pelo endereço)
   test/            suíte automatizada (`npm test`), banco próprio
-  src/jobs/        geração e despacho da fila de WhatsApp (node-cron)
+  src/jobs/        fila de WhatsApp, fechamento, funil e sincronização das
+                   contas conectadas (node-cron)
   src/whatsapp/    provider trocável: 'manual' (links wa.me) ou 'meta' (Cloud API)
+  src/conexoes/    Google (avaliações) e Instagram (publicações): autorizar,
+                   renovar token e trazer o conteúdo para a config
   uploads/         imagens enviadas, uma pasta por empresa. Fora do Git.
 web/               Vite + React, sem framework de UI. CSS à mão.
   index.html       entrada do site da cliente
@@ -268,6 +275,16 @@ situação sem horário tem texto e saída** — mês cheio, dia sem vaga — co
 WhatsApp dentro da própria tela: calendário cinza sem uma palavra é o que uma
 cliente de verdade vê toda vez que a agenda lota. A navegação de mês para em
 `janelaDias`, porque além dele só haveria mês vazio atrás de mês vazio.
+
+**A gravação confere as mesmas regras que a tela mostra.** Agendamento com
+`origem: 'site'` é recusado se o serviço está arquivado, se a profissional está
+inativa ou não faz aquele serviço, ou se a data está fora do prazo — passado,
+além de `janelaDias`, ou hoje antes da antecedência (`foraDoPrazoDoSite`, em
+`lib/availability.js`, a mesma regra que pinta o calendário). `GET
+/publico/horarios` devolve lista vazia para data fora do prazo. Até 2026-10-10
+só a tela escondia isso, e a rota aceitava: um agendamento de anteontem virava
+atendimento concluído e pago no fechamento automático. O painel continua livre
+para registrar atendimento passado.
 
 Três colunas: em que passo está, o passo atual, e o resumo do que já escolheu
 com o total. O resumo não é enfeite: é ele que dá segurança para confirmar. No
@@ -475,9 +492,9 @@ bloco pisca sem fundo no primeiro quadro.
 **A barra do topo flutua sobre a capa e se firma ao rolar.** Sobre a foto ela é
 transparente com um véu escuro por baixo do texto: não dá para saber que imagem
 a empresa vai subir, e texto branco sobre capa clara seria ilegível. Passados
-120px, vira sólida. O acesso à conta da cliente entra aqui quando o login do
-Bloco 5 existir — um botão que não leva a lugar nenhum seria pior que a
-ausência dele.
+120px, vira sólida. O acesso à conta da cliente entraria aqui se o login com
+Google voltar ("Ideias guardadas", no `ROADMAP.md`) — um botão que não leva a
+lugar nenhum seria pior que a ausência dele.
 
 **As linhas da grade são montadas no código, não deixadas para o navegador.**
 `flex-wrap` enche cada linha até acabar o espaço e joga o resto na última: 13
@@ -514,17 +531,21 @@ podem morar dentro de um `<button>`.
 **A grade do Instagram é uma lista na config, e o site não sabe quem a
 preencheu.** `config.instagramPosts` guarda até seis `{ imagem, link, tipo }`;
 a vitrine devolve só o que tem imagem, no máximo seis, só essas três chaves
-(`server/test/instagram.test.js`). Hoje quem preenche é a empresa, em
+(`server/test/instagram.test.js`). Quem preenche é a empresa, em
 Configurações → Site → Instagram: sobe a foto (o upload que já existe, com
 `uso: 'instagram'`) e, se quiser, cola o link do post — sem link, o toque abre
-o perfil. A seção do site (`SecaoInstagram`, só Clínica) mostra o cabeçalho de
+o perfil. Ou, com a conta conectada, o job de [Contas conectadas](#contas-conectadas),
+que escreve esta mesma lista e põe o painel em modo só-leitura. A seção do site
+(`SecaoInstagram`, só Clínica) mostra o cabeçalho de
 perfil (logo como avatar, @, nome, "Seguir") e, embaixo, a grade 3×2; sem
 publicação nenhuma, fica só o cabeçalho com o link real — nunca quadrado de
-enfeite. O desenho é este de propósito: quando a conexão com a conta existir
-(ver `ROADMAP.md`, "A faixa voltou à mesa"), um job vai escrever esta mesma
-lista, com `tipo: 'video'` para o que for vídeo, e nem o site nem a vitrine
-mudam. O que a conexão exige — conta profissional, app na Meta, token por
-empresa fora da `config` — é problema do job, não da vitrine.
+enfeite.
+
+**As avaliações só existem vindas do Google.** A seção `SecaoAvaliacoes` (só
+Clínica) lê `vitrine.avaliacoes`, que sai de `config.avaliacoesGoogle` — e essa
+chave só é escrita pelo job da conta conectada. `PUT /api/config` a descarta:
+avaliação digitada pela empresa seria depoimento inventado, o que
+`PRODUCT.md` proíbe. Sem conexão, o estado vazio de sempre.
 
 **Serviços adicionais: um extra vendido junto do principal.** Um adicional não
 é entidade nova — é um `service` comum, marcado como extra de outro. Assim já
@@ -735,8 +756,9 @@ confirmação — "Encontramos um cadastro em Amanda. É você?" — em vez de s
 em silêncio. O nome exposto é o preço de conseguir conferir; a solução completa
 é código por WhatsApp, que custa por mensagem e está anotada no `ROADMAP.md`.
 
-**O login com Google é para a cliente, não para a equipe** — e ainda não existe
-(Bloco 5). Quando existir, será um atalho para ela ver histórico e remarcar, e
+**O login com Google seria para a cliente, não para a equipe** — e não existe:
+saiu do roteiro em 2026-10-09 e está em "Ideias guardadas", no `ROADMAP.md`.
+Se voltar, será um atalho para ela ver histórico e remarcar, e
 não uma exigência: agendar só com o WhatsApp continua funcionando ao lado. A
 equipe nunca entra por Google; o painel é e-mail e senha.
 
@@ -2161,6 +2183,95 @@ justamente o lugar onde o motor faz essa soma. O teste foi refeito para entrar
 por `horariosPorServico` e `diasComVaga`. Teste verde que continua verde com o
 código quebrado não prova nada — vale repetir esse exercício ao cobrir uma parte
 nova.
+
+## Contas conectadas
+
+A empresa conecta a conta do **Google** (as avaliações da ficha aparecem no
+site) e a do **Instagram** (as 6 publicações mais recentes entram na grade).
+Um formato só para as duas, em `server/src/conexoes/`:
+
+```
+painel: "Conectar"  →  POST /api/conexoes/:provedor/iniciar  →  { url }
+navegador vai para a tela do Google / Meta, a dona autoriza
+provedor devolve em  GET /api/oauth/:provedor/retorno?code&state
+servidor troca o código por token, grava em `conexoes`, sincroniza
+redireciona de volta ao painel com ?conexao=…&resultado=ok|escolher|cancelado|erro
+job de hora em hora (minuto 23): renova o token se precisar e sincroniza
+```
+
+**O site nunca fala com Google nem Meta.** Sincronizar é escrever na config
+(`avaliacoesGoogle`, `instagramPosts`), que a vitrine já lia. A visita não
+gasta cota de ninguém e não fica lenta se o provedor estiver fora.
+
+**Um endereço de retorno para todas as empresas, e a empresa no `state`
+assinado.** Google e Meta só devolvem a pessoa a URLs cadastradas no console
+deles, sem curinga — não dá para cadastrar o subdomínio de cada empresa. O
+retorno vai para `CONEXOES_RETORNO_URL` + `/api/oauth/<provedor>/retorno`, montado
+**antes** do middleware de empresa (como o cadastro). Quem diz de qual empresa
+é o `state`: empresa, provedor, quem clicou e para onde voltar, com HMAC e
+validade de 15 minutos (`lib/segredo.js`). Sem a assinatura, trocar o id ali
+gravaria a conta do Google de alguém na empresa de outro. O endereço de volta
+só é aceito se for do mesmo host que pediu — senão o retorno viraria um
+redirecionador aberto num domínio nosso.
+
+**Token mora em `conexoes`, cifrado, nunca na config.** A config sai inteira em
+`GET /api/config` para qualquer papel e é dela que a vitrine é montada;
+`plataforma.tenants` nem tem RLS. A tabela `conexoes` (migration 023) tem RLS
+como toda tabela de negócio, e os tokens entram com AES-256-GCM, chave derivada
+de `CONEXOES_SEGREDO`. O motivo de cifrar além do RLS: `business.manage` é o
+único escopo do Google que lê avaliação, e ele também edita a ficha. Trocar o
+segredo invalida todos os tokens — as empresas reconectam.
+
+**Só o dono conecta** (`exige('site')`), e a conexão vira linha no Registro.
+O retorno chega sem cookie de sessão (outro endereço), então quem clicou vem do
+`state` e o registro é gravado à mão em `routes/conexoes.js`.
+
+**Google.** Business Profile API, escolhida em vez da Places API porque traz a
+nota e o total reais e todas as avaliações, não 5 escolhidas pelo Google. Lista
+as fichas da conta; com uma só, usa; com várias, a situação fica `escolher` e o
+painel mostra a lista. Para o site vão a nota (uma casa), o total e até 6
+avaliações de **4 ou 5 estrelas com texto**, da mais recente para a mais antiga.
+A seleção é de propósito — é a vitrine da empresa —, e o que impede de virar
+propaganda enganosa é a nota e o total ao lado, que contam todas, mais o link
+"Ver todas" para a ficha. O nome sai abreviado ("Maria S."): a avaliação é
+pública no Google, mas republicar nome completo de cliente no site da empresa
+é dado pessoal que não precisa ir. Anônimo fica "Cliente do Google"; tradução
+automática do Google é descartada em favor do texto original. O token de
+acesso dura uma hora e é renovado com o `refresh_token` (por isso
+`access_type=offline` e `prompt=consent`).
+
+**Instagram.** "Instagram API with Instagram Login", escopo só
+`instagram_business_basic`. Código → token curto → token longo de 60 dias,
+renovado quando faltam menos de 30 (a Meta só renova token com mais de 24h e
+ainda válido). As URLs de imagem da Meta expiram em dias, então cada foto é
+**baixada** e guardada por `guardarImagem()` (`routes/uploads.js`) — mesma pasta
+por empresa, mesmo R2 do upload manual —, e a grade nunca aponta para o CDN
+deles. Publicação já baixada (mesmo `id`) não é baixada de novo. Com a conta
+conectada, o perfil do rodapé passa a ser o da conta, e `PUT /api/config`
+ignora `instagramPosts` e `instagram`: a tela manda a config inteira ao salvar,
+e uma aba aberta antes da sincronização desfaria o que o job trouxe. As duas
+rotas que a Meta exige — conta desautorizada e pedido de exclusão de dados —
+conferem o `signed_request` com o segredo do app e apagam a conexão e as
+publicações em qualquer empresa onde aquele id da Meta estiver.
+
+**Falha nunca derruba nada.** `sincronizar()` não lança: grava `situacao =
+'erro'` e o motivo, e o site continua com o que já tinha. Autorização revogada
+(`invalid_grant` no Google, código 190 na Meta) vira "Conecte de novo" no
+painel. Desconectar revoga no Google (cortesia; se falhar, apaga do mesmo
+jeito), apaga a linha e tira da config o que veio da conta.
+
+**Provado por teste** (`test/conexoes.test.js`, com Google e Meta falsos):
+nenhum token aparece em `/api/config`, `/api/conexoes`, `/api/estado` nem na
+vitrine, e no banco ele está cifrado; `state` com a empresa trocada é
+recusado antes de qualquer chamada ao provedor; funcionária recebe 403;
+avaliação escrita pela config não chega ao site; token vencido é renovado
+antes da busca; revogação vira erro legível sem apagar o que o site mostra;
+aviso da Meta sem assinatura válida não apaga nada.
+
+**O que o código não prova:** a chamada real. Endereços e formatos das APIs
+foram conferidos na documentação; a primeira conexão com conta de verdade é o
+teste que falta — ver `ROADMAP.md`, Bloco 6b, que também tem o passo a passo
+dos consoles do Google e da Meta.
 
 ## WhatsApp
 

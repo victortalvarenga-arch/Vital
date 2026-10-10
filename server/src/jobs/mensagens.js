@@ -6,6 +6,7 @@ import { enviar, modoManual } from '../whatsapp/index.js';
 import { TENANT_PADRAO } from '../lib/tenant.js';
 import { fecharAtendimentos } from './fechamento.js';
 import { compactarFunil } from './funil.js';
+import { sincronizarTodas } from '../conexoes/index.js';
 
 /**
  * Duas rotinas separadas, de propósito:
@@ -179,7 +180,7 @@ export async function despachar({ limite = 30 } = {}) {
  * não devolve nada. Cada empresa recebe a própria passada, com a conexão presa
  * a ela: uma empresa com erro não impede as outras de rodar.
  */
-async function paraCadaEmpresa(nome, fn) {
+export async function paraCadaEmpresa(nome, fn) {
   const empresas = await db.all(
     `SELECT id FROM plataforma.tenants WHERE ativo = 1 AND status = 'ativa' ORDER BY id`
   );
@@ -217,6 +218,14 @@ export function iniciarJobs() {
   // disputar a janela com backup e outros jobs de hora redonda.
   cron.schedule('17 4 * * *', () => {
     compactarFunil().catch(e => console.error('[funil]', e.message));
+  }, { timezone: tz });
+
+  // Avaliações do Google e publicações do Instagram, de hora em hora — no
+  // minuto 23 para não cair junto dos outros. Mais que isso não muda nada no
+  // site (avaliação nova é coisa de dias) e gasta cota dos provedores. Só
+  // passa por empresa que tem conexão: as outras são um SELECT vazio.
+  cron.schedule('23 * * * *', () => {
+    paraCadaEmpresa('conexoes', sincronizarTodas).catch(e => console.error('[conexoes]', e.message));
   }, { timezone: tz });
 
   // Uma passada ao subir, como a fila. Sem isto, todo reinício deixa o caixa

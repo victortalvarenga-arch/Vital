@@ -15,7 +15,8 @@ cobrança — hoje `plano` é texto livre, sem preço nem ciclo.
 Este arquivo é o mapa de execução. Cada bloco é entregável e testável sozinho.
 Marque o que concluir; a próxima sessão retoma daqui. As três seções do fim —
 **Achados**, **Importante para produção** e **Fora de escopo** — são listas
-vivas, e valem tanto quanto os blocos.
+vivas, e valem tanto quanto os blocos. Depois delas, **Ideias guardadas** é o
+que saiu do roteiro por decisão, com o que já se pensou sobre cada uma.
 
 Ainda em beta: arquitetura pode mudar sem custo de migração, porque não há
 cliente real na base. Isso vale até o dia em que houver o primeiro — dali em
@@ -108,21 +109,6 @@ de mouse (hover, botão direito), alvo de toque com tamanho confortável, layout
 que não dependa da barra de endereço do navegador para orientação. Embalar no
 fim é mais barato se a tela já nasce assim; é bem mais caro descobrir isso só
 no bloco de apps nativos.
-
-**Cliente entra com Google — como conveniência, não como identidade.** O login
-do Google devolve id, e-mail, nome e foto. **Não devolve telefone nem nascimento**:
-esses campos exigem escopos sensíveis (`user.phonenumbers.read`,
-`user.birthday.read`), que passam por revisão do Google e, mesmo aprovados, só
-trazem o que a pessoa preencheu no perfil — quase sempre vazio. O telefone segue
-sendo a identidade: chave única em `clients.fone`, canal do WhatsApp, base do CRM.
-Login é gratuito e ilimitado. Quem não quiser logar continua agendando só com o
-WhatsApp; o login nunca vira pedágio, senão perde-se agendamento.
-
-**A autenticação Google mora num domínio só: o nosso.** O Google exige URL de
-redirecionamento cadastrada. Com um deploy por cliente em domínio próprio, cada
-empresa teria de criar o próprio projeto no Google Cloud — inviável. Existe um
-host de autenticação central que recebe o login e devolve para o site da
-empresa certa.
 
 **Marca vem do banco, não do CSS.** As cores viram variáveis CSS injetadas em
 runtime a partir da config da empresa. Um CSS, N marcas. Nada de rebuild por
@@ -280,49 +266,10 @@ qualquer número que alguém digite.
       primeiro agendamento do número é o equilíbrio provável
 - [ ] Custa por mensagem na API oficial da Meta, e no modo manual não é
       automático — por isso não foi feito junto do Bloco 4
-- [ ] **Pesar contra o Bloco 5 antes de fazer.** Quem entra com Google não
-      digita telefone, então não erra: o código por WhatsApp só é necessário
-      para quem agenda sem login. Se o Google cobrir a maioria, talvez este
-      bloco inteiro não se pague.
-
-### Bloco 5 — Área do cliente (login Google)
-Único bloco sem dependente: nada mais quebra se ele deslizar para depois.
-O login em si é pequeno; o custo está no vínculo de conta e nas telas.
-
-**O ganho principal não é economizar campo — é a identidade.** Hoje a cliente
-se identifica digitando o WhatsApp, e digitar errado agenda no cadastro de
-outra pessoa (ver Bloco 4b). Entrando com Google, quem volta **não digita
-nada**: a conta responde quem ela é, e o número errado deixa de existir como
-problema. Isso torna o Bloco 4b desnecessário para quem usa Google — e ele
-continua valendo para quem não usa.
-
-**Oferecer no começo do agendamento, nunca barrar a entrada no site.** Exigir
-login para ver preço ou marcar horário perde cliente — é a mesma razão pela
-qual não há cadastro hoje. O desenho é: ao abrir a janela de agendamento,
-"Entrar com Google" em destaque e "continuar sem entrar" ao lado, com o mesmo
-peso visual do resto da tela.
-
-**Fluxo pretendido**
-
-| | Primeira vez | Voltando |
-|---|---|---|
-| Google traz | nome, e-mail, foto | tudo do cadastro |
-| Ainda perguntamos | WhatsApp e nascimento | nada |
-| Sem Google | WhatsApp, nome e nascimento | só o WhatsApp |
-
-- [ ] Entrar com Google no site (escopos básicos apenas — nada de sensível)
-- [ ] **Google NÃO traz WhatsApp nem nascimento — conte com perguntar sempre.**
-      Existem escopos para isso (`user.phonenumbers.read`,
-      `user.birthday.read`), mas são sensíveis: passam por revisão do Google e,
-      mesmo aprovados, só devolvem o que a pessoa preencheu no perfil — quase
-      sempre vazio. Planejar como se viessem é planejar para uma tela que nunca
-      aparece.
-- [ ] Vínculo de conta: casar Google com ficha existente sem duplicar cliente.
-      A chave continua sendo o telefone; o e-mail do Google entra como segundo
-      identificador, não como substituto
-- [ ] "Meus agendamentos": histórico, remarcar, cancelar com política
-- [ ] Agendar sem login continua funcionando, lado a lado
-- [ ] LGPD: e-mail e foto entram na mesma lógica de `optin`
+- [ ] Antes, este bloco era pesado contra o login Google, que tornaria o
+      código desnecessário para quem entrasse com conta. O login saiu do
+      roteiro em 2026-10-09 (está em "Ideias guardadas", no fim), então o
+      código por WhatsApp volta a ser o único caminho para fechar esse buraco.
 
 ### Bloco 6 — Personalização pela própria empresa ✅ concluído
 Veio junto com o site, porque configurar sem ter o que configurar não fazia
@@ -368,73 +315,68 @@ O desenho final está em `ARQUITETURA.md`, seção "As duas telas".
       `prefers-reduced-motion`
 - [x] **Instagram: só o link** (decidido em 2026-08-27 — ver abaixo). Superado
       em 2026-09-18: a grade existe, preenchida pela empresa no painel
-- [ ] **Conectar a conta do Instagram** para a grade se atualizar sozinha.
-      Adiado em 2026-09-18; roteiro completo abaixo, em "Próximo passo:
-      conectar a conta". Começa fora do código: conta profissional da Laura e
-      app na Meta (passos 1–6) — só depois disso há o que programar
+- [x] **Conectar a conta do Instagram** para a grade se atualizar sozinha —
+      código pronto em 2026-10-10 (ver `ARQUITETURA.md`, "Contas conectadas").
+      Falta o lado de fora: app na Meta e a conta da Laura como testadora —
+      roteiro abaixo, em "Conexões: o que falta fora do código"
+- [x] **Avaliações do Google na seção "Avaliações"** — código pronto em
+      2026-10-10, pela Business Profile API (a dona conecta a conta do Google
+      uma vez; vêm todas as avaliações, e não as 5 que a Places API escolhe).
+      Falta o lado de fora: projeto no Google Cloud e o pedido de acesso à API
+      — mesmo roteiro abaixo
+- [ ] **Ver as duas conexões funcionando de ponta a ponta com conta real.** A
+      suíte prova o fluxo com Google e Meta falsos (`test/conexoes.test.js`);
+      os endereços e formatos das APIs foram conferidos na documentação, não
+      numa chamada de verdade. A primeira conexão real é o teste que falta
 
 **Verificado:** 8 casos no calendário, incluindo o que mais importa — lotar
 todos os horários de um dia faz ele sumir do calendário, ou seja, calendário e
 lista de horas não divergem.
 
-**O que a Meta mudou, para quando a faixa de fotos voltar à mesa.** A API que
-fazia isso de forma simples (Basic Display) foi **desligada em dezembro de
-2024**. Hoje só existe caminho oficial pela Graph API / Instagram Login, e ele
-exige perfil **Profissional** (comercial ou criador) — perfil pessoal não é mais
-acessível por API nenhuma. Sendo multiempresa, isso vira um cadastro na Meta e
-um token para renovar por cliente. **Caminho barato quando for a hora**: a
-empresa sobe algumas fotos pelo painel, onde o upload já existe. Fica parecido
-visualmente, sem amarrar a plataforma à Meta; só não atualiza sozinho.
+#### Conexões: o que falta fora do código (atualizado em 2026-10-10)
 
-**A faixa voltou à mesa em 2026-09-18**: a cliente pediu o grid do site de
-referência, com os 6 últimos posts entrando sozinhos. **Feito no mesmo dia: a
-estrutura** — `config.instagramPosts`, a vitrine que a filtra, a grade no site
-e a tela do painel onde a empresa sobe as fotos (detalhe em `ARQUITETURA.md`).
-**Em aberto: a conexão automática**, que preencheria essa mesma lista sozinha.
-O que ela exige, levantado nessa conversa:
+O código das duas conexões está pronto e testado; como funciona está em
+`ARQUITETURA.md`, "Contas conectadas". O que falta é cadastro nos consoles do
+Google e da Meta — trabalho de uma pessoa, não de programação. Em todos os
+passos, o endereço de retorno é `CONEXOES_RETORNO_URL` +
+`/api/oauth/<google|instagram>/retorno`, e tem de ser **idêntico** ao
+cadastrado no console, letra por letra.
 
-- **Da cliente:** conta Instagram Profissional (comercial ou criador). Perfil
-  pessoal não conecta, e a mudança é ela quem faz, no app.
-- **Da Vital, uma vez:** um app no Meta for Developers com o produto
-  "Instagram API with Instagram Login" (o que não exige Página do Facebook).
-  Enquanto o app não passa pela **App Review** da permissão
-  `instagram_business_basic`, só contas adicionadas como *tester* do app
-  conseguem conectar — serve para a Laura pré-lançamento; para qualquer
-  empresa conectar sozinha, a revisão é obrigatória, e pode pedir
-  verificação da empresa Vital.
-- **No produto:** botão "Conectar Instagram" no painel (Configurações → Site)
-  que manda para o OAuth da Meta; rota de retorno no servidor que troca o
-  código por um **token longo (60 dias)** e o guarda por empresa — token é
-  segredo, então **não** vai em `tenants.config` (a vitrine lê essa coluna;
-  precisa de tabela ou coluna própria, nunca exposta pela API pública); job
-  que renova o token antes de vencer (a renovação só funciona com token ainda
-  válido — vencido, a empresa reconecta); busca dos 6 últimos posts
-  (`/me/media` com `media_url`, `permalink`, `media_type`) com cache no
-  servidor de ~1h, porque o site não pode bater na Meta a cada visita. As
-  URLs de mídia da Meta expiram; o cache precisa refazer a busca, não guardar
-  a URL por dias.
-- **No site e na vitrine: nada.** O job escreve em `config.instagramPosts`
-  (`imagem`, `link`, `tipo: 'video'` com a `thumbnail_url` quando for vídeo)
-  e a grade que já existe mostra. A tela do painel passa a exibir o que veio
-  da conta em vez de pedir upload — e um jeito de desconectar.
+**Primeiro, uma vez só: o segredo.** `CONEXOES_SEGREDO` no `server/.env`
+(o comando para gerar está no `.env.example`). Sem ele, os dois botões
+aparecem desligados no painel.
 
-O caminho manual que está no ar não depende de revisão de app nem de conta
-profissional; só não atualiza sozinho. Fica como está para toda empresa que
-não conectar.
+**Google — Fase A, conectar a Laura (dias a semanas, por causa do passo 4).**
 
-#### Próximo passo: conectar a conta — o roteiro (anotado em 2026-09-18, adiado)
+1. Projeto no [Google Cloud Console](https://console.cloud.google.com) com a
+   conta da Vital.
+2. Ativar três APIs: *My Business Account Management API*, *My Business
+   Business Information API* e *Google My Business API* (a v4, que é a das
+   avaliações).
+3. *Tela de consentimento OAuth*: tipo **Externo**, nome "Vital", e-mail de
+   suporte, escopo `.../auth/business.manage`. Em modo **Teste**, adicionar o
+   Gmail que administra a ficha da Laura como usuário de teste — até 100
+   usuários de teste, sem revisão.
+4. **Pedir acesso à Business Profile API** pelo formulário do Google
+   ("Business Profile API — Request access"). Sem aprovação, as chamadas
+   voltam com cota zero mesmo com tudo certo. Pedem o motivo, o projeto e a
+   ficha; leva de dias a semanas, e recusa por justificativa vaga é comum —
+   descrever o uso exato: "mostrar no site da própria empresa a nota e as
+   avaliações da ficha dela, só leitura, com autorização da dona".
+5. *Credenciais → Criar ID do cliente OAuth → Aplicativo da Web*. Em URIs de
+   redirecionamento: `http://localhost:5173/api/oauth/google/retorno` (o
+   Google aceita localhost sem HTTPS) e, depois, o de produção. ID e segredo
+   vão em `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+6. A Laura entra no painel → Site da cliente → Avaliações do Google →
+   Conectar, com o Gmail dono da ficha.
 
-**Custo: zero da Meta.** Sem cobrança por chamada, conta de desenvolvedor,
-revisão do app e verificação da empresa gratuitas. O que custa é tempo — a
-burocracia da Meta e a programação da conexão. Limite de chamadas folgado
-para uma busca por hora por empresa. Fontes conferidas na data:
-[Instagram API with Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login),
-[Business Login for Instagram](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login).
+**Google — Fase B, qualquer empresa (semanas).** O escopo `business.manage`
+é **sensível**: para sair do modo Teste, o Google pede verificação do app —
+domínio próprio verificado, política de privacidade publicada, vídeo do
+fluxo. Até lá, cada empresa nova precisa ser adicionada à mão como usuária de
+teste (limite de 100).
 
-Duas fases. A primeira já resolve a Laura sem esperar revisão da Meta; a
-segunda só faz sentido quando houver uma segunda empresa querendo isso.
-
-**Fase A — conectar a Laura (dias).**
+**Instagram — Fase A, conectar a Laura (dias).**
 
 *Ela, no app do Instagram:*
 1. Conferir se a conta é **Profissional** (Comercial ou Criador). Se pessoal:
@@ -447,46 +389,33 @@ segunda só faz sentido quando houver uma segunda empresa querendo isso.
 3. **Criar app** → caso de uso "Gerenciar tudo no Instagram" (ou tipo Business)
    → produto **Instagram** → "Configuração da API com login comercial do
    Instagram".
-4. Em *Instagram → Configuração da API com login comercial*, anotar o
-   **Instagram App ID** e o **App Secret**, e preencher as três URLs exigidas:
-   - *Redirect URI* — para onde a pessoa volta depois de autorizar. **HTTPS
-     público** obrigatório (ex.: `https://api.vital.app/api/instagram/retorno`);
-     localhost não serve. Para testar antes de ter servidor, um túnel
-     (Cloudflare Tunnel ou ngrok).
-   - *Deauthorize callback* e *Data deletion request* — duas rotas simples do
-     nosso servidor (a criar junto com a conexão).
+4. Ali, anotar o **Instagram App ID** e o **App Secret**
+   (`INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`) e preencher as três URLs:
+   - *Redirect URI*: `<CONEXOES_RETORNO_URL>/api/oauth/instagram/retorno`.
+     **Só HTTPS** — localhost não serve. Para testar antes de ter servidor,
+     um túnel (Cloudflare Tunnel ou ngrok) apontando para o Vite, e o
+     endereço do túnel em `CONEXOES_RETORNO_URL`.
+   - *Deauthorize callback*: `.../api/oauth/instagram/desautorizar`
+   - *Data deletion request*: `.../api/oauth/instagram/apagar-dados`
 5. Em *Instagram → Funções → Testadores do Instagram*, adicionar o `@` da
    Laura. Ela aceita no app (Configurações → Site e apps → Convites de
    testador). **Como testadora, conecta sem App Review.**
-6. App ID, App Secret e a URL pública vão no `server/.env` — nunca no Git.
+6. Ela clica em Conectar Instagram no painel, uma vez.
 
-*No código (depois dos passos acima):*
-7. Botão "Conectar Instagram" em Configurações → Site → OAuth da Meta
-   (`https://www.instagram.com/oauth/authorize`, escopo só
-   `instagram_business_basic`) → rota de retorno troca o `code` por token
-   curto (`api.instagram.com/oauth_token`) e este pelo **longo de 60 dias**
-   (`graph.instagram.com/access_token`, `grant_type=ig_exchange_token`) →
-   guarda por empresa, fora da `config` → job renova
-   (`graph.instagram.com/refresh_access_token`, só com token válido e com
-   mais de 24h) e busca `/me/media` a cada hora, escrevendo em
-   `instagramPosts` → o site que já existe mostra. Mais: aviso no painel
-   quando o token cair (troca de senha, revogação, conta voltou a pessoal),
-   botão "Desconectar", e a tela passa a exibir o que veio da conta em vez de
-   pedir upload.
-8. Ela clica em conectar, uma vez.
+**Instagram — Fase B, qualquer empresa (2 a 4 semanas).** Custo zero da
+Meta; o que custa é tempo.
+7. **Política de privacidade e termos de uso** publicados num endereço da
+   Vital — a Meta exige o link (o Google também, na Fase B dele).
+8. **Verificação da empresa** no Gerenciador de Negócios da Meta: CNPJ e um
+   documento. Gratuito; dias a semanas.
+9. **App Review** pedindo *Acesso Avançado* só a `instagram_business_basic`:
+   vídeo do fluxo inteiro (painel → conectar → grade no site), conta de
+   teste e a descrição do uso. Rejeição na primeira tentativa é comum.
+10. Aprovado, app em **modo Live**. Daí qualquer empresa conecta.
 
-**Fase B — qualquer empresa conectar sozinha (2 a 4 semanas).**
-9. **Política de privacidade e termos de uso** publicados num endereço da
-   Vital — a Meta exige o link.
-10. **Verificação da empresa** no Gerenciador de Negócios da Meta: CNPJ e um
-    documento (contrato social ou conta no nome da empresa). Gratuito; dias a
-    semanas.
-11. **App Review** pedindo *Acesso Avançado* só a `instagram_business_basic`
-    (pedir mais atrasa): vídeo da tela com o fluxo inteiro (painel → conectar
-    → grade no site), uma conta de teste e a descrição do uso ("exibir as
-    últimas 6 publicações no site da empresa"). Rejeição na primeira tentativa
-    é comum, normalmente por detalhe do vídeo ou do texto.
-12. Aprovado, app em **modo Live**. Daí qualquer empresa conecta.
+Fontes conferidas: [Instagram API with Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login),
+[Business Profile APIs — OAuth](https://developers.google.com/my-business/content/implement-oauth),
+[accounts.locations.reviews.list](https://developers.google.com/my-business/reference/rest/v4/accounts.locations.reviews/list).
 
 ### Bloco 6c — Serviços adicionais ✅ concluído
 Detalhes em `ARQUITETURA.md`.
@@ -652,6 +581,38 @@ Terceiro bundle (`vital.html`), com a nossa marca. Detalhes em `ARQUITETURA.md`.
       isolamento de propósito
 - [ ] Convidar mais gente para a equipe da Vital pela tela (o papel `suporte`
       já existe e já é respeitado; falta o formulário)
+
+### Bloco 12 — CRM por WhatsApp de verdade
+Decidido em 2026-10-09: entra depois de terminar o front. Numerado depois do 11
+só porque nasceu depois; na ordem de fazer, vem antes dos apps.
+
+**O que já existe** (ver `ARQUITETURA.md`, "WhatsApp"): a fila automática
+(confirmação, véspera, aviso no dia, pós-atendimento), as campanhas de
+aniversário e reativação com `optin`, os modelos editáveis no painel e as
+campanhas manuais com prévia. Falta o envio sair sozinho, por empresa, e o
+caminho de volta.
+
+- [ ] **Um número por empresa.** Hoje `whatsapp/index.js` lê `WHATSAPP_TOKEN`
+      e `WHATSAPP_PHONE_ID` do ambiente — um número para a plataforma inteira
+      (ver "Achados → Operação"). Token e id do número passam a morar por
+      empresa, fora da `config` (a vitrine lê essa coluna), e a conexão vem
+      pelo cadastro incorporado da Meta, com a Vital registrada como provedora
+      de tecnologia. Exige verificação da empresa Vital na Meta.
+- [ ] **Templates aprovados por empresa.** Fora da janela de 24h só sai
+      template aprovado; cada número novo precisa dos seus. Decidir se a Vital
+      submete um conjunto padrão em nome da empresa na conexão.
+- [ ] **Webhook de resposta.** "SIM" marca o agendamento como confirmado;
+      "PARAR" desliga o `optin`. Depende do item acima, porque a resposta
+      chega ao número da empresa. Com ele, o fechamento automático pode passar
+      a concluir só quem confirmou (ver "Achados → Produto").
+- [ ] **Caixa de conversas no painel**, para a equipe ler e responder dentro
+      da janela de 24h. Nunca foi desenhada; decidir se entra neste bloco ou
+      se a empresa continua respondendo pelo próprio aparelho.
+- [ ] Teste do caminho `meta` de `despachar()` com provider falso — está em
+      "Achados → Cobertura de teste".
+- [ ] Custo: a Meta cobra por mensagem de template, e marketing custa mais que
+      utilidade. Decidir quem paga — a empresa direto à Meta, ou a Vital
+      repassando no plano (o que amarra este bloco à cobrança da Vital).
 
 ### Bloco 11 — Apps nativos (iOS / Android)
 Por último de propósito: empacotar um site que ainda está mudando de forma
@@ -862,6 +823,16 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       precisará de um provider falso quando a conta sair.
 - [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
       que ela segura.
+- [ ] **Testes que agendam pelo site com data escrita à mão vão vencer.** Desde
+      2026-10-10 o site recusa data passada e além da janela; `DIA =
+      '2027-03-05'` em `rotas-agendamento.test.js` (e as datas fixas de
+      `adicionais`, `combos`, `funil`) passam a falhar no dia em que virarem
+      passado. Trocar por datas relativas a `hoje()` antes disso.
+- [ ] **O percurso de uma empresa nova não é automatizado.** Em 2026-10-10 foi
+      feito por script avulso (cadastro → assistente → site → agendamento →
+      painel → funcionária → back-office, 67 passos) e achou três falhas que
+      a suíte não pegava, porque cada teste começa de um cenário pronto e não
+      do cadastro. Vale virar teste da suíte.
 - [ ] **O site não tem teste de fluxo nenhum.** Um passo do meio do
       agendamento ficou sendo pulado (um `setPasso` no lugar de `avancar()`) e
       ninguém notou até refazer o fluxo à mão em 2026-09-19 — a suíte só cobre
@@ -937,6 +908,59 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Operação
 
+- [ ] **O site de uma empresa recém-cadastrada fica no ar vazio.** Achado no
+      percurso de empresa nova (2026-10-10): antes de cadastrar qualquer
+      serviço, o endereço já abre com "Agende seu horário" em destaque,
+      "Nenhum serviço disponível no momento" e uma seção "Contato" com só os
+      chips Pix, Cartão e Dinheiro — sem telefone nem endereço. Quem recebe o
+      link cedo demais vê um site quebrado. Esconder o botão e a seção de
+      contato enquanto não há serviço, ou mostrar "em breve" no lugar.
+- [ ] **A categoria "Geral" aparece para a cliente.** Serviço que nasce sem
+      categoria — o do assistente de primeira configuração, sempre — ganha
+      `'Geral'` no servidor (`routes/catalogo.js`), e com "Separar por
+      categoria" ligado o site mostra um cartão "Geral · 1 opção · a partir
+      de R$ 150". É uma palavra nossa na vitrine da empresa, e "a partir de"
+      com uma opção só promete variação que não existe. Achado em 2026-10-10.
+- [ ] **No Resumo, "Atendimentos no mês" e o ranking contam coisas
+      diferentes.** Com 1 concluído e 3 agendados, o cartão diz 4 e o ranking
+      diz "1 atendimento". Os dois podem estar certos, mas nenhum diz o que
+      conta. Achado em 2026-10-10.
+- [ ] **A antecedência mínima só vale para o dia de hoje.** Com 24h de
+      antecedência, às 23h o site oferece amanhã às 8h — o motor
+      (`horariosLivres`, `diasComVagaPara`, `foraDoPrazoDoSite`) só compara
+      hora quando a data é hoje. Antecedência maior que o resto do dia não
+      funciona como a dona espera. Achado em 2026-10-10.
+- [ ] **Foto do Instagram que sai da grade fica no armazenamento para sempre.**
+      O job baixa cada publicação nova (`conexoes/instagram.js`) e não apaga
+      a que caiu para fora das 6 mais recentes. Com uma publicação por dia,
+      são ~365 arquivos por ano por empresa conectada, no disco ou no R2.
+      Barato hoje; quando pesar, o job apaga o que estava em
+      `instagramPosts` e não está mais — só o que tem `id`, que é o que ele
+      mesmo baixou. Notado em 2026-10-10.
+- [ ] **O seed não mostra as avaliações do Google.** A seção só se preenche
+      com conta conectada, e inventar avaliações para o cenário da Laura
+      seria fabricar depoimento de cliente real em nome de uma empresa real —
+      nem para desenvolvimento. A Barbearia (ficção inteira) usa o modelo
+      Quadro, que não tem a seção. Quem quiser ver a tela preenchida sem
+      conta real precisa de uma empresa fictícia no modelo Clínica com
+      `avaliacoesGoogle` escrito direto no banco. Decidido em 2026-10-10.
+- [ ] **O retorno do OAuth não está preso à sessão de quem clicou.** O `state`
+      é assinado e vence em 15 minutos, mas o retorno chega em outro endereço,
+      sem o cookie do painel, então não dá para conferir que quem volta é
+      quem saiu. Na prática: um dono que repasse o link de autorização a
+      outra pessoa em até 15 minutos faria a conta do Google dela entrar na
+      empresa dele — só leitura de avaliações, e só com a pessoa clicando em
+      "Permitir". Fechar isso exige um cookie no domínio de retorno, colocado
+      ao iniciar. Notado em 2026-10-10.
+- [ ] **O envio automático de WhatsApp é de um número só para a plataforma
+      inteira.** O provider `meta` lê `WHATSAPP_TOKEN` e `WHATSAPP_PHONE_ID`
+      do ambiente, não da empresa: ligado hoje, toda empresa mandaria
+      lembrete pelo mesmo número. Para cada empresa usar o próprio, o token e
+      o id do número precisam morar por empresa (fora da `config`, que a
+      vitrine lê) e a conexão passa pelo cadastro incorporado da Meta, com a
+      Vital como provedora de tecnologia. Enquanto isso, o modo `manual`
+      (links `wa.me`) é o único que serve a mais de uma empresa. Notado em
+      2026-10-09.
 - [ ] **O funil só existe no back-office da Vital; a empresa não vê o dela.**
       É o dono que decide mexer no próprio site, e hoje o número que diria
       "você perde 70% na abertura do agendamento" está só do nosso lado.
@@ -990,6 +1014,18 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       site nunca importa `painel-api.js`. Não há credencial de painel no código
       publicado — confirmado por varredura.
 - [ ] `CORS_ORIGIN` precisa apontar para o domínio real, não `localhost`.
+- [ ] **`CONEXOES_SEGREDO` vem do cofre do provedor, e é um só para sempre.**
+      Ele cifra os tokens do Google e do Instagram de todas as empresas: vazou,
+      quem tiver um dump do banco lê os tokens; trocou, todas as empresas
+      precisam reconectar. Nunca o mesmo valor do desenvolvimento.
+- [ ] **`CONEXOES_RETORNO_URL` em produção é HTTPS e é exatamente o endereço
+      cadastrado** no Google Cloud e na Meta. Atrás de proxy, com
+      `TRUST_PROXY` certo — o retorno redireciona para o painel da empresa.
+- [ ] **Google e Meta em modo de teste não servem a cliente nova.** Até a
+      verificação do app no Google e a App Review na Meta (Fase B de cada um,
+      no Bloco 6b), só contas cadastradas à mão conseguem conectar. Empresa
+      que se cadastra sozinha vê o botão e recebe erro do provedor. Ou faz as
+      duas revisões antes do lançamento, ou esconde os botões até lá.
 - [ ] Conferir que nenhum log imprime a `DATABASE_URL` inteira (o boot já
       mascara a senha — manter assim ao mexer nele).
 - [x] ~~As rotas públicas de escrita não têm limite de chamadas.~~ Resolvido:
@@ -1086,9 +1122,9 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 
 ## Fora de escopo por enquanto
 
-Pagamento online, webhook de resposta do WhatsApp e API oficial da Meta seguem
-como estão (listados no fim do `CLAUDE.md`) — entram depois que a base
-white-label estiver de pé.
+Pagamento online da cliente segue como está (listado no fim do `CLAUDE.md`).
+O webhook de resposta do WhatsApp e a API oficial da Meta saíram daqui em
+2026-10-09 e viraram o Bloco 12.
 
 A suíte do motor de horários saiu daqui: existe, roda com `npm test` e está
 descrita em `ARQUITETURA.md`. O que falta cobrir, em ordem de risco:
@@ -1099,3 +1135,51 @@ descrita em `ARQUITETURA.md`. O que falta cobrir, em ordem de risco:
       existe; falta o teste que prova que ela segura)
 - [ ] Catálogo, clientes e configuração — as rotas que ainda não têm teste
 - [ ] Isolamento entre empresas (é o item já listado no Bloco 9)
+
+## Ideias guardadas
+
+Fora do roteiro por decisão, não por esquecimento. Ninguém trabalha nelas até
+alguém trazê-las de volta de propósito — e quando voltarem, o que já se pensou
+está aqui, para não pensar de novo.
+
+### Área do cliente com login Google (era o Bloco 5)
+
+**Tirado do roteiro em 2026-10-09**, a pedido do dono do produto. Era o único
+bloco sem dependente, então nada quebra com ele fora. A cliente continua se
+identificando só pelo WhatsApp, e o buraco de alguém agendar no número alheio
+fica com o Bloco 4b.
+
+O login em si é pequeno; o custo está no vínculo de conta e nas telas.
+
+**O ganho principal não é economizar campo — é a identidade.** Hoje a cliente
+se identifica digitando o WhatsApp, e digitar errado agenda no cadastro de
+outra pessoa (ver Bloco 4b). Entrando com Google, quem volta **não digita
+nada**: a conta responde quem ela é.
+
+**Conveniência, não identidade.** O login do Google devolve id, e-mail, nome e
+foto. **Não devolve telefone nem nascimento**: esses campos exigem escopos
+sensíveis (`user.phonenumbers.read`, `user.birthday.read`), que passam por
+revisão do Google e, mesmo aprovados, só trazem o que a pessoa preencheu no
+perfil — quase sempre vazio. O telefone segue sendo a identidade: chave única
+em `clients.fone`, canal do WhatsApp, base do CRM. O e-mail do Google entraria
+como segundo identificador, não como substituto.
+
+**A autenticação mora num domínio só: o nosso.** O Google exige URL de
+redirecionamento cadastrada. Com empresa em domínio próprio, cada uma teria de
+criar o próprio projeto no Google Cloud — inviável. O desenho é um host de
+autenticação central que recebe o login e devolve para o site da empresa certa.
+
+**Oferecer no começo do agendamento, nunca barrar a entrada no site.** Ao abrir
+a janela de agendamento, "Entrar com Google" em destaque e "continuar sem
+entrar" ao lado. Login nunca vira pedágio, senão perde-se agendamento.
+
+| | Primeira vez | Voltando |
+|---|---|---|
+| Google traz | nome, e-mail, foto | tudo do cadastro |
+| Ainda perguntamos | WhatsApp e nascimento | nada |
+| Sem Google | WhatsApp, nome e nascimento | só o WhatsApp |
+
+O que entraria: botão de entrar (escopos básicos), vínculo com a ficha
+existente sem duplicar cliente, "Meus agendamentos" (histórico, remarcar,
+cancelar com política), agendar sem login lado a lado, e e-mail e foto na mesma
+lógica de `optin` da LGPD.

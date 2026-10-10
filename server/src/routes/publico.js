@@ -3,7 +3,7 @@ import { db, uid, listarServicos, staffOut, getConfig, listarUnidades } from '..
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { criarAgendamento, criarCombo } from './agendamentos.js';
-import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara } from '../lib/availability.js';
+import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara, foraDoPrazoDoSite } from '../lib/availability.js';
 import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
 import { horariosDeAtendimento } from '../lib/horarios.js';
 import { marcar, etapaDoNavegador, sessaoValida } from '../lib/funil.js';
@@ -95,6 +95,19 @@ async function vitrineDeCombos(cfg) {
   return saida;
 }
 
+function avaliacoesParaVitrine(a) {
+  if (!a?.total || !a?.nota) return null;
+  return {
+    nota: Number(a.nota),
+    total: Number(a.total),
+    link: /^https:\/\//.test(a.link || '') ? a.link : '',
+    lista: (a.lista || [])
+      .filter(x => x?.texto && x?.nota >= 1 && x?.nota <= 5)
+      .slice(0, 6)
+      .map(x => ({ autor: String(x.autor || ''), nota: x.nota, texto: String(x.texto), data: String(x.data || '') })),
+  };
+}
+
 publico.get('/vitrine', rota(async (req, res) => {
   const cfg = await getConfig();
   const equipe = await db.all('SELECT * FROM staff WHERE ativo=1 ORDER BY nome');
@@ -124,8 +137,12 @@ publico.get('/vitrine', rota(async (req, res) => {
     antesDepois: (cfg.antesDepois || [])
       .filter(c => c?.antes && c?.depois)
       .map(c => ({ antes: c.antes, depois: c.depois, titulo: c.titulo || '' })),
+    // Avaliações do Google, montadas a dedo como o resto: só o que o site
+    // desenha. Sem nenhuma, `null` — e o site mostra o estado vazio, nunca uma
+    // nota sem avaliação por trás.
+    avaliacoes: avaliacoesParaVitrine(cfg.avaliacoesGoogle),
     // Sem imagem não há o que mostrar; mais de 6 não cabe na grade. `tipo`
-    // fica reservado para quando os posts vierem da conta ('imagem' | 'video').
+    // vem do job da conta conectada ('imagem' | 'video').
     instagramPosts: (cfg.instagramPosts || [])
       .filter(p => p?.imagem)
       .slice(0, 6)
@@ -162,6 +179,12 @@ publico.get('/horarios', rota(async (req, res) => {
   const { servicoId, profissionalId, data } = req.query;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) {
     return res.status(400).json({ erro: 'informe data=YYYY-MM-DD' });
+  }
+  // Dia passado ou além da janela: nenhum horário, nas duas formas de resposta.
+  // O motor só aplica a antecedência no dia de hoje; sem isto, uma data de
+  // ontem devolvia a grade inteira como livre.
+  if (await foraDoPrazoDoSite(data)) {
+    return res.json(profissionalId && !req.query.comboId ? { data, horarios: [] } : { data, porProfissional: [] });
   }
   // Combo ocupa a cadeira pelo pacote inteiro e só quem faz todos os serviços
   // aparece — a mesma pessoa atende do começo ao fim.

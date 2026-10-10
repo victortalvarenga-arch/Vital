@@ -170,6 +170,11 @@ escrito, não aconteceu.
   depois de `prepararBanco()`. Já apagou o banco de desenvolvimento uma vez.
 - Imagem sempre passa por `shared/imagem.js` antes de subir, e o nome do
   arquivo é decidido pelo servidor, nunca pelo cliente.
+- Token de conta externa (Google, Meta) mora na tabela `conexoes`, cifrado por
+  `lib/segredo.js` — nunca na config. A config sai inteira em `GET
+  /api/config` para qualquer papel e é dela que a vitrine pública é montada.
+  O que o job traz da conta (avaliações, publicações) vai para a config; o
+  token, nunca.
 - Funcionalidade nova entra também no `seed.js`. Ele é o que uma máquina nova
   enxerga: cenário desatualizado faz a pessoa achar que a funcionalidade não
   existe. `npm run reset` tem de reproduzir tudo.
@@ -205,5 +210,5 @@ não pertencem a nenhum bloco e continuam abertos:
    Asaas ou Mercado Pago: gerar cobrança Pix/link no `POST /api/publico/agendar`,
    receber webhook e escrever em `appointments.pag_status` / `pag_ref`. Não
    confie no front para dizer que foi pago.
-2. **Webhook de resposta do WhatsApp.** Quando a cliente responde "SIM", marcar o
-   agendamento como confirmado; "PARAR" desliga o `optin`.
+O CRM por WhatsApp completo (número por empresa, webhook de resposta, caixa de
+conversas) já tem bloco próprio: Bloco 12 do `ROADMAP.md`.

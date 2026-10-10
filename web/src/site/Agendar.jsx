@@ -852,11 +852,15 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
 
           {formas.length > 0 && (
             <div className="campo">
-              <label htmlFor="jn-pag">Pagamento</label>
+              {/* Não há pagamento online: escolher "Pix" aqui não abre cobrança
+                  nenhuma. É a preferência, e o texto diz isso — "Pagamento"
+                  com Pix na lista fazia a cliente esperar um QR que não vinha. */}
+              <label htmlFor="jn-pag">Como prefere pagar no dia?</label>
               <select id="jn-pag" value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)}>
-                <option value="local">Pago no atendimento</option>
+                <option value="local">Decido na hora</option>
                 {formas.map(f => <option key={f} value={f}>{NOMES[f] || f}</option>)}
               </select>
+              <span className="ajuda">O pagamento é feito no atendimento.</span>
             </div>
           )}
           {!conhecida.cadastrada && (

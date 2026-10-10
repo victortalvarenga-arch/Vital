@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db, uid, apptOut, staffOut } from '../db.js';
 import { hoje, agora, toMin, toHora } from '../lib/dates.js';
-import { conflita, dentroDaJornada, horariosLivres, horariosPorServico } from '../lib/availability.js';
+import { conflita, dentroDaJornada, horariosLivres, horariosPorServico, foraDoPrazoDoSite } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
 import { escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
@@ -178,6 +178,18 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
     return { erro: 'data (YYYY-MM-DD) e hora (HH:MM) inválidas', codigo: 400 };
   }
 
+  // O site só vende o que ele mesmo oferece. A grade já esconde serviço
+  // arquivado, pessoa inativa, quem não faz o serviço e data fora do prazo —
+  // mas id e data circulam, e sem isto a rota aceitava todos os quatro.
+  if (origem === 'site') {
+    if (!svc.ativo) return { erro: 'este serviço não está disponível', codigo: 409 };
+    if (!prof.ativo) return { erro: `${prof.nome} não está atendendo`, codigo: 409 };
+    const faz = await db.get('SELECT 1 FROM service_staff WHERE service_id=? AND staff_id=?', svc.id, prof.id);
+    if (!faz) return { erro: `${prof.nome} não faz ${svc.nome}`, codigo: 409 };
+    const prazo = await foraDoPrazoDoSite(b.data, b.hora);
+    if (prazo) return { erro: prazo, codigo: 409 };
+  }
+
   // Extras conferidos contra a oferta real; preço e duração vêm do banco.
   const extras = await validarAdicionais(svc, b.adicionaisIds);
   if (extras.erro) return extras;
@@ -278,6 +290,10 @@ export async function criarCombo(b, { origem = 'painel' } = {}) {
   // Período e dias da semana olham a data do atendimento (migration 021).
   if (!valeNoDia(combo, b.data)) {
     return { erro: 'esta promoção não vale para essa data', codigo: 409 };
+  }
+  if (origem === 'site') {
+    const prazo = await foraDoPrazoDoSite(b.data, b.hora);
+    if (prazo) return { erro: prazo, codigo: 409 };
   }
 
   // Uma pessoa faz o combo inteiro; se ela não faz algum dos serviços, o

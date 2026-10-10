@@ -113,7 +113,7 @@ export async function prepararBanco() {
 const TABELAS = [
   'appointment_addons', 'appointments', 'blocks', 'messages',
   'service_addons', 'category_addons', 'service_staff',
-  'users', 'services', 'clients', 'staff', 'units', 'templates',
+  'users', 'services', 'clients', 'staff', 'units', 'templates', 'conexoes',
 ];
 
 export async function limpar(db) {

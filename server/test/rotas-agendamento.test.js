@@ -397,3 +397,70 @@ describe('em atendimento', () => {
     assert.equal(fechado.pagamento.status, 'pago');
   });
 });
+
+/**
+ * O site só vende o que ele mesmo oferece.
+ *
+ * Achado no percurso de uma empresa nova (2026-10-10): a grade escondia tudo
+ * isto, mas a rota de gravar aceitava — data de anteontem virava atendimento
+ * concluído e pago no fechamento automático, inflando o caixa.
+ */
+describe('o site não vende o que a grade não oferece', () => {
+  const pedir = extra => api.anonimo()('POST', '/api/publico/agendar', {
+    nome: 'Cliente Nova', fone: '47988881234', nascimento: '1990-05-10',
+    servicoId: 's1', profissionalId: 'p1', data: DIA, hora: '10:00', ...extra,
+  });
+  let hoje, addDias;
+  before(async () => ({ hoje, addDias } = await import('../src/lib/dates.js')));
+
+  test('data passada é recusada, e a grade dela vem vazia', async () => {
+    const ontem = addDias(hoje(), -1);
+    const r = await pedir({ data: ontem });
+    assert.equal(r.status, 409);
+    assert.match(r.corpo.erro, /já passou/);
+    const grade = await api.anonimo()('GET', `/api/publico/horarios?servicoId=s1&profissionalId=p1&data=${ontem}`);
+    assert.deepEqual(grade.corpo.horarios, []);
+    const geral = await api.anonimo()('GET', `/api/publico/horarios?servicoId=s1&data=${ontem}`);
+    assert.deepEqual(geral.corpo.porProfissional, []);
+  });
+
+  test('além da janela de dias é recusada', async () => {
+    // O cenário abre 365 dias.
+    const r = await pedir({ data: addDias(hoje(), 400) });
+    assert.equal(r.status, 409);
+  });
+
+  test('profissional que não faz o serviço é recusada', async () => {
+    await db.db.comEmpresa('default', () =>
+      db.db.run(`DELETE FROM service_staff WHERE service_id = 's1' AND staff_id = 'p2'`));
+    try {
+      const r = await pedir({ profissionalId: 'p2' });
+      assert.equal(r.status, 409);
+      assert.match(r.corpo.erro, /não faz/);
+    } finally {
+      await db.db.comEmpresa('default', () => db.salvarVinculos('s1', ['p1', 'p2']));
+    }
+  });
+
+  test('profissional inativa e serviço arquivado são recusados', async () => {
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE staff SET ativo = 0 WHERE id = 'p2'`));
+    try {
+      assert.equal((await pedir({ profissionalId: 'p2' })).status, 409);
+    } finally {
+      await db.db.comEmpresa('default', () => db.db.run(`UPDATE staff SET ativo = 1 WHERE id = 'p2'`));
+    }
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET ativo = 0 WHERE id = 's1'`));
+    try {
+      assert.equal((await pedir({})).status, 409);
+    } finally {
+      await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET ativo = 1 WHERE id = 's1'`));
+    }
+  });
+
+  test('o painel continua registrando atendimento passado', async () => {
+    const r = await dona('POST', '/api/agendamentos', {
+      clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: addDias(hoje(), -2), hora: '10:00', forcar: true,
+    });
+    assert.equal(r.status, 201, r.corpo?.erro);
+  });
+});

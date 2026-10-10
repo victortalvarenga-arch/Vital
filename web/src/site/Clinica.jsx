@@ -397,19 +397,75 @@ export function SecaoAntesDepois({ casos = [] }) {
 }
 
 /* ── avaliações ──
-   Sem carrossel de mentira sobre zero avaliação real. */
+   Só as que vieram da ficha do Google da empresa, pela conta conectada no
+   painel (`conexoes/google.js`) — nunca digitadas. A nota e o total contam
+   todas as avaliações, inclusive as que não entram na lista, e o link leva
+   para a ficha: é o que separa "as melhores em destaque" de propaganda.
+   Sem conta conectada, o estado vazio honesto de sempre. */
 
-export function SecaoAvaliacoes() {
+const Estrelas = ({ nota, tamanho = 15 }) => (
+  <span className="aval-estrelas" role="img" aria-label={`${String(nota).replace('.', ',')} de 5 estrelas`}>
+    {[1, 2, 3, 4, 5].map(n => (
+      <Star key={n} size={tamanho} aria-hidden="true"
+            fill={n <= Math.round(nota) ? 'currentColor' : 'none'} strokeWidth={1.5} />
+    ))}
+  </span>
+);
+
+const mesAno = data => {
+  const [a, m] = String(data || '').split('-');
+  if (!a || !m) return '';
+  const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return `${nomes[+m - 1] || ''} ${a}`;
+};
+
+export function SecaoAvaliacoes({ avaliacoes }) {
+  const a = avaliacoes;
   return (
     <section id="avaliacoes" className="bloco">
       <div className="env-largo">
         <TituloClinica olho="Avaliações">Cuidado que <em>fica na memória.</em></TituloClinica>
-        <Revela>
-          <div className="vazio-cartao">
-            <Star size={22} strokeWidth={1.5} aria-hidden="true" />
-            <p>As avaliações de clientes aparecem aqui assim que o negócio começar a receber.</p>
-          </div>
-        </Revela>
+        {!a ? (
+          <Revela>
+            <div className="vazio-cartao">
+              <Star size={22} strokeWidth={1.5} aria-hidden="true" />
+              <p>As avaliações de clientes aparecem aqui assim que o negócio começar a receber.</p>
+            </div>
+          </Revela>
+        ) : (
+          <>
+            <Revela>
+              <div className="aval-resumo">
+                <span className="aval-nota">{a.nota.toFixed(1).replace('.', ',')}</span>
+                <div>
+                  <Estrelas nota={a.nota} tamanho={18} />
+                  <p>{a.total} {a.total === 1 ? 'avaliação' : 'avaliações'} no Google</p>
+                </div>
+                {a.link && (
+                  <a className="insta-arroba aval-link" href={a.link} target="_blank" rel="noreferrer">
+                    Ver todas <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            </Revela>
+            {a.lista.length > 0 && (
+              <div className="aval-grade">
+                {a.lista.map((r, i) => (
+                  <Revela key={i}>
+                    <figure className="aval-cartao">
+                      <Estrelas nota={r.nota} />
+                      <blockquote>{r.texto}</blockquote>
+                      <figcaption>
+                        <span className="aval-inicial" aria-hidden="true">{r.autor.trim()[0]?.toUpperCase()}</span>
+                        <span><b>{r.autor}</b>{r.data && <small>{mesAno(r.data)}</small>}</span>
+                      </figcaption>
+                    </figure>
+                  </Revela>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

@@ -79,6 +79,15 @@ describe('abrir uma empresa', () => {
     assert.ok(r.corpo.painel);
   });
 
+  test('em desenvolvimento, o link do painel leva ao endereço da empresa', async () => {
+    // Era `/painel.html` relativo: a pessoa ficava em `localhost:5173`, que é a
+    // empresa padrão, e a senha recém-criada dava "incorreta".
+    const r = await api.noHost('localhost:5173')('POST', '/api/cadastro', {
+      nome: 'Teste Petshop', responsavel: 'Maria', email: 'maria@teste.com', senha: SENHA,
+    });
+    assert.equal(r.corpo.painel, 'http://teste-petshop.localhost:5173/painel.html');
+  });
+
   test('a senha do cadastro já vale no endereço novo', async () => {
     await api.anonimo()('POST', '/api/cadastro', {
       nome: 'Teste Petshop', responsavel: 'Maria',
