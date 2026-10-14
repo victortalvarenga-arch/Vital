@@ -38,6 +38,12 @@ export function aplicarSeo(dados, lugares = []) {
   jsonLd(blocos);
 }
 
+/*
+ * `titulo` e `descricao` têm um gêmeo em `server/src/lib/seo.js`, que escreve
+ * o mesmo `<head>` no HTML servido (é o que a prévia de link do WhatsApp lê,
+ * porque ela não roda JavaScript). Mudou uma regra aqui, mude lá também.
+ */
+
 /** "Laura Faust — Sobrancelhas, Unhas e Cílios em Joinville" */
 function titulo({ negocio, servicos = [] }) {
   const nome = negocio.nome || 'Agende seu horário';

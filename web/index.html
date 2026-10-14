@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <!--
-      Título e descrição de verdade são escritos por `src/site/seo.js` depois
-      que a vitrine responde, com o nome, os serviços e a cidade da empresa —
-      um HTML só serve a todas elas, então aqui só pode morar o neutro. O que
-      está abaixo é o que aparece enquanto a resposta não chega.
+      Título e descrição de verdade são da empresa: em produção o servidor os
+      escreve aqui antes de entregar (`server/src/lib/seo.js` — é o que a
+      prévia de link do WhatsApp lê), e no navegador `src/site/seo.js` escreve
+      de novo depois que a vitrine responde. O que está abaixo é o neutro, para
+      o desenvolvimento e para quando algo falha.
     -->
     <meta name="description" content="Agende seu horário online, com confirmação na hora." />
     <title>Agende seu horário</title>

@@ -831,15 +831,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       percorrer o fluxo inteiro — incluindo o "tirar dúvida" e o botão
       flutuante, que saem do webview para o app do WhatsApp e podem não voltar.
 
-- [ ] **O SEO depende de o buscador rodar JavaScript.** Título, descrição e o
-      JSON-LD são escritos por `site/seo.js` depois que a vitrine responde. O
-      Google renderiza JS e enxerga, mas numa segunda passada e sem garantia de
-      prazo; o resto (Bing, preview de link do WhatsApp e do Instagram) lê só o
-      HTML servido, e recebe o texto neutro do `index.html`. **O preview de
-      link é o caso que dói primeiro**, porque é o que aparece quando a empresa
-      manda o próprio site no WhatsApp. A saída é pré-renderizar o `<head>` por
-      empresa no servidor que entrega o HTML — a vitrine já tem tudo de que
-      isso precisa numa chamada.
 
 - [ ] **`npm run reset` com o `npm run dev` rodando deixa o servidor com cache
       de empresa velho.** O id da Barbearia é sorteado a cada reset, e o

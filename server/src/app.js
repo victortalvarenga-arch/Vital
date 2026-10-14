@@ -25,7 +25,8 @@ import { rota } from './lib/rota.js';
 import { comRegistro } from './lib/registro.js';
 import { comAdicionais } from './lib/adicionais.js';
 import { combosAtivos } from './lib/combos.js';
-import { comEmpresa } from './lib/tenant.js';
+import { comEmpresa, resolverTenant } from './lib/tenant.js';
+import { comCabecalho } from './lib/seo.js';
 import { servicosPara, profissionaisPara } from './lib/taxas.js';
 import { suporte } from './routes/suporte.js';
 import { fecharAtendimentos } from './jobs/fechamento.js';
@@ -231,14 +232,32 @@ app.get('/api/estado', rota(async (req, res) => {
 const PASTA_WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 if (fs.existsSync(PASTA_WEB)) {
   const base = (process.env.BASE_DOMINIO || '').toLowerCase();
-  // No domínio da Vital sem subdomínio, a raiz é a página de cadastro — não o
-  // site da empresa padrão, que ninguém de fora deveria ver.
-  app.get('/', (req, res, next) => {
+  let paginaDoSite = null;
+  app.get(['/', '/index.html'], async (req, res, next) => {
     const host = req.hostname.toLowerCase();
+    // No domínio da Vital sem subdomínio, a raiz é a página de cadastro — não o
+    // site da empresa padrão, que ninguém de fora deveria ver.
     if (base && (host === base || host === `www.${base}`)) {
       return res.sendFile(path.join(PASTA_WEB, 'vital.html'));
     }
-    next();
+    // No endereço de uma empresa, o site sai com o `<head>` dela já escrito:
+    // é o que a prévia de link do WhatsApp lê (ver `lib/seo.js`). Qualquer
+    // problema aqui cai no HTML neutro — página sem prévia é melhor que
+    // página que não abre.
+    try {
+      const empresa = await resolverTenant(req, db);
+      if (!empresa?.ativo || empresa.status !== 'ativa') return next();
+      const dados = await db.comEmpresa(empresa.id, async () => ({
+        cfg: await getConfig(),
+        servicos: (await listarServicos({ somenteAtivos: true })).filter(s => !s.somenteAdicional),
+      }));
+      paginaDoSite ??= fs.readFileSync(path.join(PASTA_WEB, 'index.html'), 'utf8');
+      res.type('html').set('Cache-Control', 'no-cache')
+        .send(comCabecalho(paginaDoSite, { ...dados, origem: `${req.protocol}://${req.get('host')}` }));
+    } catch (erro) {
+      console.error('[seo]', erro.message);
+      next();
+    }
   });
   // Os arquivos de `assets/` levam o hash do conteúdo no nome: podem ficar em
   // cache para sempre. O HTML não, senão um deploy novo não chega a quem já

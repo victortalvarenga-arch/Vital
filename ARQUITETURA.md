@@ -2300,6 +2300,18 @@ Mesmo endereço resolve os três de uma vez.
 de cadastro — e não o site da empresa padrão. Quem decide o que é "domínio da
 Vital" é `BASE_DOMINIO`; sem ele, a regra não se aplica.
 
+**No endereço de uma empresa, o site sai com o `<head>` dela.** A prévia de
+link do WhatsApp e do Instagram não roda JavaScript — lê só o HTML — e mostrava
+"Agende seu horário" para toda empresa, justo quando ela manda o próprio site à
+cliente. `lib/seo.js` escreve título, descrição e `og:image` (capa ou logo) no
+`index.html` antes de entregar, com tudo escapado (nome de empresa é texto
+livre). As regras de título e descrição são gêmeas das de `web/src/site/seo.js`,
+que escreve de novo no navegador; o container não leva o código-fonte do front,
+então não há como importar de um só lugar — mudou uma, mude a outra. Falhou a
+leitura do banco, sai o HTML neutro: página sem prévia é melhor que página que
+não abre. Só funciona em produção (é a API que serve o HTML); no
+desenvolvimento quem serve é o Vite.
+
 **Uma instância só, por enquanto.** Migrations rodam no boot e os jobs rodam
 dentro do processo: duas instâncias migrariam juntas e disparariam a mesma
 fila. Os dois itens para escalar estão em "Importante para produção".
