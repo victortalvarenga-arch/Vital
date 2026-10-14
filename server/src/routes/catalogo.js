@@ -11,6 +11,40 @@ import { formCompleto, formsDoServico, ultimaResposta, TIPOS_DE_CAMPO } from '..
 
 export const catalogo = Router();
 
+/**
+ * Os casos de antes e depois, conferidos antes de gravar.
+ *
+ * Foto de rosto de cliente é o dado mais sensível que o produto publica, e
+ * publicar sem autorização é responsabilidade da empresa na LGPD. Nenhum caso
+ * entra sem dizer **quem autorizou, quando e como** — o painel pede, e a
+ * conferência mora aqui porque a tela se contorna. Quem registrou e quando
+ * ficam congelados no primeiro registro.
+ */
+function casosDeAntesDepois(lista, usuario) {
+  if (!Array.isArray(lista)) return { erro: 'antes e depois inválido' };
+  const saida = [];
+  for (const [n, c] of lista.entries()) {
+    const a = c?.autorizacao || {};
+    const qual = c?.titulo ? `"${c.titulo}"` : `o caso ${n + 1}`;
+    if (!c?.antes || !c?.depois) return { erro: `${qual} precisa das duas fotos` };
+    if (String(a.nome || '').trim().length < 2) return { erro: `${qual}: informe quem autorizou o uso das fotos` };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(a.data || '') || a.data > hoje()) {
+      return { erro: `${qual}: informe a data da autorização` };
+    }
+    saida.push({
+      antes: String(c.antes), depois: String(c.depois), titulo: String(c.titulo || '').slice(0, 80),
+      autorizacao: {
+        nome: String(a.nome).trim().slice(0, 120),
+        data: a.data,
+        como: String(a.como || '').trim().slice(0, 200),
+        registradoPor: a.registradoPor || usuario?.nome || '',
+        registradoEm: a.registradoEm || hoje(),
+      },
+    });
+  }
+  return saida;
+}
+
 /* ── Configuração do negócio ── */
 catalogo.get('/config', rota(async (req, res) => res.json(await getConfig())));
 catalogo.put('/config', exige('site'), rota(async (req, res) => {
@@ -19,6 +53,11 @@ catalogo.put('/config', exige('site'), rota(async (req, res) => {
   // seria depoimento inventado; e a tela manda a config inteira ao salvar,
   // então uma aba aberta antes da sincronização desfaria o que o job trouxe.
   delete corpo.avaliacoesGoogle;
+  if (corpo.antesDepois !== undefined) {
+    const casos = casosDeAntesDepois(corpo.antesDepois, req.usuario);
+    if (casos.erro) return res.status(400).json({ erro: casos.erro });
+    corpo.antesDepois = casos;
+  }
   if (await db.get(`SELECT 1 FROM conexoes WHERE provedor = 'instagram'`)) {
     delete corpo.instagramPosts;
     delete corpo.instagram;

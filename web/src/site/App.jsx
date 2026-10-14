@@ -371,7 +371,10 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
       {ehClinica && (
         <>
           <SecaoEquipe profissionais={dados.profissionais} />
-          <SecaoAntesDepois casos={dados.antesDepois} />
+          {/* Sem caso autorizado a seção some, como as perguntas: a empresa
+              tem onde cadastrar (painel → Site da cliente), e "Em breve" para
+              sempre fazia o site parecer inacabado. */}
+          {dados.antesDepois?.length > 0 && <SecaoAntesDepois casos={dados.antesDepois} />}
           <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />
           {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
           <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />

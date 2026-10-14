@@ -199,13 +199,14 @@ export const configPadrao = {
   // nenhuma, como o antes/depois.
   faq: [],
 
-  // Casos de antes e depois do site: `{ antes, depois, titulo }`, cada um com
-  // duas URLs de imagem. Vazio por padrão, e é isso que mantém a seção num
-  // estado vazio honesto — empresa nova não nasce com resultado de ninguém.
+  // Casos de antes e depois do site: `{ antes, depois, titulo, autorizacao }`,
+  // cada um com duas URLs de imagem. Vazio por padrão — empresa nova não nasce
+  // com resultado de ninguém, e a seção some do site enquanto não há caso.
   //
   // São fotos de rosto de cliente, o dado mais sensível que este produto
-  // publica. Só entram com autorização de imagem por escrito, e a empresa
-  // responde por isso — ver LGPD em `ARQUITETURA.md`.
+  // publica. `autorizacao` ({ nome, data, como, registradoPor, registradoEm })
+  // é obrigatória ao salvar (`PUT /api/config`) e a vitrine não publica caso
+  // sem ela — ver LGPD em `ARQUITETURA.md`.
   antesDepois: [],
 
   // Publicações do Instagram que o site mostra em grade: `{ imagem, link }`,

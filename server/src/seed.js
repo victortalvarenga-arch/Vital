@@ -149,6 +149,17 @@ async function primeiraClienteReal() {
           titulo: 'Limpeza de pele profunda',
           antes: F('antes-1.jpg'),
           depois: F('depois-1.jpg'),
+          // A vitrine só publica caso com autorização registrada. Este registro
+          // é do cenário de desenvolvimento, não um termo de verdade: antes de
+          // ir ao ar no site dela, a autorização real precisa ser confirmada
+          // com a Laura e registrada pelo painel.
+          autorizacao: {
+            nome: 'Cliente do caso (a confirmar com a Laura)',
+            data: '2026-09-01',
+            como: 'registro do seed de desenvolvimento',
+            registradoPor: 'seed',
+            registradoEm: '2026-09-01',
+          },
         },
       ],
       // A grade do Instagram no site. São fotos reais dela (as mesmas dos

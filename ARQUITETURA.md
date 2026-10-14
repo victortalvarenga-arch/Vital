@@ -293,6 +293,14 @@ não um cartão "1 opção · a partir de".
 **A chave "Fotos dos serviços" é aplicada na vitrine**, não em cada componente:
 desligada, `/publico/vitrine` manda `foto: ''` e o site inteiro cai na inicial.
 
+**Antes e depois só com autorização registrada.** A empresa cadastra os casos
+em Configurações → Site da cliente → Antes e depois: duas fotos, título e a
+autorização da cliente (quem, quando, como). `PUT /api/config` recusa caso sem
+autorização ou com data futura, e anota quem registrou e quando
+(`casosDeAntesDepois`, em `routes/catalogo.js`). A vitrine filtra de novo — caso
+gravado antes da regra não sai — e manda só `antes`, `depois` e `titulo`: o
+nome de quem autorizou é dado da empresa, não do site. Sem caso, a seção some.
+
 **A gravação confere as mesmas regras que a tela mostra.** Agendamento com
 `origem: 'site'` é recusado se o serviço está arquivado, se a profissional está
 inativa ou não faz aquele serviço, ou se a data está fora do prazo — passado,
@@ -2406,6 +2414,11 @@ O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal
 respeitado em `jobs/mensagens.js` e nas campanhas. Lembretes de agendamento são
 comunicação transacional e não dependem de opt-in. Ao adicionar qualquer disparo
 novo, decida em qual das duas categorias ele cai.
+
+Foto de rosto de cliente (antes e depois) só é publicada com autorização
+registrada no painel — quem, quando, como. O registro é da empresa e não sai na
+vitrine; se a cliente retirar a autorização, apagar o caso tira as fotos do
+site na hora. Ver "As três telas".
 
 A empresa leva os próprios dados quando quiser: ver "Exportar dados". Apagar os
 dados de uma empresa que sai da plataforma ainda não tem caminho — está em

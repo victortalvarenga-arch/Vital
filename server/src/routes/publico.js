@@ -140,8 +140,10 @@ publico.get('/vitrine', rota(async (req, res) => {
     textos: cfg.textos,
     // Só as três chaves de cada caso, montadas a dedo como o resto desta
     // resposta: campo novo na config não vaza para a vitrine por descuido.
+    // Caso sem autorização registrada não sai, venha de onde vier — nem de
+    // config antiga, gravada antes de o painel exigir.
     antesDepois: (cfg.antesDepois || [])
-      .filter(c => c?.antes && c?.depois)
+      .filter(c => c?.antes && c?.depois && c?.autorizacao?.nome && c?.autorizacao?.data)
       .map(c => ({ antes: c.antes, depois: c.depois, titulo: c.titulo || '' })),
     // Avaliações do Google, montadas a dedo como o resto: só o que o site
     // desenha. Sem nenhuma, `null` — e o site mostra o estado vazio, nunca uma

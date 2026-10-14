@@ -349,6 +349,20 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cs-post-btns { display: flex; gap: 6px; justify-content: flex-end; }
 .cs-post-btns .btn { padding: 6px 9px; }
 
+/* antes e depois: as duas fotos, o título e a autorização da cliente */
+.cs-casos { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.cs-caso {
+  display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--paper);
+}
+.cs-caso-fotos { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 640px) { .cs-caso-fotos { grid-template-columns: 1fr 1fr; } }
+.cs-caso-aut {
+  display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.cs-caso-aut legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+
 /* contas conectadas (Google, Instagram): um cartão por conta */
 .cx {
   display: flex; flex-direction: column; gap: 12px; align-items: flex-start;

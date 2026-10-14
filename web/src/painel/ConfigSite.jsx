@@ -119,6 +119,11 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
       </Secao>
 
+      <Secao titulo="Antes e depois"
+             ajuda="No modelo Clínica, viram uma seção de resultados no site, com as duas fotos lado a lado. A seção só aparece com pelo menos um caso.">
+        <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
+      </Secao>
+
       <Secao titulo="Avaliações do Google"
              ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora.">
         <Conexao info={google} nome="Google" agir={agirNaConta}
@@ -421,6 +426,75 @@ function Publicacoes({ lista, aoMudar, aviso }) {
         <input ref={entrada} type="file" accept="image/*" hidden onChange={escolher} />
       </div>
     </Linha>
+  );
+}
+
+/**
+ * Casos de antes e depois: duas fotos, um título e a autorização da cliente.
+ *
+ * A autorização não é opcional nem enfeite: são fotos de rosto, publicadas num
+ * site aberto, e a empresa responde por elas na LGPD. Por isso cada caso pede
+ * quem autorizou, quando e como — e o servidor recusa salvar sem isso, porque
+ * a tela se contorna. Quem registrou e quando, o servidor anota sozinho.
+ */
+function AntesDepois({ lista, aoMudar, aviso }) {
+  const trocar = (i, patch) => aoMudar(lista.map((c, n) => (n === i ? { ...c, ...patch } : c)));
+  const autorizar = (i, patch) => trocar(i, { autorizacao: { ...(lista[i].autorizacao || {}), ...patch } });
+  const remover = i => aoMudar(lista.filter((_, n) => n !== i));
+  const mover = (i, para) => {
+    if (para < 0 || para >= lista.length) return;
+    const nova = [...lista];
+    [nova[i], nova[para]] = [nova[para], nova[i]];
+    aoMudar(nova);
+  };
+
+  return (
+    <div className="cs-casos">
+      <p className="cs-dica">
+        Só publique com autorização por escrito da cliente — um termo assinado ou uma mensagem dela
+        dizendo que pode. Guarde esse registro: se ela pedir para tirar, apague o caso aqui.
+      </p>
+      {lista.map((c, i) => (
+        <div key={i} className="cs-caso">
+          <div className="cs-caso-fotos">
+            <Imagem rotulo="Antes" uso="antes-depois" valor={c.antes} largura={1200}
+                    aoMudar={v => trocar(i, { antes: v })} aviso={aviso} />
+            <Imagem rotulo="Depois" uso="antes-depois" valor={c.depois} largura={1200}
+                    aoMudar={v => trocar(i, { depois: v })} aviso={aviso} />
+          </div>
+          <Texto rotulo="Título" valor={c.titulo} aoMudar={v => trocar(i, { titulo: v })}
+                 dica="O nome do procedimento. Ex.: Limpeza de pele profunda" />
+          <fieldset className="cs-caso-aut">
+            <legend>Autorização da cliente</legend>
+            <Texto rotulo="Quem autorizou" valor={c.autorizacao?.nome}
+                   aoMudar={v => autorizar(i, { nome: v })} />
+            <Linha rotulo="Data da autorização">
+              <input type="date" value={c.autorizacao?.data || ''} max={new Date().toISOString().slice(0, 10)}
+                     onChange={e => autorizar(i, { data: e.target.value })} />
+            </Linha>
+            <Texto rotulo="Como" valor={c.autorizacao?.como} aoMudar={v => autorizar(i, { como: v })}
+                   dica="Ex.: termo assinado na recepção, mensagem no WhatsApp de 12/10." />
+            {c.autorizacao?.registradoPor && (
+              <span className="cs-dica">
+                Registrado por {c.autorizacao.registradoPor} em {c.autorizacao.registradoEm?.split('-').reverse().join('/')}.
+              </span>
+            )}
+          </fieldset>
+          <div className="cs-faq-btns">
+            <button className="btn btn-g btn-s" onClick={() => mover(i, i - 1)} disabled={i === 0}
+                    aria-label="Mover para cima"><ChevronUp size={14} /></button>
+            <button className="btn btn-g btn-s" onClick={() => mover(i, i + 1)} disabled={i === lista.length - 1}
+                    aria-label="Mover para baixo"><ChevronDown size={14} /></button>
+            <button className="btn btn-g btn-s" onClick={() => remover(i)} aria-label="Apagar caso">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+      ))}
+      <button className="btn btn-g btn-s" onClick={() => aoMudar([...lista, { antes: '', depois: '', titulo: '', autorizacao: {} }])}>
+        <Plus size={14} /> Adicionar caso
+      </button>
+    </div>
   );
 }
 

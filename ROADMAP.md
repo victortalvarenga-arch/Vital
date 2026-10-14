@@ -876,12 +876,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       decidir se os três viram um `--erro-claro` só — o que muda pixel em três
       telas, e por isso não entrou junto.
 
-- [ ] **Antes e depois não tem tela no painel.** `config.antesDepois` existe e o
-      site já renderiza, mas só o `seed` consegue preencher — para qualquer
-      empresa que não seja a Laura, a seção fica em "Em breve" para sempre.
-      Falta em `ConfigSite.jsx` um editor de pares de imagem (dois `Imagem` e um
-      título por caso, com remover e reordenar). É o que separa isto de ser
-      funcionalidade de verdade em vez de vitrine de uma empresa só.
 
 - [ ] **Imagem que falha no site não deixa rastro nenhum.** Nenhum `<img>` do
       bundle tem `onError`, então URL quebrada vira caixa vazia — no antes e
@@ -890,12 +884,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       visita quanto para quem está depurando. Um `onError` que volte ao rótulo
       resolveria os dois casos.
 
-- [ ] **Foto de antes e depois é o dado mais sensível que o produto publica** —
-      rosto de cliente, num site aberto. Hoje nada no sistema registra que
-      existe autorização de imagem: é combinado fora dele. Quando a tela do
-      painel for feita, ela precisa pedir o aceite junto, com data e quem
-      autorizou, senão a empresa publica achando que pode. Ver LGPD em
-      `ARQUITETURA.md`.
 
 ### Cobertura de teste
 
