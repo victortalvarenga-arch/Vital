@@ -74,18 +74,39 @@ export const economiaDe = (servicos, preco) =>
  * essa conta na mão, e é ela que vira o argumento de venda na tela.
  */
 export async function comboCompleto(id) {
-  const c = await db.get('SELECT * FROM combos WHERE id = ?', id);
-  if (!c) return null;
+  return (await combosCompletos([id]))[0] || null;
+}
 
-  const servicos = await db.all(
-    `SELECT s.id, s.nome, s.preco, s.duracao, s.intervalo, s.categoria, s.foto, cs.ordem
+/**
+ * Vários combos de uma vez, na ordem dos ids — três consultas, seja quantos
+ * forem. Montar um por um eram três consultas por promoção, em sequência, na
+ * vitrine e no painel: com servidor e banco longe um do outro, cada uma custa
+ * a viagem inteira.
+ */
+export async function combosCompletos(ids) {
+  if (!ids.length) return [];
+  const linhas = await db.all('SELECT * FROM combos WHERE id = ANY(?)', ids);
+  const todos = await db.all(
+    `SELECT cs.combo_id, s.id, s.nome, s.preco, s.duracao, s.intervalo, s.categoria, s.foto, cs.ordem
        FROM combo_services cs JOIN services s ON s.id = cs.service_id
-      WHERE cs.combo_id = ? ORDER BY cs.ordem, s.nome`,
-    id
+      WHERE cs.combo_id = ANY(?) ORDER BY cs.ordem, s.nome`,
+    ids
   );
+  const vendas = await db.all(
+    `SELECT combo_id, COUNT(DISTINCT combo_grupo) n FROM appointments
+      WHERE combo_id = ANY(?) AND status <> 'cancelado' GROUP BY combo_id`,
+    ids
+  );
+  const porId = new Map(linhas.map(c => [c.id, c]));
+  return ids.filter(id => porId.has(id)).map(id => montarCombo(
+    porId.get(id),
+    todos.filter(s => s.combo_id === id),
+    Number(vendas.find(v => v.combo_id === id)?.n) || 0,
+  ));
+}
 
+function montarCombo(c, servicos, usos) {
   const precoCheio = servicos.reduce((n, s) => n + Number(s.preco), 0);
-  const usos = await usosDe(id);
   const regras = {
     validoDe: c.valido_de || null, validoAte: c.valido_ate || null,
     diasSemana: c.dias_semana?.length ? [...c.dias_semana].sort() : null,
@@ -165,13 +186,29 @@ export async function combosAtivos({ incluirVencidos = false } = {}) {
   const linhas = await db.all(
     `SELECT id FROM combos WHERE arquivado = 0 ${incluirVencidos ? '' : 'AND ativo = 1'} ORDER BY ordem, nome`
   );
-  const lista = [];
-  for (const { id } of linhas) {
-    const c = await comboCompleto(id);
-    // Combo sem serviço nenhum é cadastro pela metade: não vai para a vitrine.
-    if (c && c.servicos.length && (incluirVencidos || c.situacao === 'ativa')) lista.push(c);
+  // Combo sem serviço nenhum é cadastro pela metade: não vai para a vitrine.
+  return (await combosCompletos(linhas.map(l => l.id)))
+    .filter(c => c.servicos.length && (incluirVencidos || c.situacao === 'ativa'));
+}
+
+/**
+ * `profissionaisDoCombo` para vários combos já montados, numa consulta só:
+ * `Map(comboId → [staffId])`. É o que a vitrine usa.
+ */
+export async function profissionaisDosCombos(combos) {
+  const ids = [...new Set(combos.flatMap(c => c.servicos.map(s => s.id)))];
+  if (!ids.length) return new Map();
+  const vinculos = await db.all(
+    'SELECT staff_id, service_id FROM service_staff WHERE service_id = ANY(?)', ids
+  );
+  const fazPorPessoa = new Map();
+  for (const v of vinculos) {
+    if (!fazPorPessoa.has(v.staff_id)) fazPorPessoa.set(v.staff_id, new Set());
+    fazPorPessoa.get(v.staff_id).add(v.service_id);
   }
-  return lista;
+  return new Map(combos.map(c => [c.id, c.servicos.length
+    ? [...fazPorPessoa].filter(([, faz]) => c.servicos.every(s => faz.has(s.id))).map(([id]) => id)
+    : []]));
 }
 
 /**

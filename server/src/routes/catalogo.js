@@ -3,7 +3,7 @@ import { db, uid, staffOut, serviceOut, unitOut, listarServicos, listarUnidades,
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { adicionaisDe } from '../lib/adicionais.js';
-import { comboCompleto, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
+import { comboCompleto, combosCompletos, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
 import { exige, pode, escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
 import { servicosPara, profissionaisPara } from '../lib/taxas.js';
@@ -491,9 +491,7 @@ catalogo.get('/combos', rota(async (req, res) => {
   // passado para reaproveitar a validade em vez de recadastrar tudo.
   // Arquivada não volta: é o "apagar" de quem já vendeu (ver migration 021).
   const linhas = await db.all('SELECT id FROM combos WHERE arquivado = 0 ORDER BY ordem, nome');
-  const lista = [];
-  for (const { id } of linhas) lista.push(await comboCompleto(id));
-  res.json(lista);
+  res.json(await combosCompletos(linhas.map(l => l.id)));
 }));
 
 catalogo.post('/combos', rota(async (req, res) => {

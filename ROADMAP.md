@@ -956,14 +956,14 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       diferentes.** Com 1 concluído e 3 agendados, o cartão diz 4 e o ranking
       diz "1 atendimento". Os dois podem estar certos, mas nenhum diz o que
       conta. Achado em 2026-10-10.
-- [ ] **Consultas em sequência por item, nas telas mais abertas.** Medido em
-      2026-10-14 com o catálogo da Laura: `/api/publico/vitrine` fazia 27
-      consultas, porque buscava os adicionais de cada serviço um a um — caiu
-      para 16 com `adicionaisDeTodos` (duas consultas para o catálogo inteiro).
-      Ainda por item: a equipe de cada combo (`profissionaisDoCombo`, na
-      vitrine) e `comboCompleto` por combo em `combosAtivos`, que crescem com
-      o número de promoções. `/api/estado` faz 18. No mesmo lugar não pesa
-      (até 11 ms); só pesa se servidor e banco ficarem longe.
+- [ ] **Abrir o painel traz todas as clientes e 120 dias de agenda.** O
+      `/api/estado` é uma resposta só com `SELECT * FROM clients` inteiro e os
+      agendamentos desde 120 dias atrás, mais os vínculos e modelos. Com a
+      Laura é leve; com alguns milhares de clientes vira megabytes baixados no
+      celular a cada abertura, e a tela de Clientes filtra tudo na memória. O
+      número de consultas já é fixo (2026-10-14); o que cresce é o tamanho.
+      Quando pesar: clientes por busca e página no servidor, e a agenda pela
+      janela que a tela mostra. Notado em 2026-10-14.
 - [ ] **Foto do Instagram que sai da grade fica no armazenamento para sempre.**
       O job baixa cada publicação nova (`conexoes/instagram.js`) e não apaga
       a que caiu para fora das 6 mais recentes. Com uma publicação por dia,

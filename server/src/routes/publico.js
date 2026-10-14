@@ -8,7 +8,7 @@ import { adicionaisDeTodos, validarAdicionais } from '../lib/adicionais.js';
 import { horariosDeAtendimento } from '../lib/horarios.js';
 import { marcar, etapaDoNavegador, sessaoValida } from '../lib/funil.js';
 import { limite } from '../lib/limite.js';
-import { combosAtivos, comboCompleto, profissionaisDoCombo, valeNoDia } from '../lib/combos.js';
+import { combosAtivos, comboCompleto, profissionaisDoCombo, profissionaisDosCombos, valeNoDia } from '../lib/combos.js';
 
 export const publico = Router();
 
@@ -80,11 +80,13 @@ async function comPrecoEExtras(servicos, cfg) {
  */
 async function vitrineDeCombos(cfg) {
   const lista = await combosAtivos();
+  // Quem faz cada pacote inteiro, de todos de uma vez. O site precisa da lista
+  // para saber se há escolha de profissional a oferecer — e para não oferecer
+  // quem não faz.
+  const equipes = await profissionaisDosCombos(lista);
   const saida = [];
   for (const c of lista) {
-    // Quem faz o pacote inteiro. O site precisa da lista para saber se há
-    // escolha de profissional a oferecer — e para não oferecer quem não faz.
-    const profissionais = await profissionaisDoCombo(c.id);
+    const profissionais = equipes.get(c.id) || [];
     // Combo que ninguém faz do começo ao fim não vai para a vitrine: o site
     // abriria um calendário sem dia nenhum, e a cliente atravessaria o fluxo
     // inteiro para descobrir isso no fim. Acontece quando cada serviço do

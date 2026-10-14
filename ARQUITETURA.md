@@ -2314,6 +2314,13 @@ como usuário `node`. O `fly.toml` deixa a máquina **sempre ligada**
 para — e confere a saúde em `/api/saude`. Segredo nenhum mora nos dois
 arquivos: vai por `fly secrets`.
 
+**Nenhuma tela consulta o banco por item.** O site e o painel fazem um número
+fixo de consultas (16 e 21 com a Laura, contando início e fim da transação),
+seja qual for o tamanho do catálogo: adicionais (`adicionaisDeTodos`),
+promoções (`combosCompletos`) e a equipe de cada promoção
+(`profissionaisDosCombos`) vêm de uma vez. Função nova que monta lista não
+chama, dentro de um laço, uma função que consulta o banco.
+
 **Servidor e banco precisam estar no mesmo lugar.** Cada tela consulta o banco
 em sequência — de 4 a 27 vezes, medido em 2026-10-14 — porque a requisição
 inteira roda numa conexão só (é o que faz o RLS valer). A distância entre
