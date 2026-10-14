@@ -1080,28 +1080,18 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 
 ### Banco
 
-- [ ] **Migrations rodam no boot da API.** Com uma instância só, tudo bem. Com
-      várias subindo ao mesmo tempo (o normal em nuvem), todas tentam migrar
-      juntas. Antes do primeiro deploy com mais de uma instância, pôr um
-      *advisory lock* do Postgres em volta do runner, ou tirar a migration do
-      boot e rodar como passo separado do deploy.
-- [ ] **Conexões esgotam rápido em serverless, mas o pooler brigaria com o
-      RLS do jeito que está hoje.** Cada função Vercel abre o próprio pool e os
-      provedores têm limite baixo de conexões, então a saída natural seria a
-      *connection string* com pooler (Neon e Supabase oferecem uma). Só que
-      **elas usam pooling em modo transação**, e nossa empresa é marcada na
-      conexão com `set_config(..., false)`, que é escopo de *sessão*: em modo
-      transação, cada comando pode cair num backend diferente. Duas
-      consequências, uma ruim e uma pior — a consulta perde o contexto e não
-      devolve nada, e o backend que ficou marcado pode servir outra empresa
-      depois, aí sim vazando.
-
-      **Antes de usar pooler em modo transação**, trocar para escopo de
-      transação: envolver a requisição num `BEGIN`/`COMMIT` e usar
-      `set_config(..., true)` (equivalente a `SET LOCAL`), que morre junto com a
-      transação e não sobrevive na conexão. Enquanto for conexão direta ou
-      pooling em modo sessão, o desenho atual está correto — o `RESET` na
-      devolução cobre.
+- [x] ~~Migrations no boot brigariam com várias instâncias.~~ Resolvido em
+      2026-10-14: o runner segura um *advisory lock*, e a segunda cópia espera
+      a primeira e encontra tudo aplicado (`lib/migrate.js`).
+- [ ] **Pooler em modo transação: pronto para as requisições, ainda não para os
+      jobs.** Desde 2026-10-14 a requisição HTTP é uma transação com a empresa
+      marcada nela (`db.naRequisicao`, ver `ARQUITETURA.md`), e aguenta o
+      endereço `-pooler` da Neon. Os jobs e o seed continuam marcando com escopo
+      de sessão (por causa do despacho de WhatsApp) e exigem conexão direta.
+      Quando o pooler for necessário — muitas instâncias, perto do limite de
+      conexões da Neon —, dar aos jobs uma URL própria, direta
+      (`DATABASE_URL` dos jobs ≠ da API), o que casa com tirá-los do processo
+      da API. Até lá, tudo na direta.
 - [ ] **Reduzir o tamanho do pool** por instância, seja qual for a escolha
       acima.
 - [ ] **Conferir se o usuário do provedor não ignora o RLS.** É a armadilha
@@ -1151,10 +1141,12 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       resolve) precisa de `fly certs add` para cada uma — US$ 0,10/mês por
       domínio — e do CNAME do lado da empresa. Hoje é manual; vira tela do
       painel quando houver demanda.
-- [ ] **Os jobs de cron rodam dentro do processo da API.** Com várias
-      instâncias, todas disparam a mesma fila. O `dedupe_key` evita mensagem
-      duplicada, mas o trabalho é repetido — avaliar mover para um agendador
-      externo.
+- [x] ~~Com várias instâncias, todas disparariam os jobs.~~ Resolvido em
+      2026-10-14: só o processo que segura a trava (`lib/lideranca.js`) roda os
+      jobs; os outros ficam de reserva e assumem se ele cair. Os jobs também
+      rodam num processo próprio (`npm run jobs`, com a API em
+      `JOBS_NA_API=nao`) — no Fly, um grupo de processos a mais, uns US$ 6/mês,
+      quando valer.
 
 ### Dados pessoais
 

@@ -171,7 +171,9 @@ app.get('/api/estado', rota(async (req, res) => {
   // O cron continua existindo, e não é redundância: o pós-atendimento e a
   // reativação precisam rodar mesmo na semana em que ninguém abre o painel.
   try {
-    await fecharAtendimentos();
+    // `opcional`: a requisição é uma transação, e o fechamento falhando sem
+    // isto envenenaria as leituras logo abaixo — o painel não abriria.
+    await db.opcional(() => fecharAtendimentos());
   } catch (erro) {
     console.error('[fechamento no bootstrap]', erro.message);
   }
@@ -268,6 +270,9 @@ if (fs.existsSync(PASTA_WEB)) {
 
 app.use((err, req, res, next) => {
   console.error(err);
+  // A requisição é uma transação (`db.naRequisicao`): o que ela gravou antes
+  // de quebrar é desfeito, em vez de ficar pela metade.
+  res.locals.desfazer = true;
   res.status(500).json({ erro: 'erro interno', detalhe: err.message });
 });
 

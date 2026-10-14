@@ -129,12 +129,12 @@ retornoOauth.get('/:provedor/retorno', rota(async (req, res) => {
 async function registrarConexao(usuarioId, nome, conta) {
   try {
     const u = await db.get('SELECT nome FROM users WHERE id = ?', usuarioId);
-    await db.run(
+    await db.opcional(() => db.run(
       `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
        VALUES (?,?,?,?,?,?,?)`,
       u ? usuarioId : null, u?.nome || '', 'conexao.criada', 'conexao', nome,
       `conectou o ${NOMES[nome]}${conta ? ` (${conta})` : ''}`, '{}'
-    );
+    ));
   } catch (erro) {
     console.error('[registro] não consegui gravar:', erro.message);
   }

@@ -20,6 +20,22 @@ const pasta = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../
  * algum banco. Crie a próxima.
  */
 export async function migrar(pool) {
+  // Duas cópias subindo juntas (o normal num deploy com mais de uma máquina)
+  // tentariam aplicar a mesma migration ao mesmo tempo. A trava enfileira: a
+  // segunda espera a primeira terminar e encontra tudo aplicado.
+  const trava = await pool.connect();
+  try {
+    await trava.query('SELECT pg_advisory_lock($1)', [TRAVA_DAS_MIGRATIONS]);
+    return await aplicarPendentes(pool);
+  } finally {
+    try { await trava.query('SELECT pg_advisory_unlock($1)', [TRAVA_DAS_MIGRATIONS]); } catch { /* conexão caiu: o Postgres já soltou */ }
+    trava.release();
+  }
+}
+
+const TRAVA_DAS_MIGRATIONS = 727_002_002;
+
+async function aplicarPendentes(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       versao     INTEGER PRIMARY KEY,

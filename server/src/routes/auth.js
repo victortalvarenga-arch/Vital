@@ -116,12 +116,12 @@ auth.post('/redefinir', LIMITES.redefinir, rota(async (req, res) => {
   await db.run('UPDATE redefinicoes_senha SET usada_em = now() WHERE token_hash = ?', pedido.token_hash);
   await db.run('DELETE FROM sessoes WHERE user_id = ?', pedido.id);
   try {
-    await db.run(
+    await db.opcional(() => db.run(
       `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
        VALUES (?,?,?,?,?,?,?)`,
       pedido.id, pedido.nome, 'acesso.senha_redefinida', 'acesso', pedido.id,
       'criou uma senha nova pelo link do e-mail', '{}'
-    );
+    ));
   } catch (erro) {
     console.error('[registro] não consegui gravar:', erro.message);
   }

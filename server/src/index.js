@@ -16,7 +16,9 @@ iniciarBanco()
   Estúdio Agenda · API em http://localhost:${porta}`);
       console.log(`  Banco: ${alvo || '(DATABASE_URL não definida)'}`);
       console.log('  Painel protegido por login (argon2 + sessão em cookie).');
-      iniciarJobs();
+      // Com os jobs num processo próprio (`npm run jobs`), a API não os roda.
+      // Mesmo ligados nos dois, só um roda de cada vez (lib/lideranca.js).
+      if (process.env.JOBS_NA_API !== 'nao') iniciarJobs();
     });
   })
   .catch(erro => {

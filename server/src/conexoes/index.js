@@ -96,13 +96,18 @@ export async function sincronizar(nome) {
   if (c.situacao === 'escolher') return { ok: false, erro: 'escolha a ficha primeiro' };
 
   try {
-    c = await tokenEmDia(p, c);
-    const patch = await p.sincronizar(c, { tenantId: empresaAtual(), config: await getConfig() });
-    await setConfig(patch);
-    await db.run(
-      `UPDATE conexoes SET situacao = 'ok', ultimo_erro = '', sincronizado_em = now() WHERE provedor = ?`,
-      nome
-    );
+    // `opcional`: se um comando de banco falhar aqui dentro da transação da
+    // requisição, só este pedaço é desfeito — e a marca de erro abaixo ainda
+    // consegue ser gravada.
+    await db.opcional(async () => {
+      c = await tokenEmDia(p, c);
+      const patch = await p.sincronizar(c, { tenantId: empresaAtual(), config: await getConfig() });
+      await setConfig(patch);
+      await db.run(
+        `UPDATE conexoes SET situacao = 'ok', ultimo_erro = '', sincronizado_em = now() WHERE provedor = ?`,
+        nome
+      );
+    });
     return { ok: true };
   } catch (erro) {
     console.error(`[conexoes] ${nome} na empresa ${empresaAtual()}:`, erro.message);

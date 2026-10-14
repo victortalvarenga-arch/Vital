@@ -115,6 +115,11 @@ escrito, não aconteceu.
   ali: a empresa vem de `empresaAtual()`, e a falta dela é erro.
 - Código que roda fora de uma requisição HTTP (cron, seed, script) precisa de
   `db.comEmpresa(id, fn)`, senão o banco não devolve nem aceita nada.
+- A requisição HTTP é uma transação (`db.naRequisicao`). Erro de banco que o
+  código engole de propósito vai dentro de `db.opcional(fn)` — sem isso a
+  transação fica envenenada e a requisição morre adiante, longe do erro. E
+  quebrar com exceção desfaz tudo o que a requisição gravou; resposta de erro
+  escolhida pela rota (`res.status(409)`) grava o que gravou.
 - O banco de desenvolvimento é um branch da Neon, e a `DATABASE_URL` é sempre a
   conexão **direta** (sem `-pooler`). `VITAL_BANCO_DESCARTAVEL=sim` é o que deixa
   `reset`, `seed` e `senha-app` tocarem num banco que não é `localhost`: só no

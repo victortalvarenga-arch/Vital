@@ -42,12 +42,14 @@ export const sessaoValida = sessao => SESSAO.test(String(sessao || ''));
 export async function marcar({ sessao, etapa, appointmentId = null }) {
   if (!sessaoValida(sessao)) return;
   try {
-    await db.run(
+    // `opcional`: falhar aqui dentro da transação da requisição desfaria o
+    // agendamento que acabou de ser gravado.
+    await db.opcional(() => db.run(
       `INSERT INTO funil (sessao, etapa, data, appointment_id)
        VALUES (?,?,?,?)
        ON CONFLICT DO NOTHING`,
       sessao, etapa, hoje(), appointmentId
-    );
+    ));
   } catch (e) {
     // Medição não derruba venda. Fica no log do servidor e a vida segue.
     console.error('funil: não consegui gravar', etapa, e.message);

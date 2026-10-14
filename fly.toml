@@ -15,6 +15,14 @@ primary_region = "gru"
   RATE_LIMIT = "on"
   FUNIL_RETENCAO_DIAS = "90"
 
+# Para rodar os jobs numa máquina própria (uns US$ 6/mês a mais), troque o
+# CMD do Dockerfile por grupos de processos e ponha JOBS_NA_API=nao no [env]:
+#   [processes]
+#     app  = "node server/src/index.js"
+#     jobs = "node server/src/jobs/rodar.js"
+# e `processes = ["app"]` dentro do [http_service], para o tráfego ir só à API.
+# Sem isso, a API roda os jobs — e a trava garante uma cópia só rodando.
+
 [http_service]
   internal_port = 3333
   force_https = true

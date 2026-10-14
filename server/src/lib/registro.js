@@ -24,14 +24,16 @@ export function comRegistro(req, res, next) {
     // cliente que agenda pelo site não é "quem fez algo no painel".
     if (!req.usuario) return;
     try {
-      await db.run(
+      // `opcional`: a requisição é uma transação, e um INSERT que falha aqui
+      // envenenaria o resto dela — o contrário de "nunca derruba a operação".
+      await db.opcional(() => db.run(
         `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
          VALUES (?,?,?,?,?,?,?)`,
         req.usuario.id, req.usuario.nome || '', acao,
         dados.alvoTipo || acao.split('.')[0], String(dados.alvoId || ''),
         String(dados.resumo || '').slice(0, 300),
         JSON.stringify(dados.detalhe || {})
-      );
+      ));
     } catch (erro) {
       console.error('[registro] não consegui gravar:', erro.message);
     }
@@ -51,14 +53,14 @@ export function comRegistro(req, res, next) {
  */
 export async function registrarDoSistema(acao, dados = {}) {
   try {
-    await db.run(
+    await db.opcional(() => db.run(
       `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
        VALUES (NULL,?,?,?,?,?,?)`,
       'sistema', acao,
       dados.alvoTipo || acao.split('.')[0], String(dados.alvoId || ''),
       String(dados.resumo || '').slice(0, 300),
       JSON.stringify(dados.detalhe || {})
-    );
+    ));
   } catch (erro) {
     console.error('[registro] não consegui gravar:', erro.message);
   }

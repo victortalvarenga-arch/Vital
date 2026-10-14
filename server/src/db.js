@@ -60,6 +60,21 @@ function traduzirMarcadores(sql) {
  */
 const executor = () => conexaoAtual() || pool;
 
+/** Roda `fn` atrás de um SAVEPOINT: o erro desfaz só o que `fn` fez. */
+async function comPontoDeRetorno(cliente, fn) {
+  const store = contexto.getStore();
+  const nome = `ponto_${++store.pontos}`;
+  await cliente.query(`SAVEPOINT ${nome}`);
+  try {
+    const resultado = await fn();
+    await cliente.query(`RELEASE SAVEPOINT ${nome}`);
+    return resultado;
+  } catch (erro) {
+    await cliente.query(`ROLLBACK TO SAVEPOINT ${nome}`);
+    throw erro;
+  }
+}
+
 export const db = {
   /** Uma linha só, ou undefined. */
   async get(sql, ...params) {
@@ -89,13 +104,18 @@ export const db = {
     // conexão nova do pool viria sem `app.tenant_id` e o RLS esconderia tudo.
     const daRequisicao = conexaoAtual();
     const cliente = daRequisicao || await pool.connect();
+    const tx = {
+      get: async (sql, ...p) => (await cliente.query(traduzirMarcadores(sql), p)).rows[0],
+      all: async (sql, ...p) => (await cliente.query(traduzirMarcadores(sql), p)).rows,
+      run: async (sql, ...p) => (await cliente.query(traduzirMarcadores(sql), p)).rowCount,
+    };
+    // A requisição HTTP já é uma transação (ver `naRequisicao`): aqui dentro
+    // vira um ponto de retorno. Um BEGIN de novo seria ignorado, e o COMMIT
+    // fecharia a transação da requisição no meio — levando junto a empresa,
+    // que é local a ela.
+    if (contexto.getStore()?.emTransacao) return comPontoDeRetorno(cliente, () => fn(tx));
     try {
       await cliente.query('BEGIN');
-      const tx = {
-        get: async (sql, ...p) => (await cliente.query(traduzirMarcadores(sql), p)).rows[0],
-        all: async (sql, ...p) => (await cliente.query(traduzirMarcadores(sql), p)).rows,
-        run: async (sql, ...p) => (await cliente.query(traduzirMarcadores(sql), p)).rowCount,
-      };
       const resultado = await fn(tx);
       await cliente.query('COMMIT');
       return resultado;
@@ -105,6 +125,96 @@ export const db = {
     } finally {
       if (!daRequisicao) cliente.release();
     }
+  },
+
+  /**
+   * Para o que pode falhar sem derrubar a requisição — o registro, o funil.
+   *
+   * Dentro de uma transação, um comando que falha envenena todos os
+   * seguintes ("current transaction is aborted"): o `catch` de quem chama
+   * engoliria o erro e a requisição morreria três linhas depois, num lugar
+   * sem relação nenhuma. O ponto de retorno desfaz só este pedaço. Quem chama
+   * continua com o próprio `catch`.
+   */
+  async opcional(fn) {
+    const cliente = conexaoAtual();
+    if (!cliente || !contexto.getStore()?.emTransacao) return fn();
+    return comPontoDeRetorno(cliente, fn);
+  },
+
+  /**
+   * Uma requisição HTTP inteira numa transação, com a empresa marcada nela.
+   *
+   * **Por que transação, e não a conexão marcada.** Antes, a empresa era
+   * gravada na conexão com escopo de sessão e apagada na devolução. Funciona
+   * com conexão direta; atrás de um pooler em modo transação (o "pooled" da
+   * Neon), cada comando pode cair num backend diferente, e o backend marcado
+   * serviria outra empresa — vazamento entre empresas. Com `set_config(...,
+   * true)` a marca é da transação e morre no COMMIT, seja qual for o caminho
+   * até o banco. De brinde, a requisição fica atômica: erro no meio desfaz o
+   * que veio antes, em vez de deixar metade gravada.
+   *
+   * **O COMMIT acontece antes de a resposta sair**, não depois: `res.end` é
+   * interceptado. Responder antes deixaria a próxima requisição da mesma
+   * pessoa ler o banco sem o que acabou de ser gravado. Erro inesperado (o
+   * que cai no tratador de erro) desfaz.
+   * Se o COMMIT não pegar, a resposta vira 500 — sucesso na tela com nada
+   * gravado é o pior dos erros.
+   */
+  async naRequisicao(tenantId, res, next) {
+    const cliente = await pool.connect();
+    try {
+      await cliente.query('BEGIN');
+      await cliente.query('SELECT set_config($1, $2, true)', ['app.tenant_id', tenantId]);
+    } catch (erro) {
+      cliente.release(true);
+      throw erro;
+    }
+
+    let estado = 'aberta';     // 'aberta' | 'fechando' | 'fechada'
+    const fechar = async confirmar => {
+      if (estado !== 'aberta') return;
+      estado = 'fechando';
+      try {
+        if (!confirmar) { await cliente.query('ROLLBACK'); return; }
+        const r = await cliente.query('COMMIT');
+        // Transação envenenada por um erro engolido: o Postgres responde ao
+        // COMMIT com ROLLBACK, sem lançar. Tratado como a falha que é.
+        if (r.command === 'ROLLBACK') throw new Error('a transação da requisição foi desfeita');
+      } finally {
+        estado = 'fechada';
+        cliente.release();
+      }
+    };
+
+    const endOriginal = res.end;
+    res.end = function (...args) {
+      // Desfaz só o que quebrou sem querer (o tratador de erro do app.js marca
+      // `desfazer`). Um 502 escolhido pela rota — "o Google recusou" — pode
+      // ter gravado de propósito o motivo da recusa.
+      fechar(!res.locals.desfazer).then(
+        () => endOriginal.apply(res, args),
+        erro => {
+          console.error('[transação]', erro.message);
+          res.statusCode = 500;
+          res.removeHeader('Content-Length');
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          endOriginal.call(res, JSON.stringify({ erro: 'erro interno', detalhe: 'não foi possível gravar' }));
+        }
+      );
+      return res;
+    };
+
+    // Cliente desistiu antes da resposta: desfaz, e a conexão é DESCARTADA em
+    // vez de devolvida — a rota pode ainda estar no meio, e uma consulta dela
+    // numa conexão já entregue a outra requisição rodaria no lugar errado.
+    res.on('close', () => {
+      if (estado !== 'aberta' || res.writableEnded) return;
+      estado = 'fechada';
+      cliente.query('ROLLBACK').catch(() => {}).finally(() => cliente.release(true));
+    });
+
+    contexto.run({ cliente, tenantId, emTransacao: true, pontos: 0 }, next);
   },
 
   /**
@@ -125,12 +235,14 @@ export const db = {
       // a transação. Correto aqui, porque a conexão é nossa do começo ao fim
       // da requisição e é devolvida com RESET.
       //
-      // ATENÇÃO ao ir para produção: atrás de um pooler em modo transação
-      // (PgBouncer, e as connection strings "pooled" de Neon e Supabase) isto
-      // se quebra — cada comando pode cair num backend diferente, e o backend
-      // que ficou marcado pode servir outra empresa depois. Nesse cenário, a
-      // requisição precisa virar uma transação e usar `true` aqui. Registrado
-      // em ROADMAP.md, "Importante para produção".
+      // Escopo de sessão de propósito, e só aqui: isto é para cron, seed e
+      // script, que gravam aos poucos (o despacho de WhatsApp marca cada
+      // mensagem como enviada logo depois de mandar — uma transação só
+      // desfaria as marcações numa falha no fim, e a mensagem sairia de
+      // novo). O preço é exigir conexão DIRETA: atrás de um pooler em modo
+      // transação, o backend marcado poderia servir outra empresa. A
+      // requisição HTTP, que é o grosso do tráfego, não tem essa restrição —
+      // ver `naRequisicao`.
       await cliente.query('SELECT set_config($1, $2, false)', ['app.tenant_id', tenantId]);
       return await contexto.run({ cliente, tenantId }, fn);
     } finally {

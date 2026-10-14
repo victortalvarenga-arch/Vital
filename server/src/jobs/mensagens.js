@@ -7,6 +7,7 @@ import { TENANT_PADRAO } from '../lib/tenant.js';
 import { fecharAtendimentos } from './fechamento.js';
 import { compactarFunil } from './funil.js';
 import { sincronizarTodas } from '../conexoes/index.js';
+import { tentarLideranca } from '../lib/lideranca.js';
 
 /**
  * Duas rotinas separadas, de propósito:
@@ -193,40 +194,77 @@ export async function paraCadaEmpresa(nome, fn) {
   }
 }
 
-/** Agendadores. Roda ao subir o servidor. */
+/**
+ * Liga os jobs — mas só no processo que ganhar a trava (`lib/lideranca.js`).
+ *
+ * Com uma cópia só de pé, ela ganha na hora e nada muda. Com duas (API em
+ * duas máquinas, ou API mais o processo `npm run jobs`), uma roda e a outra
+ * fica de reserva, tentando de minuto em minuto: se a que roda cair, a reserva
+ * assume sem ninguém mexer em nada.
+ */
 export function iniciarJobs() {
+  let tarefas = [];
+  let lideranca = null;
+  let avisouReserva = false;
+
+  const tentar = async () => {
+    if (lideranca) return;
+    try {
+      const r = await tentarLideranca({
+        aoPerder: () => { tarefas.forEach(t => t.stop()); tarefas = []; lideranca = null; },
+      });
+      if (!r.lider) {
+        if (!avisouReserva) console.log('[jobs] outro processo roda os jobs; este fica de reserva');
+        avisouReserva = true;
+        return;
+      }
+      lideranca = r;
+      tarefas = agendar();
+    } catch (erro) {
+      console.error('[jobs] não consegui disputar a trava:', erro.message);
+    }
+  };
+
+  tentar();
+  setInterval(tentar, 60_000).unref();
+}
+
+/** Os agendadores em si. Devolve as tarefas, para parar se a trava cair. */
+function agendar() {
   const tz = process.env.TZ_EMPRESA || process.env.TZ_ESTUDIO || 'America/Sao_Paulo';
+  const tarefas = [];
+  const agendarCada = (quando, fn) => tarefas.push(cron.schedule(quando, fn, { timezone: tz }));
 
-  cron.schedule('*/10 * * * *', () => {
+  agendarCada('*/10 * * * *', () => {
     paraCadaEmpresa('fila', gerarFila).catch(e => console.error('[fila]', e.message));
-  }, { timezone: tz });
+  });
 
-  cron.schedule('*/5 * * * *', () => {
+  agendarCada('*/5 * * * *', () => {
     paraCadaEmpresa('despacho', despachar).catch(e => console.error('[despacho]', e.message));
-  }, { timezone: tz });
+  });
 
   // Fechamento: de 5 em 5 minutos o que já terminou vira atendimento feito.
   // Frequente de propósito — "passou a hora, entrou no caixa" precisa valer
   // durante o dia, não só no fim dele, senão o Resumo do balcão fica velho.
-  cron.schedule('*/5 * * * *', () => {
+  agendarCada('*/5 * * * *', () => {
     paraCadaEmpresa('fechamento', fecharAtendimentos).catch(e => console.error('[fechamento]', e.message));
-  }, { timezone: tz });
+  });
 
   // Compactar o funil: uma vez por dia, de madrugada. Não precisa de
   // `paraCadaEmpresa` — a função do banco atravessa o RLS e fecha todas as
   // empresas numa transação só. Às 4h17 e não às 4h em ponto, para não
   // disputar a janela com backup e outros jobs de hora redonda.
-  cron.schedule('17 4 * * *', () => {
+  agendarCada('17 4 * * *', () => {
     compactarFunil().catch(e => console.error('[funil]', e.message));
-  }, { timezone: tz });
+  });
 
   // Avaliações do Google e publicações do Instagram, de hora em hora — no
   // minuto 23 para não cair junto dos outros. Mais que isso não muda nada no
   // site (avaliação nova é coisa de dias) e gasta cota dos provedores. Só
   // passa por empresa que tem conexão: as outras são um SELECT vazio.
-  cron.schedule('23 * * * *', () => {
+  agendarCada('23 * * * *', () => {
     paraCadaEmpresa('conexoes', sincronizarTodas).catch(e => console.error('[conexoes]', e.message));
-  }, { timezone: tz });
+  });
 
   // Uma passada ao subir, como a fila. Sem isto, todo reinício deixa o caixa
   // parado até o próximo tique — e um deploy no meio da tarde faria o balcão
@@ -234,5 +272,6 @@ export function iniciarJobs() {
   paraCadaEmpresa('fechamento inicial', fecharAtendimentos)
     .catch(e => console.error('[fechamento inicial]', e.message));
   paraCadaEmpresa('fila inicial', gerarFila).catch(e => console.error('[fila inicial]', e.message));
-  console.log(`[jobs] ativos · fuso ${tz} · provider ${process.env.WHATSAPP_PROVIDER || 'manual'}`);
+  console.log(`[jobs] ativos neste processo · fuso ${tz} · provider ${process.env.WHATSAPP_PROVIDER || 'manual'}`);
+  return tarefas;
 }

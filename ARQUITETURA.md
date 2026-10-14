@@ -721,20 +721,38 @@ Três peças fazem funcionar:
    **Onde o banco mora.** O banco de desenvolvimento é um branch da Neon (tier
    gratuito), não um Postgres em cada máquina — assim o esquema e os dados são os
    mesmos em qualquer computador, sem versão de banco divergindo entre máquinas.
-   Três consequências: (a) a conexão é a **direta**, nunca a `-pooler`, porque a
-   peça 2 abaixo usa `set_config` de sessão e um pooler em modo transação
-   entregaria a conexão de uma empresa a outra requisição; (b) `reset`, `seed` e
+   Três consequências: (a) a conexão é a **direta**, nunca a `-pooler`: a
+   requisição HTTP já aguentaria o pooler (peça 2), mas os jobs e o seed marcam
+   a empresa com escopo de sessão, e um pooler em modo transação entregaria
+   essa marca a outra requisição; (b) `reset`, `seed` e
    `senha-app` só rodam em `localhost` **ou** quando o `.env` declara
    `VITAL_BANCO_DESCARTAVEL=sim` (`lib/ambiente.js`) — a trava existe para que
    ninguém apague um banco de verdade nem crie conta de senha conhecida nele, e
    por isso a variável só existe no branch de desenvolvimento, nunca no de
    produção; (c) o TLS é ligado sempre que o host não é `localhost`.
-2. **A empresa vive na conexão, não na consulta.** O middleware `comEmpresa()`
-   pega uma conexão, marca `app.tenant_id` nela e roda a requisição inteira ali
-   dentro, via `AsyncLocalStorage` (`lib/contexto.js`). Por isso `db.get/all/run`
-   acham a conexão certa sozinhos e nenhuma rota precisa saber que isso existe.
-   A conexão é devolvida ao pool **com `RESET`** — sem isso a próxima requisição
-   herdaria o acesso da anterior.
+2. **A empresa vive na transação da requisição, não na consulta.** O middleware
+   `comEmpresa()` chama `db.naRequisicao`: pega uma conexão, abre uma transação,
+   marca `app.tenant_id` com `set_config(..., true)` — que morre no COMMIT — e
+   roda a requisição inteira ali dentro, via `AsyncLocalStorage`
+   (`lib/contexto.js`). Por isso `db.get/all/run` acham a conexão certa sozinhos
+   e nenhuma rota precisa saber que isso existe. Até 2026-10-14 a marca era da
+   conexão (escopo de sessão), apagada com `RESET` na devolução: correto com
+   conexão direta, e um vazamento entre empresas atrás de um pooler em modo
+   transação. Três consequências do desenho atual:
+   - **A requisição é atômica.** Erro inesperado (o que cai no tratador de erro
+     do `app.js`, que marca `res.locals.desfazer`) desfaz tudo o que ela
+     gravou. Resposta de erro escolhida pela rota (409, 502) grava o que gravou.
+   - **O COMMIT acontece antes da resposta sair** (`res.end` é interceptado), e
+     se ele não pegar a resposta vira 500 — nunca um sucesso que não gravou.
+   - **Erro de banco engolido precisa de `db.opcional(fn)`.** Dentro de
+     transação, um comando que falha envenena os seguintes; `opcional` põe um
+     ponto de retorno (SAVEPOINT) em volta e desfaz só aquele pedaço. É o que
+     usam o registro, o funil e o fechamento ao abrir o painel. E
+     `db.transacao` dentro de uma requisição vira ponto de retorno, não
+     transação nova.
+   Cliente que desiste no meio: a transação é desfeita e a conexão
+   **descartada**, não devolvida — a rota pode ainda estar rodando nela.
+   Coberto em `test/transacao.test.js`.
 3. **`tenant_id` se preenche sozinho.** O default da coluna é
    `current_setting('app.tenant_id', true)`. Nenhum `INSERT` informa a empresa,
    e não dá para informar a errada. Sem empresa na conexão o valor vira `NULL` e
@@ -743,7 +761,10 @@ Três peças fazem funcionar:
 
 Consequência prática: **fora de uma requisição HTTP não existe empresa**. Os
 jobs de cron e o seed precisam de `db.comEmpresa(id, fn)` explícito — o cron
-percorre as empresas ativas uma a uma.
+percorre as empresas ativas uma a uma. Ali a marca continua com escopo de
+**sessão** e sem transação em volta, de propósito: o despacho de WhatsApp marca
+cada mensagem como enviada logo depois de mandar, e uma transação única
+desfaria as marcações numa falha no fim — a mensagem sairia de novo.
 
 O que **não** tem RLS: o schema `plataforma` (`tenants`, `usuarios`,
 `auditoria`), que é cadastro da Vital, não dado de negócio de ninguém.
@@ -2322,9 +2343,22 @@ leitura do banco, sai o HTML neutro: página sem prévia é melhor que página q
 não abre. Só funciona em produção (é a API que serve o HTML); no
 desenvolvimento quem serve é o Vite.
 
-**Uma instância só, por enquanto.** Migrations rodam no boot e os jobs rodam
-dentro do processo: duas instâncias migrariam juntas e disparariam a mesma
-fila. Os dois itens para escalar estão em "Importante para produção".
+**Mais de uma cópia de pé não quebra nada.** Duas travas do Postgres
+(*advisory locks*) cuidam disso, sem serviço à parte:
+
+- **Jobs:** só roda o processo que segura a trava `lib/lideranca.js`, numa
+  conexão dedicada. Os outros tentam de minuto em minuto e ficam de reserva;
+  se o líder morre, a conexão dele cai, o Postgres solta a trava e a reserva
+  assume. Os jobs podem rodar num processo próprio (`npm run jobs` →
+  `src/jobs/rodar.js`), com a API subindo em `JOBS_NA_API=nao` — vale quando a
+  API tem várias cópias ou um job pesado não pode disputar com quem agenda.
+  Por padrão a API roda os jobs, e com uma cópia só ela ganha a trava na hora.
+- **Migrations:** `migrar()` segura outra trava enquanto aplica; a segunda
+  cópia espera e encontra tudo aplicado.
+
+As duas travas são de sessão e por isso pedem conexão **direta** — atrás de um
+pooler em modo transação, a sessão que segura a trava muda entre comandos.
+Coberto em `test/lideranca.test.js`.
 
 ## Contas conectadas
 

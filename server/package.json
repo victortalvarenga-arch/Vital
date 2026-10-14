@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "jobs": "node src/jobs/rodar.js",
     "seed": "node src/seed.js",
     "reset": "node src/reset.js && npm run seed",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",

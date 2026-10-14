@@ -105,14 +105,9 @@ export function comEmpresa(db) {
     }
 
     req.tenantId = empresa.id;
-    db.comEmpresa(empresa.id, () => new Promise(resolve => {
-      // A conexão só volta ao pool quando a resposta termina; até lá, toda
-      // consulta da requisição sai dela. Vale para os dois desfechos: erro
-      // tratado também gera resposta, e 'close' cobre cliente que desistiu.
-      res.on('finish', resolve);
-      res.on('close', resolve);
-      next();
-    })).catch(next);
+    // A requisição inteira vira uma transação com a empresa marcada nela, e
+    // toda consulta da requisição sai dessa conexão. Ver `db.naRequisicao`.
+    db.naRequisicao(empresa.id, res, next).catch(next);
   };
 }
 
