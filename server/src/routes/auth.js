@@ -1,6 +1,9 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { db, uid, userOut, getConfig } from '../db.js';
 import { rota } from '../lib/rota.js';
+import { limite } from '../lib/limite.js';
+import { enviarEmail } from '../lib/email.js';
 import { mudancas } from '../lib/registro.js';
 import {
   abrirSessao, fecharSessao, hashDaSenha, senhaConfere,
@@ -10,6 +13,20 @@ import {
 export const auth = Router();
 
 /**
+ * Tentativas por IP e empresa. Login sem limite era chute de senha à vontade:
+ * argon2 deixa cada tentativa lenta, mas não impede ninguém de tentar mil.
+ * Generosos para quem erra a senha de verdade — e o salão inteiro sai pelo
+ * mesmo IP.
+ */
+const LIMITES = {
+  login: limite({ nome: 'login', max: 20, janelaSeg: 900 }),
+  esqueci: limite({ nome: 'esqueci', max: 5, janelaSeg: 900 }),
+  redefinir: limite({ nome: 'redefinir', max: 10, janelaSeg: 900 }),
+};
+
+const sha256 = t => crypto.createHash('sha256').update(t).digest('hex');
+
+/**
  * Login.
  *
  * A resposta é a mesma para e-mail inexistente e senha errada, e a senha é
@@ -17,7 +34,7 @@ export const auth = Router();
  * e-mails têm conta — pelo texto do erro ou pelo tempo de resposta, já que
  * argon2 é lento de propósito e a diferença é medível.
  */
-auth.post('/login', rota(async (req, res) => {
+auth.post('/login', LIMITES.login, rota(async (req, res) => {
   const email = String(req.body?.email || '').toLowerCase().trim();
   const senha = String(req.body?.senha || '');
   const generico = { erro: 'e-mail ou senha incorretos' };
@@ -37,6 +54,78 @@ auth.post('/login', rota(async (req, res) => {
 
   res.cookie(NOME_COOKIE, token, opcoesDoCookie());
   res.json({ usuario: userOut(u), poderes: PODERES[u.papel] });
+}));
+
+/**
+ * "Esqueci minha senha": manda por e-mail um link que vale uma hora e uma vez.
+ *
+ * A resposta é a mesma exista o e-mail ou não — senão a tela vira o jeito de
+ * descobrir quem tem conta. Pelo mesmo motivo o e-mail sai sem esperar: o
+ * envio é a parte lenta, e esperar por ele só quando a conta existe
+ * denunciaria a conta pelo tempo de resposta.
+ *
+ * O link aponta para o endereço por onde o pedido chegou, que é o da empresa:
+ * um `Host` que não fosse de empresa nenhuma já teria parado no middleware.
+ */
+auth.post('/esqueci', LIMITES.esqueci, rota(async (req, res) => {
+  const email = String(req.body?.email || '').toLowerCase().trim();
+  const resposta = { ok: true, mensagem: 'Se este e-mail tiver acesso ao painel, enviamos um link para criar uma senha nova. Ele vale por uma hora.' };
+  if (!email.includes('@')) return res.json(resposta);
+
+  const u = await db.get('SELECT id, nome, email FROM users WHERE email = ? AND ativo = 1', email);
+  if (u) {
+    const token = crypto.randomBytes(32).toString('base64url');
+    // Um link valendo por vez: pedir de novo invalida o anterior.
+    await db.run('DELETE FROM redefinicoes_senha WHERE user_id = ? AND usada_em IS NULL', u.id);
+    await db.run(
+      `INSERT INTO redefinicoes_senha (token_hash, user_id, expira_em) VALUES (?, ?, now() + interval '1 hour')`,
+      sha256(token), u.id
+    );
+    const cfg = await getConfig();
+    const link = `${req.protocol}://${req.get('host')}/painel.html#redefinir=${token}`;
+    enviarEmail({
+      para: u.email,
+      assunto: `Senha do painel — ${cfg.nome}`,
+      texto: `Oi, ${u.nome.split(' ')[0]}.\n\nAlguém pediu uma senha nova para o seu acesso ao painel de ${cfg.nome}. `
+        + `Para criar, abra o link abaixo (vale por uma hora, uma vez só):\n\n${link}\n\n`
+        + 'Se não foi você, ignore este e-mail: a senha atual continua valendo.',
+    });
+  }
+  res.json(resposta);
+}));
+
+/**
+ * Troca a senha com o link do e-mail. Derruba todas as sessões da pessoa:
+ * quem pede senha nova pode estar fazendo isso justamente porque alguém
+ * entrou na conta dela.
+ */
+auth.post('/redefinir', LIMITES.redefinir, rota(async (req, res) => {
+  const { token, senha } = req.body || {};
+  if (String(senha || '').length < 8) {
+    return res.status(400).json({ erro: 'a senha precisa de ao menos 8 caracteres' });
+  }
+  const pedido = await db.get(
+    `SELECT r.token_hash, u.id, u.nome FROM redefinicoes_senha r JOIN users u ON u.id = r.user_id
+      WHERE r.token_hash = ? AND r.usada_em IS NULL AND r.expira_em > now() AND u.ativo = 1`,
+    sha256(String(token || ''))
+  );
+  if (!pedido) {
+    return res.status(400).json({ erro: 'este link venceu ou já foi usado. Peça outro em "Esqueci minha senha".' });
+  }
+  await db.run('UPDATE users SET senha_hash = ? WHERE id = ?', await hashDaSenha(senha), pedido.id);
+  await db.run('UPDATE redefinicoes_senha SET usada_em = now() WHERE token_hash = ?', pedido.token_hash);
+  await db.run('DELETE FROM sessoes WHERE user_id = ?', pedido.id);
+  try {
+    await db.run(
+      `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
+       VALUES (?,?,?,?,?,?,?)`,
+      pedido.id, pedido.nome, 'acesso.senha_redefinida', 'acesso', pedido.id,
+      'criou uma senha nova pelo link do e-mail', '{}'
+    );
+  } catch (erro) {
+    console.error('[registro] não consegui gravar:', erro.message);
+  }
+  res.json({ ok: true });
 }));
 
 auth.post('/sair', rota(async (req, res) => {

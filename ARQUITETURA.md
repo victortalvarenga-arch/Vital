@@ -838,6 +838,21 @@ agenda e de relatório passam por ele em vez de decidir cada uma. Um funcionári
 sem vínculo com a equipe recebe um id impossível — **falha fechada**: devolver
 `null` ali abriria o negócio inteiro por um cadastro incompleto.
 
+**Senha esquecida: link por e-mail, uma hora, uma vez.** `POST
+/api/auth/esqueci` responde a mesma coisa exista o e-mail ou não, e dispara o
+e-mail sem esperar por ele — esperar só quando a conta existe denunciaria a
+conta pelo tempo de resposta. O token vai no fragmento do link
+(`painel.html#redefinir=…`), que o navegador não manda ao servidor, e no banco
+fica só o hash (`redefinicoes_senha`, migration 024, com RLS). Pedir de novo
+invalida o link anterior. `POST /api/auth/redefinir` troca a senha, marca o link
+como usado e **apaga todas as sessões da pessoa**: quem pede senha nova pode
+estar fazendo isso porque alguém entrou na conta. O envio é de `lib/email.js`,
+trocável como o WhatsApp: `console` imprime no terminal (e em produção não
+imprime o link), `resend` envia de verdade.
+
+**Login, esqueci e redefinir têm limite de tentativas** (`lib/limite.js`, por IP
+e empresa). Sem ele o login aceitava chute de senha sem fim.
+
 **A taxa de comissão também é recortada, não só o valor.** `lib/taxas.js`
 (`servicosPara`, `profissionaisPara`) tira de `/api/estado`, `/api/servicos` e
 `/api/profissionais` a taxa de cada colega e a exceção de cada uma em cada

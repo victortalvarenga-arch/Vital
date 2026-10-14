@@ -457,6 +457,10 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .entrar-caixa h1 { font-size: 23px; margin-bottom: 6px; }
 .entrar-sub { color: var(--muted); font-size: 14px; margin: 0 0 22px; line-height: 1.5; }
 .entrar-dica { display: block; font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+.entrar-aviso {
+  margin: 0 0 14px; padding: 10px 13px; border-radius: 10px; font-size: 13.5px;
+  background: color-mix(in srgb, var(--ok) 10%, var(--paper)); color: var(--ok);
+}
 .entrar-erro {
   display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
   padding: 10px 13px; border-radius: 10px; font-size: 13.5px;

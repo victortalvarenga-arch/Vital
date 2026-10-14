@@ -200,6 +200,9 @@ export const api = {
   primeiroAcesso: dados => req('/auth/primeiro-acesso', { method: 'POST', body: dados }),
   login: (email, senha) => req('/auth/login', { method: 'POST', body: { email, senha } }),
   sair: () => req('/auth/sair', { method: 'POST' }),
+  // A resposta é a mesma exista o e-mail ou não.
+  esqueciSenha: email => req('/auth/esqueci', { method: 'POST', body: { email } }),
+  redefinirSenha: (token, senha) => req('/auth/redefinir', { method: 'POST', body: { token, senha } }),
   eu: () => req('/auth/eu'),
   usuarios: () => req('/auth/usuarios'),
   salvarUsuario: u => u.id

@@ -242,8 +242,11 @@ Detalhes em `ARQUITETURA.md`, seção "Autenticação e papéis".
 - [x] Desativar **e** apagar: desativar guarda quem era, para quem pode voltar;
       apagar serve para conta criada por engano. Atendimento e comissão não vão
       junto — apontam para `staff`, não para `users`
-- [ ] "Esqueci minha senha" — depende de envio de e-mail, que o projeto ainda
-      não tem. Enquanto isso, o dono redefine pela rota de edição.
+- [x] "Esqueci minha senha" (2026-10-14): link por e-mail, de uso único e uma
+      hora, que derruba as sessões abertas. Ver `ARQUITETURA.md`. Em
+      desenvolvimento o e-mail sai no terminal; o envio de verdade (Resend)
+      depende do domínio — passo no Bloco 13
+- [x] Limite de tentativas no login (2026-10-14): era chute de senha à vontade
 
 **Provado por teste, não por leitura:** 25 casos. Sem login, as seis rotas do
 painel recusam e o site público continua aberto. Senha errada e e-mail
@@ -686,6 +689,11 @@ cada passo só depende dos anteriores.
        criar na Cloudflare os registros que `fly certs setup` mostrar, todos
        com proxy **desligado** (nuvem cinza) — com a Cloudflare no meio seriam
        dois proxies, e o `TRUST_PROXY=1` do `fly.toml` contaria o IP errado.
+9. [ ] **E-mail (Resend, grátis até 3.000/mês).** Conta no resend.com,
+       domínio verificado lá (registros DNS na Cloudflare) e, nos segredos,
+       `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` e
+       `EMAIL_REMETENTE="Vital <nao-responda@<domínio>>"`. Sem isso, "Esqueci
+       minha senha" responde normalmente e nenhum e-mail sai.
 
 **Depois do primeiro deploy (conferir antes de entregar):**
 - [ ] **Criar o nosso acesso em `https://<domínio>/vital.html#equipe`**, com a
