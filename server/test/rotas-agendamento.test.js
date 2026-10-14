@@ -457,6 +457,22 @@ describe('o site não vende o que a grade não oferece', () => {
     }
   });
 
+  test('a antecedência atravessa a meia-noite', async () => {
+    // 48h a partir de agora cobrem amanhã inteiro, seja qual for a hora em
+    // que a suíte roda. Antes só o dia de hoje olhava a antecedência.
+    const amanha = addDias(hoje(), 1);
+    await db.db.comEmpresa('default', () => db.setConfig({ antecedenciaHoras: 48 }));
+    try {
+      const grade = await api.anonimo()('GET', `/api/publico/horarios?servicoId=s1&profissionalId=p1&data=${amanha}`);
+      assert.deepEqual(grade.corpo.horarios, []);
+      const mes = await api.anonimo()('GET', `/api/publico/dias-livres?servicoId=s1&mes=${amanha.slice(0, 7)}`);
+      assert.ok(!mes.corpo.dias.includes(amanha), 'o calendário também não oferece amanhã');
+      assert.equal((await pedir({ data: amanha, hora: '17:00' })).status, 409);
+    } finally {
+      await db.db.comEmpresa('default', () => db.setConfig({ antecedenciaHoras: 0 }));
+    }
+  });
+
   test('o painel continua registrando atendimento passado', async () => {
     const r = await dona('POST', '/api/agendamentos', {
       clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: addDias(hoje(), -2), hora: '10:00', forcar: true,

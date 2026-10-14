@@ -1,0 +1,36 @@
+# Fly.io — produção em São Paulo, perto do banco (Neon sa-east-1).
+# Passo a passo: ROADMAP.md, Bloco 13. Segredos (banco, R2, conexões) vão por
+# `fly secrets set`, nunca aqui: este arquivo está no Git.
+
+app = "vital"                 # trocar pelo nome escolhido no `fly launch`
+primary_region = "gru"
+
+[env]
+  PORT = "3333"
+  TZ_EMPRESA = "America/Sao_Paulo"
+  WHATSAPP_PROVIDER = "manual"
+  # Um proxy na frente: o do Fly. A Cloudflare fica só no DNS (nuvem cinza),
+  # senão seriam dois e o limite de chamadas contaria o IP errado.
+  TRUST_PROXY = "1"
+  RATE_LIMIT = "on"
+  FUNIL_RETENCAO_DIAS = "90"
+
+[http_service]
+  internal_port = 3333
+  force_https = true
+  # Máquina sempre de pé: os jobs (lembretes, fechamento do caixa, Google e
+  # Instagram) vivem dentro do processo. Parada, eles param calados.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"      # as migrations rodam antes de abrir a porta
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/saude"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

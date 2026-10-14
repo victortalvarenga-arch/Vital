@@ -129,11 +129,15 @@ function BarraTopo({ negocio, marca, aoAgendar, temCapa, secoes }) {
               <MessageCircle size={16} /> <span>Falar</span>
             </a>
           )}
-          {/* "Minha conta" entra com o login da cliente (Bloco 5 do ROADMAP).
-              Um botão que não leva a lugar nenhum seria pior que a ausência. */}
-          <button className="b b-p b-peq" onClick={() => aoAgendar(null)}>
-            <Calendar size={15} /> Agendar
-          </button>
+          {/* Nada de "Minha conta": o login da cliente está em "Ideias
+              guardadas" no ROADMAP, e botão que não leva a lugar nenhum é
+              pior que a ausência. Pelo mesmo motivo, sem nada para agendar
+              não há botão de agendar. */}
+          {aoAgendar && (
+            <button className="b b-p b-peq" onClick={() => aoAgendar(null)}>
+              <Calendar size={15} /> Agendar
+            </button>
+          )}
         </nav>
       </div>
     </header>
@@ -239,6 +243,11 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   // modelo pede uma composição diferente, não uma variação de cor — ver "Do
   // build new site markup..." no DESIGN.md.
   const ehClinica = marca?.template === 'clinica';
+  // Empresa recém-cadastrada já tem endereço no ar antes de ter catálogo. Sem
+  // serviço nem promoção, todo botão de agendar abriria uma janela vazia: some
+  // o botão, e a página diz que está chegando em vez de parecer quebrada.
+  const temOQueAgendar = servicos.length > 0 || combos.length > 0;
+  const agendar = temOQueAgendar ? aoAgendar : null;
   // A barra é fixa e, sem uma faixa de capa embaixo dela pra absorver a
   // sobreposição, ela cobre o topo do que vier em seguida — cortava a foto
   // ou a inicial da Clínica, e cortava o nome de qualquer empresa sem capa
@@ -259,11 +268,11 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
 
   return (
     <main>
-      <BarraTopo negocio={negocio} marca={marca} aoAgendar={aoAgendar}
+      <BarraTopo negocio={negocio} marca={marca} aoAgendar={agendar}
                  temCapa={temFaixaDeCapa} secoes={secoesClinica} />
 
       {ehClinica ? (
-        <HeroClinica dados={dados} negocio={negocio} marca={marca} textos={textos} aoAgendar={aoAgendar} />
+        <HeroClinica dados={dados} negocio={negocio} marca={marca} textos={textos} aoAgendar={agendar} />
       ) : (
         <>
           {/* A foto de capa, quando existe, é uma peça acima do cabeçalho —
@@ -288,11 +297,13 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
                 <p className="slogan">{textos?.hero || negocio.slogan}</p>
               )}
               <Lugares dados={dados} className="local" />
-              <div className="chamada">
-                <button className="b b-p b-larg" onClick={() => aoAgendar(null)}>
-                  <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
-                </button>
-              </div>
+              {agendar && (
+                <div className="chamada">
+                  <button className="b b-p b-larg" onClick={() => agendar(null)}>
+                    <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -334,7 +345,13 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           {ehClinica
             ? <TituloClinica olho="Serviços">Escolha o seu <em>momento.</em></TituloClinica>
             : <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>}
-          {servicos.length === 0 && <p className="vazio">Nenhum serviço disponível no momento.</p>}
+          {servicos.length === 0 && (
+            <p className="vazio">
+              {temOQueAgendar
+                ? 'Por enquanto, só as promoções acima.'
+                : 'Em breve: os serviços e os horários para agendar aparecem aqui.'}
+            </p>
+          )}
           {/* Na Clínica, cartões com foto larga (pedido da cliente, a partir
               da referência); nos outros três, a grade de círculos. Os dois
               respeitam "separar por categoria" do mesmo jeito. */}
@@ -356,7 +373,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           <SecaoEquipe profissionais={dados.profissionais} />
           <SecaoAntesDepois casos={dados.antesDepois} />
           <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />
-          <SecaoAgende textos={textos} aoAgendar={aoAgendar} />
+          {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
           <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
         </>
       )}
@@ -367,7 +384,8 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
 
       {ehClinica && <SecaoMapa dados={dados} />}
 
-      <Rodape dados={dados} negocio={negocio} textos={textos} cheio={ehClinica} />
+      <Rodape dados={dados} negocio={negocio} textos={textos} cheio={ehClinica}
+              mostrarPagamento={temOQueAgendar} />
       {ehClinica && <BotaoWhatsApp negocio={negocio} />}
     </main>
   );
@@ -663,12 +681,16 @@ function Promocoes({ itens, exibir, aoAgendar }) {
   );
 }
 
-function Rodape({ dados, negocio, textos, cheio }) {
+function Rodape({ dados, negocio, textos, cheio, mostrarPagamento }) {
   const NOMES_PAG = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
+  // "Contato" sem nenhum contato embaixo era o rodapé de toda empresa nova:
+  // o título e, sozinhos, os chips de pagamento.
+  const temContato = lugares(dados).length > 0 || negocio.whatsapp || negocio.fone
+    || negocio.instagram || negocio.horarios?.length > 0;
   return (
     <footer className={'bloco rodape' + (cheio ? ' bloco-cheio' : '')}>
       <div className="env">
-        <h2 className="bloco-titulo pequeno">Contato</h2>
+        {temContato && <h2 className="bloco-titulo pequeno">Contato</h2>}
         <div className="rodape-links">
           <Lugares dados={dados} className="rodape-link" tamanho={17} />
           {negocio.whatsapp && (
@@ -693,7 +715,7 @@ function Rodape({ dados, negocio, textos, cheio }) {
 
         <Horarios horarios={negocio.horarios} />
 
-        {negocio.formasPagamento?.length > 0 && (
+        {mostrarPagamento && negocio.formasPagamento?.length > 0 && (
           <div className="pagamentos">
             {negocio.formasPagamento.map(f => <span key={f} className="pag">{NOMES_PAG[f] || f}</span>)}
           </div>

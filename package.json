@@ -1,11 +1,16 @@
 {
   "name": "estudio-agenda",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "setup": "cd server && npm install && npm run seed && cd ../web && npm install",
     "dev": "concurrently -n api,web -c magenta,cyan \"cd server && npm run dev\" \"cd web && npm run dev\"",
     "dev:api": "cd server && npm run dev",
-    "dev:web": "cd web && npm run dev"
+    "dev:web": "cd web && npm run dev",
+    "build": "npm --prefix server ci --omit=dev && npm --prefix web ci && npm --prefix web run build",
+    "start": "npm --prefix server start"
   },
   "devDependencies": { "concurrently": "^9.1.0" }
 }

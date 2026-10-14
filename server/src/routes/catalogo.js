@@ -6,6 +6,7 @@ import { adicionaisDe } from '../lib/adicionais.js';
 import { comboCompleto, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
 import { exige, pode, escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
+import { servicosPara, profissionaisPara } from '../lib/taxas.js';
 import { formCompleto, formsDoServico, ultimaResposta, TIPOS_DE_CAMPO } from '../lib/formularios.js';
 
 export const catalogo = Router();
@@ -50,7 +51,7 @@ function comissoesDoPedido(b) {
   }
 }
 catalogo.get('/servicos', rota(async (req, res) =>
-  res.json(await listarServicos({ somenteAtivos: req.query.ativos === '1' }))));
+  res.json(servicosPara(req.usuario, await listarServicos({ somenteAtivos: req.query.ativos === '1' })))));
 
 catalogo.post('/servicos', exige('cadastros'), rota(async (req, res) => {
   const b = req.body || {};
@@ -62,7 +63,9 @@ catalogo.post('/servicos', exige('cadastros'), rota(async (req, res) => {
     `INSERT INTO services (id,nome,categoria,descricao,preco,duracao,intervalo,ativo,ordem,
                            foto,mostrar_preco,somente_adicional,comissao,obs)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    id, b.nome, b.categoria || 'Geral', b.descricao || '', +b.preco || 0,
+    // Sem categoria fica sem categoria — já foi 'Geral', palavra nossa que
+    // aparecia como cartão no site da empresa ("Geral · 1 opção").
+    id, b.nome, String(b.categoria || '').trim(), b.descricao || '', +b.preco || 0,
     +b.duracao || 60, +b.intervalo || 0, b.ativo === false ? 0 : 1, +b.ordem || 0,
     b.foto || '', b.mostrarPreco === false ? 0 : 1, b.somenteAdicional ? 1 : 0,
     c.comissao, String(b.obs || '').slice(0, 1000)
@@ -224,7 +227,7 @@ catalogo.get('/profissionais', rota(async (req, res) => {
   const rows = await db.all(
     `SELECT * FROM staff ${req.query.ativos === '1' ? 'WHERE ativo=1' : ''} ORDER BY nome`
   );
-  res.json(rows.map(staffOut));
+  res.json(profissionaisPara(req.usuario, rows.map(staffOut)));
 }));
 
 /**

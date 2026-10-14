@@ -4,7 +4,7 @@ import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { criarAgendamento, criarCombo } from './agendamentos.js';
 import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara, foraDoPrazoDoSite } from '../lib/availability.js';
-import { adicionaisDe, validarAdicionais } from '../lib/adicionais.js';
+import { adicionaisDeTodos, validarAdicionais } from '../lib/adicionais.js';
 import { horariosDeAtendimento } from '../lib/horarios.js';
 import { marcar, etapaDoNavegador, sessaoValida } from '../lib/funil.js';
 import { limite } from '../lib/limite.js';
@@ -45,10 +45,11 @@ const LIMITES = {
 /**
  * Serviços com o preço já filtrado pela config e os extras que cada um oferece.
  *
- * Em sequência, e não em Promise.all: a requisição roda numa conexão só, que
- * atende uma consulta por vez — o paralelismo era aparente.
+ * Os extras do catálogo inteiro vêm em duas consultas, não uma por serviço:
+ * ver `adicionaisDeTodos`.
  */
 async function comPrecoEExtras(servicos, cfg) {
+  const extras = await adicionaisDeTodos(servicos);
   const saida = [];
   for (const s of servicos) {
     // Comissão e observação são da equipe: quanto a empresa paga a quem atende
@@ -59,7 +60,12 @@ async function comPrecoEExtras(servicos, cfg) {
     saida.push({
       ...publico,
       preco: cfg.exibir?.preco && s.mostrarPreco ? s.preco : null,
-      adicionais: await adicionaisDe(s.id, s.categoria),
+      // A chave "Fotos dos serviços" do painel. Decidida aqui, e não em cada
+      // componente do site: a foto aparece em três lugares (círculos, cartões
+      // da Clínica e a lista do agendamento), e a chave já foi ignorada pelos
+      // três sem ninguém notar.
+      foto: cfg.exibir?.fotos === false ? '' : s.foto,
+      adicionais: extras.get(s.id) || [],
     });
   }
   return saida;

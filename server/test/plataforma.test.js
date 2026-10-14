@@ -66,6 +66,32 @@ describe('entrar na plataforma', () => {
     assert.equal(r.status, 409);
   });
 
+  test('em produção, o primeiro acesso exige a chave de instalação', async () => {
+    // Banco de produção nasce vazio: sem a chave, quem chegasse antes de nós
+    // ao endereço recém-publicado virava administrador da plataforma.
+    await comoAdmin('DELETE FROM plataforma.sessoes');
+    await comoAdmin('DELETE FROM plataforma.auditoria');
+    await comoAdmin('DELETE FROM plataforma.usuarios');
+    const corpo = { nome: 'Victor', email: 'victor@vital.com', senha: SENHA };
+    const antes = { env: process.env.NODE_ENV, chave: process.env.VITAL_CHAVE_PRIMEIRO_ACESSO };
+    try {
+      process.env.NODE_ENV = 'production';
+      delete process.env.VITAL_CHAVE_PRIMEIRO_ACESSO;
+      assert.equal((await api.anonimo()('POST', '/api/plataforma/primeiro-acesso', corpo)).status, 403,
+        'sem chave configurada, a rota fica desligada');
+
+      process.env.VITAL_CHAVE_PRIMEIRO_ACESSO = 'chave-de-teste';
+      const pergunta = await api.anonimo()('GET', '/api/plataforma/precisa-configurar');
+      assert.deepEqual(pergunta.corpo, { precisa: true, pedeChave: true });
+      assert.equal((await api.anonimo()('POST', '/api/plataforma/primeiro-acesso', { ...corpo, chave: 'errada' })).status, 403);
+      assert.equal((await api.anonimo()('POST', '/api/plataforma/primeiro-acesso', { ...corpo, chave: 'chave-de-teste' })).status, 201);
+    } finally {
+      if (antes.env === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = antes.env;
+      if (antes.chave === undefined) delete process.env.VITAL_CHAVE_PRIMEIRO_ACESSO;
+      else process.env.VITAL_CHAVE_PRIMEIRO_ACESSO = antes.chave;
+    }
+  });
+
   test('sem sessão não passa', async () => {
     for (const caminho of ['/api/plataforma/empresas', '/api/plataforma/resumo', '/api/plataforma/eu']) {
       assert.equal((await api.anonimo()('GET', caminho)).status, 401, caminho);

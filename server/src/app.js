@@ -1,4 +1,7 @@
 import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
@@ -23,6 +26,7 @@ import { comRegistro } from './lib/registro.js';
 import { comAdicionais } from './lib/adicionais.js';
 import { combosAtivos } from './lib/combos.js';
 import { comEmpresa } from './lib/tenant.js';
+import { servicosPara, profissionaisPara } from './lib/taxas.js';
 import { suporte } from './routes/suporte.js';
 import { fecharAtendimentos } from './jobs/fechamento.js';
 
@@ -196,8 +200,9 @@ app.get('/api/estado', rota(async (req, res) => {
   const locais = await listarUnidades();
   res.json({
     config,
-    servicos,
-    profissionais: equipe.map(staffOut),
+    // A taxa de comissão da colega não vai para quem não vê o negócio todo.
+    servicos: servicosPara(req.usuario, servicos),
+    profissionais: profissionaisPara(req.usuario, equipe.map(staffOut)),
     clientes: clientela.map(clientOut),
     agendamentos: await comAdicionais(agenda.map(apptOut)),
     templates: modelos.map(templateOut),
@@ -209,6 +214,38 @@ app.get('/api/estado', rota(async (req, res) => {
       .map(blockOut),
   });
 }));
+
+/**
+ * As telas, em produção: o build do Vite (`web/dist`) servido pelo mesmo
+ * processo da API.
+ *
+ * Um serviço só, de propósito (decidido em 2026-10-14, ver ARQUITETURA.md,
+ * "Hospedagem"): a empresa é decidida pelo `Host`, e com site e API no mesmo
+ * endereço o `Host` chega intacto às duas. Em hospedagens separadas, o proxy
+ * entre elas reescreve o `Host` — toda requisição viraria a empresa padrão —,
+ * e o cookie de sessão passaria a ser de outro domínio. O processo contínuo
+ * também é o que mantém os jobs de cron rodando.
+ *
+ * Em desenvolvimento a pasta não existe e quem serve as telas é o Vite.
+ */
+const PASTA_WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
+if (fs.existsSync(PASTA_WEB)) {
+  const base = (process.env.BASE_DOMINIO || '').toLowerCase();
+  // No domínio da Vital sem subdomínio, a raiz é a página de cadastro — não o
+  // site da empresa padrão, que ninguém de fora deveria ver.
+  app.get('/', (req, res, next) => {
+    const host = req.hostname.toLowerCase();
+    if (base && (host === base || host === `www.${base}`)) {
+      return res.sendFile(path.join(PASTA_WEB, 'vital.html'));
+    }
+    next();
+  });
+  // Os arquivos de `assets/` levam o hash do conteúdo no nome: podem ficar em
+  // cache para sempre. O HTML não, senão um deploy novo não chega a quem já
+  // abriu o site.
+  app.use('/assets', express.static(path.join(PASTA_WEB, 'assets'), { immutable: true, maxAge: '1y' }));
+  app.use(express.static(PASTA_WEB, { index: 'index.html', maxAge: 0 }));
+}
 
 app.use((err, req, res, next) => {
   console.error(err);

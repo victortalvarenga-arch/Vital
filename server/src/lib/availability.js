@@ -1,5 +1,5 @@
 import { db, staffOut, getConfig } from '../db.js';
-import { toMin, toHora, diaSemana, hoje, agora, addDias } from './dates.js';
+import { toMin, toHora, diaSemana, hoje, agora, addDias, diasEntre } from './dates.js';
 
 /**
  * Motor de horários. É o coração do sistema: se isto estiver errado,
@@ -67,6 +67,18 @@ export async function conflita({ staffId, data, hora, duracao, ignorarId = null 
 }
 
 /**
+ * O primeiro minuto do dia `data` que respeita a antecedência, contando a
+ * partir de agora — ou -1 quando o dia inteiro já está liberado.
+ *
+ * Antes só o dia de hoje olhava a antecedência: com 24h configuradas, às 23h
+ * o site oferecia amanhã às 8h. Agora a antecedência atravessa a meia-noite.
+ */
+export function primeiroMinutoLiberado(data, antecedenciaMin) {
+  const limite = toMin(agora()) + antecedenciaMin - diasEntre(hoje(), data) * 1440;
+  return limite > 0 ? limite : -1;
+}
+
+/**
  * O que o site pode oferecer no tempo: de hoje até o fim da janela, e hoje só
  * depois da antecedência. As mesmas três regras que `diasComVagaPara` usa para
  * pintar o calendário — aqui para a lista de horas e para a gravação, que
@@ -85,7 +97,7 @@ export async function foraDoPrazoDoSite(data, hora = null) {
   const janela = cfg.janelaDias || 30;
   if (data < h) return 'essa data já passou';
   if (data > addDias(h, janela)) return `dá para agendar até ${janela} dias à frente`;
-  if (hora && data === h && toMin(hora) < toMin(agora()) + (cfg.antecedenciaHoras ?? 2) * 60) {
+  if (hora && toMin(hora) < primeiroMinutoLiberado(data, (cfg.antecedenciaHoras ?? 2) * 60)) {
     return 'esse horário já não pode ser agendado pelo site';
   }
   return null;
@@ -121,7 +133,7 @@ export async function horariosLivres({ staffId, data, duracao, passo }) {
 
   const ocupados = await ocupacao(staffId, data);
   const fechados = await bloqueios(staffId, data);
-  const limite = data === hoje() ? toMin(agora()) + antecedencia : -1;
+  const limite = primeiroMinutoLiberado(data, antecedencia);
 
   const livres = [];
   for (let m = toMin(j[0]); m + duracao <= toMin(j[1]); m += grade) {
@@ -260,7 +272,7 @@ export async function diasComVagaPara({ equipe, duracao, mes }) {
   const livres = [];
   for (let dia = primeiro; dia <= ultimo; dia = addDias(dia, 1)) {
     if (dia < h || dia > limiteFuturo) continue;          // passado ou além da janela
-    const limiteHoje = dia === h ? toMin(agora()) + antecedencia : -1;
+    const limiteHoje = primeiroMinutoLiberado(dia, antecedencia);
 
     const temVaga = equipe.some(row => {
       const jornada = staffOut(row).jornada[String(diaSemana(dia))];

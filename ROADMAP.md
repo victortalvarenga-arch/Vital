@@ -62,14 +62,32 @@ de uns 5 minutos parado espera o compute acordar (~1 s), e a suíte de testes le
 uns 4 minutos pela rede em vez de segundos. Como isso funciona por dentro (conexão
 direta, trava do `reset`): `ARQUITETURA.md`.
 
-**Vercel hospeda o site e a API, não o banco.** Vercel é ótimo para domínio,
-rotas e certificado — mas não guarda Postgres rodando dentro dele; até o
-recurso "Vercel Postgres" é, por baixo, um Neon integrado. Ou seja: Postgres
-gerenciado (Neon/Supabase) e hospedagem do app (Vercel) são duas contas
-diferentes que se conectam por uma URL — o plano de usar Vercel não muda nada
-do que já foi decidido aqui, só confirma que precisávamos mesmo sair do SQLite:
-Vercel roda o processo do Node de forma efêmera, sem disco persistente, e um
-arquivo `.db` não sobreviveria a isso de jeito nenhum.
+**Fly.io em São Paulo hospeda site e API num serviço só; o banco fica na Neon,
+também em São Paulo.** Decidido em 2026-10-14, no lugar do plano antigo de usar
+o Vercel.
+
+*Por que um serviço só, de processo contínuo*, e não serverless — três motivos
+do código como ele é: (1) os jobs de cron vivem dentro do processo da API, e
+função serverless não tem processo de pé — lembrete, fechamento do caixa e
+sincronização do Google/Instagram parariam calados; (2) a empresa é decidida
+pelo `Host`, e site e API em hospedagens separadas põem um proxy no meio que
+reescreve esse cabeçalho; (3) o cookie de sessão é do endereço da empresa, e
+API em outro domínio quebraria o login. A própria API serve o build do front
+(detalhe em `ARQUITETURA.md`, "Hospedagem").
+
+*Por que no Brasil, e por que o Fly.* Medido em 2026-10-14: daqui, a AWS São
+Paulo responde em 6 ms e a da Virgínia em 135 ms; e cada tela consulta o banco
+de 4 a 27 vezes em sequência. Com servidor e banco no mesmo lugar, a tela custa
+de 2 a 11 ms no servidor; com 115 ms entre eles, de 0,4 a 3,2 s. Então servidor
+e banco ficam juntos — e o banco já estava em São Paulo, onde também fica mais
+simples a LGPD (a anamnese é dado de saúde). Railway e Render, mais fáceis de
+operar, não têm região no Brasil; o Fly tem (`gru`), aceita domínio curinga com
+certificado e cobra por domínio a mais em centavos, onde o Hobby do Railway
+para em 2. O preço é uns US$ 1–3/mês a mais que nos EUA (o Fly cobra 1,6× em
+São Paulo) e configuração por linha de comando em vez de painel.
+
+*Pago por último.* A conta do Fly e o domínio são o último passo da entrega: o
+código e a imagem ficam prontos e testados antes (Bloco 13).
 
 **Apps nativos entram no escopo, além do site responsivo.** Recomendação de
 caminho técnico: empacotar o mesmo código web (site do cliente e painel da
@@ -614,6 +632,75 @@ caminho de volta.
       utilidade. Decidir quem paga — a empresa direto à Meta, ou a Vital
       repassando no plano (o que amarra este bloco à cobrança da Vital).
 
+### Bloco 13 — Publicar na internet (etapa 1 da entrega)
+Começado em 2026-10-14. Nada disto foi feito antes: o sistema só rodou em
+`localhost`. Arquitetura escolhida em "Decisões tomadas" e em
+`ARQUITETURA.md`, "Hospedagem". Ordem pensada para quem nunca publicou:
+cada passo só depende dos anteriores.
+
+**No código (feito e testado):**
+- [x] A API serve o build do front (`web/dist`); na raiz do domínio da Vital
+      abre a página de cadastro, e no subdomínio, o site da empresa
+- [x] `npm run build` e `npm start` na raiz do repositório
+- [x] `Dockerfile`, `.dockerignore` e `fly.toml` (região `gru`, máquina sempre
+      ligada, verificação em `/api/saude`). A imagem foi construída e rodada
+      localmente contra o banco: migrations, jobs, as três telas por endereço,
+      login (o argon2 nativo funciona na imagem Linux) e cookie `Secure`
+
+**O que é de graça e pode ser feito antes de pagar:**
+1. [ ] **Banco de produção.** Na Neon, o branch `production` já existe e está
+       vazio. **Antes do primeiro deploy**, no SQL Editor desse branch:
+       `CREATE ROLE vital_app LOGIN PASSWORD '<senha nova e forte>' NOSUPERUSER
+       NOCREATEDB NOCREATEROLE NOBYPASSRLS;` — a migration 002 cria o papel
+       sem senha quando ele não existe, e o `npm run senha-app` recusa rodar
+       fora do banco de desenvolvimento, de propósito; criando antes, a
+       migration só dá as permissões. Anotar as duas URLs **diretas** (sem
+       `-pooler`): `vital_app` (aplicação) e `neondb_owner` (migrations).
+       **Sem** `VITAL_BANCO_DESCARTAVEL`. Conferir que o projeto da Neon está
+       em `aws-sa-east-1` (São Paulo): a região não muda depois de criada.
+2. [ ] **Bucket de produção no R2** (`vital-prod`), com URL pública e um token
+       de escrita só para ele. Grátis até 10 GB.
+
+**Pago — o último passo:**
+3. [ ] **Domínio.** Escolher e registrar o nome (`.com.br` no registro.br, por
+       volta de R$ 40/ano).
+4. [ ] **DNS na Cloudflare** (grátis). Adicionar o domínio na conta que já
+       guarda o R2 e trocar os *nameservers* no registro.br pelos que a
+       Cloudflare indicar.
+5. [ ] **Fly.io.** Criar a conta (pede cartão; uns US$ 7/mês para a máquina
+       de 512 MB em São Paulo e o certificado curinga). Instalar o `flyctl` e,
+       na raiz do repositório: `fly launch --no-deploy` (aproveita o
+       `fly.toml`; trocar o `app` pelo nome que ele aceitar).
+6. [ ] **Segredos** — `fly secrets set` com `DATABASE_URL`,
+       `DATABASE_ADMIN_URL`, `BASE_DOMINIO=<domínio>`,
+       `CORS_ORIGIN=https://<domínio>`, `CONEXOES_SEGREDO` novo,
+       `VITAL_CHAVE_PRIMEIRO_ACESSO`, as quatro
+       `R2_*` e `UPLOADS_BASE_URL`. A lista inteira, com o que vai em cada uma,
+       está no `server/.env.example`; as que não são segredo já estão no
+       `fly.toml`. `NODE_ENV=production` vem do `Dockerfile`.
+7. [ ] **Primeiro deploy:** `fly deploy --ha=false`. O `--ha=false` é
+       obrigatório: por padrão o Fly sobe duas máquinas, e duas cópias
+       rodariam as migrations juntas e disparariam os mesmos jobs (ver
+       "Importante para produção").
+8. [ ] **Domínios:** `fly certs add <domínio>` e `fly certs add "*.<domínio>"`;
+       criar na Cloudflare os registros que `fly certs setup` mostrar, todos
+       com proxy **desligado** (nuvem cinza) — com a Cloudflare no meio seriam
+       dois proxies, e o `TRUST_PROXY=1` do `fly.toml` contaria o IP errado.
+
+**Depois do primeiro deploy (conferir antes de entregar):**
+- [ ] **Criar o nosso acesso em `https://<domínio>/vital.html#equipe`**, com a
+      chave de `VITAL_CHAVE_PRIMEIRO_ACESSO` (posta nos segredos no passo 6).
+      Sem a chave, em produção o primeiro acesso fica desligado.
+- [ ] `https://<domínio>/api/saude` responde; a página de cadastro abre na raiz
+- [ ] Cadastrar uma empresa de teste pela página, entrar no painel pelo link,
+      agendar pelo site **num celular de verdade**, com 4G e pelo link da bio
+      do Instagram
+- [ ] Isolamento em produção: duas empresas, uma não vê a outra (o usuário da
+      Neon não pode ignorar RLS — ver "Importante para produção → Banco")
+- [ ] Cookie de sessão com `Secure` (só vai por HTTPS)
+- [ ] Restaurar um backup da Neon num branch à parte, antes de ter dado real
+- [ ] Apagar a empresa de teste
+
 ### Bloco 11 — Apps nativos (iOS / Android)
 Por último de propósito: empacotar um site que ainda está mudando de forma
 (Blocos 4, 6, 7) é retrabalho a cada tela nova. Faz sentido depois que a versão
@@ -687,11 +774,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       adicionais incluídos, usa a taxa do serviço principal. Se o extra tiver
       comissão diferente, ela é ignorada. Dividir certo exige decidir a que
       parte do atendimento um pagamento parcial se refere.
-- [ ] **O funcionário recebe as taxas de comissão dos colegas.** O
-      `/api/estado` manda `staff.comissao` de todos e, agora, `comissao` e
-      `comissoes` de cada serviço, para qualquer papel. O valor em reais
-      continua recortado por `escopoDe`, mas o percentual da colega aparece na
-      resposta. Recortar no `/api/estado` para quem não tem `verDeTodos`.
 - [ ] **Bloqueio que "nunca termina" termina em 12 meses, sem aviso.** Com uma
       linha por data (migration 013), o *Nunca* do formulário de Fechar
       horários cria os próximos 365 dias, e a tela diz isso só na hora de
@@ -702,13 +784,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       bloqueio tem um horário só para todos os dias marcados; o antigo montava
       uma lista de faixas ("seg e qua 8–10, sex 14–16") de uma vez. Se aparecer
       pedido, entra como "adicionar outro horário" dentro da repetição semanal.
-- [ ] **Não dá para desfazer um pagamento fechado pelo sistema.** Desfazer, na
-      gaveta, é clicar na forma acesa — e quem o fechamento automático quitou
-      fica com `pag_forma = 'local'`, que não tem chip. A dica ainda diz "clique
-      na forma marcada", que nesse caso não existe. É justo o caso em que mais
-      se quer desfazer: a cliente não pagou, o sistema deu como paga. Sai com um
-      botão "Desfazer" explícito quando há valor recebido, em vez de pendurar a
-      ação no chip aceso.
 - [ ] **Uma forma de pagamento por atendimento.** `pag_forma` guarda a forma do
       último recebimento, então entrada em pix quitada em dinheiro credita os
       dois ao dinheiro na divisão por forma do Financeiro. O caixa total
@@ -863,13 +938,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Código
 
-- [ ] **Erro numa tela do painel apaga o painel inteiro, calado.** Um
-      `ReferenceError` no `NovoAgendamento` (variável `data` que não existia)
-      fazia o Calendário sumir da tela no clique do botão: sem modal, sem aviso,
-      sem nada — só um erro no console que ninguém tem aberto. Foi assim que o
-      botão "Encaixe" passou semanas "não fazendo nada". Falta um *error
-      boundary* em volta de `<main>`, mostrando "essa tela falhou, recarregue" em
-      vez de branco. Consertado o caso; a classe de problema continua.
 - [ ] `web/src/painel/App.jsx` passou de 1300 linhas e junta agenda, clientes,
       serviços, equipe, CRM e financeiro. Cada tela nova que nasce ali aumenta o
       risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e ConfigSite
@@ -887,12 +955,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       Bandeja, e o inverso também. Achado ao capturar telas; pra valer como
       pré-visualização de verdade, o override precisa chegar no `dados.marca`
       que a `Home` lê, não só no `aplicarTema`.
-- [ ] **A chave "Fotos dos serviços" do painel não faz nada.** `ConfigSite.jsx`
-      grava `exibir.fotos`, a vitrine devolve, e nenhum componente do site lê —
-      nem a grade de círculos nem os cartões da Clínica. A empresa desliga e
-      as fotos continuam. Ou os dois passam a respeitar a chave, ou ela sai
-      da tela; chave que não faz nada ensina a pessoa a não confiar nas
-      outras. Notado ao montar os cartões (2026-09-18).
 - [ ] **A palavra dourada do hero da Clínica (`--ouro-claro` sobre
       `--marca-escura`) não tem guarda de contraste por empresa.** Para a Laura
       dá 3,2:1 (texto grande, passa); uma empresa cuja cor escurecida cair
@@ -908,28 +970,18 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Operação
 
-- [ ] **O site de uma empresa recém-cadastrada fica no ar vazio.** Achado no
-      percurso de empresa nova (2026-10-10): antes de cadastrar qualquer
-      serviço, o endereço já abre com "Agende seu horário" em destaque,
-      "Nenhum serviço disponível no momento" e uma seção "Contato" com só os
-      chips Pix, Cartão e Dinheiro — sem telefone nem endereço. Quem recebe o
-      link cedo demais vê um site quebrado. Esconder o botão e a seção de
-      contato enquanto não há serviço, ou mostrar "em breve" no lugar.
-- [ ] **A categoria "Geral" aparece para a cliente.** Serviço que nasce sem
-      categoria — o do assistente de primeira configuração, sempre — ganha
-      `'Geral'` no servidor (`routes/catalogo.js`), e com "Separar por
-      categoria" ligado o site mostra um cartão "Geral · 1 opção · a partir
-      de R$ 150". É uma palavra nossa na vitrine da empresa, e "a partir de"
-      com uma opção só promete variação que não existe. Achado em 2026-10-10.
 - [ ] **No Resumo, "Atendimentos no mês" e o ranking contam coisas
       diferentes.** Com 1 concluído e 3 agendados, o cartão diz 4 e o ranking
       diz "1 atendimento". Os dois podem estar certos, mas nenhum diz o que
       conta. Achado em 2026-10-10.
-- [ ] **A antecedência mínima só vale para o dia de hoje.** Com 24h de
-      antecedência, às 23h o site oferece amanhã às 8h — o motor
-      (`horariosLivres`, `diasComVagaPara`, `foraDoPrazoDoSite`) só compara
-      hora quando a data é hoje. Antecedência maior que o resto do dia não
-      funciona como a dona espera. Achado em 2026-10-10.
+- [ ] **Consultas em sequência por item, nas telas mais abertas.** Medido em
+      2026-10-14 com o catálogo da Laura: `/api/publico/vitrine` fazia 27
+      consultas, porque buscava os adicionais de cada serviço um a um — caiu
+      para 16 com `adicionaisDeTodos` (duas consultas para o catálogo inteiro).
+      Ainda por item: a equipe de cada combo (`profissionaisDoCombo`, na
+      vitrine) e `comboCompleto` por combo em `combosAtivos`, que crescem com
+      o número de promoções. `/api/estado` faz 18. No mesmo lugar não pesa
+      (até 11 ms); só pesa se servidor e banco ficarem longe.
 - [ ] **Foto do Instagram que sai da grade fica no armazenamento para sempre.**
       O job baixa cada publicação nova (`conexoes/instagram.js`) e não apaga
       a que caiu para fora das 6 mais recentes. Com uma publicação por dia,
@@ -1014,6 +1066,10 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       site nunca importa `painel-api.js`. Não há credencial de painel no código
       publicado — confirmado por varredura.
 - [ ] `CORS_ORIGIN` precisa apontar para o domínio real, não `localhost`.
+- [x] ~~O primeiro acesso do back-office da Vital ficava aberto em banco
+      vazio.~~ Resolvido em 2026-10-14: em produção ele exige
+      `VITAL_CHAVE_PRIMEIRO_ACESSO`, e sem a variável a rota fica desligada
+      (`routes/plataforma.js`, coberto em `plataforma.test.js`).
 - [ ] **`CONEXOES_SEGREDO` vem do cofre do provedor, e é um só para sempre.**
       Ele cifra os tokens do Google e do Instagram de todas as empresas: vazou,
       quem tiver um dump do banco lê os tokens; trocou, todas as empresas
@@ -1093,8 +1149,8 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 
 - [ ] **O adaptador para storage de objeto (R2) já existe; falta ativá-lo para
       o deploy de verdade.** `server/uploads/<empresa>/` em disco só funciona
-      com hospedagem que persiste — Vercel apaga o disco a cada deploy, e lá
-      as imagens da empresa sumiriam no deploy seguinte. `routes/uploads.js`
+      com hospedagem que persiste — a máquina do Fly, sem volume, apaga o
+      disco a cada deploy, e as imagens da empresa sumiriam no deploy seguinte. `routes/uploads.js`
       já sabe gravar direto num bucket R2 quando `R2_ACCOUNT_ID` e as outras
       três variáveis existem (ver ARQUITETURA.md, "Imagens"); sem elas, cai
       para disco, que é o caso de hoje em desenvolvimento. Falta: criar o
@@ -1104,6 +1160,15 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] **Fuso do servidor.** O código trata data e hora como texto justamente
       para não depender disso, mas os jobs de mensagem usam `TZ_EMPRESA`.
       Conferir se o provedor roda em UTC e se a variável está definida.
+- [x] ~~Em função serverless (Vercel), os jobs não rodariam nunca.~~ Resolvido
+      pela escolha do Fly.io com máquina sempre ligada (`auto_stop_machines =
+      "off"` no `fly.toml`; ver "Decisões tomadas", no topo). Vale lembrar se
+      um dia a hospedagem mudar, ou se alguém ligar o desligamento automático
+      para economizar: o `node-cron` precisa de processo contínuo.
+- [ ] **Empresa com domínio próprio** (`agenda.estudio.com.br`, que o código já
+      resolve) precisa de `fly certs add` para cada uma — US$ 0,10/mês por
+      domínio — e do CNAME do lado da empresa. Hoje é manual; vira tela do
+      painel quando houver demanda.
 - [ ] **Os jobs de cron rodam dentro do processo da API.** Com várias
       instâncias, todas disparam a mesma fila. O `dedupe_key` evita mensagem
       duplicada, mas o trabalho é repetido — avaliar mover para um agendador

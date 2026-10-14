@@ -1,0 +1,14 @@
+# Nada de segredo, dependência já instalada nem dado de cliente na imagem.
+**/.env
+**/.env.*
+!server/.env.example
+**/node_modules
+web/dist
+server/uploads
+.git
+.claude
+.impeccable
+img
+Exemplo
+exemplo
+*.md

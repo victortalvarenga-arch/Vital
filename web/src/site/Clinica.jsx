@@ -88,9 +88,13 @@ export function HeroClinica({ dados, negocio, marca, textos, aoAgendar }) {
             <p className="slogan">{textos?.hero || primeiraFrase(negocio.sobre)}</p>
           )}
           <div className="chamada">
-            <button className="b clinica-cta-ouro" onClick={() => aoAgendar(null)}>
-              {textos?.chamada || 'Agende seu horário'} <ArrowRight size={15} />
-            </button>
+            {/* Sem nada para agendar (empresa recém-cadastrada), `aoAgendar`
+                chega nulo e fica só o caminho para os serviços. */}
+            {aoAgendar && (
+              <button className="b clinica-cta-ouro" onClick={() => aoAgendar(null)}>
+                {textos?.chamada || 'Agende seu horário'} <ArrowRight size={15} />
+              </button>
+            )}
             <a className="clinica-cta-link" href="#servicos">
               Conheça os serviços <ArrowDown size={14} />
             </a>
@@ -177,11 +181,37 @@ export function CartoesClinica({ servicos, categorias, exibir, negocio, aoAgenda
   // todo cartão — só entra quando distingue alguma coisa.
   const comRotulo = categorias.length > 1;
 
+  const cartaoDoServico = (s, i) => (
+    <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
+      <Cartao
+        foto={s.foto}
+        inicial={s.nome.trim()[0]}
+        rotulo={comRotulo ? s.categoria || null : null}
+        nome={s.nome}
+        descricao={s.descricao}
+        /* Preço nulo já vem assim do servidor quando a empresa
+           esconde preço — vira "Sob consulta", como na grade. */
+        pe={[
+          exibir?.duracao ? duracaoTexto(s.duracao) : null,
+          s.preco != null ? brl(s.preco) : 'Sob consulta',
+        ].filter(Boolean)}
+        acao={`Agendar ${s.nome}`}
+        altFoto={altDoServico(s.nome, negocio)}
+        aoClicar={() => aoAgendar(s.id)}
+        /* Quem tem dúvida pergunta daqui, sem rolar até o rodapé. */
+        extra={<PerguntarSobre negocio={negocio} servico={s} className="cartao-duvida" />} />
+    </Revela>
+  );
+
   return (
     <>
       <div className="cartoes">
         {porCategoria
           ? categorias.map(({ nome, itens }, i) => {
+              // Categoria de um serviço só vira o próprio serviço: o cartão
+              // de grupo dizia "1 opção · a partir de R$ 150" — "a partir de"
+              // prometendo variação que não existe, e um toque a mais.
+              if (itens.length === 1) return cartaoDoServico(itens[0], i);
               const precos = itens.map(s => s.preco).filter(p => p != null);
               const menor = precos.length ? Math.min(...precos) : null;
               return (
@@ -204,27 +234,7 @@ export function CartoesClinica({ servicos, categorias, exibir, negocio, aoAgenda
                 </Revela>
               );
             })
-          : servicos.map((s, i) => (
-              <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
-                <Cartao
-                  foto={s.foto}
-                  inicial={s.nome.trim()[0]}
-                  rotulo={comRotulo ? s.categoria : null}
-                  nome={s.nome}
-                  descricao={s.descricao}
-                  /* Preço nulo já vem assim do servidor quando a empresa
-                     esconde preço — vira "Sob consulta", como na grade. */
-                  pe={[
-                    exibir?.duracao ? duracaoTexto(s.duracao) : null,
-                    s.preco != null ? brl(s.preco) : 'Sob consulta',
-                  ].filter(Boolean)}
-                  acao={`Agendar ${s.nome}`}
-                  altFoto={altDoServico(s.nome, negocio)}
-                  aoClicar={() => aoAgendar(s.id)}
-                  /* Quem tem dúvida pergunta daqui, sem rolar até o rodapé. */
-                  extra={<PerguntarSobre negocio={negocio} servico={s} className="cartao-duvida" />} />
-              </Revela>
-            ))}
+          : servicos.map(cartaoDoServico)}
       </div>
 
       {/* A linha que fecha a seção na referência convidava a conversar. A

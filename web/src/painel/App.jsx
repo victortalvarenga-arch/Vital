@@ -31,6 +31,7 @@ import Resumo from './Resumo.jsx';
 import Financeiro from './Financeiro.jsx';
 import Equipe from './Equipe.jsx';
 import Servicos from './Servicos.jsx';
+import ErroDeTela from './ErroDeTela.jsx';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
@@ -249,6 +250,7 @@ function Painel({ sessao, aoSair }) {
       </nav>
 
       <main className="p-conteudo">
+        <ErroDeTela key={secao}>
         {secao === 'resumo' && (
           <Resumo dados={{ ...dados, eu: sessao.usuario }} acao={acao}
                   aviso={setToast} poderes={p} irPara={irPara} fila={fila} />
@@ -277,6 +279,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'usuarios' && p.equipe && (
           <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} />
         )}
+        </ErroDeTela>
       </main>
 
       {toast && <div className="p-aviso"><Check size={17} />{toast}</div>}
@@ -830,16 +833,26 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                 {['pix', 'cartao', 'dinheiro'].map(fm => (
                   <button key={fm} disabled={!quitado && !(vaiReceber > 0)}
                           className={'chip' + (pago > 0 && at.pagamento.forma === fm ? ' on' : '')}
-                          onClick={() => (quitado && at.pagamento.forma === fm ? desfazerPagamento(at.id)
-                            : quitado ? trocarForma(at.id, fm)
+                          onClick={() => (quitado ? (at.pagamento.forma !== fm && trocarForma(at.id, fm))
                             : receber(at.id, pago + vaiReceber, fm))}>{fm}</button>
                 ))}
               </div>
               <p className="at-dica">
-                {quitado ? 'Clique na forma marcada para desfazer o recebimento.'
+                {quitado && at.pagamento.forma === 'local'
+                  ? 'Dado como pago pelo fechamento automático. Se a cliente não pagou, desfaça abaixo.'
+                  : quitado ? 'Toque em outra forma para trocar.'
                   : vaiReceber > 0 ? `Escolha a forma para registrar ${brl(vaiReceber)}.`
                   : 'Valor inválido — apague o campo para receber o que falta.'}
               </p>
+              {/* Botão próprio, e não "clique na forma acesa": quem o fechamento
+                  automático quitou fica com a forma 'local', que não tem chip —
+                  justo o caso em que mais se quer desfazer. */}
+              {pago > 0 && (
+                <button className="btn btn-g btn-s btn-erro"
+                        onClick={() => window.confirm(`Desfazer ${brl(pago)} recebido?`) && desfazerPagamento(at.id)}>
+                  Desfazer recebimento
+                </button>
+              )}
             </div>
 
             {/* Uma ação por etapa: a seguinte. Faltou fica ao lado enquanto a

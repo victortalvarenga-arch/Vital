@@ -32,13 +32,14 @@ const Centro = ({ children }) => (
 
 function Entrar({ aoEntrar }) {
   const [modo, setModo] = useState(null);
-  const [f, setF] = useState({ nome: '', email: '', senha: '' });
+  const [pedeChave, setPedeChave] = useState(false);
+  const [f, setF] = useState({ nome: '', email: '', senha: '', chave: '' });
   const [erro, setErro] = useState(null);
   const [ocupado, setOcupado] = useState(false);
 
   useEffect(() => {
     api.precisaConfigurar()
-      .then(r => setModo(r.precisa ? 'primeiro' : 'login'))
+      .then(r => { setModo(r.precisa ? 'primeiro' : 'login'); setPedeChave(!!r.pedeChave); })
       .catch(() => setModo('login'));
   }, []);
 
@@ -67,6 +68,14 @@ function Entrar({ aoEntrar }) {
             : 'Este acesso é o nosso, e não abre o painel de nenhuma empresa-cliente.'}
         </p>
 
+        {primeiro && pedeChave && (
+          <div className="v-campo">
+            <label htmlFor="e-chave">Chave de instalação</label>
+            <input id="e-chave" required autoComplete="off" value={f.chave}
+                   onChange={e => setF(v => ({ ...v, chave: e.target.value }))} />
+            <span className="v-dica">A que está em VITAL_CHAVE_PRIMEIRO_ACESSO, nos segredos do servidor.</span>
+          </div>
+        )}
         {primeiro && (
           <div className="v-campo">
             <label htmlFor="e-nome">Seu nome</label>

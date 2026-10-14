@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { db } from '../db.js';
 import { rota } from '../lib/rota.js';
@@ -41,13 +42,42 @@ plataforma.use(identificarVital);
 
 /* ── entrar ─────────────────────────────────────────────────────────────── */
 
+/**
+ * A chave que destrava o primeiro acesso, ou `null` quando não é exigida.
+ *
+ * Banco de produção nasce sem ninguém da equipe, e o primeiro acesso cria um
+ * administrador da plataforma inteira: aberto, quem chegasse antes de nós no
+ * endereço recém-publicado ficava com o back-office. Em produção, só passa
+ * quem tem a chave de `VITAL_CHAVE_PRIMEIRO_ACESSO`, que mora nos segredos do
+ * servidor; sem ela definida, a rota fica desligada. Em desenvolvimento a chave
+ * é opcional — o seed e a suíte criam a equipe sem ela.
+ */
+function chaveExigida() {
+  const chave = process.env.VITAL_CHAVE_PRIMEIRO_ACESSO || '';
+  if (chave) return chave;
+  return process.env.NODE_ENV === 'production' ? false : null;
+}
+
+function chaveConfere(enviada, chave) {
+  const a = Buffer.from(String(enviada || ''));
+  const b = Buffer.from(chave);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 plataforma.get('/precisa-configurar', rota(async (req, res) => {
   const { n } = await db.get('SELECT COUNT(*) n FROM plataforma.usuarios');
-  res.json({ precisa: n === 0 });
+  res.json({ precisa: n === 0, pedeChave: n === 0 && chaveExigida() !== null });
 }));
 
 plataforma.post('/primeiro-acesso', rota(async (req, res) => {
   const { nome, email, senha } = req.body || {};
+  const chave = chaveExigida();
+  if (chave === false) {
+    return res.status(403).json({ erro: 'primeiro acesso desligado: defina VITAL_CHAVE_PRIMEIRO_ACESSO nos segredos do servidor' });
+  }
+  if (chave && !chaveConfere(req.body?.chave, chave)) {
+    return res.status(403).json({ erro: 'chave de instalação incorreta' });
+  }
   if (!nome || !email || String(senha || '').length < 8) {
     return res.status(400).json({ erro: 'informe nome, e-mail e senha de ao menos 8 caracteres' });
   }

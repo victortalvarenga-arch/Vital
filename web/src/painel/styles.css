@@ -118,6 +118,12 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .p-centro p{ color:var(--muted); font-size:14px; max-width:380px; }
 .p-fraco{ color:var(--muted); font-size:12px; }
 
+/* tela que falhou (ErroDeTela.jsx): o menu continua, só o miolo avisa */
+.et { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 48px 16px; color: var(--erro); }
+.et h2 { color: var(--ink); font-size: 19px; }
+.et p { color: var(--muted); font-size: 14px; max-width: 380px; margin: 0; }
+.et .et-detalhe { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; word-break: break-word; }
+
 .p-aviso{
   position:fixed; left:16px; right:16px; bottom:16px; max-width:400px; margin:0 auto;
   display:flex; align-items:center; gap:9px; padding:13px 17px; border-radius:12px;

@@ -181,6 +181,20 @@ sem `CONEXOES_SEGREDO` e as credenciais de cada provedor no `server/.env`. O
 resto do sistema roda sem elas. O cadastro nos consoles do Google e da Meta
 está no `ROADMAP.md`, Bloco 6b.
 
+## Rodar como em produção
+
+```bash
+npm run build   # instala as dependências e gera web/dist
+npm start       # a API passa a servir as telas também, em :3333
+```
+
+A produção (Fly.io) roda o mesmo, empacotado pelo `Dockerfile`. Para testar a
+imagem: `docker build -t vital .` e `docker run` com `DATABASE_URL` e
+`DATABASE_ADMIN_URL` — de dentro do container o banco local é
+`host.docker.internal`, com `?sslmode=disable` no fim da URL (fora de
+`localhost` a API liga TLS sozinha). Publicar de verdade está no `ROADMAP.md`,
+Bloco 13.
+
 ## Ver o banco por interface gráfica
 
 O próprio painel da Neon tem o que precisa: *Tables* mostra e edita as linhas, e

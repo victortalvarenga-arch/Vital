@@ -21,6 +21,31 @@ export async function adicionaisDe(servicoId, categoria) {
 }
 
 /**
+ * A mesma resposta de `adicionaisDe`, para vários serviços de uma vez:
+ * `Map(servicoId → [addonId])`.
+ *
+ * Existe para a vitrine. Chamar `adicionaisDe` por serviço era uma consulta
+ * por item do catálogo, em sequência — com servidor e banco longe um do outro,
+ * cada uma custa a viagem inteira, e a página da Laura chegou a 3,2 s.
+ */
+export async function adicionaisDeTodos(servicos) {
+  const porServico = new Map();
+  for (const l of await db.all('SELECT service_id, addon_id FROM service_addons')) {
+    if (!porServico.has(l.service_id)) porServico.set(l.service_id, []);
+    porServico.get(l.service_id).push(l.addon_id);
+  }
+  const porCategoria = new Map();
+  for (const l of await db.all('SELECT categoria, addon_id FROM category_addons')) {
+    if (!porCategoria.has(l.categoria)) porCategoria.set(l.categoria, []);
+    porCategoria.get(l.categoria).push(l.addon_id);
+  }
+  return new Map(servicos.map(s => [s.id, [...new Set([
+    ...(porServico.get(s.id) || []),
+    ...(porCategoria.get(s.categoria || '') || []),
+  ])].filter(id => id !== s.id)]));
+}
+
+/**
  * Valida os extras escolhidos e devolve o que somar ao agendamento.
  *
  * Nunca confie na lista que chega do site: alguém pode mandar qualquer id e

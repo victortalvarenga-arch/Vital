@@ -28,6 +28,7 @@ você for mexer.
 | [O registro do painel](#o-registro-do-painel) | Quem fez o quê, dentro da empresa |
 | [O back-office da Vital](#o-back-office-da-vital) | Ver todas as empresas sem ver o dado de nenhuma |
 | [Testes](#testes) | O que a suíte cobre e como ela roda |
+| [Hospedagem](#hospedagem) | Um serviço só no Fly.io em São Paulo, servindo API e telas |
 | [Contas conectadas](#contas-conectadas) | Google e Instagram: token cifrado, retorno assinado, job de hora em hora |
 | [WhatsApp](#whatsapp) | Fila, provider manual e Cloud API |
 | [LGPD](#lgpd) | Dado pessoal, optin, dado sensível |
@@ -276,11 +277,30 @@ WhatsApp dentro da própria tela: calendário cinza sem uma palavra é o que uma
 cliente de verdade vê toda vez que a agenda lota. A navegação de mês para em
 `janelaDias`, porque além dele só haveria mês vazio atrás de mês vazio.
 
+**Empresa sem nada para agendar não oferece agendamento.** O endereço de uma
+empresa recém-cadastrada já responde antes de ela ter catálogo. Sem serviço e
+sem promoção, o site esconde todo botão de agendar (barra, abertura, "Agende"
+da Clínica), diz "Em breve" no lugar dos serviços, e o rodapé só mostra
+"Contato" se houver algum contato e só mostra as formas de pagamento se houver
+o que pagar.
+
+**Categoria é opcional, e nenhuma palavra nossa vira categoria.** Serviço criado
+sem categoria fica com `categoria = ''` — já foi `'Geral'`, que aparecia no site
+como cartão de grupo. O site e a janela de agendamento chamam esse grupo de
+"Serviços". Na Clínica, categoria com um serviço só mostra o próprio serviço,
+não um cartão "1 opção · a partir de".
+
+**A chave "Fotos dos serviços" é aplicada na vitrine**, não em cada componente:
+desligada, `/publico/vitrine` manda `foto: ''` e o site inteiro cai na inicial.
+
 **A gravação confere as mesmas regras que a tela mostra.** Agendamento com
 `origem: 'site'` é recusado se o serviço está arquivado, se a profissional está
 inativa ou não faz aquele serviço, ou se a data está fora do prazo — passado,
-além de `janelaDias`, ou hoje antes da antecedência (`foraDoPrazoDoSite`, em
-`lib/availability.js`, a mesma regra que pinta o calendário). `GET
+além de `janelaDias`, ou antes da antecedência (`foraDoPrazoDoSite`, em
+`lib/availability.js`, a mesma regra que pinta o calendário). **A antecedência
+conta a partir de agora e atravessa a meia-noite** (`primeiroMinutoLiberado`):
+com 24h configuradas, às 23h amanhã só abre às 23h. Até 2026-10-14 ela só valia
+para o dia de hoje, e às 23h o site oferecia amanhã às 8h. `GET
 /publico/horarios` devolve lista vazia para data fora do prazo. Até 2026-10-10
 só a tela escondia isso, e a rota aceitava: um agendamento de anteontem virava
 atendimento concluído e pago no fechamento automático. O painel continua livre
@@ -817,6 +837,23 @@ quem vê tudo, ou o id do profissional para quem vê só o próprio. As rotas de
 agenda e de relatório passam por ele em vez de decidir cada uma. Um funcionário
 sem vínculo com a equipe recebe um id impossível — **falha fechada**: devolver
 `null` ali abriria o negócio inteiro por um cadastro incompleto.
+
+**A taxa de comissão também é recortada, não só o valor.** `lib/taxas.js`
+(`servicosPara`, `profissionaisPara`) tira de `/api/estado`, `/api/servicos` e
+`/api/profissionais` a taxa de cada colega e a exceção de cada uma em cada
+serviço; quem não vê tudo recebe só a própria. Até 2026-10-14 o valor em reais
+vinha recortado pelo `/relatorios` e a taxa saía inteira para qualquer papel.
+Coberto em `test/taxas.test.js`.
+
+**Uma tela que quebra não derruba o painel.** `ErroDeTela.jsx` envolve o miolo
+(não o menu) e, com `key` igual ao nome da tela, zera ao trocar de tela. Antes,
+uma exceção ao desenhar apagava tudo — foi assim que o "Encaixe" passou semanas
+"não fazendo nada".
+
+**Desfazer um recebimento é um botão próprio**, presente sempre que entrou
+algum valor. Era "clique na forma marcada", e quem o fechamento automático
+quitou fica com a forma `'local'`, que não tem chip — o caso em que mais se
+quer desfazer não tinha como.
 
 **O Resumo (tela inicial) responde três perguntas, de cima para baixo, na ordem
 em que alguém abre o painel de manhã**: *como está o dia agora* (saudação pelo
@@ -2048,6 +2085,14 @@ empresas-cliente. Nunca é servido no endereço de uma empresa, e a cor é fixa 
 o site e o painel aplicam a marca do negócio em runtime porque são dele; esta
 página é nossa.
 
+**O primeiro da nossa equipe entra com chave, em produção.** Com
+`plataforma.usuarios` vazia, `POST /api/plataforma/primeiro-acesso` cria um
+administrador da plataforma inteira — e o banco de produção nasce vazio, então
+aberto ele seria de quem chegasse primeiro ao endereço recém-publicado. Em
+produção a rota exige `VITAL_CHAVE_PRIMEIRO_ACESSO` (comparada em tempo
+constante) e, sem a variável, fica desligada; a tela pede a chave quando
+`precisa-configurar` diz `pedeChave`. Em desenvolvimento a chave é opcional.
+
 **A identidade da nossa equipe é outra coisa.** `plataforma.usuarios`,
 `plataforma.sessoes` e o cookie `sessao_vital` — nenhuma referência cruzada com
 `public.users`. O que separa de verdade são as tabelas: um token de uma nunca é
@@ -2183,6 +2228,58 @@ justamente o lugar onde o motor faz essa soma. O teste foi refeito para entrar
 por `horariosPorServico` e `diasComVaga`. Teste verde que continua verde com o
 código quebrado não prova nada — vale repetir esse exercício ao cobrir uma parte
 nova.
+
+## Hospedagem
+
+**Um processo Node faz tudo em produção:** API, telas e jobs. Fly.io em São
+Paulo (`gru`), banco na Neon também em São Paulo (branch `production`), imagens
+no Cloudflare R2, DNS na Cloudflare sem proxy. O motivo da escolha — com a
+medição de latência que decidiu a região — está no `ROADMAP.md`, "Decisões
+tomadas"; o passo a passo da publicação, no Bloco 13.
+
+```
+navegador → DNS Cloudflare (*.dominio) → Fly.io gru: node server/src/index.js
+                                            ├─ /api/*     rotas
+                                            ├─ /assets/*  build do Vite, cache de 1 ano
+                                            ├─ /          vital.html no domínio da Vital,
+                                            │             index.html (site) no da empresa
+                                            └─ cron       jobs/mensagens.js
+                                          → Neon (Postgres)   → R2 (imagens)
+```
+
+**A API serve o build do front** (`web/dist`) quando a pasta existe — só em
+produção; em desenvolvimento quem serve é o Vite, e nada muda. `npm run build`
+na raiz instala as dependências e gera o `dist`; `npm start` sobe a API.
+Site, painel e página da Vital continuam três bundles (`index.html`,
+`painel.html`, `vital.html`); o que muda é quem entrega o arquivo.
+
+**A imagem é o `Dockerfile` da raiz:** um estágio instala tudo e gera o `dist`,
+outro leva só o servidor (sem dependência de desenvolvimento) e o `dist`, e roda
+como usuário `node`. O `fly.toml` deixa a máquina **sempre ligada**
+(`auto_stop_machines = "off"`) — desligada por ociosidade, o relógio dos jobs
+para — e confere a saúde em `/api/saude`. Segredo nenhum mora nos dois
+arquivos: vai por `fly secrets`.
+
+**Servidor e banco precisam estar no mesmo lugar.** Cada tela consulta o banco
+em sequência — de 4 a 27 vezes, medido em 2026-10-14 — porque a requisição
+inteira roda numa conexão só (é o que faz o RLS valer). A distância entre
+servidor e banco se multiplica por esse número: com os dois juntos, a tela
+custa até 11 ms no servidor; com 115 ms entre eles, até 3,2 s. Mudar a
+hospedagem de região sem mudar o banco junto é deixar o site lento.
+
+**Por que não site e API separados.** A empresa é decidida pelo `Host` (ver
+"De quem é a requisição"), e um proxy entre duas hospedagens reescreve esse
+cabeçalho; o cookie de sessão é do endereço da empresa, e API em outro domínio
+o perderia; e o cron precisa de processo de pé, que função serverless não tem.
+Mesmo endereço resolve os três de uma vez.
+
+**Na raiz do domínio da Vital (com ou sem `www`) abre `vital.html`**, a página
+de cadastro — e não o site da empresa padrão. Quem decide o que é "domínio da
+Vital" é `BASE_DOMINIO`; sem ele, a regra não se aplica.
+
+**Uma instância só, por enquanto.** Migrations rodam no boot e os jobs rodam
+dentro do processo: duas instâncias migrariam juntas e disparariam a mesma
+fila. Os dois itens para escalar estão em "Importante para produção".
 
 ## Contas conectadas
 
