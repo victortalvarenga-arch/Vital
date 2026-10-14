@@ -890,11 +890,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       '2027-03-05'` em `rotas-agendamento.test.js` (e as datas fixas de
       `adicionais`, `combos`, `funil`) passam a falhar no dia em que virarem
       passado. Trocar por datas relativas a `hoje()` antes disso.
-- [ ] **O percurso de uma empresa nova não é automatizado.** Em 2026-10-10 foi
-      feito por script avulso (cadastro → assistente → site → agendamento →
-      painel → funcionária → back-office, 67 passos) e achou três falhas que
-      a suíte não pegava, porque cada teste começa de um cenário pronto e não
-      do cadastro. Vale virar teste da suíte.
 - [ ] **O site não tem teste de fluxo nenhum.** Um passo do meio do
       agendamento ficou sendo pulado (um `setPasso` no lugar de `avancar()`) e
       ninguém notou até refazer o fluxo à mão em 2026-09-19 — a suíte só cobre

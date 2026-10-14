@@ -309,6 +309,35 @@ export async function criarEmpresa(db, { id, slug, nome, dominio = '' }) {
   esquecerCacheDeEmpresas();
 }
 
+/**
+ * Apaga uma empresa inteira e tudo dela, pela conexão de administrador.
+ *
+ * A aplicação não pode — nem apagar empresa, nem as tabelas que só registram
+ * (`logs`, `funil`). As tabelas saem da própria estrutura do banco, as que têm
+ * `tenant_id`, e não de uma lista escrita aqui: tabela nova não deixa resto. A
+ * ordem das chaves estrangeiras se resolve tentando de novo o que falhou.
+ */
+export async function apagarEmpresa(id) {
+  const { rows } = await admin.query(`
+    SELECT c.table_schema AS esquema, c.table_name AS tabela
+      FROM information_schema.columns c
+      JOIN information_schema.tables t
+        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+     WHERE c.column_name = 'tenant_id' AND c.table_schema IN ('public', 'plataforma')
+       AND c.table_name <> 'tenants'`);
+  let faltam = rows;
+  for (let volta = 0; faltam.length && volta < 10; volta++) {
+    const ainda = [];
+    for (const t of faltam) {
+      try { await admin.query(`DELETE FROM "${t.esquema}"."${t.tabela}" WHERE tenant_id = $1`, [id]); }
+      catch { ainda.push(t); }
+    }
+    faltam = ainda;
+  }
+  if (faltam.length) throw new Error(`não consegui limpar: ${faltam.map(t => t.tabela).join(', ')}`);
+  await admin.query('DELETE FROM plataforma.tenants WHERE id = $1', [id]);
+}
+
 export const SENHA = 'senha-de-teste-1234';
 
 /**

@@ -2196,6 +2196,16 @@ rotas faladas por HTTP, como o navegador falaria; o isolamento entre empresas; e
 a fila de WhatsApp. Contar quantos são aqui só garante um número errado na
 próxima semana — `ls server/test` responde melhor.
 
+**Um teste parte do nada: `percurso.test.js`.** Todos os outros começam de um
+cenário pronto; este cadastra uma empresa pela rota pública e anda o caminho de
+um cliente de verdade — assistente, catálogo, site, agendamento, painel,
+pagamento, promoção, funcionária, exportação — num teste só, porque cada passo
+depende do anterior. Nasceu de um percurso feito à mão que achou três falhas
+que a suíte não via, e a primeira delas só aparecia vindo do cadastro. As datas
+são calculadas a partir de hoje, e a empresa sai inteira no fim por
+`apagarEmpresa()` (`ambiente.js`), que acha as tabelas pela coluna `tenant_id`
+em vez de uma lista — tabela nova não deixa resto.
+
 **A fila tem teste porque é o único código que roda sozinho e alcança gente de
 verdade.** O cron chama, e a mensagem sai para o telefone da cliente de um
 cliente nosso — um defeito ali não aparece em tela nenhuma, aparece no celular de
