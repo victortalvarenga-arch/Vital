@@ -27,6 +27,8 @@ async function req(caminho, { method = 'GET', body } = {}) {
 export const api = {
   /* ── cadastro de empresa: aberto, é a porta de entrada do produto ── */
   enderecoLivre: nome => req(`/cadastro/endereco-livre?nome=${encodeURIComponent(nome)}`),
+  // `{ turnstile: chave | null }` — se a verificação anti-robô está ligada.
+  configCadastro: () => req('/cadastro/config'),
   cadastrar: dados => req('/cadastro', { method: 'POST', body: dados }),
 
   /* ── a nossa equipe ── */

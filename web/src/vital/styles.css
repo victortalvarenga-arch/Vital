@@ -102,6 +102,9 @@ h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 600; }
 .v-endereco { font-size: 12.5px; color: var(--v-ok); display: inline-flex; align-items: center; gap: 5px; }
 .v-endereco.tomado { color: var(--v-alerta); }
 
+/* O widget anti-robô reserva a altura dele (65px, o tamanho do Turnstile):
+   sem isso o botão pula para baixo quando o widget termina de carregar. */
+.v-turnstile { min-height: 65px; margin: 4px 0 14px; }
 .v-erro {
   font-size: 13px; color: var(--v-erro); display: flex; align-items: center; gap: 6px;
   margin: 0 0 12px;

@@ -1131,6 +1131,15 @@ de WhatsApp e o dono. **Catálogo, equipe e clientes ficam de fora de propósito
 Serviço inventado por nós é serviço que a empresa vai ter de apagar antes de
 cadastrar o dela — e, enquanto não apagar, está no ar, no site, para agendarem.
 
+**O cadastro tem dois freios contra robô.** Limite de 5 por hora do mesmo IP, e
+o Cloudflare Turnstile (`lib/humano.js`): com `TURNSTILE_SECRET` definida, a
+tela carrega o widget (a chave pública vem de `GET /api/cadastro/config`) e o
+servidor confere o token na Cloudflare antes de criar qualquer coisa. Se a
+Cloudflare não responde, o cadastro é recusado com "tente de novo" — deixar
+passar quando a conferência cai é abrir a porta justo para quem conseguir
+derrubá-la. Sem a variável, não confere: desenvolvimento e suíte. Coberto em
+`test/humano.test.js`.
+
 `POST /api/cadastro` é a única rota montada **antes** do middleware de empresa:
 todas as outras precisam saber de quem é a requisição antes de tocar no banco, e
 esta é a que decide isso. Ela não abre sessão — cookie é preso ao host que o

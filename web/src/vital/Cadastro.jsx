@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Calendar, Check, MessageCircle, Sparkles, TriangleAlert } from 'lucide-react';
 import { api } from './api.js';
 
@@ -20,6 +20,7 @@ export default function Cadastro() {
   const [erro, setErro] = useState(null);
   const [pronto, setPronto] = useState(null);
   const muda = patch => setF(v => ({ ...v, ...patch }));
+  const robo = useTurnstile();
 
   // O endereço é conferido enquanto se digita o nome: descobrir que está tomado
   // depois de preencher a senha é o tipo de coisa que faz desistir.
@@ -36,8 +37,13 @@ export default function Cadastro() {
     e.preventDefault();
     setErro(null);
     setOcupado(true);
-    try { setPronto(await api.cadastrar(f)); }
-    catch (erro) { setErro(erro.message); setOcupado(false); }
+    try { setPronto(await api.cadastrar({ ...f, turnstile: robo.token })); }
+    catch (erro) {
+      setErro(erro.message);
+      setOcupado(false);
+      // O token é de uso único: a tentativa seguinte precisa de outro.
+      robo.reiniciar();
+    }
   };
 
   if (pronto) return <Pronto dados={pronto} />;
@@ -112,9 +118,11 @@ export default function Cadastro() {
               <span className="v-dica">Ao menos 8 caracteres.</span>
             </div>
 
+            {robo.ligado && <div ref={robo.lugar} className="v-turnstile" />}
+
             {erro && <p className="v-erro"><TriangleAlert size={15} /> {erro}</p>}
 
-            <button className="v-btn" type="submit" disabled={ocupado}>
+            <button className="v-btn" type="submit" disabled={ocupado || (robo.ligado && !robo.token)}>
               {ocupado ? 'Criando…' : <>Criar minha agenda <ArrowRight size={17} /></>}
             </button>
           </form>
@@ -122,6 +130,55 @@ export default function Cadastro() {
       </main>
     </div>
   );
+}
+
+/**
+ * O widget anti-robô do Cloudflare Turnstile, quando o servidor diz que está
+ * ligado (`/api/cadastro/config`). O script da Cloudflare só é baixado nesse
+ * caso: no desenvolvimento, sem chave, a página nem fala com a Cloudflare.
+ *
+ * Na maior parte das vezes a pessoa não vê desafio nenhum — o widget confere
+ * sozinho e libera o botão. O token vale cinco minutos e uma vez só.
+ */
+function useTurnstile() {
+  const [chave, setChave] = useState(null);
+  const [token, setToken] = useState('');
+  const lugar = useRef(null);
+  const widget = useRef(null);
+
+  useEffect(() => {
+    api.configCadastro().then(r => setChave(r.turnstile)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!chave || !lugar.current) return;
+    const desenhar = () => {
+      if (widget.current != null || !window.turnstile) return;
+      widget.current = window.turnstile.render(lugar.current, {
+        sitekey: chave,
+        language: 'pt-BR',
+        // A página é clara; no automático, o widget seguia o tema escuro do
+        // aparelho e virava uma faixa preta no meio do formulário.
+        theme: 'light',
+        callback: setToken,
+        'expired-callback': () => setToken(''),
+        'error-callback': () => setToken(''),
+      });
+    };
+    if (window.turnstile) { desenhar(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true;
+    s.onload = desenhar;
+    document.head.appendChild(s);
+  }, [chave]);
+
+  const reiniciar = () => {
+    setToken('');
+    if (widget.current != null) window.turnstile?.reset(widget.current);
+  };
+
+  return { ligado: !!chave, token, lugar, reiniciar };
 }
 
 /**

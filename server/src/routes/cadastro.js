@@ -3,6 +3,8 @@ import { db } from '../db.js';
 import { rota } from '../lib/rota.js';
 import { provisionarEmpresa, slugDe } from '../lib/provisionar.js';
 import { criarPrimeiroDono } from '../lib/auth.js';
+import { limite } from '../lib/limite.js';
+import { chaveDoSite, conferirHumano } from '../lib/humano.js';
 
 export const cadastro = Router();
 
@@ -13,10 +15,9 @@ export const cadastro = Router();
  * do sistema que roda sem empresa nenhuma definida — é ela que cria uma. Todas
  * as outras precisam saber de quem é a requisição antes de tocar no banco.
  *
- * **Isto é a porta de entrada do produto e está aberta para a internet.** Antes
- * do primeiro cliente pagante, precisa de freio contra cadastro automatizado —
- * confirmação por e-mail ou captcha. Está anotado em `ROADMAP.md`, "Importante
- * para produção".
+ * **Isto é a porta de entrada do produto e está aberta para a internet.** Dois
+ * freios contra cadastro automatizado: limite por IP e o Turnstile da
+ * Cloudflare (`lib/humano.js`), que só vale com `TURNSTILE_SECRET` definida.
  */
 
 /** Diz se um endereço está livre, para a tela avisar antes de enviar. */
@@ -26,8 +27,21 @@ cadastro.get('/endereco-livre', rota(async (req, res) => {
   res.json({ slug, livre: !tomado });
 }));
 
-cadastro.post('/', rota(async (req, res) => {
+/** O que a tela de cadastro precisa saber antes de mostrar o formulário. */
+cadastro.get('/config', (req, res) => res.json({ turnstile: chaveDoSite() }));
+
+/**
+ * Cinco cadastros por hora do mesmo IP. Ninguém abre cinco empresas numa hora;
+ * quem tenta é script — e o Turnstile sozinho não segura um robô que resolve
+ * o desafio de verdade, só o encarece.
+ */
+const LIMITE_DE_CADASTROS = limite({ nome: 'cadastro', max: 5, janelaSeg: 3600 });
+
+cadastro.post('/', LIMITE_DE_CADASTROS, rota(async (req, res) => {
   const b = req.body || {};
+
+  const robo = await conferirHumano(b.turnstile, req.ip);
+  if (robo) return res.status(400).json({ erro: robo, verificacao: true });
 
   if (String(b.nome || '').trim().length < 2) {
     return res.status(400).json({ erro: 'informe o nome do negócio' });

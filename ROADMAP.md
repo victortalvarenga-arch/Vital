@@ -694,6 +694,9 @@ cada passo só depende dos anteriores.
        `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` e
        `EMAIL_REMETENTE="Vital <nao-responda@<domínio>>"`. Sem isso, "Esqueci
        minha senha" responde normalmente e nenhum e-mail sai.
+10. [ ] **Anti-robô no cadastro (Turnstile, grátis).** Painel Cloudflare →
+        Turnstile → adicionar o domínio; nos segredos, `TURNSTILE_SITE_KEY` e
+        `TURNSTILE_SECRET`. Sem isso o cadastro fica só com o limite por IP.
 
 **Depois do primeiro deploy (conferir antes de entregar):**
 - [ ] **Criar o nosso acesso em `https://<domínio>/vital.html#equipe`**, com a
