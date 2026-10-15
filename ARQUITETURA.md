@@ -938,6 +938,17 @@ essa função, e **nenhuma tela refaz a conta**: a tela de Profissionais lê a
 produção e a comissão de cada pessoa do `/relatorios/resumo`, como o Financeiro.
 Antes ela calculava no navegador e discordava do Financeiro.
 
+**A regra de um atendimento concluído fica gravada nele** (migration 025):
+`comissao_tipo`, `comissao_taxa` e `comissao_fixo` em `appointments`, e
+`comissaoCentavos()` usa essas colunas quando existem. Antes, a comissão saía
+sempre da taxa de hoje, e subir a de alguém reescrevia o Financeiro de meses
+atrás. Quem grava é um **gatilho no banco** (`congelar_comissao`), ao virar
+`concluido` — e não a rota, porque o atendimento é concluído pelo botão, pelo
+fechamento automático e pelo seed, e cada caminho novo seria um lugar para
+esquecer. Sair de `concluido` apaga; concluir de novo, ou trocar a pessoa ou o
+serviço de um concluído, grava a regra de agora. Os concluídos antes da 025
+receberam a regra do dia da migration. Coberto em `test/comissao.test.js`.
+
 Edita-se pelos dois lados: na tela de Serviços (comissão do serviço e a de cada
 pessoa habilitada) e na ficha da profissional, que liga e desliga os serviços
 dela e grava a exceção em cada um de uma vez
@@ -2247,8 +2258,8 @@ agendamentos e bloqueios em SQL, com RLS por baixo; um banco simulado testaria o
 simulador. A suíte usa um banco à parte — o nome do de trabalho mais `_teste`
 (`neondb_teste` na Neon) —, criado sozinho na primeira execução, no mesmo projeto,
 e apagado e repovoado a cada teste. `test/ambiente.js` recusa rodar se o **nome do
-banco** não terminar em `_teste` (olha o caminho da URL, não o fim dela, que agora
-traz `?sslmode=require`), porque um dia alguém vai rodar `npm test` apontando para
+banco** não terminar em `_teste` (olha o caminho da URL, não o fim dela, que
+traz `?sslmode=verify-full`), porque um dia alguém vai rodar `npm test` apontando para
 o banco de trabalho. Pela rede a suíte leva uns 4 minutos.
 
 **Uma exceção, e só uma: `periodo-financeiro.test.js` importa de `web/`.** É

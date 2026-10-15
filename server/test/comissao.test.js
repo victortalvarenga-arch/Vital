@@ -67,6 +67,52 @@ async function salvarServico(mudanca) {
   return dona('PUT', '/api/servicos/s1', { ...atual, ...mudanca });
 }
 
+describe('a comissão do que já foi concluído não muda (migration 025)', () => {
+  test('mudar a taxa da pessoa depois não reescreve o passado', async () => {
+    await atendidoEPago();
+    assert.equal(await custos(), 40);
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE staff SET comissao=50 WHERE id='p1'`));
+    assert.equal(await custos(), 40, 'o atendimento concluído guarda os 40% de quando foi feito');
+  });
+
+  test('mudar a taxa do serviço também não', async () => {
+    await atendidoEPago();
+    assert.equal((await salvarServico({ comissao: 10 })).status, 200);
+    assert.equal(await custos(), 40);
+  });
+
+  test('a regra é gravada ao concluir, nem antes nem depois', async () => {
+    const r = await dona('POST', '/api/agendamentos', {
+      clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: DIA, hora: '10:00', forcar: true,
+    });
+    const regra = () => db.db.comEmpresa('default', () =>
+      db.db.get('SELECT comissao_tipo, comissao_taxa FROM appointments WHERE id = ?', r.corpo.id));
+    assert.deepEqual(await regra(), { comissao_tipo: null, comissao_taxa: null }, 'agendado ainda não tem regra');
+    await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'concluido' });
+    assert.deepEqual(await regra(), { comissao_tipo: 'percentual', comissao_taxa: 40 });
+    await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'falta' });
+    assert.deepEqual(await regra(), { comissao_tipo: null, comissao_taxa: null }, 'saiu de concluído, a regra sai junto');
+  });
+
+  test('o fixo congela do mesmo jeito', async () => {
+    await db.db.comEmpresa('default', () =>
+      db.db.run(`UPDATE staff SET comissao_tipo='fixo', comissao_fixo=15 WHERE id='p1'`));
+    await atendidoEPago();
+    assert.equal(await custos(), 15);
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE staff SET comissao_fixo=30 WHERE id='p1'`));
+    assert.equal(await custos(), 15);
+  });
+
+  test('reabrir e concluir de novo grava a regra de agora', async () => {
+    await atendidoEPago();
+    const id = (await dona('GET', `/api/agendamentos?de=${DIA}&ate=${DIA}`)).corpo[0].id;
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE staff SET comissao=50 WHERE id='p1'`));
+    await dona('PUT', `/api/agendamentos/${id}`, { status: 'confirmado' });
+    await dona('PUT', `/api/agendamentos/${id}`, { status: 'concluido' });
+    assert.equal(await custos(), 50);
+  });
+});
+
 describe('qual comissão vale', () => {
   test('sem nada no serviço, vale a da profissional', async () => {
     await atendidoEPago();

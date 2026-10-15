@@ -37,8 +37,19 @@ const TAXA = 'COALESCE(ss.comissao, sv.comissao, p.comissao, 0)';
  *
  * Arredonda por atendimento; somar e arredondar no fim mudaria o centavo de
  * alguém. Precisa de `COM_TAXA` no FROM.
+ *
+ * Atendimento concluído usa a regra gravada nele quando foi concluído
+ * (`a.comissao_tipo`, migration 025), e não a de hoje.
  */
 const comissaoCentavos = base => `CASE
+    -- Atendimento concluído leva a regra que valia na hora (migration 025):
+    -- mudar a taxa hoje não reescreve o caixa de meses atrás.
+    WHEN a.comissao_tipo = 'fixo'
+      THEN ROUND(COALESCE(a.comissao_fixo, 0) * 100
+                 * CASE WHEN a.valor > 0 THEN LEAST(1, ${base} / a.valor) ELSE 1 END)
+    WHEN a.comissao_tipo = 'percentual'
+      THEN ROUND(${base} * 100 * a.comissao_taxa / 100)
+    -- Ainda não concluído: a regra viva.
     WHEN ss.comissao IS NULL AND sv.comissao IS NULL AND p.comissao_tipo = 'fixo'
       THEN ROUND(COALESCE(p.comissao_fixo, 0) * 100
                  * CASE WHEN a.valor > 0 THEN LEAST(1, ${base} / a.valor) ELSE 1 END)

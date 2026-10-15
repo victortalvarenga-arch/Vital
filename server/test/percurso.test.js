@@ -31,16 +31,22 @@ after(async () => {
   await db.pool.end();
 });
 
-/** Um dia útil daqui a pelo menos dois dias: fora da antecedência, dentro da jornada. */
-function diaUtil(minimo = 2) {
-  let d = dates.addDias(dates.hoje(), minimo);
+/**
+ * O primeiro dia útil a partir de `desde`. Encadeado, e não "hoje + N": numa
+ * quinta, hoje+2 e hoje+3 caem os dois na segunda, e o teste marcava a
+ * promoção em cima do atendimento — só falhava em certos dias da semana.
+ */
+function diaUtil(desde) {
+  let d = desde;
   while ([0, 6].includes(dates.diaSemana(d))) d = dates.addDias(d, 1);
   return d;
 }
 
 test('uma empresa nova, do cadastro ao primeiro atendimento', async () => {
   const passo = (n, ok, detalhe) => assert.ok(ok, `passo ${n}: ${detalhe}`);
-  const DIA = diaUtil();
+  // Dois dias à frente: fora da antecedência, dentro da jornada.
+  const DIA = diaUtil(dates.addDias(dates.hoje(), 2));
+  const DIA_DA_PROMOCAO = diaUtil(dates.addDias(DIA, 1));
   const SEMANAL = Object.fromEntries([1, 2, 3, 4, 5].map(d => [d, ['09:00', '18:00']]));
 
   // 1. Cadastro pela página da Vital.
@@ -133,7 +139,7 @@ test('uma empresa nova, do cadastro ao primeiro atendimento', async () => {
   passo(9, (await site('GET', '/api/publico/vitrine')).corpo.combos.some(c => c.id === combo.id), 'a promoção aparece no site');
   const venda = await site('POST', '/api/publico/agendar', {
     fone: '47966663333', nome: 'Elis Percurso', nascimento: '1992-03-03',
-    comboId: combo.id, profissionalId: ana, data: diaUtil(3), hora: '09:00', formaPagamento: 'local',
+    comboId: combo.id, profissionalId: ana, data: DIA_DA_PROMOCAO, hora: '09:00', formaPagamento: 'local',
   });
   passo(9, venda.status === 201 && venda.corpo.agendamentos.length === 2, JSON.stringify(venda.corpo));
 

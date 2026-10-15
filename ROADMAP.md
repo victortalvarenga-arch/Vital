@@ -733,13 +733,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Banco
 
-- [ ] **`sslmode=require` na URL do Neon faz o `pg` avisar em toda execução**
-      que o modo vai mudar de semântica na próxima versão maior
-      (`pg-connection-string` v3 / `pg` v9). Hoje `require` vale como
-      `verify-full`; se o comportamento mudar, a conexão pode ficar mais frouxa
-      sem ninguém perceber. Trocar por `sslmode=verify-full` explícito quando
-      atualizar o `pg`, e conferir que `sslPara()` (`lib/ambiente.js`), que passa
-      `rejectUnauthorized: false`, não anula a verificação.
 - [ ] **O branch `dev` e o `production` da Neon não são distinguíveis pela URL
       que o código enxerga**, só pelo `VITAL_BANCO_DESCARTAVEL`. Se alguém
       copiar o `.env` de desenvolvimento para o servidor de produção, o `reset`
@@ -771,13 +764,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       mostra embaixo do nome (`site/Clinica.jsx`). Quem já tinha função fica
       com ela para sempre; quem é cadastrado agora, sem. Decidir: tirar do
       site também, ou mostrar ali os serviços no lugar.
-- [ ] **A comissão não é congelada no atendimento.** Ela é calculada com a
-      taxa de hoje (`comissaoCentavos()`, em `routes/relatorios.js`), então mudar a comissão
-      de um serviço ou de uma pessoa muda o lucro e a comissão dos meses
-      passados no Resumo e no Financeiro. Já valia para `staff.comissao`; com
-      três níveis (migration 020) fica mais fácil de acontecer. O conserto é
-      gravar a taxa em `appointments` quando o atendimento é concluído e somar
-      a gravada, como o combo já faz com o `valor` rateado.
 - [ ] **Extras pagam a comissão do serviço principal.** O atendimento inteiro,
       adicionais incluídos, usa a taxa do serviço principal. Se o extra tiver
       comissão diferente, ela é ignorada. Dividir certo exige decidir a que
@@ -1109,9 +1095,13 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] **`DATABASE_ADMIN_URL` é credencial de deploy, não da aplicação.** Ela
       pode criar tabela e ignora RLS. O processo que atende requisição nunca
       deve ter acesso a ela.
-- [ ] **TLS obrigatório no gerenciado.** `db.js` já liga sozinho quando a URL
-      não é localhost; conferir se o provedor exige certificado verificado
-      (hoje está `rejectUnauthorized: false`).
+- [x] ~~TLS sem conferir o certificado.~~ Resolvido em 2026-10-15:
+      `sslPara()` exige certificado válido, e as URLs usam
+      `sslmode=verify-full` (`lib/ambiente.js`, `test/tls.test.js`). Na
+      prática a conferência já valia — o `sslmode=require` da URL passava por
+      cima do `rejectUnauthorized: false` do código —, mas uma URL sem
+      `sslmode` a desligaria em silêncio. **Ao montar as URLs de produção,
+      `?sslmode=verify-full` no fim.**
 - [ ] **Backup.** O gerenciado faz sozinho; confirmar a frequência e, mais
       importante, **testar uma restauração** antes de ter dado real.
 - [ ] `npm run reset` derruba o schema inteiro. Já recusa rodar fora de
