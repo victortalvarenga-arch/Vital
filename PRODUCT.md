@@ -98,11 +98,11 @@ Duas marcas distintas coexistem no mesmo produto, e nunca se misturam:
 - **A marca de cada empresa-cliente** vem do banco, aplicada em runtime nos
   bundles de site e painel — cor, logo, capa e nome são dela, configuráveis
   por ela mesma. Nenhuma paleta ou identidade é fixa no CSS para esse lado.
-- **A marca da Vital** é fixa e já está em código (`web/src/vital/styles.css`,
-  ainda sem DESIGN.md que a documente formalmente): roxo `#4B2E83` como cor
-  de marca, tipografia Inter, `IBM Plex Mono` para trechos de registro/log.
-  Aparece só em `vital.html` (cadastro de empresa e back-office da Vital) —
-  nunca no site ou painel de uma empresa-cliente.
+- **A marca da Vital** é fixa e está documentada em `DESIGN.md`. Hoje tem
+  duas vozes: a página de apresentação e cadastro (`web/src/vital/inicio.css`)
+  é verde e papel, com títulos em Playfair Display e texto em DM Sans; o back-office
+  (`web/src/vital/styles.css`) segue roxo `#4B2E83` e IBM Plex. Aparece só em
+  `vital.html` — nunca no site ou painel de uma empresa-cliente.
 
 ## Evidence on Hand
 
@@ -141,8 +141,9 @@ vem de uma cliente e não de nós.
 
 **Ainda nenhum depoimento, logo de cliente ou número de uso deve ser
 fabricado** em nenhuma superfície — a primeira cliente real ainda não
-publicou nada, e a página de cadastro (`vital.html`) continua podendo falar
-só do que o produto faz, nunca de quem já usa.
+publicou nada, e a página de apresentação (`vital.html`) continua podendo
+falar só do que o produto faz, nunca de quem já usa — nem nos desenhos de
+exemplo dela, que não têm nota de Google nem depoimento.
 
 As avaliações do Google no site de uma empresa não furam essa regra: vêm da
 ficha dela, pela conta que ela mesma conectou, com a nota e o total reais ao

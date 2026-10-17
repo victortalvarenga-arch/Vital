@@ -761,6 +761,16 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Produto
 
+- [ ] **A marca da Vital tem duas cores.** A página de apresentação (out/2026)
+      nasceu verde, com títulos em serifa, a partir de uma referência que o dono
+      trouxe; o back-office (`#equipe`) continua roxo `#4B2E83`. Quem cria a
+      conta não vê o back-office, então ninguém de fora estranha hoje — mas
+      logo, favicon e e-mail precisam de uma cor só. Decidir se o roxo segue o
+      verde. Ver `DESIGN.md`, "Vital — The Showcase".
+- [ ] **A página de apresentação fala "Avaliações do Google" e "Instagram"
+      como se estivessem ligados**, e eles dependem dos cadastros na Google e
+      na Meta (Bloco 13). Antes de divulgar a página, conferir que as duas
+      conexões funcionam em produção — ou tirar a frase.
 - [ ] **A função da profissional não se edita mais, mas ainda aparece no site.**
       O campo saiu da ficha de Profissionais (os serviços já dizem o que a
       pessoa faz), mas `staff.funcao` continua indo para a vitrine e a Clínica

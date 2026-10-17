@@ -167,8 +167,10 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    Comecar.jsx (assistente de primeira configuração),
                    Formularios.jsx (monta), Ficha.jsx (responde no atendimento),
                    Registro.jsx (quem fez o quê)
-  src/vital/       Cadastro.jsx (empresa nova), Equipe.jsx (back-office),
-                   api.js (cookie próprio), styles.css (a marca da Vital)
+  src/vital/       Inicio.jsx + inicio.css (página de apresentação),
+                   Cadastro.jsx (formulário de empresa nova, dentro dela),
+                   Equipe.jsx (back-office), api.js (cookie próprio),
+                   styles.css (a marca da Vital no back-office)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
                    imagem.js (reduz a foto antes de subir), formato.js (moeda)
 ```
@@ -2148,6 +2150,17 @@ empresa se cadastra sozinha e o painel onde a nossa equipe vê as
 empresas-cliente. Nunca é servido no endereço de uma empresa, e a cor é fixa —
 o site e o painel aplicam a marca do negócio em runtime porque são dele; esta
 página é nossa.
+
+A porta de entrada é uma página de apresentação (`Inicio.jsx`), e o formulário
+de cadastro mora no fim dela, em `#criar`. Pouco texto de propósito: cada seção
+é um título curto e uma imagem. A única foto é a da abertura, de banco de
+imagem (origem no comentário de `Inicio.jsx`); tudo o que ela mostra do
+produto é desenho em HTML e CSS, não print: print envelhece a cada mudança de
+tela sem ninguém perceber, e foto de cliente real não pode aparecer (ver
+`CLAUDE.md`). Os negócios dos exemplos são inventados e de ramos diferentes, e
+o texto só promete o que existe — mensagem de WhatsApp é "pronta para enviar",
+pagamento online não aparece. O visual (verde, títulos em serifa) é dela, em
+`inicio.css`, e não vaza para o back-office; ver `DESIGN.md`.
 
 **O primeiro da nossa equipe entra com chave, em produção.** Com
 `plataforma.usuarios` vazia, `POST /api/plataforma/primeiro-acesso` cria um

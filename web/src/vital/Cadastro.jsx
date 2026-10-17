@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Calendar, Check, MessageCircle, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Check, TriangleAlert } from 'lucide-react';
 import { api } from './api.js';
 
 /**
@@ -7,18 +7,18 @@ import { api } from './api.js';
  *
  * A rota `POST /api/cadastro` existia e estava testada há um bloco inteiro, sem
  * nenhuma tela que a chamasse — ou seja, a Vital ainda cadastrava cliente na
- * mão. Esta página é o que fecha essa distância.
+ * mão. Este formulário é o que fecha essa distância. Mora dentro da página de
+ * apresentação (`Inicio.jsx`), no fim da conversa de venda.
  *
  * Um formulário só, cinco campos. Cada passo a mais aqui é uma empresa a menos
  * do outro lado, e nada do que se pergunta depois é urgente: o assistente de
  * primeira configuração continua a conversa já dentro do painel dela.
  */
-export default function Cadastro() {
+export function FormCadastro({ aoCriar }) {
   const [f, setF] = useState({ nome: '', ramo: '', responsavel: '', email: '', senha: '' });
   const [endereco, setEndereco] = useState(null);   // { slug, livre }
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState(null);
-  const [pronto, setPronto] = useState(null);
   const muda = patch => setF(v => ({ ...v, ...patch }));
   const robo = useTurnstile();
 
@@ -37,7 +37,7 @@ export default function Cadastro() {
     e.preventDefault();
     setErro(null);
     setOcupado(true);
-    try { setPronto(await api.cadastrar({ ...f, turnstile: robo.token })); }
+    try { aoCriar(await api.cadastrar({ ...f, turnstile: robo.token })); }
     catch (erro) {
       setErro(erro.message);
       setOcupado(false);
@@ -46,89 +46,61 @@ export default function Cadastro() {
     }
   };
 
-  if (pronto) return <Pronto dados={pronto} />;
-
   return (
-    <div className="v-pagina">
-      <header className="v-topo">
-        <span className="v-marca">Vital</span>
-        <a className="v-topo-link" href="#equipe">Sou da equipe Vital</a>
-      </header>
+    <section className="v-caixa">
+      <form onSubmit={enviar}>
+        <h2>Criar a minha agenda</h2>
 
-      <main className="v-conteudo">
-        <section className="v-pitch">
-          <h1>A sua agenda trabalhando sozinha.</h1>
-          <p className="v-sub">
-            Site de agendamento com a sua cara, painel para a equipe e lembretes
-            no WhatsApp. Sua cliente marca pelo celular, a qualquer hora, sem
-            você responder mensagem.
-          </p>
-          <ul className="v-lista">
-            <li><Calendar size={17} /> Agenda que nunca marca duas no mesmo horário</li>
-            <li><Sparkles size={17} /> Serviços, adicionais e promoções com preço fechado</li>
-            <li><MessageCircle size={17} /> Confirmação, lembrete e aniversário no WhatsApp</li>
-          </ul>
-          <p className="v-nota">
-            Leva um minuto. Você começa a usar antes de decidir qualquer coisa.
-          </p>
-        </section>
+        <div className="v-campo">
+          <label htmlFor="v-nome">Nome do negócio</label>
+          <input id="v-nome" required value={f.nome}
+                 placeholder="Barbearia do João"
+                 onChange={e => muda({ nome: e.target.value })} />
+          {endereco && (
+            <span className={'v-endereco' + (endereco.livre ? '' : ' tomado')}>
+              {endereco.livre
+                ? <><Check size={13} /> {endereco.slug}.vital.app está livre</>
+                : <><TriangleAlert size={13} /> {endereco.slug}.vital.app já existe — o seu ganha um número no fim</>}
+            </span>
+          )}
+        </div>
 
-        <section className="v-caixa">
-          <form onSubmit={enviar}>
-            <h2>Criar a minha agenda</h2>
+        <div className="v-campo">
+          <label htmlFor="v-ramo">O que vocês fazem</label>
+          <input id="v-ramo" value={f.ramo} placeholder="Barbearia, clínica, petshop…"
+                 onChange={e => muda({ ramo: e.target.value })} />
+          <span className="v-dica">Serve para o sistema usar as suas palavras. Dá para mudar depois.</span>
+        </div>
 
-            <div className="v-campo">
-              <label htmlFor="v-nome">Nome do negócio</label>
-              <input id="v-nome" required autoFocus value={f.nome}
-                     placeholder="Barbearia do João"
-                     onChange={e => muda({ nome: e.target.value })} />
-              {endereco && (
-                <span className={'v-endereco' + (endereco.livre ? '' : ' tomado')}>
-                  {endereco.livre
-                    ? <><Check size={13} /> {endereco.slug}.vital.app está livre</>
-                    : <><TriangleAlert size={13} /> {endereco.slug}.vital.app já existe — o seu ganha um número no fim</>}
-                </span>
-              )}
-            </div>
+        <div className="v-campo">
+          <label htmlFor="v-resp">Seu nome</label>
+          <input id="v-resp" required autoComplete="name" value={f.responsavel}
+                 onChange={e => muda({ responsavel: e.target.value })} />
+        </div>
 
-            <div className="v-campo">
-              <label htmlFor="v-ramo">O que vocês fazem</label>
-              <input id="v-ramo" value={f.ramo} placeholder="Barbearia, clínica, petshop…"
-                     onChange={e => muda({ ramo: e.target.value })} />
-              <span className="v-dica">Serve para o sistema usar as suas palavras. Dá para mudar depois.</span>
-            </div>
+        <div className="v-campo">
+          <label htmlFor="v-email">Seu e-mail</label>
+          <input id="v-email" type="email" required autoComplete="username" value={f.email}
+                 onChange={e => muda({ email: e.target.value })} />
+        </div>
 
-            <div className="v-campo">
-              <label htmlFor="v-resp">Seu nome</label>
-              <input id="v-resp" required autoComplete="name" value={f.responsavel}
-                     onChange={e => muda({ responsavel: e.target.value })} />
-            </div>
+        <div className="v-campo">
+          <label htmlFor="v-senha">Senha</label>
+          <input id="v-senha" type="password" required minLength={8}
+                 autoComplete="new-password" value={f.senha}
+                 onChange={e => muda({ senha: e.target.value })} />
+          <span className="v-dica">Ao menos 8 caracteres.</span>
+        </div>
 
-            <div className="v-campo">
-              <label htmlFor="v-email">Seu e-mail</label>
-              <input id="v-email" type="email" required autoComplete="username" value={f.email}
-                     onChange={e => muda({ email: e.target.value })} />
-            </div>
+        {robo.ligado && <div ref={robo.lugar} className="v-turnstile" />}
 
-            <div className="v-campo">
-              <label htmlFor="v-senha">Senha</label>
-              <input id="v-senha" type="password" required minLength={8}
-                     autoComplete="new-password" value={f.senha}
-                     onChange={e => muda({ senha: e.target.value })} />
-              <span className="v-dica">Ao menos 8 caracteres.</span>
-            </div>
+        {erro && <p className="v-erro"><TriangleAlert size={15} /> {erro}</p>}
 
-            {robo.ligado && <div ref={robo.lugar} className="v-turnstile" />}
-
-            {erro && <p className="v-erro"><TriangleAlert size={15} /> {erro}</p>}
-
-            <button className="v-btn" type="submit" disabled={ocupado || (robo.ligado && !robo.token)}>
-              {ocupado ? 'Criando…' : <>Criar minha agenda <ArrowRight size={17} /></>}
-            </button>
-          </form>
-        </section>
-      </main>
-    </div>
+        <button className="v-btn" type="submit" disabled={ocupado || (robo.ligado && !robo.token)}>
+          {ocupado ? 'Criando…' : <>Criar minha agenda <ArrowRight size={17} /></>}
+        </button>
+      </form>
+    </section>
   );
 }
 
@@ -189,7 +161,7 @@ function useTurnstile() {
  * entrega o endereço e manda entrar lá — com a senha que a pessoa acabou de
  * escolher.
  */
-function Pronto({ dados }) {
+export function Pronto({ dados }) {
   return (
     <div className="v-pagina">
       <header className="v-topo"><span className="v-marca">Vital</span></header>

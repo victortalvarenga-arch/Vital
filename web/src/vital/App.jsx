@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Cadastro from './Cadastro.jsx';
+import Inicio from './Inicio.jsx';
 import Equipe from './Equipe.jsx';
 
 /**
@@ -25,5 +25,5 @@ export default function App() {
     return () => removeEventListener('hashchange', aoTrocar);
   }, []);
 
-  return rota === 'equipe' ? <Equipe /> : <Cadastro />;
+  return rota === 'equipe' ? <Equipe /> : <Inicio />;
 }

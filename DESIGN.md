@@ -24,6 +24,20 @@ colors:
   vital-ok: "#2E7D5B"
   vital-warn: "#8A5A00"
   vital-error: "#8A2B2B"
+  # Página de apresentação (inicio.css) — ver "Vital — The Showcase".
+  vitrine-paper: "#F7F5EF"
+  vitrine-white: "#FFFFFF"
+  vitrine-ink: "#1D2A23"
+  vitrine-muted: "#5C6A62"
+  vitrine-line: "#E3DFD4"
+  vitrine-green: "#2D5E48"
+  vitrine-green-deep: "#183B2C"
+  vitrine-green-soft: "#E4EEE6"
+  vitrine-green-mid: "#CFE0D3"
+  vitrine-clay: "#F1E3D8"
+  vitrine-sage: "#6E8B63"
+  vitrine-arch: "#ECEAEE"
+  vitrine-copper: "#D4A08B"
   site-tenant-accent: "#A32A4E"
   # Igual a site-tenant-accent, de propósito: paraTextoBranco() só escurece o
   # necessário para o próprio tom aguentar branco, e #A32A4E já aguenta
@@ -69,6 +83,14 @@ typography:
   vital-mono:
     fontFamily: "IBM Plex Mono, monospace"
     fontSize: "12.5px"
+  vitrine-display:
+    fontFamily: "Playfair Display, Georgia, serif"
+    fontWeight: 400
+    fontSize: "32px–78px"
+    letterSpacing: "-0.015em"
+  vitrine-body:
+    fontFamily: "DM Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+    fontSize: "14.5px"
   site-rotulo:
     fontFamily: "Manrope, system-ui, -apple-system, sans-serif"
     fontSize: "11px"
@@ -151,6 +173,10 @@ rounded:
   vital-sm: "9px"
   vital-md: "13px"
   vital-lg: "16px"
+  vitrine-card: "20px"
+  vitrine-scene: "28px"
+  vitrine-pill: "999px"
+  vitrine-button: "4px"
   site-uniform: "14px"
   site-compact: "10px"
   site-pill: "999px"
@@ -259,6 +285,26 @@ Three independent palettes. None is a variant of another — treat a color reque
 - **Purple, Soft** (`#F0EAFA`): accent-tinted background for the active tab and the confirmation badge circle.
 - **Ok** (`#2E7D5B`) / **Warn** (`#8A5A00`) / **Error** (`#8A2B2B`): status-only, desaturated relative to painel's equivalents to match the quieter overall palette.
 
+### Vital — The Showcase (página de apresentação)
+
+The front door of `vital.html` (`Inicio.jsx`, `inicio.css`, prefix `lp-`) is the one place Vital *sells*, and it does not wear the Plain Ledger. It was drawn from a reference the user brought (Oct/2026): paper ground, deep green, one clay accent, serif headlines. The back-office keeps its purple; the two never share a stylesheet. Whether the purple should eventually follow is an open brand decision (ROADMAP, "Achados").
+
+- **Paper** (`#F7F5EF`) / **White** (`#FFFFFF`): page ground and card surface.
+- **Ink** (`#1D2A23`, a green-black) / **Muted** (`#5C6A62`, 5.2:1 on paper, 4.8:1 on the light green band): text.
+- **Line** (`#E3DFD4`): borders.
+- **Green** (`#2D5E48`): labels, icons, check marks, the form's accent. **Green, Deep** (`#183B2C`): primary buttons and the two dark bands (the availability section and the closing call). **Green, Soft / Mid** (`#E4EEE6` / `#CFE0D3`): the light band, chips, icon rings.
+- **Clay** (`#F1E3D8`): the warm counterweight — the promotion card and the "in progress" appointment. Never a button.
+
+Lightness is the brief: almost no borders (cards sit on paper by contrast alone), one soft long shadow on the drawn windows, no side-stripe accents — an appointment's state is its fill color.
+
+**The Drawn-Not-Shot Rule.** Every picture of the *product* on this page is HTML and CSS (a panel window, a site, a phone, message bubbles), never a screenshot. Screenshots go stale silently. The one photo is the hero (`cuidado.jpg`): a generic, brand-free stock photo of a woman applying skin cream, matching the reference the user brought, set inside a pale arch. Photos of a real client are off-limits. The businesses in the drawings are invented and from different trades on purpose.
+
+**The Few-Words Rule.** The user asked for less text (Oct/2026): each section is a short label, one serif headline and a visual. Benefits are one-line checks, not sentences; explanation belongs in the panel. A new section that needs a paragraph to make sense needs a better drawing instead.
+
+**The No-Fabricated-Proof Rule** (PRODUCT.md, "Evidence on Hand") reaches the drawings too: the mock site shows "Avaliações do Google" without a rating or a quote.
+
+The signup form (`Cadastro.jsx`, `v-` classes) lives inside the page and inherits green by redefining `--v-marca`, `--v-marca-clara` and `--v-linha` on `.lp`, not by duplicating its CSS.
+
 ### Site — The Blank Canvas, and its four models
 
 Site is no longer one skin — `marca.template` (`'bandeja' | 'quadro' | 'caderneta' | 'clinica'`, tenant-chosen in Configurações → Site da cliente, same section as the color) selects which of four complete visual models renders. **Every model shares one React tree** (`App.jsx`, `Agendar.jsx`, `Grade.jsx` — layout, booking logic, accessibility, all of it) and reads the same class names; only tokens differ, written to `<html data-template="...">` by `tema.js` and consumed through `[data-template="..."]` blocks in `styles.css`. This section (and Typography, Layout, Elevation & Depth, Shapes below) describes **Bandeja**, the original model and the fallback before `tema.js` runs; the other three get their own subsections alongside it, each covering only what changes — a model that doesn't mention a token inherits Bandeja's.
@@ -339,6 +385,10 @@ Three type systems, matched to what each audience is doing.
 **Character:** Body and mono now share one type family — Plex Sans for prose, Plex Mono for the audit trail — instead of pairing an unrelated grotesque with the mono. Administrative and unadorned by intent stays true: no serif anywhere, weight carries the entire hierarchy (600–700 for headings and buttons, 400 for body). The family was Inter until this pass; Inter was declared but never imported in this bundle (a bug fixed the same session it was replaced), and the replacement was a deliberate identity decision, not a bug fix — Inter is flagged as an overused, indistinct face on AI-generated interfaces, and IBM Plex Sans gives Vital a real typographic relationship to its own mono instead of two unrelated families.
 
 **The One-Plex Rule.** Vital's body and mono are both IBM Plex. Don't introduce a third, unrelated family for a new role — extend within Plex Sans's weight range first.
+
+**The Showcase exception.** The presentation page (`inicio.css`) has its own pair, both taken from the hero reference the user brought (Oct/2026): Playfair Display (400–500, with its italic) for headlines and DM Sans for body. The hero headline sets its last word in Playfair italic, in sage. Buttons are near-square (4px), chips and badges stay round. The back-office keeps IBM Plex.
+
+**What the hero reference had and the page does not.** "2.000 businesses use it", a 4.9 rating with avatars, a strip of client logos and "7 days free". None is true yet (no client is live, and there is no plan or billing), so each slot holds a fact of the same shape instead: a badge saying who it is for, two checks ("no credit card", "ready the same day"), a strip of trades, and "one minute to go live" in the top bar.
 
 ### Site — Bandeja
 **Body Font:** Manrope (400–800), system-ui fallback. Replaced Inter this pass, for the same reason as Vital: Inter reads as an unexamined default rather than a chosen voice. Manrope was chosen specifically to preserve the single-family system below — it carries enough warmth in its terminals to still feel like a storefront at display sizes, without needing a second family to do it.
