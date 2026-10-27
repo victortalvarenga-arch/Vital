@@ -4,6 +4,7 @@ import {
   Instagram, MessageCircle, Play, Plus, ShieldCheck, Sparkles, Star,
 } from 'lucide-react';
 import { Lugares, PerguntarSobre, Revela } from './App.jsx';
+import { ComItalico } from './titulos.jsx';
 import { brl, duracaoTexto, soDigitos } from './datas.js';
 import { lugares } from './enderecos.js';
 
@@ -300,12 +301,12 @@ function Cartao({ foto, inicial, rotulo, nome, descricao, pe, acao, aoClicar, ex
  * foto, uma linha sobre a pessoa, e só quem ela deixou aparecer. Sem foto,
  * a inicial no círculo.
  */
-export function SecaoEquipe({ equipe }) {
+export function SecaoEquipe({ equipe, titulo }) {
   if (!equipe?.length) return null;
   return (
     <section id="equipe" className="bloco bloco-cheio">
       <div className="env-largo">
-        <TituloClinica olho="Equipe">Quem cuida de <em>você.</em></TituloClinica>
+        <TituloClinica olho="Equipe">{titulo ? <ComItalico texto={titulo} /> : <>Quem cuida de <em>você.</em></>}</TituloClinica>
         <div className="equipe-grade">
           {equipe.map((p, i) => (
             <Revela key={p.id} className={`atraso-${Math.min(i, 5)}`}>
@@ -338,7 +339,7 @@ export function SecaoEquipe({ equipe }) {
    empresa cadastrou — sempre de gente de verdade, sempre com autorização de
    imagem, e é a empresa que responde por isso. */
 
-export function SecaoAntesDepois({ casos = [] }) {
+export function SecaoAntesDepois({ casos = [], titulo }) {
   const [pos, setPos] = useState(50);
   const [i, setI] = useState(0);
   const caso = casos[i];
@@ -350,7 +351,7 @@ export function SecaoAntesDepois({ casos = [] }) {
           <div className="secao-cab">
             <div>
               <p className="olho">Resultados</p>
-              <h2 className="bloco-titulo">Pequenas mudanças, <em>grandes sensações.</em></h2>
+              <h2 className="bloco-titulo">{titulo ? <ComItalico texto={titulo} /> : <>Pequenas mudanças, <em>grandes sensações.</em></>}</h2>
             </div>
             {!caso && <span className="em-breve">Em breve</span>}
           </div>
@@ -436,12 +437,12 @@ const mesAno = data => {
   return `${nomes[+m - 1] || ''} ${a}`;
 };
 
-export function SecaoAvaliacoes({ avaliacoes }) {
+export function SecaoAvaliacoes({ avaliacoes, titulo }) {
   const a = avaliacoes;
   return (
     <section id="avaliacoes" className="bloco">
       <div className="env-largo">
-        <TituloClinica olho="Avaliações">Cuidado que <em>fica na memória.</em></TituloClinica>
+        <TituloClinica olho="Avaliações">{titulo ? <ComItalico texto={titulo} /> : <>Cuidado que <em>fica na memória.</em></>}</TituloClinica>
         {!a ? (
           <Revela>
             <div className="vazio-cartao">
@@ -494,12 +495,12 @@ export function SecaoAvaliacoes({ avaliacoes }) {
    ficha — que é o produto. Os três itens da lista são fatos do sistema, não
    promessas: hora marcada, confirmação por WhatsApp, sem cadastro. */
 
-export function SecaoAgende({ textos, aoAgendar }) {
+export function SecaoAgende({ textos, aoAgendar, titulo }) {
   return (
     <section id="agendamento" className="bloco clinica-agende">
       <div className="env-largo clinica-agende-grade">
         <div>
-          <TituloClinica olho="Agende">Seu cuidado <em>começa aqui.</em></TituloClinica>
+          <TituloClinica olho="Agende">{titulo ? <ComItalico texto={titulo} /> : <>Seu cuidado <em>começa aqui.</em></>}</TituloClinica>
           <Revela>
             <p>Escolha o serviço, quem atende e o horário — em menos de um minuto, direto daqui.</p>
             <ul className="clinica-agende-lista">
@@ -532,7 +533,7 @@ export function SecaoAgende({ textos, aoAgendar }) {
    job. Sem nenhuma, fica só o cabeçalho com o link para o perfil real —
    nunca um grid fingindo mostrar posts que o site não tem. */
 
-export function SecaoInstagram({ negocio, marca, posts = [] }) {
+export function SecaoInstagram({ negocio, marca, posts = [], titulo }) {
   if (!negocio.instagram) return null;
   const arroba = negocio.instagram.replace('@', '');
   const perfil = `https://instagram.com/${arroba}`;
@@ -543,7 +544,7 @@ export function SecaoInstagram({ negocio, marca, posts = [] }) {
           <div className="secao-cab">
             <div>
               <p className="olho">Instagram</p>
-              <h2 className="bloco-titulo">O dia a dia <em>continua lá.</em></h2>
+              <h2 className="bloco-titulo">{titulo ? <ComItalico texto={titulo} /> : <>O dia a dia <em>continua lá.</em></>}</h2>
             </div>
             <a className="insta-arroba" href={perfil} target="_blank" rel="noreferrer">
               <Instagram size={16} /> @{arroba} <ExternalLink size={13} />
@@ -601,14 +602,14 @@ export function SecaoInstagram({ negocio, marca, posts = [] }) {
    nunca uma localização inventada. Com mais de uma unidade, um mapa por
    endereço: a cliente vem ver onde fica a loja que ela vai, não a sede. */
 
-export function SecaoMapa({ dados }) {
+export function SecaoMapa({ dados, titulo }) {
   const onde = lugares(dados);
   if (!onde.length) return null;
   return (
     <section id="contato" className="bloco">
       <div className="env-largo">
         <TituloClinica olho="Onde estamos">
-          {onde.length > 1 ? <>Perto de <em>você.</em></> : <>Um lugar para <em>você chegar.</em></>}
+          {titulo ? <ComItalico texto={titulo} /> : onde.length > 1 ? <>Perto de <em>você.</em></> : <>Um lugar para <em>você chegar.</em></>}
         </TituloClinica>
         <div className={'mapas' + (onde.length > 1 ? ' mapas-varios' : '')}>
           {onde.map(l => (

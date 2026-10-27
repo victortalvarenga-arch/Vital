@@ -80,6 +80,12 @@
 .md-promo-precos strong { font-family: var(--fonte-mono); font-size: var(--t-destaque); }
 .md-promo-eco { color: var(--marca-legivel); font-size: var(--t-auxiliar); font-weight: 600; }
 .md-promo-quando { color: var(--cinza); font-size: var(--t-auxiliar); }
+.md-promo-foto {
+  align-self: stretch; aspect-ratio: 16 / 9; margin: calc(-1 * var(--e-6)) calc(-1 * var(--e-6)) var(--e-3);
+  border-radius: var(--raio) var(--raio) 0 0; overflow: hidden; background: var(--superficie);
+}
+.md-promo-foto img { width: 100%; height: 100%; object-fit: cover; }
+.md-promo-desc { color: var(--cinza); font-size: var(--t-corpo-pq); line-height: 1.55; }
 .md-promo > .b { margin-top: auto; }
 .md-promo > :nth-last-child(2) { margin-bottom: var(--e-4); }
 
@@ -355,6 +361,12 @@
   .es-promo-valor { padding-left: var(--e-8); border-left: 1px solid var(--linha); }
 }
 
+.es-promo-foto { aspect-ratio: 4 / 3; border-radius: var(--raio-pq); overflow: hidden; background: var(--superficie); }
+.es-promo-foto img { width: 100%; height: 100%; object-fit: cover; }
+@media (min-width: 760px) {
+  .es-promo-unica.com-foto { grid-template-columns: minmax(0, .9fr) minmax(0, 1.2fr) minmax(0, 1fr); max-width: 1080px; }
+}
+
 /* Instagram: convite à esquerda, grade 3×2 à direita (no celular, um embaixo do outro). */
 .es-insta-in { display: grid; gap: var(--e-7); align-items: center; }
 .es-insta-cab p:not(.es-kicker) { color: var(--cinza); line-height: 1.65; margin-top: var(--e-3); max-width: 34ch; }
@@ -459,6 +471,9 @@
   font-size: var(--t-titulo); line-height: 1.3;
 }
 .ga-cartao-texto > span { color: var(--cinza); font-size: var(--t-corpo-pq); }
+.ga-cartao-texto > .ga-cartao-desc {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;
+}
 .ga-cartao-acao {
   display: inline-flex; align-items: center; gap: 6px; margin-top: var(--e-2); font-style: normal;
   color: var(--marca-legivel); font-size: var(--t-legenda); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
@@ -492,8 +507,13 @@
   .ga-destaque-in, .ga-precos-in { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 72px; align-items: start; }
   .ga-destaque-foto, .ga-precos-foto { aspect-ratio: 4 / 5; position: sticky; top: 96px; }
 }
-.ga-destaque-lista > .revela:first-child .ga-promo { border-top: 1px solid var(--linha); }
+.ga-destaque-lista > .ga-cab + .revela .ga-promo { border-top: 1px solid var(--linha); }
 .ga-promo { padding: var(--e-7) 0; border-bottom: 1px solid var(--linha); }
+.ga-promo.com-foto { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--e-5); align-items: start; }
+@media (min-width: 600px) { .ga-promo.com-foto { grid-template-columns: 140px minmax(0, 1fr); } }
+.ga-promo-foto { aspect-ratio: 3 / 4; border-radius: var(--raio); overflow: hidden; background: var(--superficie); }
+.ga-promo-foto img { width: 100%; height: 100%; object-fit: cover; }
+.ga-destaque-lista > .ga-cab { margin-bottom: var(--e-5); }
 .ga-promo h3 {
   font-family: var(--fonte-display); font-weight: 400; text-transform: uppercase; letter-spacing: .04em;
   font-size: clamp(22px, 1.2vw + 16px, 32px); line-height: 1.15; margin: var(--e-3) 0 6px;

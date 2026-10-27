@@ -5,6 +5,7 @@ import {
   AntesDepois, Assinatura, Avaliacoes, CartaoPromo, Contato, Equipe, FotoServico, Mapas, Perguntas, PerguntarSobre,
   Preco, Publicacoes, Revela, brl, duracaoTexto, fotoDoSite, useFiltro,
 } from './comum.jsx';
+import { tituloProprio } from '../titulos.jsx';
 import { lugares } from '../enderecos.js';
 
 /**
@@ -21,6 +22,7 @@ import { lugares } from '../enderecos.js';
  */
 export default function Essencial({ dados, servicos, categorias, combos, agendar, aoAgendar, aoAgendarCombo, ligada, temOQueAgendar }) {
   const { negocio, marca, textos, exibir } = dados;
+  const T = chave => tituloProprio(dados, chave);
   const titulo = textos?.hero || negocio.nome;
   const kicker = textos?.hero ? negocio.nome : (negocio.slogan || negocio.cidade);
   const { visiveis, Abas } = useFiltro(categorias, exibir);
@@ -58,7 +60,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
           <Revela>
             <header className="es-cab">
               <p className="es-kicker">O que fazemos</p>
-              <h2>Nossos serviços</h2>
+              <h2>{T('servicos') || 'Nossos serviços'}</h2>
             </header>
           </Revela>
           <Abas className="md-abas es-abas" />
@@ -100,7 +102,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
             <div className="es-sobre-foto"><img src={fotoDoSite(marca, 'foto2')} alt="" loading="lazy" /></div>
             <Revela className="es-sobre-texto">
               <p className="es-kicker">Sobre</p>
-              <h2>{negocio.nome}</h2>
+              <h2>{T('sobre') || negocio.nome}</h2>
               <p>{negocio.sobre}</p>
               {agendar && (
                 <button className="b es-btn-linha" onClick={() => agendar(null)}>
@@ -117,7 +119,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
           <div className="md-env">
             <header className="es-cab es-cab-claro">
               <p className="es-kicker">Para aproveitar</p>
-              <h2>Promoções</h2>
+              <h2>{T('promocoes') || 'Promoções'}</h2>
             </header>
             {/* Uma promoção só vira faixa larga: um cartão estreito sozinho no
                 meio da cor parecia que faltava alguma coisa do lado. */}
@@ -135,7 +137,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
       {dados.equipe?.length > 0 && (
         <section id="equipe" className={'es-sec' + faixa()}>
           <div className="md-env">
-            <header className="es-cab"><p className="es-kicker">Quem atende</p><h2>Nossa equipe</h2></header>
+            <header className="es-cab"><p className="es-kicker">Quem atende</p><h2>{T('equipe') || 'Nossa equipe'}</h2></header>
             <Equipe equipe={dados.equipe} className="md-equipe es-equipe" />
           </div>
         </section>
@@ -144,7 +146,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
       {dados.antesDepois?.length > 0 && (
         <section className={'es-sec' + faixa()}>
           <div className="md-env">
-            <header className="es-cab"><p className="es-kicker">Resultados</p><h2>Antes e depois</h2></header>
+            <header className="es-cab"><p className="es-kicker">Resultados</p><h2>{T('antesDepois') || 'Antes e depois'}</h2></header>
             <AntesDepois casos={dados.antesDepois} className="md-casos es-casos" />
           </div>
         </section>
@@ -153,7 +155,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
       {dados.avaliacoes && (
         <section className={'es-sec' + faixa()}>
           <div className="md-env">
-            <header className="es-cab"><p className="es-kicker">Quem já veio</p><h2>Avaliações</h2></header>
+            <header className="es-cab"><p className="es-kicker">Quem já veio</p><h2>{T('avaliacoes') || 'Avaliações'}</h2></header>
             <Avaliacoes avaliacoes={dados.avaliacoes} />
           </div>
         </section>
@@ -167,8 +169,8 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
           <div className="md-env es-insta-in">
             <div className="es-insta-cab">
               <p className="es-kicker">Instagram</p>
-              <h2>Acompanhe o dia a dia</h2>
-              <p>Novidades, resultados e horários livres de última hora.</p>
+              <h2>{T('instagram') || 'Acompanhe o dia a dia'}</h2>
+              <p>Novidades, resultados e bastidores, direto do perfil.</p>
               <a className="b es-btn-linha" href={`https://instagram.com/${negocio.instagram.replace('@', '')}`}
                  target="_blank" rel="noreferrer">
                 <Instagram size={16} /> @{negocio.instagram.replace('@', '')}
@@ -182,7 +184,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
       {dados.faq?.length > 0 && (
         <section id="perguntas" className={'es-sec' + faixa()}>
           <div className="md-env md-env-estreito">
-            <header className="es-cab"><p className="es-kicker">Dúvidas</p><h2>Perguntas frequentes</h2></header>
+            <header className="es-cab"><p className="es-kicker">Dúvidas</p><h2>{T('perguntas') || 'Perguntas frequentes'}</h2></header>
             <Perguntas faq={dados.faq} negocio={negocio} />
           </div>
         </section>
@@ -191,7 +193,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
       {ligada('mapa') && lugares(dados).length > 0 && (
         <section id="contato" className={'es-sec' + faixa()}>
           <div className="md-env">
-            <header className="es-cab"><p className="es-kicker">Onde estamos</p><h2>Como chegar</h2></header>
+            <header className="es-cab"><p className="es-kicker">Onde estamos</p><h2>{T('mapa') || 'Como chegar'}</h2></header>
             <Mapas dados={dados} />
           </div>
         </section>
@@ -227,11 +229,13 @@ function Reserva({ servicos, aoAgendar }) {
 function PromoUnica({ c, exibir, aoAgendar }) {
   return (
     <Revela>
-      <article className="es-promo-unica">
+      <article className={'es-promo-unica' + (c.foto ? ' com-foto' : '')}>
+        {c.foto && <div className="es-promo-foto"><img src={c.foto} alt={c.nome} loading="lazy" /></div>}
         <div>
           <span className="md-selo"><Sparkles size={13} /> Promoção</span>
           <h3>{c.nome}</h3>
           <p className="es-promo-itens">{c.servicos.map(s => s.nome).join(' + ')}</p>
+          {c.descricao && <p className="es-promo-itens">{c.descricao}</p>}
           {quandoVale(c) && <p className="es-promo-quando">{quandoVale(c)}</p>}
         </div>
         <div className="es-promo-valor">

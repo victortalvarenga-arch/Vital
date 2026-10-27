@@ -539,7 +539,15 @@ dado próprio (Instagram, mapa) cada modelo confere com `ligada()`. "Separar
 por categoria" desligado tira também os rótulos de categoria dos cartões, a
 divisão da tabela de preços da Galeria e a lista de especialidades da
 Serena. As fotos que o painel oferece mudam com o modelo (`FOTOS_DO_MODELO`
-em `ConfigSite.jsx`), cada uma dizendo onde aparece. Decidido em 2026-10-27,
+em `ConfigSite.jsx`), cada uma dizendo onde aparece. Os títulos de seção
+também são da empresa: `textos.titulos` (por chave: `servicos`, `equipe`,
+`perguntas`…), lidos por `tituloProprio()` em `site/titulos.jsx` nos quatro
+modelos. Vazio, cada modelo usa o seu; na Serena e na Clínica a última
+palavra do título escrito sai em itálico, a regra que o modelo já segue. O
+servidor guarda só as chaves de `TITULOS_DE_SECAO`, com até 80 caracteres, e
+o painel mostra só os títulos que o modelo escolhido exibe
+(`TITULOS_DO_MODELO`). Foto e chamada de promoção (Promoções → "No site") e
+descrição de serviço aparecem em todos os modelos. Decidido em 2026-10-27,
 depois de o mapa estar ligado no painel e não existir na Galeria.
 
 Os três têm lugares de **foto de clima** — `marca.capa`, `marca.foto2`,

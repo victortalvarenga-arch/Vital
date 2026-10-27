@@ -101,9 +101,12 @@ export function useFiltro(categorias, exibir) {
 export function CartaoPromo({ c, exibir, aoAgendar, className = 'md-promo' }) {
   return (
     <article className={className}>
+      {/* Foto e chamada vêm de Promoções → "No site: foto e chamada". */}
+      {c.foto && <div className="md-promo-foto"><img src={c.foto} alt={c.nome} loading="lazy" /></div>}
       <span className="md-selo"><Sparkles size={13} /> Promoção</span>
       <h3>{c.nome}</h3>
       <p className="md-promo-itens">{c.servicos.map(s => s.nome).join(' + ')}</p>
+      {c.descricao && <p className="md-promo-desc">{c.descricao}</p>}
       <p className="md-promo-precos">
         <s>{brl(c.precoCheio)}</s> <strong>{brl(c.preco)}</strong>
       </p>

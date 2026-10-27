@@ -5,6 +5,7 @@ import {
   AntesDepois, Assinatura, Avaliacoes, CartaoPromo, Contato, Equipe, FotoServico, Mapas, Perguntas, PerguntarSobre,
   Preco, Publicacoes, Revela, comDestaque, duracaoTexto, fotoDoSite, horarioCurto, useFiltro,
 } from './comum.jsx';
+import { tituloProprio, ComItalico } from '../titulos.jsx';
 
 /**
  * Serena (id `caderneta`) — estrutura a partir da referência Glowence que o
@@ -21,6 +22,7 @@ import {
  */
 export default function Serena({ dados, servicos, categorias, combos, agendar, aoAgendar, aoAgendarCombo, ligada, temOQueAgendar }) {
   const { negocio, marca, textos, exibir } = dados;
+  const T = chave => tituloProprio(dados, chave);
   const titulo = comDestaque(textos?.hero || negocio.nome);
   const { visiveis, Abas } = useFiltro(categorias, exibir);
   const onde = lugares(dados)[0];
@@ -72,7 +74,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
           <div className="md-env se-sobre-in">
             <Revela className="se-sobre-texto">
               <p className="se-rotulo">Sobre nós</p>
-              <h2>{comDestaque(negocio.nome).inicio}<em>{comDestaque(negocio.nome).fim}</em></h2>
+              <h2><ComItalico texto={T('sobre') || negocio.nome} /></h2>
               <p>{negocio.sobre}</p>
               {exibir?.categorias !== false && categorias.length > 1 && (
                 <ul className="se-lista">
@@ -89,7 +91,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
         <div className="md-env">
           <header className="se-cab">
             <p className="se-rotulo">Nossos serviços</p>
-            <h2>Cuidado do seu <em>jeito</em></h2>
+            <h2>{T('servicos') ? <ComItalico texto={T('servicos')} /> : <>Cuidado do seu <em>jeito</em></>}</h2>
           </header>
           <Abas className="md-abas se-abas" />
           {servicos.length === 0 && (
@@ -123,7 +125,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
           <div className="md-env">
             <header className="se-cab se-cab-claro">
               <p className="se-rotulo">Como funciona</p>
-              <h2>Agendar é <em>simples</em></h2>
+              <h2>{T('passos') ? <ComItalico texto={T('passos')} /> : <>Agendar é <em>simples</em></>}</h2>
             </header>
             <ol className="se-passos-lista">
               <li><b>1</b><h3>Escolha o serviço</h3><p>E, se quiser, quem vai te atender.</p></li>
@@ -139,7 +141,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       {combos.length > 0 && (
         <section className="se-sec">
           <div className="md-env">
-            <header className="se-cab"><p className="se-rotulo">Promoções</p><h2>Para <em>aproveitar</em></h2></header>
+            <header className="se-cab"><p className="se-rotulo">Promoções</p><h2>{T('promocoes') ? <ComItalico texto={T('promocoes')} /> : <>Para <em>aproveitar</em></>}</h2></header>
             <div className="se-promos">
               {combos.map(c => <CartaoPromo key={c.id} c={c} exibir={exibir} aoAgendar={aoAgendarCombo} />)}
             </div>
@@ -150,7 +152,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       {dados.equipe?.length > 0 && (
         <section id="equipe" className="se-sec se-sec-tom">
           <div className="md-env">
-            <header className="se-cab"><p className="se-rotulo">Equipe</p><h2>Quem cuida de <em>você</em></h2></header>
+            <header className="se-cab"><p className="se-rotulo">Equipe</p><h2>{T('equipe') ? <ComItalico texto={T('equipe')} /> : <>Quem cuida de <em>você</em></>}</h2></header>
             <Equipe equipe={dados.equipe} className="md-equipe se-equipe" />
           </div>
         </section>
@@ -159,7 +161,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       {dados.antesDepois?.length > 0 && (
         <section className="se-sec">
           <div className="md-env">
-            <header className="se-cab"><p className="se-rotulo">Resultados</p><h2>Antes e <em>depois</em></h2></header>
+            <header className="se-cab"><p className="se-rotulo">Resultados</p><h2>{T('antesDepois') ? <ComItalico texto={T('antesDepois')} /> : <>Antes e <em>depois</em></>}</h2></header>
             <AntesDepois casos={dados.antesDepois} className="md-casos se-casos" />
           </div>
         </section>
@@ -168,7 +170,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       {dados.avaliacoes && (
         <section className="se-sec se-sec-tom">
           <div className="md-env">
-            <header className="se-cab"><p className="se-rotulo">Avaliações</p><h2>O que dizem de <em>nós</em></h2></header>
+            <header className="se-cab"><p className="se-rotulo">Avaliações</p><h2>{T('avaliacoes') ? <ComItalico texto={T('avaliacoes')} /> : <>O que dizem de <em>nós</em></>}</h2></header>
             <Avaliacoes avaliacoes={dados.avaliacoes} />
           </div>
         </section>
@@ -179,7 +181,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
           <div className="md-env se-faq-in">
             <div>
               <p className="se-rotulo">Dúvidas</p>
-              <h2>Respostas para as suas <em>perguntas</em></h2>
+              <h2>{T('perguntas') ? <ComItalico texto={T('perguntas')} /> : <>Respostas para as suas <em>perguntas</em></>}</h2>
               <p className="se-lead">Não achou o que procura? Fale com a gente no WhatsApp.</p>
             </div>
             <Perguntas faq={dados.faq} negocio={negocio} />
@@ -190,7 +192,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       {ligada('mapa') && lugares(dados).length > 0 && (
         <section id="contato" className="se-sec se-sec-tom">
           <div className="md-env">
-            <header className="se-cab"><p className="se-rotulo">Onde estamos</p><h2>Venha nos <em>visitar</em></h2></header>
+            <header className="se-cab"><p className="se-rotulo">Onde estamos</p><h2>{T('mapa') ? <ComItalico texto={T('mapa')} /> : <>Venha nos <em>visitar</em></>}</h2></header>
             <Mapas dados={dados} />
           </div>
         </section>
@@ -199,7 +201,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       {ligada('instagram') && negocio.instagram && (
         <section className="se-sec se-insta">
           <div className="md-env">
-            <header className="se-cab"><p className="se-rotulo">Instagram</p><h2>Siga a nossa <em>rotina</em></h2></header>
+            <header className="se-cab"><p className="se-rotulo">Instagram</p><h2>{T('instagram') ? <ComItalico texto={T('instagram')} /> : <>Siga a nossa <em>rotina</em></>}</h2></header>
             <Publicacoes negocio={negocio} posts={dados.instagramPosts} className="md-insta se-insta-in" />
           </div>
         </section>

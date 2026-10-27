@@ -82,6 +82,10 @@ async function equipeDoSite(entrada) {
   return saida;
 }
 
+/** As seções do site cujo título a empresa pode trocar (`TITULOS_DO_MODELO` no painel). */
+const TITULOS_DE_SECAO = ['servicos', 'sobre', 'promocoes', 'equipe', 'antesDepois', 'avaliacoes',
+  'instagram', 'perguntas', 'mapa', 'precos', 'passos'];
+
 /* ── Configuração do negócio ── */
 catalogo.get('/config', rota(async (req, res) => res.json(await getConfig())));
 catalogo.put('/config', exige('site'), rota(async (req, res) => {
@@ -100,6 +104,15 @@ catalogo.put('/config', exige('site'), rota(async (req, res) => {
     corpo.antesDepois = casos;
   }
   if (corpo.equipeSite !== undefined) corpo.equipeSite = await equipeDoSite(corpo.equipeSite);
+  // Títulos de seção: só as chaves que algum modelo mostra, texto curto. É
+  // texto que vai para a internet como está.
+  if (corpo.textos?.titulos !== undefined) {
+    const t = corpo.textos.titulos && typeof corpo.textos.titulos === 'object' ? corpo.textos.titulos : {};
+    corpo.textos = {
+      ...corpo.textos,
+      titulos: Object.fromEntries(TITULOS_DE_SECAO.map(k => [k, String(t[k] || '').trim().slice(0, 80)]).filter(([, v]) => v)),
+    };
+  }
   if (await db.get(`SELECT 1 FROM conexoes WHERE provedor = 'instagram'`)) {
     delete corpo.instagramPosts;
     delete corpo.instagram;

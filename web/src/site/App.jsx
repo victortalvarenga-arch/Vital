@@ -11,6 +11,7 @@ import { aplicarSeo } from './seo.js';
 import { linkGeral, linkServico } from './whatsapp.js';
 import { passo } from './medir.js';
 import Agendar from './Agendar.jsx';
+import { tituloProprio, ComItalico } from './titulos.jsx';
 import Privacidade from './Privacidade.jsx';
 import { quandoVale } from '../shared/promocao.js';
 import Essencial, { RodapeEssencial } from './modelos/Essencial.jsx';
@@ -281,6 +282,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   // — o resto, equipe inclusive, chega da vitrine já vazio quando a seção
   // está desligada.
   const ligada = chave => exibir?.[chave] !== false;
+  const T = chave => tituloProprio(dados, chave);
 
   // Cada modelo é uma composição inteira (modelos/), não uma pele sobre o
   // mesmo esqueleto: os três antigos dividiam a estrutura e só trocavam cor e
@@ -332,7 +334,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
         <section id="sobre" className="bloco clinica-sobre">
           <div className="env">
             <Revela>
-              <p className="olho">Sobre</p>
+              <p className="olho">{T('sobre') || 'Sobre'}</p>
               <p className="sobre">{negocio.sobre}</p>
             </Revela>
           </div>
@@ -346,6 +348,9 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
       {combos.length > 0 && (
         <section className="bloco">
           <div className="env-largo">
+            {/* A Clínica abre as promoções sem título; com um escrito pela
+                empresa, ele entra aqui em cima. */}
+            {T('promocoes') && <TituloClinica olho="Promoções"><ComItalico texto={T('promocoes')} /></TituloClinica>}
             <Destaque combo={combos[0]} exibir={exibir} aoAgendar={aoAgendarCombo} />
             {combos.length > 1 && (
               <>
@@ -361,7 +366,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           linha divisória, e é o pedaço que a pessoa veio ver. */}
       <section id="servicos" className="bloco bloco-marca">
         <div className="env-largo">
-          <TituloClinica olho="Serviços">Escolha o seu <em>momento.</em></TituloClinica>
+          <TituloClinica olho="Serviços">{T('servicos') ? <ComItalico texto={T('servicos')} /> : <>Escolha o seu <em>momento.</em></>}</TituloClinica>
           {servicos.length === 0 && (
             <p className="vazio">
               {temOQueAgendar
@@ -376,20 +381,20 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
         </div>
       </section>
 
-      <SecaoEquipe equipe={dados.equipe} />
+      <SecaoEquipe equipe={dados.equipe} titulo={T('equipe')} />
       {/* Sem caso autorizado a seção some, como as perguntas: a empresa tem
           onde cadastrar (painel → Site da cliente), e "Em breve" para sempre
           fazia o site parecer inacabado. */}
-      {dados.antesDepois?.length > 0 && <SecaoAntesDepois casos={dados.antesDepois} />}
+      {dados.antesDepois?.length > 0 && <SecaoAntesDepois casos={dados.antesDepois} titulo={T('antesDepois')} />}
       {/* Mesma regra do antes e depois: sem avaliação vinda da conta
           conectada, a seção some em vez de prometer "em breve". */}
-      {dados.avaliacoes && <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />}
-      {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
-      {ligada('instagram') && <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />}
+      {dados.avaliacoes && <SecaoAvaliacoes avaliacoes={dados.avaliacoes} titulo={T('avaliacoes')} />}
+      {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} titulo={T('passos')} />}
+      {ligada('instagram') && <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} titulo={T('instagram')} />}
 
-      <Perguntas faq={dados.faq} negocio={negocio} />
+      <Perguntas faq={dados.faq} negocio={negocio} titulo={T('perguntas')} />
 
-      {ligada('mapa') && <SecaoMapa dados={dados} />}
+      {ligada('mapa') && <SecaoMapa dados={dados} titulo={T('mapa')} />}
 
       <Rodape dados={dados} negocio={negocio} textos={textos} mostrarPagamento={temOQueAgendar} />
       <BotaoWhatsApp negocio={negocio} />
@@ -427,13 +432,13 @@ export function PerguntarSobre({ negocio, servico, className = 'svc-duvida' }) {
  * ramo para ramo, e escrever uma lista nossa seria pôr palavra de estética na
  * boca de uma oficina. Sem pergunta cadastrada, a seção não existe.
  */
-function Perguntas({ faq = [], negocio }) {
+function Perguntas({ faq = [], negocio, titulo }) {
   if (!faq.length) return null;
   const zap = linkGeral(negocio, 'Olá! Vim pelo site e fiquei com uma dúvida.');
   return (
     <section id="perguntas" className="bloco">
       <div className="env">
-        <TituloClinica olho="Dúvidas">Perguntas que a gente <em>sempre ouve.</em></TituloClinica>
+        <TituloClinica olho="Dúvidas">{titulo ? <ComItalico texto={titulo} /> : <>Perguntas que a gente <em>sempre ouve.</em></>}</TituloClinica>
 
         <div className="faq">
           {faq.map((p, i) => (

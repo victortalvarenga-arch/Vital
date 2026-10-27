@@ -138,6 +138,21 @@ describe('a vitrine respeita o painel', () => {
     await db.db.comEmpresa('default', () => db.setConfig({ antesDepois: [] }));
   });
 
+  test('título de seção: chega à vitrine aparado, e chave desconhecida não entra', async () => {
+    try {
+      const r = await dona('PUT', '/api/config', {
+        textos: { titulos: { equipe: '  Nosso time  ', inventada: 'x', sobre: 'a'.repeat(200) } },
+      });
+      assert.equal(r.status, 200);
+      const t = (await vitrine()).textos.titulos;
+      assert.equal(t.equipe, 'Nosso time');
+      assert.equal(t.sobre.length, 80);
+      assert.equal(t.inventada, undefined);
+    } finally {
+      await dona('PUT', '/api/config', { textos: { titulos: {} } });
+    }
+  });
+
   test('caso antigo sem autorização não trava salvar o resto, e caso novo sem ela continua recusado', async () => {
     // A tela manda a config inteira: recusar o caso antigo impedia até mudar
     // a cor. Ele volta guardado como estava, e continua fora do site.

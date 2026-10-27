@@ -188,6 +188,9 @@ export const configPadrao = {
     botaoAgendar: 'Agendar',
     confirmacao: 'Pronto! Seu horário está reservado.',
     rodape: '',
+    // Título próprio de cada seção do site, por chave (`servicos`, `equipe`…).
+    // Vazio, cada modelo usa o dele. Ver TITULOS_DE_SECAO em routes/catalogo.js.
+    titulos: {},
     // A frase abaixo do nome, no alto da página. Vazia, o site usa a primeira
     // frase do "sobre" — que descreve o negócio em vez de falar com quem
     // chegou. É o lugar de nomear um incômodo concreto, e por isso é campo

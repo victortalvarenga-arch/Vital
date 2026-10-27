@@ -43,6 +43,17 @@ export default function ConfigSite({ dados, acao, aviso }) {
     aoMudar: v => mudar(`exibir.${chave}`, v),
   });
 
+  // O título de uma seção do site (`textos.titulos`). Vazio, o modelo usa o
+  // dele. Só aparece no painel o título que o modelo escolhido mostra.
+  const modelo = cfg.marca?.template || 'bandeja';
+  const titulo = (chave, rotulo = 'Título da seção') => (TITULOS_DO_MODELO[modelo] || TITULOS_DO_MODELO.bandeja).includes(chave) && (
+    <Texto rotulo={rotulo} valor={cfg.textos?.titulos?.[chave]}
+           aoMudar={v => mudar('textos', { ...cfg.textos, titulos: { ...cfg.textos?.titulos, [chave]: v } })}
+           dica={modelo === 'caderneta' || modelo === 'clinica'
+             ? 'Vazio, usa o título do modelo. Neste modelo, a última palavra sai em itálico.'
+             : 'Vazio, usa o título do modelo.'} />
+  );
+
   const { contas, recarregarContas, retorno } = useConexoes();
   const insta = contas.find(c => c.provedor === 'instagram');
   const google = contas.find(c => c.provedor === 'google');
@@ -109,6 +120,10 @@ export default function ConfigSite({ dados, acao, aviso }) {
                aoMudar={v => mudar('textos.confirmacao', v)} />
         <Texto rotulo="Rodapé" valor={cfg.textos?.rodape}
                aoMudar={v => mudar('textos.rodape', v)} dica="Deixe vazio para usar o nome do negócio." />
+        {titulo('servicos', 'Título da seção de serviços')}
+        {titulo('promocoes', 'Título da seção de promoções')}
+        {titulo('precos', 'Título da tabela de preços')}
+        {titulo('passos', 'Título da seção “como agendar”')}
       </Secao>
 
       <Secao titulo="Contato" ajuda="Aparece no topo e no rodapé, com link.">
@@ -125,23 +140,27 @@ export default function ConfigSite({ dados, acao, aviso }) {
           a seção só sai do site até ser ligada de novo. */}
       <Secao titulo="Sobre" noSite={noSite('sobre')}
              ajuda="Um parágrafo sobre o negócio, logo abaixo do topo. Também vira a descrição do link quando ele é compartilhado.">
+        {titulo('sobre')}
         <Area rotulo="Texto" valor={cfg.sobre} aoMudar={v => mudar('sobre', v)}
               dica="Vazio, a seção não aparece." />
       </Secao>
 
       <Secao titulo="Equipe" noSite={noSite('equipe')}
              ajuda="Quem atende aparece no site com foto, nome e uma linha sobre a pessoa. Quem você tira daqui continua podendo ser escolhido no agendamento.">
+        {titulo('equipe')}
         <EquipeDoSite staff={dados.staff} valor={cfg.equipeSite || {}}
                       aoMudar={v => mudar('equipeSite', v)} aviso={aviso} />
       </Secao>
 
       <Secao titulo="Antes e depois" noSite={noSite('antesDepois')}
              ajuda="Viram uma seção de resultados no site, com as duas fotos lado a lado. A seção só aparece com pelo menos um caso autorizado.">
+        {titulo('antesDepois')}
         <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
       </Secao>
 
       <Secao titulo="Avaliações do Google" noSite={noSite('avaliacoes')}
              ajuda="As avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. A seção só aparece com a conta conectada.">
+        {titulo('avaliacoes')}
         <Conexao info={google} nome="Google" agir={agirNaConta}
                  explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
       </Secao>
@@ -151,6 +170,7 @@ export default function ConfigSite({ dados, acao, aviso }) {
           para ninguém achar que precisa montar a grade foto por foto. */}
       <Secao titulo="Instagram" noSite={noSite('instagram')}
              ajuda="Uma seção com o perfil e as publicações. Desligada, o perfil continua no rodapé.">
+        {titulo('instagram')}
         <Conexao info={insta} nome="Instagram" agir={agirNaConta}
                  explica="Conecte a conta e as 6 publicações mais recentes entram no site sozinhas. Precisa ser conta profissional (comercial ou criador)." />
         {!insta?.conectado && (
@@ -162,11 +182,13 @@ export default function ConfigSite({ dados, acao, aviso }) {
 
       <Secao titulo="Perguntas frequentes" noSite={noSite('perguntas')}
              ajuda="Viram uma seção no site, e o Google as usa para mostrar as respostas direto na busca.">
+        {titulo('perguntas')}
         <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
       </Secao>
 
       <Secao titulo="Mapa" noSite={noSite('mapa')}
              ajuda="O mapa com o endereço, perto do fim da página — um por unidade, quando há mais de uma.">
+        {titulo('mapa')}
         <Texto rotulo="Link do mapa" valor={cfg.mapa} aoMudar={v => mudar('mapa', v)}
                dica="Cole o link do Google Maps. Vazio: o site monta a busca pelo endereço." />
       </Secao>
@@ -358,6 +380,16 @@ const FOTOS_DO_MODELO = {
   clinica: {
     capa: { rotulo: 'Foto principal', dica: 'O retrato em arco do topo. Vazia, o topo fica só com o texto.' },
   },
+};
+
+// Os títulos de seção que cada modelo mostra e deixa a empresa trocar
+// (`tituloProprio` no site). Seção nova num modelo entra aqui também.
+const TITULOS_COMUNS = ['servicos', 'sobre', 'promocoes', 'equipe', 'antesDepois', 'avaliacoes', 'instagram', 'perguntas', 'mapa'];
+const TITULOS_DO_MODELO = {
+  bandeja: TITULOS_COMUNS,
+  quadro: [...TITULOS_COMUNS, 'precos'],
+  caderneta: [...TITULOS_COMUNS, 'passos'],
+  clinica: [...TITULOS_COMUNS, 'passos'],
 };
 
 // A descrição fica escrita embaixo, não no `title`: no celular não existe
