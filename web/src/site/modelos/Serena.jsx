@@ -197,8 +197,11 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
       )}
 
       {ligada('instagram') && negocio.instagram && (
-        <section className="se-insta">
-          <Publicacoes negocio={negocio} posts={dados.instagramPosts} className="md-insta se-insta-in" />
+        <section className="se-sec se-insta">
+          <div className="md-env">
+            <header className="se-cab"><p className="se-rotulo">Instagram</p><h2>Siga a nossa <em>rotina</em></h2></header>
+            <Publicacoes negocio={negocio} posts={dados.instagramPosts} className="md-insta se-insta-in" />
+          </div>
         </section>
       )}
     </>

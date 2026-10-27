@@ -232,34 +232,40 @@ export function Publicacoes({ negocio, posts, className = 'md-insta' }) {
 /** Endereços, WhatsApp, Instagram, horário e pagamento — o miolo de todo rodapé. */
 export function Contato({ dados, negocio, mostrarPagamento }) {
   const NOMES_PAG = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
+  // Dois grupos — onde e como falar; quando e como pagar — para cada rodapé
+  // poder pôr um ao lado do outro ou um embaixo do outro.
   return (
     <div className="md-contato">
-      {lugares(dados).map(l => (
-        <a key={l.id || 'sede'} href={l.mapa} target="_blank" rel="noreferrer">
-          <MapPin size={16} /><span>{l.nome && <b>{l.nome} · </b>}{l.endereco}</span>
-        </a>
-      ))}
-      {negocio.whatsapp && (
-        <a href={`https://wa.me/55${soDigitos(negocio.whatsapp)}`} target="_blank" rel="noreferrer">
-          <MessageCircle size={16} /><span>WhatsApp</span>
-        </a>
-      )}
-      {negocio.fone && negocio.fone !== negocio.whatsapp && (
-        <a href={`tel:${soDigitos(negocio.fone)}`}>
-          <Phone size={16} /><span>{negocio.fone}</span>
-        </a>
-      )}
-      {negocio.instagram && (
-        <a href={`https://instagram.com/${negocio.instagram.replace('@', '')}`} target="_blank" rel="noreferrer">
-          <Instagram size={16} /><span>@{negocio.instagram.replace('@', '')}</span>
-        </a>
-      )}
-      <Horarios horarios={negocio.horarios} />
-      {mostrarPagamento && negocio.formasPagamento?.length > 0 && (
-        <div className="md-pagamentos">
-          {negocio.formasPagamento.map(f => <span key={f}>{NOMES_PAG[f] || f}</span>)}
-        </div>
-      )}
+      <div className="md-contato-links">
+        {lugares(dados).map(l => (
+          <a key={l.id || 'sede'} href={l.mapa} target="_blank" rel="noreferrer">
+            <MapPin size={16} /><span>{l.nome && <b>{l.nome} · </b>}{l.endereco}</span>
+          </a>
+        ))}
+        {negocio.whatsapp && (
+          <a href={`https://wa.me/55${soDigitos(negocio.whatsapp)}`} target="_blank" rel="noreferrer">
+            <MessageCircle size={16} /><span>WhatsApp</span>
+          </a>
+        )}
+        {negocio.fone && negocio.fone !== negocio.whatsapp && (
+          <a href={`tel:${soDigitos(negocio.fone)}`}>
+            <Phone size={16} /><span>{negocio.fone}</span>
+          </a>
+        )}
+        {negocio.instagram && (
+          <a href={`https://instagram.com/${negocio.instagram.replace('@', '')}`} target="_blank" rel="noreferrer">
+            <Instagram size={16} /><span>@{negocio.instagram.replace('@', '')}</span>
+          </a>
+        )}
+      </div>
+      <div className="md-contato-info">
+        <Horarios horarios={negocio.horarios} />
+        {mostrarPagamento && negocio.formasPagamento?.length > 0 && (
+          <div className="md-pagamentos">
+            {negocio.formasPagamento.map(f => <span key={f}>{NOMES_PAG[f] || f}</span>)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

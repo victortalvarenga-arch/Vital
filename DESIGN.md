@@ -327,7 +327,7 @@ Site is no longer one skin — `marca.template` (`'bandeja' | 'quadro' | 'cadern
 
 #### Essencial (`bandeja`)
 
-Thesis: the plain, well-made storefront. White ground and the base neutrals above; the structure carries it. Split hero (text on a pale tenant wash | photo), a "book now" bar with the service already selectable floating over the hero's edge, service cards with photo four per row, an "about" split with a photo, promotions on a full `--marca-escura` band, footer in two halves (contact | booking card). Section heads centered with a small tracked kicker; content left-aligned.
+Thesis: the plain, well-made storefront. White ground, but the light bands use `--es-tom` (the tenant accent at 11% into white, not `--marca-fundo`'s 6%, which read as white), and they alternate white/tone by whichever sections actually render (`faixa()` in `Essencial.jsx`), so a business without "Sobre" or promotions never gets three white bands in a row. Grays darken in this model (`--cinza: #555`, `--fraco: #636363`) to keep 4.5:1 on the stronger tone. One promotion renders as a wide horizontal card (`PromoUnica`), never one narrow card alone. The footer is a `--marca-escura` band in three columns (name and button | contacts | hours and payment). Split hero (text on a pale tenant wash | photo), a "book now" bar with the service already selectable floating over the hero's edge, service cards with photo four per row, an "about" split with a photo, promotions on a full `--marca-escura` band, footer in two halves (contact | booking card). Section heads centered with a small tracked kicker; content left-aligned.
 
 #### Galeria (`quadro`)
 
@@ -342,6 +342,8 @@ Thesis: warm and welcoming without becoming Clínica's cream-and-gold. Triple he
 
 - **Ground** (`#FBF8F5`) / **Ink** (`#2B2522`). **Gray** (`#625753`) / **Muted** (`#6E625D`, ~5.3:1). **Line** (`#EADFD8`) / **Surface** (`#F4ECE6`).
 - Generous corners (`--raio` 22px), pill buttons, soft shadow. Arches (`border-radius: 999px 999px r r`) on the about photo and the team photos.
+
+**Instagram is laid out per model**, not one shared strip: Essencial puts the invitation beside a 3×2 grid; Galeria a full-bleed edge-to-edge strip; Serena a mosaic (the first post 2×2 with five around it, only when there are six; fewer becomes a plain three-column grid so there is never a hole).
 
 **All three are light.** `tema.js` keeps the dark-ground code path (`alvoEscuro`), but no current model uses it.
 
