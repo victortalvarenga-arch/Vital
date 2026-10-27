@@ -634,6 +634,88 @@ caminho de volta.
 - [ ] Custo: a Meta cobra por mensagem de template, e marketing custa mais que
       utilidade. Decidir quem paga — a empresa direto à Meta, ou a Vital
       repassando no plano (o que amarra este bloco à cobrança da Vital).
+- [ ] **Verificação da Vital na Meta** (Business Manager, CNPJ, provedora de
+      tecnologia). Não é código e é o que trava todo o resto do envio; começar
+      cedo, em paralelo com o Bloco 13. Conferir na hora a "coexistência"
+      (o mesmo número no app do celular e na API ao mesmo tempo).
+
+#### Atendente por IA no WhatsApp
+Decidido em 2026-10-23, por ideia do dono: uma IA que responde e agenda 24h
+pelo número da clínica, humanizada, sem inventar nada e sem nunca enxergar
+outra clínica.
+
+**Ferramentas, não RAG, para o que é dado.** Preço, serviço, profissional e
+horário livre a IA não "sabe": ela consulta o sistema por ferramentas
+(`servicos`, `horariosLivres`, `agendar`, `remarcar`, `cancelar`), que passam
+pelas mesmas regras do site (`lib/availability.js`, validação de origem
+"site"). Busca em texto (RAG) só para o que a clínica escrever solto: regras de
+cancelamento, cuidados antes e depois, perguntas frequentes.
+
+**Isolamento pela base, não pelo prompt.** A mensagem chega pelo número da
+clínica, a empresa é resolvida antes da IA rodar, e toda ferramenta roda em
+`db.comEmpresa` — o RLS garante que ela não enxerga outra empresa. A IA nunca
+recebe nem escolhe `tenant_id`.
+
+**Guardrails em camadas**, desenho trazido do projeto `genera_genui` do dono
+(`F:\fiap\dasa\sprint2_dasa\genera_genui\lib\lint\`; projeto da FIAP para a
+DASA — reaproveitar o desenho e reescrever o código aqui, por causa de direito
+sobre o código do desafio):
+- **Entrada:** classificar a mensagem da cliente antes de responder —
+  urgência ou reação depois de procedimento, reclamação, pedido de humano,
+  tentativa de manipular a IA. Os três primeiros vão direto para a equipe.
+  Texto da cliente é dado, nunca instrução.
+- **Saída, camada 0 (léxico, grátis):** diagnóstico ("você tem melasma"),
+  indicação de procedimento ("no seu caso, o ideal é…"), dose, promessa de
+  resultado, "sem risco", "sem dor".
+- **Saída, camada 1 (fundamentação):** todo preço, horário, data e nome de
+  serviço da resposta tem de ter vindo de uma ferramenta nesta conversa —
+  equivalente à R010/R011 de lá. Substância citada só se for serviço do
+  catálogo da clínica (R002b).
+- **Saída, camada 2 (juiz):** IA auditora só nos casos de risco; julga, não
+  reescreve; na dúvida aprova.
+- **Ação pela gravidade:** passa, refaz uma vez, ou bloqueia. Bloqueada, sai
+  um texto fixo sem IA ("vou chamar alguém da equipe") e a conversa vai para
+  uma pessoa.
+- **Modo sombra no lançamento:** a IA só sugere, a secretária aprova com um
+  toque, e os registros calibram as regras antes de ela falar sozinha.
+- **Avaliação:** lista de respostas ruins plausíveis (têm de ser pegas) e de
+  boas que quase disparam (têm de passar), rodando na suíte.
+- **Log sem conteúdo:** o texto da conversa nunca vai para o log, só ids,
+  contagens e códigos de regra.
+
+**Botões por clínica**, separados pela categoria de cobrança da Meta, cada um
+com estimativa de custo do mês: atendente IA (só custo da IA — resposta a quem
+escreveu primeiro não é cobrada pela Meta), lembretes e confirmação
+(utilidade), pós-atendimento (utilidade), marketing (aniversário, reativação,
+campanhas). Tudo desligado é o modo manual que já existe: mensagem pronta e
+editável que a secretária manda com um toque.
+
+**Modelo:** escolher medindo a lista de avaliação — o mais barato que acerte
+tudo. Ordem de grandeza por conversa de agendamento (~8 trocas): Haiku 5.5
+~R$ 0,05, Sonnet 5.5 ~R$ 0,45, Opus 5.5 ~R$ 0,75 (estimativa, não medição).
+
+Ordem:
+- [ ] Verificação na Meta (acima).
+- [ ] Receber mensagens e caixa de conversas no painel, com "assumir
+      conversa" — é a base da IA e do passar para humano.
+- [ ] Botões de mensagem automática por clínica.
+- [x] Atendente IA v1 só de agendamento, em modo sombra, com os guardrails
+      (2026-10-23). Motor, ferramentas, guardrails de entrada e saída, juiz,
+      conversas com RLS (migration 026) e a tela **Atendente IA** do painel,
+      com teste em simulação. Como é montado: `ARQUITETURA.md`, "Atendente
+      por IA". Falta para valer no WhatsApp:
+  - [ ] ligar ao webhook de entrada e ao envio por empresa (itens acima),
+        rodando `atender` fora da requisição, em `db.comEmpresa`;
+  - [ ] medir o modelo: rodar a lista de avaliação com uma chave de verdade
+        em Haiku, Sonnet e Opus e escolher o mais barato que acerte tudo
+        (`ATENDENTE_MODELO`); hoje o padrão é Opus 5.5 em esforço baixo;
+  - [ ] lista de avaliação com conversas reais do modo sombra: cada resposta
+        descartada pela equipe vira caso em `atendente-guardrails.test.js`;
+  - [ ] promoções (combos) nas ferramentas — hoje a IA só conhece serviço
+        avulso e adicional;
+  - [ ] caixa de conversas do canal `whatsapp` no painel (o teste já mostra
+        sugestão, aprovar, descartar e devolver para a IA).
+- [ ] Depois: pós-atendimento, sugestões de oferta.
 
 ### Bloco 13 — Publicar na internet (etapa 1 da entrega)
 Começado em 2026-10-14. Nada disto foi feito antes: o sistema só rodou em
@@ -1161,6 +1243,23 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] Ter um caminho para apagar os dados de uma empresa que sair da
       plataforma. Exportar já existe (o dono baixa clientes e agendamentos em
       CSV); apagar ainda não tem caminho nenhum.
+- [ ] **O atendente por IA manda conversa de cliente para a Anthropic.** Antes
+      de ligar no WhatsApp: a política de privacidade da empresa precisa dizer
+      que o atendimento usa IA de terceiro, e a Vital precisa conferir os termos
+      de tratamento de dados da Anthropic (retenção, uso para treino). As
+      conversas ficam em `conversa_mensagens` sem prazo de apagar — definir
+      junto com o item de retenção acima.
+
+### Custo do atendente por IA
+
+- [ ] **Cada mensagem custa** (Anthropic, e a Meta quando a clínica inicia a
+      conversa). Hoje o único freio é o limite por minuto do teste do painel.
+      Antes de ligar no WhatsApp: teto de gasto por empresa e por dia, e o
+      painel da Vital mostrando quanto cada empresa consumiu. Amarrado à
+      decisão de quem paga (Bloco 12).
+- [ ] **`ANTHROPIC_API_KEY` é segredo de produção**, do cofre do provedor,
+      nunca de arquivo. Sem ela o atendente responde 503 no teste e a conversa
+      do WhatsApp vai para a equipe com o texto fixo — nunca fica sem resposta.
 
 ## Fora de escopo por enquanto
 

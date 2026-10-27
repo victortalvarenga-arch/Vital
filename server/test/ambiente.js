@@ -111,6 +111,7 @@ export async function prepararBanco() {
  * raiz; tabela nova entra no lugar certo.
  */
 const TABELAS = [
+  'conversa_mensagens', 'conversas',
   'appointment_addons', 'appointments', 'blocks', 'messages',
   'service_addons', 'category_addons', 'service_staff',
   'users', 'services', 'clients', 'staff', 'units', 'templates', 'conexoes',

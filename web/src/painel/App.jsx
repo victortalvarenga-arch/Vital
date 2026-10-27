@@ -32,13 +32,14 @@ import Financeiro from './Financeiro.jsx';
 import Equipe from './Equipe.jsx';
 import Servicos from './Servicos.jsx';
 import ErroDeTela from './ErroDeTela.jsx';
+import Atendente from './Atendente.jsx';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
   ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
   Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
   LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
-  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download,
+  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -196,6 +197,7 @@ function Painel({ sessao, aoSair }) {
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
       ...(p.site ? [{ k: 'site', nome: 'Site da cliente', icon: Globe }] : []),
+      ...(p.site ? [{ k: 'atendente', nome: 'Atendente IA', icon: Bot }] : []),
       ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
       // Sem guarda: funcionário vê o próprio rastro, e é o servidor que recorta.
       { k: 'registro', nome: 'Registro', icon: ScrollText },
@@ -276,6 +278,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} poderes={p} />}
         {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
+        {secao === 'atendente' && p.site && <Atendente aviso={setFalha} />}
         {secao === 'usuarios' && p.equipe && (
           <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} />
         )}

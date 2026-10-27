@@ -274,6 +274,18 @@ export const api = {
   abrirChamado: ({ assunto, mensagem }) =>
     req('/suporte', { method: 'POST', body: { assunto, mensagem } }),
 
+  /* ── atendente por IA ── */
+  // Só o dono (o servidor recusa o resto). O teste conversa com a IA de
+  // verdade, em simulação: nada do que ela "agenda" entra na agenda.
+  atendente: () => req('/atendente/config'),
+  salvarAtendente: dados => req('/atendente/config', { method: 'PUT', body: dados }),
+  conversaDeTeste: () => req('/atendente/teste'),
+  falarComAtendente: ({ texto, fone }) => req('/atendente/teste', { method: 'POST', body: { texto, fone } }),
+  recomecarTeste: () => req('/atendente/teste', { method: 'DELETE' }),
+  aprovarResposta: id => req(`/atendente/mensagens/${id}/aprovar`, { method: 'POST' }),
+  descartarResposta: id => req(`/atendente/mensagens/${id}/descartar`, { method: 'POST' }),
+  devolverParaIA: id => req(`/atendente/conversas/${id}/devolver`, { method: 'POST' }),
+
   /* ── exportação ── */
   // 'clientes' ou 'agendamentos'. Só o dono; o servidor recusa o resto.
   exportar: oQue => baixar(`/exportar/${oQue}.csv`),

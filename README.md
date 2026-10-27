@@ -181,6 +181,10 @@ sem `CONEXOES_SEGREDO` e as credenciais de cada provedor no `server/.env`. O
 resto do sistema roda sem elas. O cadastro nos consoles do Google e da Meta
 está no `ROADMAP.md`, Bloco 6b.
 
+**O teste do Atendente IA responde "chave não configurada"** — falta
+`ANTHROPIC_API_KEY` no `server/.env`. Cada mensagem do teste custa uma chamada
+de verdade à Anthropic; a suíte (`npm test`) não precisa da chave nem gasta nada.
+
 ## Rodar como em produção
 
 ```bash

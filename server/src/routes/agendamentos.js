@@ -162,7 +162,11 @@ agendamentos.get('/', rota(async (req, res) => {
  * conferência ficasse fora da transação, as duas leriam "livre" antes de
  * qualquer uma gravar, e as duas gravariam.
  */
-export async function criarAgendamento(b, { origem = 'painel', forcar = false } = {}) {
+export async function criarAgendamento(b, { origem = 'painel', forcar = false, simular = false } = {}) {
+  // O site e o atendente do WhatsApp são as duas portas abertas: a cliente
+  // marca sozinha, sem ninguém da equipe olhando. Valem para as duas as
+  // mesmas conferências, e nenhuma das duas coleta ficha.
+  const publica = origem === 'site' || origem === 'whatsapp';
   const svc = await db.get('SELECT * FROM services WHERE id=?', b.servicoId);
   if (!svc) return { erro: 'serviço não encontrado', codigo: 404 };
   // Marcado para vender só junto de outro. A recusa vive aqui, e não só na
@@ -172,8 +176,9 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
   }
   const prof = await db.get('SELECT * FROM staff WHERE id=?', b.profissionalId);
   if (!prof) return { erro: 'profissional não encontrada', codigo: 404 };
-  const cli = await db.get('SELECT * FROM clients WHERE id=?', b.clienteId);
-  if (!cli) return { erro: 'cliente não encontrada', codigo: 404 };
+  const cli = b.clienteId ? await db.get('SELECT * FROM clients WHERE id=?', b.clienteId) : null;
+  // A simulação de um primeiro agendamento ainda não tem cliente gravada.
+  if (!cli && !simular) return { erro: 'cliente não encontrada', codigo: 404 };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.data || '') || !/^\d{2}:\d{2}$/.test(b.hora || '')) {
     return { erro: 'data (YYYY-MM-DD) e hora (HH:MM) inválidas', codigo: 400 };
   }
@@ -181,7 +186,7 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
   // O site só vende o que ele mesmo oferece. A grade já esconde serviço
   // arquivado, pessoa inativa, quem não faz o serviço e data fora do prazo —
   // mas id e data circulam, e sem isto a rota aceitava todos os quatro.
-  if (origem === 'site') {
+  if (publica) {
     if (!svc.ativo) return { erro: 'este serviço não está disponível', codigo: 409 };
     if (!prof.ativo) return { erro: `${prof.nome} não está atendendo`, codigo: 409 };
     const faz = await db.get('SELECT 1 FROM service_staff WHERE service_id=? AND staff_id=?', svc.id, prof.id);
@@ -210,7 +215,7 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
    * deixar meio agendamento gravado.
    */
   const fichas = [];
-  if (origem !== 'site') {
+  if (!publica) {
     for (const form of await formsDoServico(svc.id)) {
       const r = validarRespostas(form, (b.respostas || {})[form.id]);
       if (r.erro) return { erro: r.erro, codigo: 400 };
@@ -231,6 +236,18 @@ export async function criarAgendamento(b, { origem = 'painel', forcar = false } 
   // Nascer pago é o caminho do gateway e do combo vendido no balcão. Mesmo
   // helper do PUT, para o status nunca vir de um lugar e o valor de outro.
   const nasce = pagamentoDe(null, b.pagamento, valor);
+
+  // A simulação do atendente (teste no painel) passa por todas as conferências
+  // acima e para aqui: responde o que seria gravado, sem gravar. Sem a
+  // transação, a conferência de conflito é só uma foto do momento — basta para
+  // um teste, e é por isso que nunca serve para gravar.
+  if (simular) {
+    if (await conflita({ staffId: b.profissionalId, data: b.data, hora: b.hora, duracao })) {
+      return { erro: 'esse horário já está ocupado', codigo: 409 };
+    }
+    return { simulado: { servico: svc.nome, profissional: prof.nome, data: b.data, hora: b.hora, duracao, valor,
+      adicionais: extras.itens.map(i => i.nome) } };
+  }
 
   const id = uid();
   const resultado = await db.transacao(async tx => {
@@ -444,19 +461,7 @@ agendamentos.put('/:id', rota(async (req, res) => {
       await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, req.params.id);
     }
 
-    // Cancelar metade de um combo deixaria a cliente pagando preço de pacote
-    // por um serviço só. O pacote cai junto.
-    if (b.status === 'cancelado' && atual.combo_grupo) {
-      await tx.run(
-        `UPDATE appointments SET status='cancelado' WHERE combo_grupo=? AND status <> 'cancelado'`,
-        atual.combo_grupo
-      );
-      await tx.run(
-        `DELETE FROM messages WHERE status='pendente' AND appointment_id IN
-           (SELECT id FROM appointments WHERE combo_grupo=?)`,
-        atual.combo_grupo
-      );
-    }
+    if (b.status === 'cancelado') await cancelarOGrupo(tx, atual);
     return { atualizado: await tx.get('SELECT * FROM appointments WHERE id=?', req.params.id) };
   });
 
@@ -491,6 +496,49 @@ agendamentos.put('/:id', rota(async (req, res) => {
   await req.registrar(acao, { alvoId: depois.id, resumo, detalhe: mudou });
   res.json((await comAdicionais([depois]))[0]);
 }));
+
+/**
+ * Cancelar metade de um combo deixaria a cliente pagando preço de pacote por
+ * um serviço só: o pacote cai junto. Roda dentro da transação de quem cancela.
+ */
+async function cancelarOGrupo(tx, atual) {
+  if (!atual.combo_grupo) return;
+  await tx.run(
+    `UPDATE appointments SET status='cancelado' WHERE combo_grupo=? AND status <> 'cancelado'`,
+    atual.combo_grupo
+  );
+  await tx.run(
+    `DELETE FROM messages WHERE status='pendente' AND appointment_id IN
+       (SELECT id FROM appointments WHERE combo_grupo=?)`,
+    atual.combo_grupo
+  );
+}
+
+/**
+ * A cliente cancela o próprio horário — hoje, pelo atendente do WhatsApp.
+ *
+ * Só o que é dela (`clienteId` vem do número que está escrevendo, nunca do que
+ * a IA mandou), só o que ainda vai acontecer e só o que está de pé. Os
+ * lembretes pendentes saem junto, como no cancelamento pelo painel.
+ */
+export async function cancelarPelaCliente(id, clienteId, { simular = false } = {}) {
+  const atual = await db.get('SELECT * FROM appointments WHERE id=? AND client_id=?', id, clienteId);
+  if (!atual) return { erro: 'agendamento não encontrado', codigo: 404 };
+  if (!['agendado', 'confirmado'].includes(atual.status)) {
+    return { erro: 'esse agendamento não pode mais ser cancelado', codigo: 409 };
+  }
+  if (atual.data < hoje() || (atual.data === hoje() && atual.hora <= agora())) {
+    return { erro: 'esse horário já passou', codigo: 409 };
+  }
+  if (simular) return { cancelado: apptOut(atual), simulado: true };
+
+  await db.transacao(async tx => {
+    await tx.run(`UPDATE appointments SET status='cancelado' WHERE id=?`, id);
+    await tx.run(`DELETE FROM messages WHERE appointment_id=? AND status='pendente'`, id);
+    await cancelarOGrupo(tx, atual);
+  });
+  return { cancelado: apptOut({ ...atual, status: 'cancelado' }) };
+}
 
 agendamentos.delete('/:id', rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM appointments WHERE id=?', req.params.id);

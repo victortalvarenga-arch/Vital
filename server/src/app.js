@@ -29,6 +29,7 @@ import { comEmpresa, resolverTenant } from './lib/tenant.js';
 import { comCabecalho } from './lib/seo.js';
 import { servicosPara, profissionaisPara } from './lib/taxas.js';
 import { suporte } from './routes/suporte.js';
+import { atendente } from './routes/atendente.js';
 import { fecharAtendimentos } from './jobs/fechamento.js';
 
 /**
@@ -143,6 +144,7 @@ app.use('/api/uploads', exige('cadastros'), uploads);
 app.use('/api/relatorios', exige('financeiro'), relatorios);
 app.use('/api/exportar', exige('exportar'), exportar);
 app.use('/api/conexoes', exige('site'), conexoes);
+app.use('/api/atendente', exige('site'), atendente);
 app.use('/api', catalogo);
 app.use('/api/clientes', clientes);
 app.use('/api/agendamentos', agendamentos);

@@ -140,8 +140,11 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
                    relatorios | uploads (imagens da empresa) | bloqueios
                    (horário fechado) | conexoes (Google e Instagram) |
+                   atendente (configurar e testar a IA) |
                    cadastro, plataforma e o retorno OAuth (as rotas sem
                    empresa definida pelo endereço)
+  src/atendente/   atendente por IA do WhatsApp: motor, ferramentas, prompt,
+                   guardrails de entrada e de saída, juiz, porta para a IA
   test/            suíte automatizada (`npm test`), banco próprio
   src/jobs/        fila de WhatsApp, fechamento, funil e sincronização das
                    contas conectadas (node-cron)
@@ -2503,6 +2506,72 @@ Dois modos, trocados por variável de ambiente:
 Telefone é guardado só com dígitos, sem `+55`. A conversão para o formato da API
 acontece em `foneE164()`.
 
+## Atendente por IA
+
+Uma IA que responde e agenda pelo WhatsApp da clínica, em `server/src/atendente/`
+(decidido em 2026-10-23; plano completo no Bloco 12 do `ROADMAP.md`). Hoje
+funciona inteiro no **teste do painel** (Configurações → Atendente IA); o canal
+`whatsapp` está pronto no motor, mas a mensagem só chega e sai pelo WhatsApp
+quando existir o número por empresa e o webhook (Bloco 12).
+
+**Ferramentas, não catálogo no prompt.** A IA não recebe preço nem horário: pede
+às ferramentas (`ferramentas.js`) — `ver_servicos`, `ver_horarios`,
+`ver_dias_livres`, `agendar`, `meus_agendamentos`, `cancelar_agendamento`,
+`passar_para_equipe`. As que escrevem passam por `criarAgendamento` (origem
+`'whatsapp'`, com as mesmas conferências do site) e `cancelarPelaCliente`. Duas
+regras valem para todas: rodam no contexto da empresa e nunca recebem empresa
+como argumento — é o RLS que impede a IA de enxergar outra clínica, não o
+prompt —, e **a cliente é o número que está escrevendo**, nunca um argumento da
+IA: cancelar confere que o agendamento é daquele número.
+
+**Guardrails em camadas**, desenho do projeto `genera_genui` do dono:
+
+- **entrada** (`entrada.js`, padrões fixos): urgência ou reação depois de
+  procedimento, pedido de pessoa e reclamação nem chegam à IA — sai texto fixo
+  e a conversa vai para a equipe. Tentativa de manipular ("ignore suas regras")
+  vai à IA com um aviso na parte do prompt que não entra no cache;
+- **saída, família A** (`saida.js`): diagnóstico, indicação de procedimento,
+  remédio e dose (crítico), promessa de resultado ou "não dói", fingir ser
+  gente, vazar nome interno;
+- **saída, família B**: todo valor, horário, data, número, telefone, link e
+  procedimento citado tem de existir numa fonte desta conversa — o que as
+  ferramentas devolveram, o catálogo, as informações da clínica ou o que a
+  cliente escreveu. Dizer "agendei" sem a ferramenta ter agendado é barrado;
+- **juiz** (`juiz.js`): uma segunda IA, auditora e não redatora, só quando o
+  assunto é de risco (pele, procedimento, resultado, saúde) ou houve tentativa
+  de manipulação. Na dúvida, aprova.
+
+A gravidade decide: `erro` ganha **uma** nova tentativa, com o problema
+apontado; `critico` ou a segunda reprovação vira texto fixo escrito por gente
+(`TEXTOS_SEGUROS` em `motor.js`) e a conversa vai para a equipe. A nova tentativa
+**anexa** a resposta barrada e a correção como voltas novas, nunca edita o
+histórico: editar invalidaria o raciocínio que a API guarda, e refazer do zero
+repetiria o que as ferramentas já fizeram (agendaria duas vezes).
+
+**Modo sombra** (`config.atendente.modo`, padrão): a resposta nasce `sugerida`
+e só conta como dita quando a equipe aprova; descartada, sai do histórico que a
+IA lê. Em `automatico`, nasce `enviada`. Com a conversa na equipe
+(`conversas.estado = 'equipe'`), a IA não responde mais até alguém devolver.
+
+**A porta para a IA é uma só** (`modelo.js`), como `whatsapp/index.js`: o teste
+troca o modelo por um roteiro (`definirModeloDeTeste`), sem rede nem custo.
+Modelo e esforço vêm de `ATENDENTE_MODELO` (padrão `claude-opus-5-5`) e
+`ATENDENTE_ESFORCO` (padrão `low`); `ATENDENTE_JUIZ=off` desliga o juiz. Nos
+modelos que aceitam, vai o desvio automático da Anthropic para quando o
+classificador de segurança recusa. O prompt tem a parte fixa por clínica
+marcada para cache e a parte do momento (data, quem escreve, avisos) depois.
+
+**Conteúdo nunca vai para o log.** A linha `{"evt":"atendente",…}` leva códigos
+de regra, contagens e tempo. O texto da conversa mora em `conversa_mensagens`
+(migration 026, RLS), e a coluna `revisao` guarda códigos, não a resposta
+barrada.
+
+**A chamada à IA segura a conexão do banco.** No teste do painel, `atender` roda
+dentro da requisição, que é uma transação: a conexão fica presa enquanto a IA
+pensa (segundos). Aceitável para o teste, que tem limite por minuto; o webhook
+do WhatsApp deve rodar fora da requisição, em `db.comEmpresa`, para não segurar
+conexão por mensagem recebida.
+
 ## LGPD
 
 O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal.
@@ -2510,6 +2579,12 @@ O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal
 respeitado em `jobs/mensagens.js` e nas campanhas. Lembretes de agendamento são
 comunicação transacional e não dependem de opt-in. Ao adicionar qualquer disparo
 novo, decida em qual das duas categorias ele cai.
+
+O atendente por IA manda à Anthropic o que a cliente escreve e o que as
+ferramentas devolvem (serviços, horários, os agendamentos dela). Por isso as
+ferramentas devolvem o mínimo — primeiro nome, nunca endereço nem ficha — e a
+anamnese nunca passa por elas. O que falta para produção está em "Importante
+para produção" no `ROADMAP.md`.
 
 Foto de rosto de cliente (antes e depois) só é publicada com autorização
 registrada no painel — quem, quando, como. O registro é da empresa e não sai na

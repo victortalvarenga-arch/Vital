@@ -237,6 +237,18 @@ export const configPadrao = {
     fotos: true,
     categorias: true,
   },
+
+  // O atendente por IA do WhatsApp (Bloco 12; `server/src/atendente/`).
+  // Desligado e em modo sombra por padrão: a IA só fala sozinha depois que a
+  // empresa viu, no teste do painel, como ela responde. `instrucoes` é o que a
+  // clínica quer que a IA saiba (políticas, cuidados, pagamento) — texto livre
+  // dela, lido como dado e nunca como ordem. Escrito só por
+  // `PUT /api/atendente/config`, que confere cada campo.
+  atendente: {
+    ligado: false,
+    modo: 'sombra', // 'sombra' (sugere, a equipe aprova) | 'automatico'
+    instrucoes: '',
+  },
 };
 
 /** Mescla rasa por seção — o que o banco tem vence, o resto vem do padrão. */

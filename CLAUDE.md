@@ -180,6 +180,15 @@ escrito, não aconteceu.
   /api/config` para qualquer papel e é dela que a vitrine pública é montada.
   O que o job traz da conta (avaliações, publicações) vai para a config; o
   token, nunca.
+- Ferramenta nova do atendente por IA (`server/src/atendente/ferramentas.js`)
+  confere a própria entrada, roda no contexto da empresa e nunca recebe
+  empresa nem cliente como argumento: a cliente é o número da conversa
+  (`ctx.fone`), não o que a IA mandou. O que escreve na agenda passa pelas
+  mesmas funções do site. Ver `ARQUITETURA.md`, "Atendente por IA".
+- Texto de conversa do atendente nunca vai para o log nem para a coluna
+  `revisao` — só códigos de regra, contagens e tempo. Regra nova de guardrail
+  entra com um caso que ela barra e um parecido que ela deixa passar, em
+  `atendente-guardrails.test.js`.
 - Funcionalidade nova entra também no `seed.js`. Ele é o que uma máquina nova
   enxerga: cenário desatualizado faz a pessoa achar que a funcionalidade não
   existe. `npm run reset` tem de reproduzir tudo.

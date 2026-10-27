@@ -53,6 +53,10 @@ catalogo.put('/config', exige('site'), rota(async (req, res) => {
   // seria depoimento inventado; e a tela manda a config inteira ao salvar,
   // então uma aba aberta antes da sincronização desfaria o que o job trouxe.
   delete corpo.avaliacoesGoogle;
+  // O atendente tem rota própria, que confere cada campo. Por aqui ele passaria
+  // sem conferência — e a tela do site, que manda a config inteira, desfaria
+  // o que foi salvo na tela do atendente.
+  delete corpo.atendente;
   if (corpo.antesDepois !== undefined) {
     const casos = casosDeAntesDepois(corpo.antesDepois, req.usuario);
     if (casos.erro) return res.status(400).json({ erro: casos.erro });

@@ -17,6 +17,7 @@
     "uploads:subir": "node src/subir-uploads-r2.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.2.0",
     "@aws-sdk/client-s3": "^3.1121.0",
     "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",

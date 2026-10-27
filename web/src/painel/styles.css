@@ -1696,3 +1696,73 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .pf-desemp{grid-template-columns:1fr 1fr 1fr; gap:6px}
   .pf-desemp b{font-size:14px}
 }
+
+/* ── Atendente IA (atd-) ──
+   Duas colunas no computador (configuração | conversa de teste), uma embaixo
+   da outra no celular. A conversa imita o WhatsApp o bastante para a dona
+   reconhecer o que a cliente vai ver — balão da cliente à direita. */
+.atd-aviso svg{flex:none; margin-top:1px}
+.atd-aviso{display:flex; gap:8px; align-items:flex-start; background:#FBF0DF; color:#8A6410;
+  border-radius:12px; padding:12px 14px; font-size:13px; margin-bottom:14px}
+.atd-grade{display:grid; gap:14px; grid-template-columns:1fr}
+@media (min-width:1000px){ .atd-grade{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); align-items:start} }
+
+.atd-config{padding:18px; display:flex; flex-direction:column; gap:14px}
+.atd-linha{display:flex; justify-content:space-between; gap:14px; align-items:center}
+.atd-linha b{font-size:14.5px}
+.atd-linha p{margin:3px 0 0; font-size:12.5px; color:var(--muted)}
+.atd-modos{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.atd-modo{display:flex; flex-direction:column; gap:3px; text-align:left; padding:12px; border-radius:12px;
+  border:1px solid var(--line); background:var(--paper); cursor:pointer; min-height:44px}
+.atd-modo b{font-size:13.5px}
+.atd-modo span{font-size:12px; color:var(--muted)}
+.atd-modo.on{border-color:var(--lacquer); background:var(--blush)}
+.atd-rotulo{font-size:12.5px; font-weight:700; color:var(--muted)}
+.atd-config textarea{width:100%; font:inherit; font-size:13.5px; padding:11px 12px; border:1px solid var(--line);
+  border-radius:10px; resize:vertical; background:var(--paper); color:var(--ink); margin-top:-8px}
+.atd-config textarea:focus-visible{outline:none; border-color:var(--ink)}
+.atd-rodape{display:flex; align-items:center; justify-content:space-between; margin-top:-6px}
+.atd-conta{font-size:11.5px; color:var(--muted); font-family:'IBM Plex Mono', monospace}
+.atd-regras{background:var(--porcelain); border-radius:12px; padding:12px 14px; font-size:12.5px}
+.atd-regras-t{display:flex; align-items:center; gap:6px; font-weight:700; color:var(--ok); margin-bottom:6px}
+.atd-regras ul{margin:0; padding-left:18px; display:grid; gap:3px}
+.atd-regras p{margin:8px 0 0; color:var(--muted)}
+
+.atd-chat{padding:0; display:flex; flex-direction:column; overflow:hidden; min-height:520px}
+.atd-chat-topo{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 16px;
+  border-bottom:1px solid var(--line)}
+.atd-chat-topo b{display:block; font-size:14px}
+.atd-chat-topo span{font-size:12px; color:var(--muted)}
+.atd-fone{margin:10px 16px 0; width:calc(100% - 32px); box-sizing:border-box; font:inherit; font-size:12.5px; padding:8px 11px; border:1px solid var(--line);
+  border-radius:9px; background:var(--paper); color:var(--ink)}
+.atd-msgs{flex:1; display:flex; flex-direction:column; gap:10px; padding:14px 16px; background:#F3EEE9;
+  margin-top:10px; overflow-y:auto; max-height:560px}
+.atd-vazio{margin:auto; text-align:center; font-size:13px; color:var(--muted); max-width:320px}
+.atd-msg{display:flex; flex-direction:column; gap:4px; max-width:85%}
+.atd-msg.cliente{align-self:flex-end; align-items:flex-end}
+.atd-msg.ia{align-self:flex-start}
+.atd-msg.descartada .atd-balao{opacity:.45; text-decoration:line-through}
+.atd-autor{display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); font-weight:600}
+.atd-balao{padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.45; white-space:pre-wrap;
+  background:var(--paper); box-shadow:0 1px 1px rgba(36,26,40,.06)}
+.atd-msg.cliente .atd-balao{background:#E4F0EA; border-bottom-right-radius:4px}
+.atd-msg.ia .atd-balao{border-bottom-left-radius:4px}
+.atd-revisao{display:flex; flex-wrap:wrap; gap:4px; font-size:11.5px; color:var(--muted)}
+.atd-regra{background:#FBF0DF; color:#8A6410; padding:2px 8px; border-radius:999px}
+.atd-acoes{display:flex; gap:6px}
+.atd-status{font-size:11px; color:var(--muted)}
+.atd-equipe{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--ink);
+  background:var(--paper); border:1px dashed var(--line); border-radius:12px; padding:10px 12px}
+.atd-equipe .btn{margin-left:auto}
+.atd-digitando{display:flex; gap:4px; padding:12px 14px}
+.atd-digitando i{width:6px; height:6px; border-radius:50%; background:var(--muted); opacity:.4;
+  animation:atd-pisca 1.2s infinite}
+.atd-digitando i:nth-child(2){animation-delay:.2s}
+.atd-digitando i:nth-child(3){animation-delay:.4s}
+@keyframes atd-pisca{50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){ .atd-digitando i{animation:none; opacity:.7} }
+.atd-escrever{display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line)}
+.atd-escrever input{flex:1; font:inherit; font-size:14px; padding:10px 13px; border:1px solid var(--line);
+  border-radius:999px; background:var(--paper); color:var(--ink); min-width:0}
+.atd-escrever input:focus-visible{outline:none; border-color:var(--ink)}
+.atd-escrever .btn{padding:10px 14px}

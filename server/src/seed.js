@@ -691,6 +691,16 @@ async function segundaEmpresa() {
       // Segundo modelo de exemplo — Quadro de Horários, fundo escuro, números
       // em mono. É onde alguém vê que o site muda de verdade entre empresas.
       marca: { corPrimaria: '#1F4E5F', template: 'quadro' },
+      // O atendente por IA (Bloco 12) com o que uma barbearia diria a ele. Aqui
+      // e não na Laura: política de negócio de pessoa real não se inventa.
+      atendente: {
+        ligado: false,
+        modo: 'sombra',
+        instrucoes: 'Cancelamento ou remarcação: avise com pelo menos 2 horas de antecedência.\n'
+          + 'Atraso de mais de 15 minutos: o horário pode ser remarcado.\n'
+          + 'Aceitamos Pix, cartão e dinheiro, pagos no atendimento.\n'
+          + 'Tem estacionamento na rua, sem custo.',
+      },
     });
 
     await db.run(
