@@ -25,6 +25,14 @@ let cliente = null;
 export function definirModeloDeTeste(falso) { deTeste = falso; }
 
 export const chaveConfigurada = () => Boolean(deTeste || process.env.ANTHROPIC_API_KEY);
+
+/**
+ * O atendente inteiro liga por variável do servidor (`ATENDENTE_IA=sim`).
+ * Desligado, a tela some do painel e as rotas respondem 404: a primeira
+ * entrega vai ao ar sem ele, e uma empresa não pode configurar o que a Vital
+ * ainda não oferece (decidido em 2026-10-27).
+ */
+export const atendenteLigado = () => process.env.ATENDENTE_IA === 'sim';
 export const nomeDoModelo = () => (deTeste ? 'teste' : MODELO());
 
 function anthropic() {

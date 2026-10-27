@@ -148,8 +148,8 @@ publico.get('/vitrine', rota(async (req, res) => {
       .filter(c => c?.antes && c?.depois && c?.autorizacao?.nome && c?.autorizacao?.data)
       .map(c => ({ antes: c.antes, depois: c.depois, titulo: c.titulo || '' })),
     // Avaliações do Google, montadas a dedo como o resto: só o que o site
-    // desenha. Sem nenhuma, `null` — e o site mostra o estado vazio, nunca uma
-    // nota sem avaliação por trás.
+    // desenha. Sem nenhuma, `null` — e o site esconde a seção, nunca uma nota
+    // sem avaliação por trás.
     avaliacoes: avaliacoesParaVitrine(cfg.avaliacoesGoogle),
     // Sem imagem não há o que mostrar; mais de 6 não cabe na grade. `tipo`
     // vem do job da conta conectada ('imagem' | 'video').

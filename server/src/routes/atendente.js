@@ -4,10 +4,15 @@ import { rota } from '../lib/rota.js';
 import { limite } from '../lib/limite.js';
 import { soDigitos } from '../lib/dates.js';
 import { abrirConversa, atender, mensagensDa } from '../atendente/motor.js';
-import { chaveConfigurada, nomeDoModelo } from '../atendente/modelo.js';
+import { atendenteLigado, chaveConfigurada, nomeDoModelo } from '../atendente/modelo.js';
 import { ROTULOS } from '../atendente/saida.js';
 
 export const atendente = Router();
+
+atendente.use((req, res, next) => {
+  if (!atendenteLigado()) return res.status(404).json({ erro: 'o atendente por IA não está ativo' });
+  next();
+});
 
 /**
  * Painel do atendente por IA: configurar e testar.

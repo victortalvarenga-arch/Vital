@@ -197,7 +197,7 @@ function Painel({ sessao, aoSair }) {
     { titulo: 'Configurações', itens: [
       { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
       ...(p.site ? [{ k: 'site', nome: 'Site da cliente', icon: Globe }] : []),
-      ...(p.site ? [{ k: 'atendente', nome: 'Atendente IA', icon: Bot }] : []),
+      ...(p.site && dados.recursos?.atendente ? [{ k: 'atendente', nome: 'Atendente IA', icon: Bot }] : []),
       ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
       // Sem guarda: funcionário vê o próprio rastro, e é o servidor que recorta.
       { k: 'registro', nome: 'Registro', icon: ScrollText },
@@ -278,7 +278,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} poderes={p} />}
         {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
-        {secao === 'atendente' && p.site && <Atendente aviso={setFalha} />}
+        {secao === 'atendente' && p.site && dados.recursos?.atendente && <Atendente aviso={setFalha} />}
         {secao === 'usuarios' && p.equipe && (
           <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} />
         )}

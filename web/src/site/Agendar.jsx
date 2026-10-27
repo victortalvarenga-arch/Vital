@@ -877,6 +877,12 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
                   onClick={confirmar}>
             {ocupado ? 'Confirmando…' : 'Confirmar horário'}
           </button>
+          {/* Aviso, não caixa de "li e aceito": o agendamento se apoia no
+              próprio serviço pedido, e a promoção já tem a escolha dela acima. */}
+          <p className="jn-privacidade">
+            Seus dados são usados para o seu agendamento, como explica a{' '}
+            <a href="#privacidade" target="_blank" rel="noreferrer">política de privacidade</a>.
+          </p>
         </>
       )}
     </div>

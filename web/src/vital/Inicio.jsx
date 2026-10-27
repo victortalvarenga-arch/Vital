@@ -267,9 +267,7 @@ function SiteDaMarca() {
             <span><i /><b>Limpeza de pele</b><small>60 min · R$ 180</small></span>
             <span><i /><b>Design de sobrancelha</b><small>40 min · R$ 70</small></span>
           </div>
-          {/* Sem nota nem depoimento inventado: o PRODUCT.md não deixa fabricar
-              prova, nem em desenho. */}
-          <div className="lp-site-estrelas"><Star size={13} fill="currentColor" /> Avaliações do Google</div>
+          <div className="lp-site-estrelas"><Star size={13} fill="currentColor" /> Agendamento online, 24 horas</div>
         </div>
 
         <div>
@@ -277,7 +275,7 @@ function SiteDaMarca() {
             <li><Check size={16} /> Seu logo, sua cor, seu endereço</li>
             <li><Check size={16} /> Feito para o celular</li>
             <li><Check size={16} /> Antes e depois, com autorização</li>
-            <li><Check size={16} /> Google e Instagram, atualizados sozinhos</li>
+            <li><Check size={16} /> Perguntas frequentes e Instagram no site</li>
           </ul>
           <div className="lp-modelos">
             {MODELOS.map(([n, f, c]) => (
@@ -484,6 +482,8 @@ function Rodape() {
         <nav>
           <a href="#como-funciona">Como funciona</a>
           <a href="#duvidas">Dúvidas</a>
+          <a href="#termos">Termos de uso</a>
+          <a href="#privacidade">Privacidade</a>
           <a href="#equipe">Sou da equipe Vital</a>
         </nav>
       </div>

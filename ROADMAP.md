@@ -762,7 +762,11 @@ cada passo só depende dos anteriores.
        `VITAL_CHAVE_PRIMEIRO_ACESSO`, as quatro
        `R2_*` e `UPLOADS_BASE_URL`. A lista inteira, com o que vai em cada uma,
        está no `server/.env.example`; as que não são segredo já estão no
-       `fly.toml`. `NODE_ENV=production` vem do `Dockerfile`.
+       `fly.toml`. `NODE_ENV=production` vem do `Dockerfile`. **Ficam de
+       fora na primeira entrega** (decidido em 2026-10-27): `ATENDENTE_IA` e
+       `ANTHROPIC_API_KEY` (o atendente some do painel), `GOOGLE_*` e
+       `INSTAGRAM_*` (as conexões somem do painel e as avaliações, do site) e
+       as `WHATSAPP_*` (as mensagens seguem no modo manual).
 7. [ ] **Primeiro deploy:** `fly deploy --ha=false`. O `--ha=false` é
        obrigatório: por padrão o Fly sobe duas máquinas, e duas cópias
        rodariam as migrations juntas e disparariam os mesmos jobs (ver
@@ -849,10 +853,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       conta não vê o back-office, então ninguém de fora estranha hoje — mas
       logo, favicon e e-mail precisam de uma cor só. Decidir se o roxo segue o
       verde. Ver `DESIGN.md`, "Vital — The Showcase".
-- [ ] **A página de apresentação fala "Avaliações do Google" e "Instagram"
-      como se estivessem ligados**, e eles dependem dos cadastros na Google e
-      na Meta (Bloco 13). Antes de divulgar a página, conferir que as duas
-      conexões funcionam em produção — ou tirar a frase.
 - [ ] **A função da profissional não se edita mais, mas ainda aparece no site.**
       O campo saiu da ficha de Profissionais (os serviços já dizem o que a
       pessoa faz), mas `staff.funcao` continua indo para a vitrine e a Clínica
@@ -1243,6 +1243,11 @@ qualquer bloco, pergunte se surgiu item novo para cá.
 - [ ] Ter um caminho para apagar os dados de uma empresa que sair da
       plataforma. Exportar já existe (o dono baixa clientes e agendamentos em
       CSV); apagar ainda não tem caminho nenhum.
+- [ ] **Termos de uso e políticas de privacidade precisam de revisão
+      jurídica** e da identificação formal da Vital (razão social, CNPJ,
+      endereço), que ainda não existe. Os textos estão no ar desde 2026-10-27
+      (`web/src/site/Privacidade.jsx`, `web/src/vital/Legal.jsx`) e descrevem
+      o que o sistema faz hoje; o contato é o e-mail de suporte.
 - [ ] **O atendente por IA manda conversa de cliente para a Anthropic.** Antes
       de ligar no WhatsApp: a política de privacidade da empresa precisa dizer
       que o atendimento usa IA de terceiro, e a Vital precisa conferir os termos

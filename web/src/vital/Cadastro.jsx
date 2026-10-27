@@ -99,6 +99,10 @@ export function FormCadastro({ aoCriar }) {
         <button className="v-btn" type="submit" disabled={ocupado || (robo.ligado && !robo.token)}>
           {ocupado ? 'Criando…' : <>Criar minha agenda <ArrowRight size={17} /></>}
         </button>
+        <p className="v-aceite">
+          Ao criar a conta, você concorda com os <a href="#termos" target="_blank" rel="noreferrer">termos de uso</a>{' '}
+          e a <a href="#privacidade" target="_blank" rel="noreferrer">política de privacidade</a>.
+        </p>
       </form>
     </section>
   );

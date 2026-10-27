@@ -124,11 +124,16 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
       </Secao>
 
-      <Secao titulo="Avaliações do Google"
-             ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora.">
-        <Conexao info={google} nome="Google" agir={agirNaConta}
-                 explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
-      </Secao>
+      {/* Sem as credenciais do Google no servidor, a seção inteira some: um
+          cartão dizendo "ainda não ativada" é promessa que a empresa não tem
+          como cumprir. Volta sozinha quando a Vital configurar. */}
+      {(google?.disponivel || google?.conectado) && (
+        <Secao titulo="Avaliações do Google"
+               ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora.">
+          <Conexao info={google} nome="Google" agir={agirNaConta}
+                   explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
+        </Secao>
+      )}
 
       <Secao titulo="Instagram" ajuda="O perfil vai para o rodapé e, no modelo Clínica, ganha uma seção com as publicações.">
         <Conexao info={insta} nome="Instagram" agir={agirNaConta}
@@ -559,14 +564,9 @@ function Conexao({ info, nome, explica, agir }) {
     }
   };
 
-  if (!info.disponivel) {
-    return (
-      <div className="cx">
-        <p className="cx-txt">{explica}</p>
-        <p className="cs-dica">A conexão com o {nome} ainda não foi ativada pela Vital.</p>
-      </div>
-    );
-  }
+  // Sem as credenciais no servidor, o cartão não aparece. No Instagram fica o
+  // preenchimento manual do perfil e das fotos, que funciona sem conexão.
+  if (!info.disponivel && !info.conectado) return null;
 
   if (!info.conectado) {
     return (

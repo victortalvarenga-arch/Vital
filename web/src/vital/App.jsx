@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Inicio from './Inicio.jsx';
 import Equipe from './Equipe.jsx';
+import Legal from './Legal.jsx';
 
 /**
  * A página da Vital. Duas coisas muito diferentes, no mesmo bundle:
@@ -16,14 +17,30 @@ import Equipe from './Equipe.jsx';
  * O `#equipe` no endereço é o que troca entre as duas. Não é segurança — o
  * back-office recusa sem sessão, no servidor. É só para o link ser copiável.
  */
+// Os endereços com página própria; qualquer outro (inclusive as âncoras da
+// página de apresentação, como `#criar`) fica na apresentação.
+const PAGINAS = { '#equipe': 'equipe', '#termos': 'termos', '#privacidade': 'privacidade' };
+const paginaAtual = () => PAGINAS[location.hash] || 'inicio';
+
 export default function App() {
-  const [rota, setRota] = useState(() => (location.hash === '#equipe' ? 'equipe' : 'cadastro'));
+  const [rota, setRota] = useState(paginaAtual);
 
   useEffect(() => {
-    const aoTrocar = () => setRota(location.hash === '#equipe' ? 'equipe' : 'cadastro');
+    const aoTrocar = () => setRota(paginaAtual());
     addEventListener('hashchange', aoTrocar);
     return () => removeEventListener('hashchange', aoTrocar);
   }, []);
 
-  return rota === 'equipe' ? <Equipe /> : <Inicio />;
+  // Página nova abre no topo. Só quando a página muda: âncora dentro da
+  // apresentação (`#criar`) também dispara `hashchange`, e voltar ao topo
+  // ali desfaria o pulo que o link pediu.
+  const primeira = useRef(true);
+  useEffect(() => {
+    if (primeira.current) { primeira.current = false; return; }
+    window.scrollTo(0, 0);
+  }, [rota]);
+
+  if (rota === 'equipe') return <Equipe />;
+  if (rota === 'termos' || rota === 'privacidade') return <Legal qual={rota} />;
+  return <Inicio />;
 }

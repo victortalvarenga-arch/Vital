@@ -203,6 +203,24 @@
         "value": "rgba(80, 70, 45, .08)",
         "createdAt": "2026-09-16T18:54:54.937Z",
         "reason": "Agent: sombra quente do cartão da faixa Agende, sobre o bege — preto puro esfriava o cartão; valor da referência"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fbf0df",
+        "createdAt": "2026-10-27T19:18:06.568Z",
+        "reason": "DESIGN.md, Colors > Painel: tons de status da agenda (aguardando #FBF0DF/#8A6410, confirmado #E4F0EA), documentados no texto"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#8a6410",
+        "createdAt": "2026-10-27T19:18:06.654Z",
+        "reason": "DESIGN.md, Colors > Painel: tons de status da agenda (aguardando #FBF0DF/#8A6410, confirmado #E4F0EA), documentados no texto"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#e4f0ea",
+        "createdAt": "2026-10-27T19:18:06.727Z",
+        "reason": "DESIGN.md, Colors > Painel: tons de status da agenda (aguardando #FBF0DF/#8A6410, confirmado #E4F0EA), documentados no texto"
       }
     ]
   }

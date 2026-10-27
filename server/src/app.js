@@ -30,6 +30,7 @@ import { comCabecalho } from './lib/seo.js';
 import { servicosPara, profissionaisPara } from './lib/taxas.js';
 import { suporte } from './routes/suporte.js';
 import { atendente } from './routes/atendente.js';
+import { atendenteLigado } from './atendente/modelo.js';
 import { fecharAtendimentos } from './jobs/fechamento.js';
 
 /**
@@ -213,6 +214,9 @@ app.get('/api/estado', rota(async (req, res) => {
     templates: modelos.map(templateOut),
     combos: pacotes,
     unidades: locais,
+    // O que a Vital tem ligado no servidor. A tela esconde o que não está —
+    // e a rota recusa de qualquer jeito.
+    recursos: { atendente: atendenteLigado() },
     // Funcionário vê o que fecha a agenda dele: o próprio e os da empresa toda.
     bloqueios: fechados
       .filter(b => !so || !b.staff_id || b.staff_id === so)

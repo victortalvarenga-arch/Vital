@@ -17,6 +17,9 @@ import { prepararBanco, limpar, cenario, agendar, subirApi, criarEquipe, criarEm
  *  - urgência e pedido de pessoa nem chegam à IA.
  */
 
+// O atendente só existe com a chave do servidor ligada (`atendenteLigado`).
+process.env.ATENDENTE_IA = 'sim';
+
 const A = 'default';
 const B = 'empresa-atendente-b';
 
@@ -272,6 +275,18 @@ describe('o que nem chega à IA', () => {
 });
 
 describe('rotas do painel', () => {
+  test('desligado no servidor, o atendente some: rotas 404 e o painel sabe', async () => {
+    process.env.ATENDENTE_IA = '';
+    try {
+      assert.equal((await dona('GET', '/api/atendente/config')).status, 404);
+      assert.equal((await dona('POST', '/api/atendente/teste', { texto: 'oi' })).status, 404);
+      assert.equal((await dona('GET', '/api/estado')).corpo.recursos.atendente, false);
+    } finally {
+      process.env.ATENDENTE_IA = 'sim';
+    }
+    assert.equal((await dona('GET', '/api/estado')).corpo.recursos.atendente, true);
+  });
+
   test('funcionária não configura nem testa o atendente', async () => {
     assert.equal((await ana('GET', '/api/atendente/config')).status, 403);
     assert.equal((await ana('POST', '/api/atendente/teste', { texto: 'oi' })).status, 403);

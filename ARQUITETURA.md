@@ -2422,6 +2422,12 @@ job de hora em hora (minuto 23): renova o token se precisar e sincroniza
 (`avaliacoesGoogle`, `instagramPosts`), que a vitrine já lia. A visita não
 gasta cota de ninguém e não fica lenta se o provedor estiver fora.
 
+**Sem as credenciais do provedor no servidor, a conexão não aparece**
+(`disponivel: false`). No painel, a seção do Google some inteira e o Instagram
+fica só com o preenchimento manual; no site, a seção de avaliações some em vez
+de dizer "em breve". A primeira entrega vai ao ar assim (2026-10-27) — os
+cadastros nos consoles do Google e da Meta ficam para depois.
+
 **Um endereço de retorno para todas as empresas, e a empresa no `state`
 assinado.** Google e Meta só devolvem a pessoa a URLs cadastradas no console
 deles, sem curinga — não dá para cadastrar o subdomínio de cada empresa. O
@@ -2509,8 +2515,16 @@ acontece em `foneE164()`.
 ## Atendente por IA
 
 Uma IA que responde e agenda pelo WhatsApp da clínica, em `server/src/atendente/`
-(decidido em 2026-10-23; plano completo no Bloco 12 do `ROADMAP.md`). Hoje
-funciona inteiro no **teste do painel** (Configurações → Atendente IA); o canal
+(decidido em 2026-10-23; plano completo no Bloco 12 do `ROADMAP.md`).
+
+**Desligado por padrão** (`ATENDENTE_IA=sim` liga, `atendenteLigado()` em
+`modelo.js`). Desligado, as rotas respondem 404 e o `/api/estado` manda
+`recursos.atendente: false`, que esconde a tela. A primeira entrega vai ao ar
+assim (decidido em 2026-10-27): sem número de WhatsApp por empresa, o
+atendente só serviria ao teste, e a política de privacidade ainda não fala de
+IA de terceiro.
+
+Ligado, funciona inteiro no **teste do painel** (Configurações → Atendente IA); o canal
 `whatsapp` está pronto no motor, mas a mensagem só chega e sai pelo WhatsApp
 quando existir o número por empresa e o webhook (Bloco 12).
 
@@ -2579,6 +2593,16 @@ O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal
 respeitado em `jobs/mensagens.js` e nas campanhas. Lembretes de agendamento são
 comunicação transacional e não dependem de opt-in. Ao adicionar qualquer disparo
 novo, decida em qual das duas categorias ele cai.
+
+**Política de privacidade e termos.** O site de cada empresa tem a política de
+quem agenda em `#privacidade` (`site/Privacidade.jsx`), com o nome e o WhatsApp
+da empresa — ela é a controladora, a Vital a operadora —, link no rodapé e um
+aviso no botão de confirmar o horário. A página da Vital tem os termos de uso
+(`#termos`) e a política da própria Vital (`#privacidade`), em
+`vital/Legal.jsx`, com aviso no formulário de cadastro. Os textos descrevem o
+que o sistema faz hoje: funcionalidade que mude uma frase deles (o atendente
+por IA, pagamento online, apagar empresa) muda o texto junto. Revisão jurídica
+e a identificação formal da Vital estão em "Importante para produção".
 
 O atendente por IA manda à Anthropic o que a cliente escreve e o que as
 ferramentas devolvem (serviços, horários, os agendamentos dela). Por isso as

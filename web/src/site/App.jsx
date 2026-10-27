@@ -11,6 +11,7 @@ import { aplicarSeo } from './seo.js';
 import { linkGeral, linkServico } from './whatsapp.js';
 import { passo } from './medir.js';
 import Agendar from './Agendar.jsx';
+import Privacidade from './Privacidade.jsx';
 import { quandoVale } from '../shared/promocao.js';
 import Grade from './Grade.jsx';
 import {
@@ -23,6 +24,25 @@ export default function App() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [agendando, setAgendando] = useState(null);   // { servicoId } | null
+  // A política de privacidade é uma "página" no mesmo endereço, em
+  // `#privacidade`: o site é um arquivo só por empresa, e o link precisa poder
+  // ser mandado e aberto direto.
+  const [privacidade, setPrivacidade] = useState(() => location.hash === '#privacidade');
+
+  useEffect(() => {
+    const aoTrocar = () => setPrivacidade(location.hash === '#privacidade');
+    addEventListener('hashchange', aoTrocar);
+    return () => removeEventListener('hashchange', aoTrocar);
+  }, []);
+
+  // Abrir ou fechar a política volta ao topo. Só nessa troca: as seções do
+  // modelo Clínica também são âncoras, e voltar ao topo a cada uma desfaria
+  // o pulo que o link pediu.
+  const primeira = useRef(true);
+  useEffect(() => {
+    if (primeira.current) { primeira.current = false; return; }
+    window.scrollTo(0, 0);
+  }, [privacidade]);
 
   useEffect(() => {
     api.vitrine()
@@ -56,6 +76,8 @@ export default function App() {
   );
 
   if (!dados) return <div className="centro"><p style={{ color: 'var(--fraco)' }}>Carregando…</p></div>;
+
+  if (privacidade) return <Privacidade negocio={dados.negocio} />;
 
   return (
     <>
@@ -261,7 +283,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   const secoesClinica = ehClinica ? [
     ['Serviços', 'servicos'],
     ...(dados.profissionais?.length ? [['Equipe', 'equipe']] : []),
-    ['Avaliações', 'avaliacoes'],
+    ...(dados.avaliacoes ? [['Avaliações', 'avaliacoes']] : []),
     ...(negocio.instagram ? [['Instagram', 'instagram']] : []),
     ...(lugares(dados).length ? [['Contato', 'contato']] : []),
   ] : null;
@@ -375,7 +397,9 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
               tem onde cadastrar (painel → Site da cliente), e "Em breve" para
               sempre fazia o site parecer inacabado. */}
           {dados.antesDepois?.length > 0 && <SecaoAntesDepois casos={dados.antesDepois} />}
-          <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />
+          {/* Mesma regra do antes e depois: sem avaliação vinda da conta
+              conectada, a seção some em vez de prometer "em breve". */}
+          {dados.avaliacoes && <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />}
           {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
           <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
         </>
@@ -725,6 +749,7 @@ function Rodape({ dados, negocio, textos, cheio, mostrarPagamento }) {
         )}
 
         <p className="assinatura">{textos?.rodape || negocio.nome}</p>
+        <a className="rodape-privacidade" href="#privacidade">Política de privacidade</a>
       </div>
     </footer>
   );

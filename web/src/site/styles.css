@@ -1211,6 +1211,27 @@ img { max-width: 100%; display: block; }
 .rodape.bloco-cheio .rodape-link:hover { color: inherit; opacity: .75; }
 .rodape.bloco-cheio .pag { background: var(--sobre-marca-escura); color: var(--marca-escura); border-color: transparent; }
 .rodape.bloco-cheio .assinatura { color: inherit; opacity: .65; }
+/* O link da política fica embaixo da assinatura, discreto mas legível:
+   sublinhado, para não depender de cor para parecer link. */
+.rodape-privacidade {
+  display: block; width: fit-content; margin: var(--e-3) auto 0; padding: var(--e-2) var(--e-1);
+  font-size: var(--t-legenda); color: var(--cinza); text-decoration: underline; text-underline-offset: 3px;
+}
+.rodape.bloco-cheio .rodape-privacidade { color: inherit; }
+
+/* ── política de privacidade (#privacidade) ── */
+.priv { padding: var(--e-7) 0 var(--e-9); background: var(--fundo); color: var(--texto); min-height: 100vh; }
+.priv h1 { font-size: var(--t-secao); margin: var(--e-5) 0 var(--e-1); }
+.priv h2 { font-size: var(--t-titulo-pq); margin: var(--e-7) 0 var(--e-2); }
+.priv p, .priv li { font-size: var(--t-corpo); line-height: 1.6; color: var(--cinza); }
+.priv p { margin: 0 0 var(--e-3); }
+.priv ul { margin: 0 0 var(--e-3); padding-left: var(--e-5); display: grid; gap: var(--e-2); }
+.priv a { color: var(--marca-legivel); }
+.priv-data { font-size: var(--t-legenda) !important; color: var(--fraco) !important; }
+.priv-voltar {
+  display: inline-flex; align-items: center; gap: var(--e-2); min-height: 44px;
+  font-size: var(--t-auxiliar); font-weight: 600; text-decoration: none;
+}
 
 /* ══ janela de agendamento ════════════════════════════════════════ */
 
@@ -1481,6 +1502,8 @@ img { max-width: 100%; display: block; }
   color: var(--cinza); margin: 4px 0 var(--e-4); line-height: 1.45;
 }
 .jn-check input { width: 18px; height: 18px; margin-top: 1px; flex: none; }
+.jn-privacidade { margin: var(--e-3) 0 0; font-size: var(--t-legenda); color: var(--fraco); text-align: center; line-height: 1.5; }
+.jn-privacidade a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 .jn-pronto { text-align: center; max-width: 380px; margin: 0 auto; padding-top: 10px; }
 /* O momento de maior satisfação do fluxo inteiro merecia mais que um ícone

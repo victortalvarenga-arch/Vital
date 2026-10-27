@@ -448,6 +448,18 @@
 .lp-rodape a { color: var(--lp-fraco); text-decoration: none; }
 .lp-rodape a:hover { color: var(--lp-tinta); }
 
+/* ── termos e privacidade (Legal.jsx) ── */
+.lp-legal { min-height: 100vh; padding: 32px 0 72px; }
+.lp-legal .lp-in { max-width: 720px; }
+.lp-legal h1 { font-size: 36px; margin: 20px 0 6px; color: var(--lp-verde-escuro); }
+.lp-legal h2 { font-size: 22px; margin: 32px 0 8px; }
+.lp-legal p, .lp-legal li { font-size: 15.5px; line-height: 1.65; color: #3E4A43; }
+.lp-legal p { margin: 0 0 12px; }
+.lp-legal ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; }
+.lp-legal a { color: var(--lp-verde); }
+.lp-legal-data { font-size: 13px !important; color: var(--lp-fraco) !important; }
+.lp-legal-voltar { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; text-decoration: none; }
+
 @media (prefers-reduced-motion: no-preference) {
   html:has(.lp) { scroll-behavior: smooth; }
 }

@@ -105,6 +105,7 @@ export const api = {
       templates: d.templates,
       combos: d.combos || [],
       unidades: d.unidades || [],
+      recursos: d.recursos || {},
     };
   },
 
