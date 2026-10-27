@@ -65,6 +65,47 @@ describe('a vitrine respeita o painel', () => {
     await dona('PUT', '/api/config', { antesDepois: [] });
   });
 
+  test('seção desligada em "O que mostrar" não sai nem na vitrine, e volta ao religar', async () => {
+    const caso = { titulo: 'Limpeza', antes: '/uploads/default/a.jpg', depois: '/uploads/default/d.jpg',
+      autorizacao: { nome: 'Maria Souza', data: '2026-09-01', como: 'termo assinado' } };
+    await dona('PUT', '/api/config', {
+      sobre: 'Um espaço para se cuidar.',
+      antesDepois: [caso],
+      faq: [{ pergunta: 'Tem estacionamento?', resposta: 'Na rua.' }],
+      instagramPosts: [{ imagem: '/uploads/default/p.jpg', link: '' }],
+    });
+    await db.db.comEmpresa('default', () => db.setConfig({
+      avaliacoesGoogle: { nota: 4.8, total: 10, link: '', lista: [] },
+    }));
+
+    const ligado = await vitrine();
+    assert.equal(ligado.negocio.sobre, 'Um espaço para se cuidar.');
+    assert.equal(ligado.antesDepois.length, 1);
+    assert.equal(ligado.faq.length, 1);
+    assert.equal(ligado.instagramPosts.length, 1);
+    assert.equal(ligado.avaliacoes.total, 10);
+
+    await dona('PUT', '/api/config', {
+      exibir: { sobre: false, antesDepois: false, perguntas: false, instagram: false, avaliacoes: false },
+    });
+    const desligado = await vitrine();
+    assert.equal(desligado.negocio.sobre, '');
+    assert.deepEqual(desligado.antesDepois, []);
+    assert.deepEqual(desligado.faq, []);
+    assert.deepEqual(desligado.instagramPosts, []);
+    assert.equal(desligado.avaliacoes, null);
+    // O conteúdo continua guardado: desligar não apaga.
+    const cfg = (await dona('GET', '/api/config')).corpo;
+    assert.equal(cfg.antesDepois.length, 1);
+    assert.equal(cfg.faq.length, 1);
+
+    await dona('PUT', '/api/config', {
+      exibir: { sobre: true, antesDepois: true, perguntas: true, instagram: true, avaliacoes: true },
+    });
+    assert.equal((await vitrine()).antesDepois.length, 1);
+    await dona('PUT', '/api/config', { sobre: '', antesDepois: [], faq: [], instagramPosts: [] });
+  });
+
   test('caso gravado sem autorização (config antiga) não é publicado', async () => {
     await db.db.comEmpresa('default', () => db.setConfig({
       antesDepois: [{ titulo: 'Antigo', antes: '/a.jpg', depois: '/d.jpg' }],

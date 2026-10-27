@@ -34,7 +34,8 @@ export function titulo(cfg, servicos) {
 
 export function descricao(cfg, servicos) {
   const partes = [];
-  if (cfg.sobre) partes.push(cfg.sobre.trim());
+  // "Sobre" desligado em "O que mostrar" também não vai para a prévia do link.
+  if (cfg.sobre && cfg.exibir?.sobre !== false) partes.push(cfg.sobre.trim());
   else if (cfg.slogan) partes.push(cfg.slogan.trim());
 
   const nomes = listaCurta([...new Set(servicos.map(s => s.categoria).filter(Boolean))].slice(0, 3));

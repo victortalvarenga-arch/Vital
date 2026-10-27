@@ -336,8 +336,17 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 /* publicações do Instagram: quadrados na ordem do site, três por linha */
 .cs-posts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .cs-post {
-  display: flex; flex-direction: column; gap: 8px; padding: 8px;
+  display: flex; flex-direction: column; gap: 8px; padding: 8px; position: relative;
   border: 1px solid var(--line); border-radius: 12px; background: var(--paper);
+}
+/* Sem conta conectada, a grade é ilustração: cada foto leva a etiqueta. */
+.cs-post-exemplo {
+  position: absolute; top: 14px; left: 14px; padding: 2px 8px; border-radius: 999px;
+  background: var(--ink); color: var(--porcelain); font-size: 11px; font-weight: 700; letter-spacing: .04em;
+}
+.cs-sub {
+  margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line);
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700;
 }
 /* Item de flex em coluna, não de grid: aqui `aspect-ratio` na própria <img>
    basta, sem o problema da linha `auto` que o site tinha. */
@@ -345,9 +354,6 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px;
   background: var(--porcelain);
 }
-.cs-post input { font-size: 12.5px; padding: 8px 10px; }
-.cs-post-btns { display: flex; gap: 6px; justify-content: flex-end; }
-.cs-post-btns .btn { padding: 6px 9px; }
 
 /* antes e depois: as duas fotos, o título e a autorização da cliente */
 .cs-casos { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -401,11 +407,6 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cs-faq-item textarea { font: inherit; resize: vertical; }
 .cs-faq-btns { display: flex; gap: 6px; justify-content: flex-end; }
 .cs-faq-btns .btn { padding: 6px 9px; }
-.cs-post-nova {
-  align-items: center; justify-content: center; min-height: 190px;
-  border-style: dashed; color: var(--muted); font-size: 12.5px; text-align: center;
-}
-.cs-post-nova:hover:not(:disabled) { color: var(--ink); border-color: var(--ink); }
 
 /* barra fixa: some do caminho no celular quando há coisa por salvar */
 .cs-barra {

@@ -280,12 +280,17 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
 
   // Só as seções que existem de verdade nesta empresa entram na barra — um
   // link para uma âncora que não renderizou é um clique pra lugar nenhum.
+  // Equipe, Instagram e mapa existem mesmo sem conteúdo próprio (a equipe é
+  // a do agendamento; o Instagram mostra o perfil; o mapa, o endereço), por
+  // isso a chave de "O que mostrar" é conferida aqui também — o resto chega
+  // da vitrine já vazio quando a seção está desligada.
+  const ligada = chave => exibir?.[chave] !== false;
   const secoesClinica = ehClinica ? [
     ['Serviços', 'servicos'],
-    ...(dados.profissionais?.length ? [['Equipe', 'equipe']] : []),
+    ...(ligada('equipe') && dados.profissionais?.length ? [['Equipe', 'equipe']] : []),
     ...(dados.avaliacoes ? [['Avaliações', 'avaliacoes']] : []),
-    ...(negocio.instagram ? [['Instagram', 'instagram']] : []),
-    ...(lugares(dados).length ? [['Contato', 'contato']] : []),
+    ...(ligada('instagram') && negocio.instagram ? [['Instagram', 'instagram']] : []),
+    ...(ligada('mapa') && lugares(dados).length ? [['Contato', 'contato']] : []),
   ] : null;
 
   return (
@@ -392,7 +397,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           três modelos não pediram nenhuma delas. */}
       {ehClinica && (
         <>
-          <SecaoEquipe profissionais={dados.profissionais} />
+          {ligada('equipe') && <SecaoEquipe profissionais={dados.profissionais} />}
           {/* Sem caso autorizado a seção some, como as perguntas: a empresa
               tem onde cadastrar (painel → Site da cliente), e "Em breve" para
               sempre fazia o site parecer inacabado. */}
@@ -401,7 +406,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
               conectada, a seção some em vez de prometer "em breve". */}
           {dados.avaliacoes && <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />}
           {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
-          <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />
+          {ligada('instagram') && <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />}
         </>
       )}
 
@@ -409,7 +414,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           particularidade de modelo nenhum: a seção é dos quatro. */}
       <Perguntas faq={dados.faq} negocio={negocio} ehClinica={ehClinica} />
 
-      {ehClinica && <SecaoMapa dados={dados} />}
+      {ehClinica && ligada('mapa') && <SecaoMapa dados={dados} />}
 
       <Rodape dados={dados} negocio={negocio} textos={textos} cheio={ehClinica}
               mostrarPagamento={temOQueAgendar} />

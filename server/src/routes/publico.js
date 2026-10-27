@@ -103,6 +103,14 @@ async function vitrineDeCombos(cfg) {
   return saida;
 }
 
+/**
+ * A seção está ligada em "O que mostrar"? Desligada, o dado dela nem sai da
+ * vitrine — esconder só no site deixaria o conteúdo tirado no ar para quem
+ * olhar a resposta. Ausente conta como ligada: é o padrão, e config antiga
+ * não tem a chave.
+ */
+const secaoLigada = (cfg, chave) => cfg.exibir?.[chave] !== false;
+
 function avaliacoesParaVitrine(a) {
   if (!a?.total || !a?.nota) return null;
   return {
@@ -125,7 +133,7 @@ publico.get('/vitrine', rota(async (req, res) => {
     negocio: {
       nome: cfg.nome,
       slogan: cfg.slogan,
-      sobre: cfg.sobre,
+      sobre: secaoLigada(cfg, 'sobre') ? cfg.sobre : '',
       endereco: cfg.endereco,
       cidade: cfg.cidade,
       mapa: cfg.mapa,
@@ -144,23 +152,25 @@ publico.get('/vitrine', rota(async (req, res) => {
     // resposta: campo novo na config não vaza para a vitrine por descuido.
     // Caso sem autorização registrada não sai, venha de onde vier — nem de
     // config antiga, gravada antes de o painel exigir.
-    antesDepois: (cfg.antesDepois || [])
+    antesDepois: (secaoLigada(cfg, 'antesDepois') ? cfg.antesDepois || [] : [])
       .filter(c => c?.antes && c?.depois && c?.autorizacao?.nome && c?.autorizacao?.data)
       .map(c => ({ antes: c.antes, depois: c.depois, titulo: c.titulo || '' })),
     // Avaliações do Google, montadas a dedo como o resto: só o que o site
     // desenha. Sem nenhuma, `null` — e o site esconde a seção, nunca uma nota
     // sem avaliação por trás.
-    avaliacoes: avaliacoesParaVitrine(cfg.avaliacoesGoogle),
+    avaliacoes: secaoLigada(cfg, 'avaliacoes') ? avaliacoesParaVitrine(cfg.avaliacoesGoogle) : null,
     // Sem imagem não há o que mostrar; mais de 6 não cabe na grade. `tipo`
     // vem do job da conta conectada ('imagem' | 'video').
-    instagramPosts: (cfg.instagramPosts || [])
+    // Desligada a seção, as fotos não saem; o perfil continua no rodapé, que
+    // é contato e não a seção.
+    instagramPosts: (secaoLigada(cfg, 'instagram') ? cfg.instagramPosts || [] : [])
       .filter(p => p?.imagem)
       .slice(0, 6)
       .map(p => ({ imagem: p.imagem, link: p.link || '', tipo: p.tipo === 'video' ? 'video' : 'imagem' })),
     // Só o par de cada pergunta, montado a dedo como o resto desta resposta.
     // Pergunta sem resposta não vai: a seção existe para tirar dúvida, e meia
     // entrada na tela deixa a pessoa mais insegura do que antes.
-    faq: (cfg.faq || [])
+    faq: (secaoLigada(cfg, 'perguntas') ? cfg.faq || [] : [])
       .filter(p => p?.pergunta?.trim() && p?.resposta?.trim())
       .map(p => ({ pergunta: p.pergunta.trim(), resposta: p.resposta.trim() })),
     exibir: cfg.exibir,

@@ -205,10 +205,10 @@ export const configPadrao = {
   antesDepois: [],
 
   // Publicações do Instagram que o site mostra em grade: `{ imagem, link }`,
-  // até 6, na ordem em que aparecem. Quem preenche é a empresa, pelo painel
-  // (foto + link do post), ou o job da conta conectada (`conexoes/instagram.js`,
-  // que acrescenta `id` e `tipo`) — o site não precisa saber quem preencheu.
-  // Vazio, a seção mostra só o link para o perfil.
+  // até 6, na ordem em que aparecem. Quem preenche é o job da conta conectada
+  // (`conexoes/instagram.js`, que acrescenta `id` e `tipo`); o painel não tem
+  // mais editor manual, e o que já houver aqui antes da conexão aparece lá
+  // como exemplo. Vazio, a seção mostra só o link para o perfil.
   instagramPosts: [],
 
   // Avaliações do Google, escritas SÓ pelo job da conta conectada
@@ -236,6 +236,17 @@ export const configPadrao = {
     escolherProfissional: true,
     fotos: true,
     categorias: true,
+    // As seções do site, cada uma com chave própria (2026-10-27): a empresa
+    // tira o que ainda não tem pronto e põe de volta quando tiver, sem depender
+    // de nós. Desligada, a seção não sai nem na vitrine — ver `secaoLigada`
+    // em routes/publico.js. Ligada e vazia, continua sumindo sozinha.
+    sobre: true,
+    equipe: true,
+    antesDepois: true,
+    avaliacoes: true,
+    instagram: true,
+    perguntas: true,
+    mapa: true,
   },
 
   // O atendente por IA do WhatsApp (Bloco 12; `server/src/atendente/`).

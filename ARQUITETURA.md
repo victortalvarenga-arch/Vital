@@ -564,11 +564,13 @@ podem morar dentro de um `<button>`.
 **A grade do Instagram é uma lista na config, e o site não sabe quem a
 preencheu.** `config.instagramPosts` guarda até seis `{ imagem, link, tipo }`;
 a vitrine devolve só o que tem imagem, no máximo seis, só essas três chaves
-(`server/test/instagram.test.js`). Quem preenche é a empresa, em
-Configurações → Site → Instagram: sobe a foto (o upload que já existe, com
-`uso: 'instagram'`) e, se quiser, cola o link do post — sem link, o toque abre
-o perfil. Ou, com a conta conectada, o job de [Contas conectadas](#contas-conectadas),
-que escreve esta mesma lista e põe o painel em modo só-leitura. A seção do site
+(`server/test/instagram.test.js`). **Quem preenche é o job de
+[Contas conectadas](#contas-conectadas)**, nunca a empresa foto por foto
+(decidido em 2026-10-27): o painel mostra a grade só para olhar, com o botão
+"Conectar Instagram", e o editor manual de foto e link saiu. Até a conexão
+estar liberada, o que já está na lista (o seed tem as fotos da Laura) aparece
+no painel com a etiqueta "Exemplo" e o aviso de que é só visual. A empresa
+continua escrevendo o @ do perfil, que é o link do rodapé e da seção. A seção do site
 (`SecaoInstagram`, só Clínica) mostra o cabeçalho de
 perfil (logo como avatar, @, nome, "Seguir") e, embaixo, a grade 3×2; sem
 publicação nenhuma, fica só o cabeçalho com o link real — nunca quadrado de
@@ -2422,11 +2424,20 @@ job de hora em hora (minuto 23): renova o token se precisar e sincroniza
 (`avaliacoesGoogle`, `instagramPosts`), que a vitrine já lia. A visita não
 gasta cota de ninguém e não fica lenta se o provedor estiver fora.
 
-**Sem as credenciais do provedor no servidor, a conexão não aparece**
-(`disponivel: false`). No painel, a seção do Google some inteira e o Instagram
-fica só com o preenchimento manual; no site, a seção de avaliações some em vez
-de dizer "em breve". A primeira entrega vai ao ar assim (2026-10-27) — os
-cadastros nos consoles do Google e da Meta ficam para depois.
+**Sem as credenciais do provedor no servidor** (`disponivel: false`), o painel
+mostra o botão "Conectar" desligado, com "em breve" — a empresa já vê onde vai
+conectar, e no dia em que a Vital configurar ele acende sozinho. No site, a
+seção de avaliações some enquanto não houver avaliação, em vez de dizer "em
+breve". A primeira entrega vai ao ar assim (2026-10-27); os cadastros nos
+consoles do Google e da Meta ficam para depois.
+
+**Cada seção do site tem chave em "O que mostrar"** (`config.exibir`: `sobre`,
+`perguntas`, `equipe`, `antesDepois`, `avaliacoes`, `instagram`, `mapa`, todas
+ligadas por padrão). A empresa tira o que ainda não está pronto e põe de volta
+quando estiver, sem apagar o conteúdo. Desligada, a seção não sai nem na
+vitrine (`secaoLigada` em `routes/publico.js`) — esconder só no site deixaria
+o conteúdo na resposta pública; equipe, Instagram e mapa, que aparecem mesmo
+sem conteúdo próprio, são conferidos também no site.
 
 **Um endereço de retorno para todas as empresas, e a empresa no `state`
 assinado.** Google e Meta só devolvem a pessoa a URLs cadastradas no console

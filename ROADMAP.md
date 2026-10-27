@@ -765,7 +765,8 @@ cada passo só depende dos anteriores.
        `fly.toml`. `NODE_ENV=production` vem do `Dockerfile`. **Ficam de
        fora na primeira entrega** (decidido em 2026-10-27): `ATENDENTE_IA` e
        `ANTHROPIC_API_KEY` (o atendente some do painel), `GOOGLE_*` e
-       `INSTAGRAM_*` (as conexões somem do painel e as avaliações, do site) e
+       `INSTAGRAM_*` (o botão "Conectar" fica desligado, com "em breve", e as
+       avaliações somem do site) e
        as `WHATSAPP_*` (as mensagens seguem no modo manual).
 7. [ ] **Primeiro deploy:** `fly deploy --ha=false`. O `--ha=false` é
        obrigatório: por padrão o Fly sobe duas máquinas, e duas cópias

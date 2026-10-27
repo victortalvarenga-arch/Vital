@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, Image, Link2, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Image, Link2, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { prepararImagem } from '../shared/imagem.js';
 
@@ -124,29 +124,23 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
       </Secao>
 
-      {/* Sem as credenciais do Google no servidor, a seção inteira some: um
-          cartão dizendo "ainda não ativada" é promessa que a empresa não tem
-          como cumprir. Volta sozinha quando a Vital configurar. */}
-      {(google?.disponivel || google?.conectado) && (
-        <Secao titulo="Avaliações do Google"
-               ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora.">
-          <Conexao info={google} nome="Google" agir={agirNaConta}
-                   explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
-        </Secao>
-      )}
+      <Secao titulo="Avaliações do Google"
+             ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. Para tirar a seção do site, use “O que mostrar”, abaixo.">
+        <Conexao info={google} nome="Google" agir={agirNaConta}
+                 explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
+      </Secao>
 
+      {/* As publicações não se escolhem à mão: vêm da conta conectada. Até a
+          conexão existir, o que está no site é exemplo — e a tela diz isso,
+          para ninguém achar que precisa montar a grade foto por foto. */}
       <Secao titulo="Instagram" ajuda="O perfil vai para o rodapé e, no modelo Clínica, ganha uma seção com as publicações.">
         <Conexao info={insta} nome="Instagram" agir={agirNaConta}
                  explica="Conecte a conta e as 6 publicações mais recentes entram no site sozinhas. Precisa ser conta profissional (comercial ou criador)." />
-        {insta?.conectado ? (
-          <PreviaPublicacoes lista={cfg.instagramPosts || []} />
-        ) : (
-          <>
-            <Texto rotulo="Perfil" valor={cfg.instagram} aoMudar={v => mudar('instagram', v)}
-                   dica="Só o nome do perfil, sem @." />
-            <Publicacoes lista={cfg.instagramPosts || []} aoMudar={v => mudar('instagramPosts', v)} aviso={aviso} />
-          </>
+        {!insta?.conectado && (
+          <Texto rotulo="Perfil" valor={cfg.instagram} aoMudar={v => mudar('instagram', v)}
+                 dica="Só o nome do perfil, sem @. É o link do rodapé e da seção do Instagram." />
         )}
+        <PreviaPublicacoes lista={cfg.instagramPosts || []} conectado={!!insta?.conectado} />
       </Secao>
 
       <Secao titulo="O que mostrar" ajuda="Cada item liga ou desliga um pedaço do site.">
@@ -163,6 +157,12 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Chave rotulo="Deixar escolher o profissional" ligado={cfg.exibir?.escolherProfissional !== false}
                aoMudar={v => mudar('exibir.escolherProfissional', v)}
                dica="Desligado, o sistema escolhe quem estiver livre." />
+
+        <div className="cs-sub">Seções do site</div>
+        {SECOES.map(([chave, rotulo, dica]) => (
+          <Chave key={chave} rotulo={rotulo} ligado={cfg.exibir?.[chave] !== false}
+                 aoMudar={v => mudar(`exibir.${chave}`, v)} dica={dica} />
+        ))}
       </Secao>
 
       <Secao titulo="Agenda" ajuda="Regras que o site respeita ao oferecer horários.">
@@ -187,6 +187,22 @@ export default function ConfigSite({ dados, acao, aviso }) {
     </div>
   );
 }
+
+/**
+ * As seções que a empresa tira e põe no site. Ligada e vazia, a seção já some
+ * sozinha; a chave existe para tirar o que TEM conteúdo e ainda não está do
+ * jeito que ela quer — e pôr de volta quando estiver. O servidor respeita a
+ * mesma chave (`secaoLigada` em routes/publico.js).
+ */
+const SECOES = [
+  ['sobre', 'Sobre', 'O parágrafo sobre o negócio, abaixo do topo.'],
+  ['perguntas', 'Perguntas frequentes', null],
+  ['equipe', 'Equipe', 'Modelo Clínica: quem atende, com foto e nome.'],
+  ['antesDepois', 'Antes e depois', 'Modelo Clínica. Só aparece com pelo menos um caso autorizado.'],
+  ['avaliacoes', 'Avaliações do Google', 'Modelo Clínica. Só aparece com a conta do Google conectada.'],
+  ['instagram', 'Instagram', 'Modelo Clínica: a grade de publicações. O perfil continua no rodapé.'],
+  ['mapa', 'Mapa', 'Modelo Clínica: o mapa com o endereço, no fim da página.'],
+];
 
 /* ── peças ── */
 
@@ -377,62 +393,9 @@ function Perguntas({ lista, aoMudar }) {
   );
 }
 
-/**
- * As publicações do Instagram que o site mostra — até 6, na ordem da lista.
- *
- * Cada uma é foto + link do post, escolhida e enviada pela empresa. É o
- * caminho de quem não conectou a conta — perfil pessoal, por exemplo, que a
- * Meta não deixa conectar. Conectada, a lista vem da conta e a tela vira
- * `PreviaPublicacoes`.
- */
+/** O site mostra até 6 publicações do Instagram. */
 const MAX_POSTS = 6;
 
-function Publicacoes({ lista, aoMudar, aviso }) {
-  const posts = lista.slice(0, MAX_POSTS);
-  const trocar = (i, patch) => aoMudar(posts.map((p, n) => (n === i ? { ...p, ...patch } : p)));
-  const remover = i => aoMudar(posts.filter((_, n) => n !== i));
-  const mover = (i, para) => {
-    if (para < 0 || para >= posts.length) return;
-    const nova = [...posts];
-    [nova[i], nova[para]] = [nova[para], nova[i]];
-    aoMudar(nova);
-  };
-  const { entrada, subindo, escolher, abrir } = useEnviarImagem({
-    uso: 'instagram', largura: 1080, aviso,
-    aoEnviar: url => aoMudar([...posts, { imagem: url, link: '' }]),
-  });
-
-  return (
-    <Linha rotulo="Publicações"
-           dica="Até 6, na ordem em que aparecem. Suba a foto e, se quiser, cole o link da publicação — sem link, o toque abre o perfil.">
-      <div className="cs-posts">
-        {posts.map((p, i) => (
-          <div key={p.imagem + i} className="cs-post">
-            <img src={p.imagem} alt="" />
-            <input placeholder="Link do post" value={p.link || ''}
-                   onChange={e => trocar(i, { link: e.target.value })} />
-            <div className="cs-post-btns">
-              <button className="btn btn-g btn-s" onClick={() => mover(i, i - 1)} disabled={i === 0}
-                      aria-label="Mover para antes"><ChevronLeft size={14} /></button>
-              <button className="btn btn-g btn-s" onClick={() => mover(i, i + 1)} disabled={i === posts.length - 1}
-                      aria-label="Mover para depois"><ChevronRight size={14} /></button>
-              <button className="btn btn-g btn-s" onClick={() => remover(i)} aria-label="Remover publicação">
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </div>
-        ))}
-        {posts.length < MAX_POSTS && (
-          <button className="cs-post cs-post-nova" disabled={subindo} onClick={abrir}>
-            <Upload size={18} />
-            <span>{subindo ? 'Enviando…' : `Adicionar foto (${posts.length}/${MAX_POSTS})`}</span>
-          </button>
-        )}
-        <input ref={entrada} type="file" accept="image/*" hidden onChange={escolher} />
-      </div>
-    </Linha>
-  );
-}
 
 /**
  * Casos de antes e depois: duas fotos, um título e a autorização da cliente.
@@ -564,9 +527,20 @@ function Conexao({ info, nome, explica, agir }) {
     }
   };
 
-  // Sem as credenciais no servidor, o cartão não aparece. No Instagram fica o
-  // preenchimento manual do perfil e das fotos, que funciona sem conexão.
-  if (!info.disponivel && !info.conectado) return null;
+  // Sem as credenciais no servidor, o botão já fica no lugar, desligado: a
+  // empresa vê onde vai conectar, e no dia em que a Vital liberar ele acende
+  // sem ninguém mudar a tela.
+  if (!info.disponivel && !info.conectado) {
+    return (
+      <div className="cx">
+        <p className="cx-txt">{explica}</p>
+        <button className="btn btn-p btn-s" disabled>
+          <Link2 size={14} /> Conectar {nome}
+        </button>
+        <p className="cs-dica">Em breve: a Vital está liberando a conexão com o {nome}.</p>
+      </div>
+    );
+  }
 
   if (!info.conectado) {
     return (
@@ -634,21 +608,34 @@ function Conexao({ info, nome, explica, agir }) {
   );
 }
 
-/** Com a conta conectada, a grade é a da conta: só se olha, não se edita. */
-function PreviaPublicacoes({ lista }) {
+/**
+ * A grade do Instagram como o site mostra: só se olha, não se edita.
+ *
+ * Conectada, é a da conta. Sem conexão, o que está ali é exemplo visual — e a
+ * etiqueta diz isso com todas as letras, porque uma grade de fotos sem
+ * explicação parece algo que a dona precisa manter.
+ */
+function PreviaPublicacoes({ lista, conectado }) {
+  const posts = lista.slice(0, MAX_POSTS);
   return (
     <Linha rotulo="Publicações no site"
-           dica="Vêm da conta conectada e se atualizam sozinhas. Para escolher à mão, desconecte.">
-      {lista.length ? (
+           dica={conectado ? 'Vêm da conta conectada e se atualizam sozinhas.'
+             : posts.length ? 'Exemplo visual, só para mostrar como a seção fica. Quando o Instagram for conectado, as suas publicações de verdade entram aqui e no site sozinhas.'
+             : 'Quando o Instagram for conectado, as suas publicações entram aqui e no site sozinhas.'}>
+      {posts.length ? (
         <div className="cs-posts">
-          {lista.slice(0, MAX_POSTS).map((p, i) => (
+          {posts.map((p, i) => (
             <a key={p.imagem + i} className="cs-post" href={p.link || undefined} target="_blank" rel="noreferrer">
               <img src={p.imagem} alt="" />
+              {!conectado && <span className="cs-post-exemplo">Exemplo</span>}
             </a>
           ))}
         </div>
       ) : (
-        <p className="cs-dica">Nenhuma publicação ainda. Use “Atualizar agora” se acabou de conectar.</p>
+        <p className="cs-dica">
+          {conectado ? 'Nenhuma publicação ainda. Use “Atualizar agora” se acabou de conectar.'
+            : 'Sem publicações por enquanto: a seção mostra só o link do perfil.'}
+        </p>
       )}
     </Linha>
   );
