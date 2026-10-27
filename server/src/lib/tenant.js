@@ -170,9 +170,16 @@ export const configPadrao = {
     // escolha dela em qualquer modelo — o que muda é a forma, a tipografia, a
     // sombra e o fundo neutro em volta dessa cor. Era `fonte`, sem uso nenhum
     // no front; renomeado para o que o campo faz de verdade.
+    // Ids antigos, nomes novos: bandeja é a Essencial, quadro a Galeria e
+    // caderneta a Serena. Mudar o id obrigaria a migrar a config de toda
+    // empresa para trocar só o que a tela mostra.
     template: 'bandeja', // 'bandeja' | 'quadro' | 'caderneta' | 'clinica'
     logo: '',
     capa: '',
+    // Fotos de apoio dos modelos (o "sobre", a faixa de promoção, a tabela
+    // de preços). Vazias, o site usa a foto de exemplo do modelo.
+    foto2: '',
+    foto3: '',
     favicon: '',
   },
 

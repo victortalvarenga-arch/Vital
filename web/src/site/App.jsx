@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Calendar, ChevronRight, Clock, Instagram, MapPin, MessageCircle,
+  Calendar, Clock, Instagram, MapPin, MessageCircle,
   Phone, Plus, Sparkles, TriangleAlert,
 } from 'lucide-react';
 import * as api from '../shared/publico.js';
@@ -13,11 +13,12 @@ import { passo } from './medir.js';
 import Agendar from './Agendar.jsx';
 import Privacidade from './Privacidade.jsx';
 import { quandoVale } from '../shared/promocao.js';
-import Grade from './Grade.jsx';
+import Essencial, { RodapeEssencial } from './modelos/Essencial.jsx';
+import Galeria, { RodapeGaleria } from './modelos/Galeria.jsx';
+import Serena, { RodapeSerena } from './modelos/Serena.jsx';
 import {
   HeroClinica, TituloClinica, CartoesClinica, SecaoEquipe, SecaoAntesDepois,
   SecaoAvaliacoes, SecaoAgende, SecaoInstagram, SecaoMapa, BotaoWhatsApp,
-  altDaCapa, altDoServico,
 } from './Clinica.jsx';
 
 export default function App() {
@@ -47,11 +48,15 @@ export default function App() {
   useEffect(() => {
     api.vitrine()
       .then(d => {
-        setDados(d);
         // ?template=quadro por cima da config salva — pré-visualizar um
         // modelo sem precisar gravar nada, do painel ou de um link só seu.
+        // Entra nos dados, não só no tema: cada modelo tem a própria
+        // estrutura, e trocar só a pele punha as cores de um no esqueleto do
+        // outro.
         const doLink = new URLSearchParams(location.search).get('template');
-        aplicarTema(doLink ? { ...d.marca, template: doLink } : d.marca);
+        if (doLink) d = { ...d, marca: { ...d.marca, template: doLink } };
+        setDados(d);
+        aplicarTema(d.marca);
         // Título, descrição e o schema de negócio local — sem isto toda
         // empresa herda o <title> do index.html e some das buscas por serviço
         // e cidade. Ver `seo.js`.
@@ -239,6 +244,13 @@ export const Revela = ({ children, className = '' }) => {
 
 /* ── home ── */
 
+/** O modelo de cada `marca.template`, e o rodapé dele. A Clínica fica fora: é montada em Home. */
+const MODELOS = {
+  bandeja: [Essencial, RodapeEssencial],
+  quadro: [Galeria, RodapeGaleria],
+  caderneta: [Serena, RodapeSerena],
+};
+
 function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
   const { negocio, marca, textos, exibir } = dados;
   const combos = dados.combos || [];
@@ -258,89 +270,68 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
     return [...mapa].map(([nome, itens]) => ({ nome, itens }));
   }, [servicos]);
 
-  // Clínica é o único modelo com um cabeçalho de duas colunas e seções
-  // próprias (tudo em Clinica.jsx) — o resto do esqueleto (barra, .capa como
-  // faixa solta, .identidade empilhada) é compartilhado pelos outros três de
-  // propósito. Uma estrutura por modelo só se justifica quando o próprio
-  // modelo pede uma composição diferente, não uma variação de cor — ver "Do
-  // build new site markup..." no DESIGN.md.
-  const ehClinica = marca?.template === 'clinica';
   // Empresa recém-cadastrada já tem endereço no ar antes de ter catálogo. Sem
   // serviço nem promoção, todo botão de agendar abriria uma janela vazia: some
   // o botão, e a página diz que está chegando em vez de parecer quebrada.
   const temOQueAgendar = servicos.length > 0 || combos.length > 0;
   const agendar = temOQueAgendar ? aoAgendar : null;
-  // A barra é fixa e, sem uma faixa de capa embaixo dela pra absorver a
-  // sobreposição, ela cobre o topo do que vier em seguida — cortava a foto
-  // ou a inicial da Clínica, e cortava o nome de qualquer empresa sem capa
-  // nos outros três modelos. Só a faixa .capa clássica (260px, bem mais alta
-  // que a barra) tem folga o bastante para a barra flutuar por cima sem
-  // esconder nada; nos outros casos, .identidade precisa da própria folga.
-  const temFaixaDeCapa = !ehClinica && !!marca?.capa;
 
-  // Só as seções que existem de verdade nesta empresa entram na barra — um
-  // link para uma âncora que não renderizou é um clique pra lugar nenhum.
   // Instagram e mapa existem mesmo sem conteúdo próprio (o Instagram mostra o
   // perfil; o mapa, o endereço), por isso a chave da seção é conferida aqui
-  // também — o resto, equipe inclusive, chega da vitrine já vazio quando a
-  // seção está desligada.
+  // — o resto, equipe inclusive, chega da vitrine já vazio quando a seção
+  // está desligada.
   const ligada = chave => exibir?.[chave] !== false;
-  const secoesClinica = ehClinica ? [
+
+  // Cada modelo é uma composição inteira (modelos/), não uma pele sobre o
+  // mesmo esqueleto: os três antigos dividiam a estrutura e só trocavam cor e
+  // textura, e era isso que os fazia parecer o mesmo site quebrado. A
+  // Clínica continua montada aqui embaixo, como a cliente aprovou.
+  if (marca?.template !== 'clinica') {
+    const [Modelo, RodapeModelo] = MODELOS[marca?.template] || MODELOS.bandeja;
+    // Só seção que renderizou entra na barra: link para âncora que não
+    // existe é clique para lugar nenhum.
+    const secoes = [
+      servicos.length > 0 && ['Serviços', 'servicos'],
+      negocio.sobre && ['Sobre', 'sobre'],
+      dados.equipe?.length > 0 && ['Equipe', 'equipe'],
+      marca?.template === 'quadro' && servicos.length > 0 && ['Preços', 'precos'],
+      dados.faq?.length > 0 && ['Dúvidas', 'perguntas'],
+    ].filter(Boolean);
+    return (
+      <main>
+        {/* Só a Galeria tem foto de ponta a ponta sob a barra; nos outros
+            dois o topo é claro, e a barra transparente de texto branco
+            sumiria nele. */}
+        <BarraTopo negocio={negocio} marca={marca} aoAgendar={agendar}
+                   temCapa={marca?.template === 'quadro'} secoes={secoes} />
+        <Modelo dados={dados} servicos={servicos} categorias={categorias} combos={combos}
+                agendar={agendar} aoAgendar={aoAgendar} aoAgendarCombo={aoAgendarCombo}
+                ligada={ligada} temOQueAgendar={temOQueAgendar} />
+        <RodapeModelo dados={dados} negocio={negocio} agendar={agendar} mostrarPagamento={temOQueAgendar} />
+      </main>
+    );
+  }
+
+  const secoesClinica = [
     ['Serviços', 'servicos'],
     ...(dados.equipe?.length ? [['Equipe', 'equipe']] : []),
     ...(dados.avaliacoes ? [['Avaliações', 'avaliacoes']] : []),
     ...(ligada('instagram') && negocio.instagram ? [['Instagram', 'instagram']] : []),
     ...(ligada('mapa') && lugares(dados).length ? [['Contato', 'contato']] : []),
-  ] : null;
+  ];
 
   return (
     <main>
       <BarraTopo negocio={negocio} marca={marca} aoAgendar={agendar}
-                 temCapa={temFaixaDeCapa} secoes={secoesClinica} />
+                 temCapa={false} secoes={secoesClinica} />
 
-      {ehClinica ? (
-        <HeroClinica dados={dados} negocio={negocio} marca={marca} textos={textos} aoAgendar={agendar} />
-      ) : (
-        <>
-          {/* A foto de capa, quando existe, é uma peça acima do cabeçalho —
-              não o cabeçalho em si. Sem foto (o caso de hoje, sem nenhuma
-              empresa com imagem enviada), o nome já nasce sobre o fundo
-              lavado da marca: nada de mancha de gradiente fingindo ser
-              imagem. */}
-          {marca?.capa && (
-            <div className="capa">
-              <img src={marca.capa} alt={altDaCapa(negocio)} />
-              <div className="capa-veu" aria-hidden="true" />
-            </div>
-          )}
-
-          <div className={'identidade' + (!temFaixaDeCapa ? ' identidade-sem-capa' : '')}>
-            <div className="env identidade-in">
-              <Logo marca={marca} nome={negocio.nome} />
-              <h1>{negocio.nome}</h1>
-              {/* A frase que a empresa escreveu para quem acabou de chegar,
-                  quando existe; senão o slogan de sempre. */}
-              {(textos?.hero || negocio.slogan) && (
-                <p className="slogan">{textos?.hero || negocio.slogan}</p>
-              )}
-              <Lugares dados={dados} className="local" />
-              {agendar && (
-                <div className="chamada">
-                  <button className="b b-p b-larg" onClick={() => agendar(null)}>
-                    <Calendar size={18} /> {textos?.chamada || 'Agende seu horário'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      <HeroClinica dados={dados} negocio={negocio} marca={marca} textos={textos} aoAgendar={agendar} />
 
       {negocio.sobre && (
-        <section id="sobre" className={'bloco' + (ehClinica ? ' clinica-sobre' : '')}>
+        <section id="sobre" className="bloco clinica-sobre">
           <div className="env">
             <Revela>
-              {ehClinica && <p className="olho">Sobre</p>}
+              <p className="olho">Sobre</p>
               <p className="sobre">{negocio.sobre}</p>
             </Revela>
           </div>
@@ -369,9 +360,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
           linha divisória, e é o pedaço que a pessoa veio ver. */}
       <section id="servicos" className="bloco bloco-marca">
         <div className="env-largo">
-          {ehClinica
-            ? <TituloClinica olho="Serviços">Escolha o seu <em>momento.</em></TituloClinica>
-            : <Revela><h2 className="bloco-titulo">Serviços</h2></Revela>}
+          <TituloClinica olho="Serviços">Escolha o seu <em>momento.</em></TituloClinica>
           {servicos.length === 0 && (
             <p className="vazio">
               {temOQueAgendar
@@ -379,46 +368,30 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
                 : 'Em breve: os serviços e os horários para agendar aparecem aqui.'}
             </p>
           )}
-          {/* Na Clínica, cartões com foto larga (pedido da cliente, a partir
-              da referência); nos outros três, a grade de círculos. Os dois
-              respeitam "separar por categoria" do mesmo jeito. */}
-          {ehClinica
-            ? <CartoesClinica servicos={servicos} categorias={categorias} exibir={exibir}
-                              negocio={negocio} aoAgendar={aoAgendar} aoAbrir={aoAbrirCategoria} />
-            : exibir?.categorias && categorias.length > 1
-              ? <Categorias categorias={categorias} negocio={negocio} aoAbrir={aoAbrirCategoria} />
-              : <Servicos itens={servicos} exibir={exibir} textos={textos} negocio={negocio}
-                          aoAgendar={aoAgendar} />}
+          {/* Cartões com foto larga (pedido da cliente, a partir da
+              referência), respeitando "separar por categoria". */}
+          <CartoesClinica servicos={servicos} categorias={categorias} exibir={exibir}
+                          negocio={negocio} aoAgendar={aoAgendar} aoAbrir={aoAbrirCategoria} />
         </div>
       </section>
 
-      {/* O que vem daqui pra baixo é exclusivo do modelo Clínica — a
-          referência (inspiraestetica.com.br) tem essas seções, os outros
-          três modelos não pediram nenhuma delas. */}
-      {ehClinica && (
-        <>
-          <SecaoEquipe equipe={dados.equipe} />
-          {/* Sem caso autorizado a seção some, como as perguntas: a empresa
-              tem onde cadastrar (painel → Site da cliente), e "Em breve" para
-              sempre fazia o site parecer inacabado. */}
-          {dados.antesDepois?.length > 0 && <SecaoAntesDepois casos={dados.antesDepois} />}
-          {/* Mesma regra do antes e depois: sem avaliação vinda da conta
-              conectada, a seção some em vez de prometer "em breve". */}
-          {dados.avaliacoes && <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />}
-          {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
-          {ligada('instagram') && <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />}
-        </>
-      )}
+      <SecaoEquipe equipe={dados.equipe} />
+      {/* Sem caso autorizado a seção some, como as perguntas: a empresa tem
+          onde cadastrar (painel → Site da cliente), e "Em breve" para sempre
+          fazia o site parecer inacabado. */}
+      {dados.antesDepois?.length > 0 && <SecaoAntesDepois casos={dados.antesDepois} />}
+      {/* Mesma regra do antes e depois: sem avaliação vinda da conta
+          conectada, a seção some em vez de prometer "em breve". */}
+      {dados.avaliacoes && <SecaoAvaliacoes avaliacoes={dados.avaliacoes} />}
+      {agendar && <SecaoAgende textos={textos} aoAgendar={agendar} />}
+      {ligada('instagram') && <SecaoInstagram negocio={negocio} marca={marca} posts={dados.instagramPosts} />}
 
-      {/* Dúvida que não é respondida vira desistência, e isso não é
-          particularidade de modelo nenhum: a seção é dos quatro. */}
-      <Perguntas faq={dados.faq} negocio={negocio} ehClinica={ehClinica} />
+      <Perguntas faq={dados.faq} negocio={negocio} />
 
-      {ehClinica && ligada('mapa') && <SecaoMapa dados={dados} />}
+      {ligada('mapa') && <SecaoMapa dados={dados} />}
 
-      <Rodape dados={dados} negocio={negocio} textos={textos} cheio={ehClinica}
-              mostrarPagamento={temOQueAgendar} />
-      {ehClinica && <BotaoWhatsApp negocio={negocio} />}
+      <Rodape dados={dados} negocio={negocio} textos={textos} mostrarPagamento={temOQueAgendar} />
+      <BotaoWhatsApp negocio={negocio} />
     </main>
   );
 }
@@ -453,15 +426,13 @@ export function PerguntarSobre({ negocio, servico, className = 'svc-duvida' }) {
  * ramo para ramo, e escrever uma lista nossa seria pôr palavra de estética na
  * boca de uma oficina. Sem pergunta cadastrada, a seção não existe.
  */
-function Perguntas({ faq = [], negocio, ehClinica }) {
+function Perguntas({ faq = [], negocio }) {
   if (!faq.length) return null;
   const zap = linkGeral(negocio, 'Olá! Vim pelo site e fiquei com uma dúvida.');
   return (
     <section id="perguntas" className="bloco">
       <div className="env">
-        {ehClinica
-          ? <TituloClinica olho="Dúvidas">Perguntas que a gente <em>sempre ouve.</em></TituloClinica>
-          : <Revela><h2 className="bloco-titulo">Perguntas frequentes</h2></Revela>}
+        <TituloClinica olho="Dúvidas">Perguntas que a gente <em>sempre ouve.</em></TituloClinica>
 
         <div className="faq">
           {faq.map((p, i) => (
@@ -498,7 +469,7 @@ function Perguntas({ faq = [], negocio, ehClinica }) {
  * viram uma linha só ("seg a sex · 09:00 às 19:00"), como um negócio escreve
  * na porta.
  */
-function Horarios({ horarios = [] }) {
+export function Horarios({ horarios = [] }) {
   const linhas = useMemo(() => agruparDias(horarios), [horarios]);
   if (!linhas.length) return null;
   return (
@@ -537,104 +508,6 @@ function agruparDias(horarios) {
       : l.ate === l.de + 1 ? `${NOME_DIA[l.de]} e ${NOME_DIA[l.ate]}`
       : `${NOME_DIA[l.de]} a ${NOME_DIA[l.ate]}`,
   }));
-}
-
-function Logo({ marca, nome, tamanho }) {
-  const estilo = tamanho ? { width: tamanho, height: tamanho, borderWidth: 2 } : undefined;
-  return (
-    <div className="logo" style={estilo}>
-      {/* `alt=""`: este logo fica logo acima do `<h1>` com o nome do negócio.
-          O leitor de tela já vai lê-lo — repetir aqui não acrescenta nada. */}
-      {marca?.logo
-        ? <img src={marca.logo} alt="" />
-        : <span className="logo-letra" style={tamanho ? { fontSize: tamanho * 0.5 } : undefined}>
-            {(nome || '?').trim()[0]?.toUpperCase()}
-          </span>}
-    </div>
-  );
-}
-
-/**
- * Categorias na home.
- *
- * Tocar numa categoria abre a janela de agendamento já na lista dela. Antes a
- * home abria os serviços do grupo, e a janela pedia o serviço de novo logo
- * depois — a mesma lista, duas vezes, com um toque a mais no meio.
- */
-function Categorias({ categorias, negocio, aoAbrir }) {
-  return (
-    <Grade>
-      {categorias.map(({ nome, itens }, i) => {
-        const capa = itens.find(s => s.foto)?.foto;
-        return (
-          <Revela key={nome} className={`atraso-${Math.min(i, 5)}`}>
-            <article className="svc-item">
-              <button className="svc-circulo" onClick={() => aoAbrir(nome)}
-                      aria-label={`Agendar em ${nome}, ${itens.length} opções`}>
-                {/* `alt=""`: a imagem está DENTRO do botão, que já se anuncia
-                    pelo `aria-label`. Descrever aqui faria o leitor de tela
-                    ler a categoria duas vezes antes de dizer que é um botão. */}
-                {capa
-                  ? <img src={capa} alt="" loading="lazy" />
-                  : <span className="svc-inicial">{nome?.[0]?.toUpperCase()}</span>}
-              </button>
-              <h4 className="svc-nome">{nome}</h4>
-              <p className="svc-meta">
-                <span className="svc-dur">{itens.length} {itens.length === 1 ? 'opção' : 'opções'}</span>
-              </p>
-              <button className="b b-p b-peq svc-btn svc-btn-cat" onClick={() => aoAbrir(nome)}>
-                Ver opções <ChevronRight size={15} />
-              </button>
-              {/* Aqui a dúvida cita a categoria: é o que está na tela, e quem
-                  está em dúvida é justamente quem ainda não escolheu o serviço. */}
-              <PerguntarSobre negocio={negocio} servico={{ nome }} />
-            </article>
-          </Revela>
-        );
-      })}
-    </Grade>
-  );
-}
-
-/**
- * Serviços em grade, cada um com a foto redonda.
- *
- * A foto vira o que a pessoa reconhece primeiro — "unhas", "sobrancelha" — bem
- * mais rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor
- * da marca, para o círculo não ficar vazio e a grade não desalinhar.
- */
-function Servicos({ itens, exibir, textos, negocio, aoAgendar }) {
-  return (
-    <Grade>
-      {itens.map((s, i) => (
-        <Revela key={s.id} className={`atraso-${Math.min(i, 5)}`}>
-          <article className="svc-item">
-            {/* Mesma regra das categorias: a imagem mora dentro do botão, que
-                já diz "Agendar <serviço>". Ver `alt` em Clinica.jsx. */}
-            <button className="svc-circulo" onClick={() => aoAgendar(s.id)}
-                    aria-label={`Agendar ${s.nome}`}>
-              {s.foto
-                ? <img src={s.foto} alt="" loading="lazy" />
-                : <span className="svc-inicial">{s.nome.trim()[0].toUpperCase()}</span>}
-            </button>
-            <h4 className="svc-nome" title={s.descricao || undefined}>{s.nome}</h4>
-            {(s.preco != null || exibir?.duracao) && (
-              <p className="svc-meta">
-                {s.preco != null
-                  ? <span className="svc-preco">{brl(s.preco)}</span>
-                  : <span className="sob-consulta">Sob consulta</span>}
-                {exibir?.duracao && <span className="svc-dur">{duracaoTexto(s.duracao)}</span>}
-              </p>
-            )}
-            <button className="b b-p b-peq svc-btn" onClick={() => aoAgendar(s.id)}>
-              <Calendar size={15} /> {textos?.botaoAgendar || 'Agendar'}
-            </button>
-            <PerguntarSobre negocio={negocio} servico={s} />
-          </article>
-        </Revela>
-      ))}
-    </Grade>
-  );
 }
 
 /**
@@ -713,14 +586,14 @@ function Promocoes({ itens, exibir, aoAgendar }) {
   );
 }
 
-function Rodape({ dados, negocio, textos, cheio, mostrarPagamento }) {
+function Rodape({ dados, negocio, textos, mostrarPagamento }) {
   const NOMES_PAG = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
   // "Contato" sem nenhum contato embaixo era o rodapé de toda empresa nova:
   // o título e, sozinhos, os chips de pagamento.
   const temContato = lugares(dados).length > 0 || negocio.whatsapp || negocio.fone
     || negocio.instagram || negocio.horarios?.length > 0;
   return (
-    <footer className={'bloco rodape' + (cheio ? ' bloco-cheio' : '')}>
+    <footer className="bloco rodape bloco-cheio">
       <div className="env">
         {temContato && <h2 className="bloco-titulo pequeno">Contato</h2>}
         <div className="rodape-links">

@@ -501,18 +501,39 @@ derivada de contraste para o texto sobre a cor da marca. Um CSS, N marcas,
 nenhum rebuild por cliente. É o que permite a empresa escolher a própria paleta
 em Configurações → Site da cliente.
 
-**O modelo do site é um atributo, não um bundle.** `marca.template` (`bandeja`,
-`quadro`, `caderneta`, `clinica`) vira `data-template` no `<html>`, e cada
-modelo é um bloco de tokens em `styles.css` — fundo, raio, sombra, fonte — por
-cima da mesma árvore React. Só a Clínica tem marcação própria (`Clinica.jsx`:
-hero em arco, serviços em cartão, equipe, antes/depois, avaliações, "agende",
-grade do Instagram, mapa), porque a composição dela muda, não só a pele;
-`App.jsx` desvia por `ehClinica` só onde a ordem ou a forma dos blocos difere. A cor da empresa continua sendo o eixo em qualquer
-modelo; o dourado da Clínica é cor do modelo, não da empresa, porque a
-referência que a cliente trouxe dependia dele e nenhuma paleta de cliente o
-substitui. A descrição de cada modelo, com os valores, está em `DESIGN.md`;
-para ver um modelo em qualquer empresa sem gravar, `?template=` na URL
-(`ACESSOS-DEV.md`).
+**Cada modelo do site é uma composição própria.** `marca.template` escolhe a
+página inteira, não só a pele: `bandeja` é a **Essencial**, `quadro` a
+**Galeria**, `caderneta` a **Serena** (`site/modelos/`, um arquivo cada) e
+`clinica` a Clínica (`Clinica.jsx` + o fim do `Home` em `App.jsx`). Os ids
+ficaram os antigos para não migrar a config de nenhuma empresa; o nome que o
+painel mostra é o novo. Decidido em 2026-10-27: os três modelos antigos
+dividiam o mesmo esqueleto e só trocavam fundo, sombra e fonte, e isso os
+fazia parecer o mesmo site — "alguns mudam só uma textura". As estruturas
+vêm de três sites de referência que o dono trouxe (Meni → Essencial,
+Aesthetica → Galeria, Glowence → Serena), sem o que lá era inventado
+(depoimento, contador de clientes, blog): só entra seção com dado da empresa.
+
+As peças de dado (serviço, promoção, equipe, antes e depois, avaliações,
+perguntas, Instagram, contato) moram em `modelos/comum.jsx`, iguais para os
+três; cada modelo decide ordem, escala e moldura. A composição está em
+`modelos/modelos.css`, carregado depois do `styles.css`, onde continuam os
+tokens de cada `[data-template]` (fundo, raio, fonte de título) — a janela de
+agendar também os usa. Toda grade de cartões é `flex-wrap` centralizado com
+largura fixa por item, nunca colunas fixas: com dois serviços numa grade de
+quatro colunas sobravam duas vazias sob um título centralizado.
+
+Os três têm lugares de **foto de clima** — `marca.capa`, `marca.foto2`,
+`marca.foto3` — que, vazios, mostram uma foto de exemplo do próprio modelo
+(`modelos/fotos/`, Unsplash, origem em `ORIGEM.md`). Foto de exemplo nunca
+entra em serviço, equipe ou antes e depois: ali ela fingiria ser trabalho da
+empresa, e sem foto o cartão mostra a inicial sobre a cor da marca.
+
+`?template=` na URL troca o modelo nos dados, não só no tema (`App`), para a
+pré-visualização montar a estrutura certa — antes ela pintava a pele de um
+modelo sobre o esqueleto de outro. A cor da empresa continua sendo o eixo em
+qualquer modelo; o dourado da Clínica é cor do modelo, não da empresa, porque
+a referência que a cliente trouxe dependia dele. A identidade de cada modelo
+está em `DESIGN.md`; links de pré-visualização em `ACESSOS-DEV.md`.
 
 **A home é uma pilha de blocos, cada um com o próprio fundo.** Separa os
 assuntos sem linha divisória e dá ritmo à rolagem. O bloco de serviços usa um
@@ -529,26 +550,7 @@ a empresa vai subir, e texto branco sobre capa clara seria ilegível. Passados
 Google voltar ("Ideias guardadas", no `ROADMAP.md`) — um botão que não leva a
 lugar nenhum seria pior que a ausência dele.
 
-**As linhas da grade são montadas no código, não deixadas para o navegador.**
-`flex-wrap` enche cada linha até acabar o espaço e joga o resto na última: 13
-itens onde cabem 6 viram 6 + 6 + 1, com um círculo sozinho no fim. Varrendo
-larguras de 300 a 1400px e de 2 a 60 itens, a quebra automática deixa item
-solitário em 547 de 3.304 combinações — não é caso raro.
-
-`site/Grade.jsx` mede a largura disponível, escolhe o **menor número de linhas**
-que comporta todos e divide os itens **por igual** entre elas, sobra nas
-primeiras. Com espaço para 6: 7 → 4+3, 13 → 5+4+4, 17 → 6+6+5. Cada linha é
-centralizada, inclusive a última. Um `ResizeObserver` refaz a conta quando a
-janela muda ou o celular gira.
-
-**Serviços em grade de círculos, com a foto na frente.** A foto é o que a
-pessoa reconhece antes de ler — "unhas", "sobrancelha" — e reconhecer é mais
-rápido que ler uma lista de nomes. Sem foto, entra a inicial sobre a cor da
-marca, para o círculo não ficar vazio e a grade não desalinhar. A seção de
-serviços é a única que usa o contêiner largo (`.env-largo`): a grade respira
-melhor, e o resto do site continua estreito, que é o que se lê bem.
-
-**Na Clínica, cartões em vez de círculos** (`CartoesClinica`, em
+**Na Clínica, serviços em cartões** (`CartoesClinica`, em
 `Clinica.jsx`, decidido em 2026-09-18 a pedido da cliente, a partir do site de
 referência dela): foto larga em cima, rótulo pequeno, nome, descrição e, no
 rodapé, duração e preço — duas colunas no desktop, uma no celular. O mesmo

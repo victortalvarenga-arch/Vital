@@ -95,14 +95,17 @@ function paraTextoBranco(hex, minimo = 4.5) {
 }
 
 /**
- * Fonte de cada modelo — só a do modelo ativo é carregada, para não pedir
- * quatro famílias de fonte numa aba só. `bandeja` mora no @import fixo do
- * styles.css (é o modelo padrão, precisa estar pronta antes de qualquer
- * config chegar), então não entra aqui.
+ * Fonte de título de cada modelo — só a do modelo ativo é carregada, para não
+ * pedir quatro famílias numa aba só. O corpo é sempre a Manrope do @import
+ * fixo do styles.css, que precisa estar pronta antes de qualquer config
+ * chegar.
  */
 const FONTES = {
-  quadro: 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap',
-  caderneta: 'https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap',
+  bandeja: 'https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&display=swap',
+  quadro: 'https://fonts.googleapis.com/css2?family=Marcellus&display=swap',
+  // Newsreader e não Cormorant Garamond: a Cormorant desenhava o acento do
+  // "ê" solto, fora da letra ("Você" virava "Voc ^e").
+  caderneta: 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&display=swap',
   // Só a itálica: é a única forma usada (a palavra de destaque dos títulos).
   // O corpo continua na Manrope do @import fixo — o modelo deixou de carregar
   // uma segunda família de corpo, um pedido de rede a menos que o anterior.
@@ -114,7 +117,7 @@ function carregarFonte(template) {
   const l = document.getElementById('fonte-modelo') || document.createElement('link');
   l.id = 'fonte-modelo';
   l.rel = 'stylesheet';
-  // Sem fonte própria (bandeja): o link some, sem pedido de rede à toa.
+  // Sem fonte própria: o link some, sem pedido de rede à toa.
   if (!url) { l.remove(); return; }
   l.href = url;
   document.head.appendChild(l);
@@ -126,11 +129,13 @@ function carregarFonte(template) {
     um modelo lá? Muda aqui também. */
 const FUNDOS = {
   bandeja: '#FFFFFF',
-  quadro: '#1C1F1D',
-  caderneta: '#F1E9DA',
+  quadro: '#FAF8F5',
+  caderneta: '#FBF8F5',
   clinica: '#F7F5ED',
 };
-const CLAROS = new Set(['bandeja', 'clinica']); // fundo claro: mistura em direção ao branco vale como já era
+// Fundo claro: a mistura em direção ao branco vale como já era. Hoje são
+// todos; o caminho do fundo escuro fica para um modelo escuro que vier.
+const CLAROS = new Set(['bandeja', 'quadro', 'caderneta', 'clinica']);
 
 export function aplicarTema(marca = {}) {
   const primaria = marca.corPrimaria || '#A32A4E';

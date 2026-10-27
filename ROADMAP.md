@@ -1012,13 +1012,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       limpar antes — a segunda passada esbarra em PK duplicada. Não notado
       porque `npm run reset` (que limpa o schema antes) é o caminho de
       verdade; `--forcar` sozinho não tem teste nem uso conhecido.
-- [ ] **`?template=` só pré-visualiza a pele, não a estrutura.** O parâmetro
-      troca o `data-template` (tokens do CSS) mas `ehClinica` em `App.jsx` lê
-      `marca.template` da config — então `?template=bandeja` numa empresa
-      Clínica mostra o hero em arco e as seções da Clínica com as cores da
-      Bandeja, e o inverso também. Achado ao capturar telas; pra valer como
-      pré-visualização de verdade, o override precisa chegar no `dados.marca`
-      que a `Home` lê, não só no `aplicarTema`.
 - [ ] **A palavra dourada do hero da Clínica (`--ouro-claro` sobre
       `--marca-escura`) não tem guarda de contraste por empresa.** Para a Laura
       dá 3,2:1 (texto grande, passa); uma empresa cuja cor escurecida cair
@@ -1056,10 +1049,10 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 - [ ] **O seed não mostra as avaliações do Google.** A seção só se preenche
       com conta conectada, e inventar avaliações para o cenário da Laura
       seria fabricar depoimento de cliente real em nome de uma empresa real —
-      nem para desenvolvimento. A Barbearia (ficção inteira) usa o modelo
-      Quadro, que não tem a seção. Quem quiser ver a tela preenchida sem
-      conta real precisa de uma empresa fictícia no modelo Clínica com
-      `avaliacoesGoogle` escrito direto no banco. Decidido em 2026-10-10.
+      nem para desenvolvimento. A Barbearia (ficção inteira) também não tem
+      conta conectada. Quem quiser ver a tela preenchida sem conta real
+      precisa escrever `avaliacoesGoogle` direto no banco da Barbearia —
+      desde 2026-10-27 os quatro modelos têm a seção. Decidido em 2026-10-10.
 - [ ] **O retorno do OAuth não está preso à sessão de quem clicou.** O `state`
       é assinado e vence em 15 minutos, mas o retorno chega em outro endereço,
       sem o cookie do painel, então não dá para conferir que quem volta é

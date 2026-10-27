@@ -688,8 +688,9 @@ async function segundaEmpresa() {
             + 'do corte já sair certo.',
         },
       ],
-      // Segundo modelo de exemplo — Quadro de Horários, fundo escuro, números
-      // em mono. É onde alguém vê que o site muda de verdade entre empresas.
+      // Segundo modelo de exemplo — Galeria (id `quadro`): foto de tela
+      // inteira, carrossel e tabela de preços. É onde alguém vê que o site
+      // muda de verdade entre empresas.
       marca: { corPrimaria: '#1F4E5F', template: 'quadro' },
       // O atendente por IA (Bloco 12) com o que uma barbearia diria a ele. Aqui
       // e não na Laura: política de negócio de pessoa real não se inventa.

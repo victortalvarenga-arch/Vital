@@ -53,25 +53,25 @@ só usa o `:5173` — o Vite repassa o que for `/api` e `/uploads` para a API.
 
 ## Os quatro modelos de site
 
-`marca.template` decide a cara do site. A cor continua sendo escolha da
-empresa em qualquer um deles; o que muda é forma, tipografia, sombra e o fundo
-neutro em volta dessa cor.
+`marca.template` decide como a página é montada. A cor e as fotos continuam
+sendo da empresa em qualquer um; o que muda é a estrutura, a tipografia e a
+forma. Os ids são os antigos; o nome na tela é o da segunda coluna.
 
-| Modelo | Como é | Quem usa no seed |
-|---|---|---|
-| `bandeja` | Sombra suave, foto em círculo. O padrão | — |
-| `quadro` | Fundo escuro, números em fonte mono, cantos retos | Barbearia do João |
-| `caderneta` | Papel kraft, linhas de caderno | — |
-| `clinica` | Papel creme, dourado, retrato em arco, títulos com uma palavra em itálico | Laura Faust |
+| Id | Nome no painel | Como é | Quem usa no seed |
+|---|---|---|---|
+| `bandeja` | Essencial | Topo dividido texto/foto, barra de agendar, cartões. O padrão | — |
+| `quadro` | Galeria | Foto de tela inteira, carrossel, tabela de preços | Barbearia do João |
+| `caderneta` | Serena | Topo em três partes, itálico nos títulos, passo a passo | — |
+| `clinica` | Clínica | Papel creme, dourado, retrato em arco, títulos com uma palavra em itálico | Laura Faust |
 
 Para ver qualquer modelo em qualquer empresa **sem salvar nada**, ponha
 `?template=` na URL do site:
 
 | Link | |
 |---|---|
-| <http://laurafaust.localhost:5173/?template=bandeja> | Bandeja |
-| <http://laurafaust.localhost:5173/?template=quadro> | Quadro de Horários |
-| <http://laurafaust.localhost:5173/?template=caderneta> | Caderneta |
+| <http://barbearia.localhost:5173/?template=bandeja> | Essencial |
+| <http://barbearia.localhost:5173/?template=quadro> | Galeria (o salvo) |
+| <http://barbearia.localhost:5173/?template=caderneta> | Serena |
 | <http://laurafaust.localhost:5173/?template=clinica> | Clínica (o salvo) |
 
 É só pré-visualização: não grava na config, e some ao tirar o parâmetro. Para

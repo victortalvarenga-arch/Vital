@@ -149,64 +149,53 @@ body {
    os valores aqui seria escrever uma segunda fonte da verdade que o inline
    nunca deixaria valer. */
 
-/* ── Quadro de Horários ──────────────────────────────────────────────────
-   Tese: agendar aqui é tão preciso quanto o painel de uma rodoviária bem
-   administrada. Fundo grafite, números em mono, cantos quase retos, sem
-   sombra nenhuma — a precisão vem da grade, não da luz. */
-[data-template="quadro"] {
-  --fundo: #1C1F1D;
-  --texto: #F2EFE9;
-  --cinza: #C9C2B4;
-  --fraco: #A39C90;
-  --linha: #34382F;
-  --superficie: #242825;
-
-  --raio: 6px;
-  --pilula: 6px;
-  --sombra: none;
-  /* Sem sombra nenhuma no modelo — o hover do objeto vira um contorno vivo
-     em vez de luz, porque "luz de um lado só" não existe num painel plano. */
-  --sombra-bandeja: none;
-  --sombra-bandeja-hover: 0 0 0 2px var(--marca);
-
-  --fonte-corpo: 'Archivo', system-ui, -apple-system, sans-serif;
-  --fonte-mono: 'JetBrains Mono', ui-monospace, monospace;
-}
-/* Caixa-alta só aqui: um painel de horários real escreve em maiúscula, e é a
-   única exceção à regra "sem caixa-alta" que vale para os outros modelos. */
-[data-template="quadro"] .identidade h1 { text-transform: uppercase; letter-spacing: -.01em; }
-/* .b-c usa var(--linha) como cor de fundo do botão secundário — no escuro
-   isso já basta para ler como "objeto de interface", sem precisar de sombra. */
-
-/* ── Caderneta ───────────────────────────────────────────────────────────
-   Tese: agendar aqui é escrever o compromisso na caderneta de alguém que te
-   conhece. Kraft, linhas de caderno de verdade no cabeçalho, um traço de
-   caligrafia só na confirmação — nunca no corpo, que continua limpo. */
-[data-template="caderneta"] {
-  --fundo: #F1E9DA;
-  --texto: #2B2620;
-  --cinza: #5C5140;
-  --fraco: #6E6350;
-  --linha: #DDD0B8;
-  --superficie: #E8DEC8;
-
+/* ── Essencial (id bandeja) ──────────────────────────────────────────────
+   Branco, Manrope no corpo e Jost nos títulos: geométrica, leve, sem
+   ornamento. A composição está em modelos/Essencial.jsx. */
+[data-template="bandeja"] {
   --raio: 12px;
-  --sombra: 0 1px 3px rgba(43, 38, 32, .08), 0 6px 16px -10px rgba(43, 38, 32, .15);
-  --sombra-bandeja: -2px 6px 14px -10px rgba(43, 38, 32, .22);
-  --sombra-bandeja-hover: -3px 9px 20px -10px rgba(43, 38, 32, .28);
+  --pilula: 8px;
+  --fonte-display: 'Jost', 'Manrope', system-ui, sans-serif;
+}
 
-  --fonte-corpo: 'Figtree', system-ui, -apple-system, sans-serif;
+/* ── Galeria (id quadro) ─────────────────────────────────────────────────
+   Papel quente, cantos retos, títulos em caixa-alta serifada e espaçada —
+   etiqueta de galeria. A foto é o objeto; o texto, a legenda. */
+[data-template="quadro"] {
+  --fundo: #FAF8F5;
+  --texto: #23211E;
+  --cinza: #5E5952;
+  --fraco: #6F6A62;
+  --linha: #E4DED5;
+  --superficie: #F1ECE5;
+
+  --raio: 2px;
+  --pilula: 2px;
+  --sombra: 0 1px 2px rgba(35, 33, 30, .05);
+  --sombra-bandeja: none;
+  --sombra-bandeja-hover: 0 0 0 1px var(--texto);
+
+  --fonte-display: 'Marcellus', Georgia, serif;
 }
-/* Papel pautado de verdade, só no cabeçalho — não em toda superfície clara,
-   que viraria papel de carta em vez de um traço só. */
-[data-template="caderneta"] .identidade {
-  background-image: repeating-linear-gradient(to bottom,
-    transparent, transparent 27px, var(--linha) 27px, var(--linha) 28px);
-}
-/* O único lugar com letra de mão: o momento de maior satisfação do fluxo,
-   como se alguém tivesse escrito a confirmação à mão na hora. */
-[data-template="caderneta"] .jn-pronto h3 {
-  font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; letter-spacing: 0;
+
+/* ── Serena (id caderneta) ───────────────────────────────────────────────
+   Tom de pele bem claro, cantos generosos, títulos serifados com a última
+   palavra em itálico. Acolhedor sem virar creme-e-dourado (isso é da
+   Clínica). */
+[data-template="caderneta"] {
+  --fundo: #FBF8F5;
+  --texto: #2B2522;
+  --cinza: #625753;
+  --fraco: #6E625D;
+  --linha: #EADFD8;
+  --superficie: #F4ECE6;
+
+  --raio: 22px;
+  --sombra: 0 1px 2px rgba(43, 37, 34, .05), 0 10px 28px -18px rgba(43, 37, 34, .25);
+  --sombra-bandeja: 0 8px 20px -14px rgba(43, 37, 34, .3);
+  --sombra-bandeja-hover: 0 12px 26px -14px rgba(43, 37, 34, .36);
+
+  --fonte-display: 'Newsreader', Georgia, serif;
 }
 
 /* ── Clínica ─────────────────────────────────────────────────────────────
@@ -1059,46 +1048,6 @@ img { max-width: 100%; display: block; }
 .barra.firme .barra-link:hover { background: var(--superficie); color: var(--marca-legivel); }
 @media (max-width: 520px) { .barra-link span { display: none; } }
 
-/* ── serviços ── */
-.cat { font-size: var(--t-titulo); margin: 4px 0 var(--e-3); }
-/* Grade de círculos: a foto é o que se reconhece antes do nome.
-   O número de colunas é decidido em Grade.jsx, para as linhas ficarem
-   equilibradas; aqui só entra a aparência. */
-.grade-fora { width: 100%; --item: 150px; display: flex; flex-direction: column; gap: var(--e-6); }
-/* Cada linha é montada em Grade.jsx e centralizada aqui — inclusive a última,
-   que é justamente a que a quebra automática deixaria torta. */
-.grade-linha { display: flex; justify-content: center; gap: var(--e-4); }
-.grade-inicial { flex-wrap: wrap; }
-.grade-linha > .revela { flex: 0 0 var(--item); max-width: var(--item); }
-.svc-item {
-  display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;
-}
-.svc-circulo {
-  /* Acompanha a largura do item, com teto para não virar um disco enorme
-     quando há poucos serviços. Sombra direcional, não simétrica — o objeto
-     lido como se estivesse pousado numa bandeja sob luz de um lado só. */
-  width: min(100%, 128px); aspect-ratio: 1;
-  border-radius: 50%; overflow: hidden; padding: 0; position: relative;
-  background: var(--marca-clara); display: grid; place-items: center;
-  border: 1px solid var(--marca-borda); box-shadow: var(--sombra-bandeja);
-  transition: transform .18s ease, box-shadow .18s ease;
-}
-/* Absoluta pelo mesmo motivo de .cartao-img img: como item do grid, uma foto
-   em retrato esticava a linha e só o topo dela cabia no círculo. */
-.svc-circulo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.svc-inicial { font-size: var(--t-hero); font-weight: 700; color: var(--sobre-marca-clara); letter-spacing: -.01em; }
-.svc-circulo:hover { transform: translateY(-3px); box-shadow: var(--sombra-bandeja-hover); }
-
-.svc-item .svc-nome { font-weight: 600; font-size: var(--t-corpo); line-height: 1.3; text-wrap: balance; }
-/* Preço e duração como etiqueta de produto: o número que importa em
-   destaque, a duração como legenda pequena e rastreada por baixo — não os
-   dois lado a lado na mesma voz, que é como uma lista de preços lê, não
-   como uma vitrine. */
-.svc-meta { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.svc-preco { font-size: var(--t-titulo-pq); font-weight: 700; color: var(--texto); }
-.sob-consulta { font-size: var(--t-corpo-pq); color: var(--cinza); font-weight: 600; }
-.svc-dur { font-size: var(--t-legenda); letter-spacing: .06em; text-transform: uppercase; color: var(--fraco); }
-.svc-btn { flex: none; margin-top: 2px; }
 /* "Tirar dúvida": link, não botão — agendar é a ação da vitrine, e dois
    botões de mesmo peso fariam a pessoa parar para escolher. Alvo de toque de
    40px mesmo sendo texto. */
@@ -1107,20 +1056,6 @@ img { max-width: 100%; display: block; }
   color: var(--cinza); font-size: var(--t-auxiliar); font-weight: 500; text-decoration: none;
 }
 .svc-duvida:hover { color: var(--marca-legivel); }
-
-@media (max-width: 420px) {
-  .grade { gap: 20px 10px; }
-  .svc-inicial { font-size: 28px; }
-}
-
-/* ── categorias ──
-   Usam a mesma grade redonda dos serviços (.svc-grade / .svc-item), para a home
-   inteira falar a mesma língua visual. Só o "voltar" é próprio daqui. */
-.volta-cat {
-  display: inline-flex; align-items: center; gap: 7px; padding: 8px 0 var(--e-3);
-  color: var(--cinza); font-size: var(--t-corpo-pq); font-weight: 500; min-height: 40px;
-}
-.volta-cat:hover { color: var(--marca-legivel); }
 
 /* ── formulário (usado dentro da janela) ── */
 .campo { margin-bottom: var(--e-3); }

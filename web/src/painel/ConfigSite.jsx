@@ -87,9 +87,19 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Imagem rotulo="Logo" uso="logo" valor={cfg.marca?.logo} largura={600}
                 aoMudar={v => mudar('marca.logo', v)} aviso={aviso}
                 dica="Quadrada fica melhor — aparece dentro de um círculo." />
-        <Imagem rotulo="Capa" uso="capa" valor={cfg.marca?.capa} largura={1600}
+        <Imagem rotulo="Foto principal" uso="capa" valor={cfg.marca?.capa} largura={1600}
                 aoMudar={v => mudar('marca.capa', v)} aviso={aviso}
-                dica="Faixa larga no topo, opcional. Sem capa, o nome do negócio já abre a página." />
+                dica="A foto do topo do site. Vazia, o site usa uma foto de exemplo do modelo." />
+        {(cfg.marca?.template || 'bandeja') !== 'clinica' && (
+          <>
+            <Imagem rotulo="Foto de apoio 1" uso="capa" valor={cfg.marca?.foto2} largura={1600}
+                    aoMudar={v => mudar('marca.foto2', v)} aviso={aviso}
+                    dica="Aparece no meio da página (no “Sobre” ou ao lado da tabela de preços). Vazia, o site usa uma foto de exemplo." />
+            <Imagem rotulo="Foto de apoio 2" uso="capa" valor={cfg.marca?.foto3} largura={1600}
+                    aoMudar={v => mudar('marca.foto3', v)} aviso={aviso}
+                    dica="Ao lado das promoções ou do “Sobre”, conforme o modelo. Vazia, o site usa uma foto de exemplo." />
+          </>
+        )}
       </Secao>
 
       <Secao titulo="Textos" ajuda="As palavras dos botões e das mensagens do site.">
@@ -325,29 +335,38 @@ const Cor = ({ rotulo, valor, aoMudar, dica }) => (
 );
 
 // Nome e descrição de cada modelo — ver DESIGN.md para a identidade completa
-// de cada um. A cor de marca é escolha da empresa em qualquer modelo; o que
-// muda aqui é forma, tipografia e sombra.
+// de cada um. Os ids são os antigos (ver `marca.template` em lib/tenant.js);
+// cada modelo é uma página montada de um jeito, não uma pele sobre a mesma.
 const MODELOS = [
-  { id: 'bandeja', nome: 'Bandeja', descricao: 'Sombra suave, foto em círculo — o modelo padrão.' },
-  { id: 'quadro', nome: 'Quadro de Horários', descricao: 'Fundo escuro, números em fonte de dado, cantos retos.' },
-  { id: 'caderneta', nome: 'Caderneta', descricao: 'Papel kraft com linhas de caderno, toque de caligrafia na confirmação.' },
-  { id: 'clinica', nome: 'Clínica', descricao: 'Neutro e espaçoso, estética de clínica premium.' },
+  { id: 'bandeja', nome: 'Essencial', descricao: 'Topo dividido entre texto e foto, uma barra de agendar logo abaixo e serviços em cartões.' },
+  { id: 'quadro', nome: 'Galeria', descricao: 'Foto de tela inteira, serviços num carrossel e uma tabela de preços ao lado de uma foto.' },
+  { id: 'caderneta', nome: 'Serena', descricao: 'Topo em três partes, títulos com itálico, um passo a passo de como agendar.' },
+  { id: 'clinica', nome: 'Clínica', descricao: 'Creme, verde e dourado, com hero escuro e retrato em arco.' },
 ];
 
-const Modelo = ({ valor, aoMudar }) => (
-  <Linha rotulo="Modelo do site"
-         dica="Muda a forma, a tipografia e a sombra do site inteiro — a cor acima continua sendo sua em qualquer um.">
-    <div className="chips">
-      {MODELOS.map(m => (
-        <button key={m.id} type="button" title={m.descricao}
-                className={'chip' + ((valor || 'bandeja') === m.id ? ' on' : '')}
-                onClick={() => aoMudar(m.id)}>
-          {m.nome}
-        </button>
-      ))}
-    </div>
-  </Linha>
-);
+// A descrição fica escrita embaixo, não no `title`: no celular não existe
+// passar o mouse, e o nome sozinho não diz o que muda.
+const Modelo = ({ valor, aoMudar }) => {
+  const atual = MODELOS.find(m => m.id === (valor || 'bandeja')) || MODELOS[0];
+  return (
+    <Linha rotulo="Modelo do site"
+           dica="Muda a montagem da página inteira — a cor e as fotos continuam suas em qualquer um.">
+      <div className="chips">
+        {MODELOS.map(m => (
+          <button key={m.id} type="button"
+                  className={'chip' + (atual.id === m.id ? ' on' : '')}
+                  onClick={() => aoMudar(m.id)}>
+            {m.nome}
+          </button>
+        ))}
+      </div>
+      <p className="cs-modelo-desc">
+        {atual.descricao}{' '}
+        <a href={`/?template=${atual.id}`} target="_blank" rel="noreferrer">Ver como fica</a>
+      </p>
+    </Linha>
+  );
+};
 
 const Chave = ({ rotulo, ligado, aoMudar, dica }) => (
   <div className="cs-chave">

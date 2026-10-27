@@ -2,6 +2,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
+// Depois do styles.css: a composição dos modelos sobrepõe o esqueleto.
+import './modelos/modelos.css';
 
 // A animação de entrada esconde o conteúdo até o JavaScript revelá-lo. Sem
 // esta classe, uma falha no bundle deixaria a página em branco com o texto

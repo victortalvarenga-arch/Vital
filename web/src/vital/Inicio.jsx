@@ -245,9 +245,9 @@ function Painel() {
 /* ── site ── */
 
 const MODELOS = [
-  ['Bandeja', '#F4EFE8', '#B9826B'],
-  ['Quadro', '#1F2328', '#E8C468'],
-  ['Caderneta', '#E9DCC4', '#6E4B2A'],
+  ['Essencial', '#F4EFE8', '#B9826B'],
+  ['Galeria', '#FAF8F5', '#23211E'],
+  ['Serena', '#FBF8F5', '#6E4B2A'],
   ['Clínica', '#F5F5F2', '#5E7A6E'],
 ];
 
