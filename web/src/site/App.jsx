@@ -296,6 +296,7 @@ function Home({ dados, aoAgendar, aoAbrirCategoria, aoAgendarCombo }) {
       dados.equipe?.length > 0 && ['Equipe', 'equipe'],
       marca?.template === 'quadro' && servicos.length > 0 && ['Preços', 'precos'],
       dados.faq?.length > 0 && ['Dúvidas', 'perguntas'],
+      ligada('mapa') && lugares(dados).length > 0 && ['Contato', 'contato'],
     ].filter(Boolean);
     return (
       <main>

@@ -87,27 +87,20 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Imagem rotulo="Logo" uso="logo" valor={cfg.marca?.logo} largura={600}
                 aoMudar={v => mudar('marca.logo', v)} aviso={aviso}
                 dica="Quadrada fica melhor — aparece dentro de um círculo." />
-        <Imagem rotulo="Foto principal" uso="capa" valor={cfg.marca?.capa} largura={1600}
-                aoMudar={v => mudar('marca.capa', v)} aviso={aviso}
-                dica="A foto do topo do site. Vazia, o site usa uma foto de exemplo do modelo." />
-        {(cfg.marca?.template || 'bandeja') !== 'clinica' && (
-          <>
-            <Imagem rotulo="Foto de apoio 1" uso="capa" valor={cfg.marca?.foto2} largura={1600}
-                    aoMudar={v => mudar('marca.foto2', v)} aviso={aviso}
-                    dica="Aparece no meio da página (no “Sobre” ou ao lado da tabela de preços). Vazia, o site usa uma foto de exemplo." />
-            <Imagem rotulo="Foto de apoio 2" uso="capa" valor={cfg.marca?.foto3} largura={1600}
-                    aoMudar={v => mudar('marca.foto3', v)} aviso={aviso}
-                    dica="Ao lado das promoções ou do “Sobre”, conforme o modelo. Vazia, o site usa uma foto de exemplo." />
-          </>
-        )}
+        {/* Só as fotos que o modelo escolhido usa, dizendo onde cada uma
+            aparece: campo que não muda nada no site é campo que engana. */}
+        {Object.entries(FOTOS_DO_MODELO[cfg.marca?.template] || FOTOS_DO_MODELO.bandeja).map(([chave, f]) => (
+          <Imagem key={chave} rotulo={f.rotulo} uso="capa" valor={cfg.marca?.[chave]} largura={1600}
+                  aoMudar={v => mudar(`marca.${chave}`, v)} aviso={aviso} dica={f.dica} />
+        ))}
       </Secao>
 
       <Secao titulo="Textos" ajuda="As palavras dos botões e das mensagens do site.">
         <Area rotulo="Frase de abertura" valor={cfg.textos?.hero}
               aoMudar={v => mudar('textos.hero', v)}
-              dica="A primeira frase, abaixo do nome. Funciona melhor quando fala de um
-                    incômodo concreto de quem procura o serviço, e não do negócio em geral.
-                    Vazia, o site usa a primeira frase do “Sobre”." />
+              dica="A frase grande do topo. Funciona melhor quando fala de um incômodo concreto
+                    de quem procura o serviço, e não do negócio em geral. Vazia, o topo mostra o
+                    nome do negócio (no modelo Clínica, a primeira frase do “Sobre”)." />
         <Texto rotulo="Chamada principal" valor={cfg.textos?.chamada}
                aoMudar={v => mudar('textos.chamada', v)} dica="Ex.: Agende seu horário" />
         <Texto rotulo="Botão de cada serviço" valor={cfg.textos?.botaoAgendar}
@@ -137,18 +130,18 @@ export default function ConfigSite({ dados, acao, aviso }) {
       </Secao>
 
       <Secao titulo="Equipe" noSite={noSite('equipe')}
-             ajuda="No modelo Clínica, quem atende aparece numa faixa com foto, nome e uma linha sobre a pessoa. Quem você tira daqui continua podendo ser escolhido no agendamento.">
+             ajuda="Quem atende aparece no site com foto, nome e uma linha sobre a pessoa. Quem você tira daqui continua podendo ser escolhido no agendamento.">
         <EquipeDoSite staff={dados.staff} valor={cfg.equipeSite || {}}
                       aoMudar={v => mudar('equipeSite', v)} aviso={aviso} />
       </Secao>
 
       <Secao titulo="Antes e depois" noSite={noSite('antesDepois')}
-             ajuda="No modelo Clínica, viram uma seção de resultados no site, com as duas fotos lado a lado. A seção só aparece com pelo menos um caso.">
+             ajuda="Viram uma seção de resultados no site, com as duas fotos lado a lado. A seção só aparece com pelo menos um caso autorizado.">
         <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
       </Secao>
 
       <Secao titulo="Avaliações do Google" noSite={noSite('avaliacoes')}
-             ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. A seção só aparece com a conta conectada.">
+             ajuda="As avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. A seção só aparece com a conta conectada.">
         <Conexao info={google} nome="Google" agir={agirNaConta}
                  explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
       </Secao>
@@ -157,7 +150,7 @@ export default function ConfigSite({ dados, acao, aviso }) {
           conexão existir, o que está no site é exemplo — e a tela diz isso,
           para ninguém achar que precisa montar a grade foto por foto. */}
       <Secao titulo="Instagram" noSite={noSite('instagram')}
-             ajuda="No modelo Clínica, uma seção com o perfil e as publicações. Desligada, o perfil continua no rodapé.">
+             ajuda="Uma seção com o perfil e as publicações. Desligada, o perfil continua no rodapé.">
         <Conexao info={insta} nome="Instagram" agir={agirNaConta}
                  explica="Conecte a conta e as 6 publicações mais recentes entram no site sozinhas. Precisa ser conta profissional (comercial ou criador)." />
         {!insta?.conectado && (
@@ -173,7 +166,7 @@ export default function ConfigSite({ dados, acao, aviso }) {
       </Secao>
 
       <Secao titulo="Mapa" noSite={noSite('mapa')}
-             ajuda="No modelo Clínica, o mapa com o endereço, no fim da página.">
+             ajuda="O mapa com o endereço, perto do fim da página — um por unidade, quando há mais de uma.">
         <Texto rotulo="Link do mapa" valor={cfg.mapa} aoMudar={v => mudar('mapa', v)}
                dica="Cole o link do Google Maps. Vazio: o site monta a busca pelo endereço." />
       </Secao>
@@ -343,6 +336,29 @@ const MODELOS = [
   { id: 'caderneta', nome: 'Serena', descricao: 'Topo em três partes, títulos com itálico, um passo a passo de como agendar.' },
   { id: 'clinica', nome: 'Clínica', descricao: 'Creme, verde e dourado, com hero escuro e retrato em arco.' },
 ];
+
+// As fotos de cada modelo e onde cada uma entra (`fotoDoSite` em
+// site/modelos/comum.jsx). Mudou o lugar de uma foto num modelo, muda aqui.
+const VAZIA = ' Vazia, o site usa uma foto de exemplo do modelo.';
+const FOTOS_DO_MODELO = {
+  bandeja: {
+    capa: { rotulo: 'Foto principal', dica: 'Ao lado do título, no topo.' + VAZIA },
+    foto2: { rotulo: 'Foto do “Sobre”', dica: 'Ao lado do texto do “Sobre”.' + VAZIA },
+  },
+  quadro: {
+    capa: { rotulo: 'Foto principal', dica: 'Ocupa a tela inteira no topo, atrás do título.' + VAZIA },
+    foto2: { rotulo: 'Foto da tabela de preços', dica: 'Ao lado da tabela de preços.' + VAZIA },
+    foto3: { rotulo: 'Foto das promoções', dica: 'Ao lado das promoções (só aparece quando há promoção).' + VAZIA },
+  },
+  caderneta: {
+    capa: { rotulo: 'Foto do topo (esquerda)', dica: 'À esquerda do título, no topo.' + VAZIA },
+    foto2: { rotulo: 'Foto do topo (direita)', dica: 'À direita do título, no topo.' + VAZIA },
+    foto3: { rotulo: 'Foto do “Sobre”', dica: 'Ao lado do texto do “Sobre”.' + VAZIA },
+  },
+  clinica: {
+    capa: { rotulo: 'Foto principal', dica: 'O retrato em arco do topo. Vazia, o topo fica só com o texto.' },
+  },
+};
 
 // A descrição fica escrita embaixo, não no `title`: no celular não existe
 // passar o mouse, e o nome sozinho não diz o que muda.

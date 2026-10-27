@@ -2,7 +2,7 @@ import { ArrowRight, Calendar, Check, Clock, MapPin, MessageCircle, Smartphone }
 import { soDigitos } from '../datas.js';
 import { lugares } from '../enderecos.js';
 import {
-  AntesDepois, Assinatura, Avaliacoes, CartaoPromo, Contato, Equipe, FotoServico, Perguntas, PerguntarSobre,
+  AntesDepois, Assinatura, Avaliacoes, CartaoPromo, Contato, Equipe, FotoServico, Mapas, Perguntas, PerguntarSobre,
   Preco, Publicacoes, Revela, comDestaque, duracaoTexto, fotoDoSite, horarioCurto, useFiltro,
 } from './comum.jsx';
 
@@ -74,7 +74,7 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
               <p className="se-rotulo">Sobre nós</p>
               <h2>{comDestaque(negocio.nome).inicio}<em>{comDestaque(negocio.nome).fim}</em></h2>
               <p>{negocio.sobre}</p>
-              {categorias.length > 1 && (
+              {exibir?.categorias !== false && categorias.length > 1 && (
                 <ul className="se-lista">
                   {categorias.slice(0, 5).map(c => <li key={c.nome}><Check size={16} aria-hidden="true" /> {c.nome}</li>)}
                 </ul>
@@ -183,6 +183,15 @@ export default function Serena({ dados, servicos, categorias, combos, agendar, a
               <p className="se-lead">Não achou o que procura? Fale com a gente no WhatsApp.</p>
             </div>
             <Perguntas faq={dados.faq} negocio={negocio} />
+          </div>
+        </section>
+      )}
+
+      {ligada('mapa') && lugares(dados).length > 0 && (
+        <section id="contato" className="se-sec se-sec-tom">
+          <div className="md-env">
+            <header className="se-cab"><p className="se-rotulo">Onde estamos</p><h2>Venha nos <em>visitar</em></h2></header>
+            <Mapas dados={dados} />
           </div>
         </section>
       )}

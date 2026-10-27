@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { ArrowRight, Calendar } from 'lucide-react';
 import {
-  AntesDepois, Assinatura, Avaliacoes, CartaoPromo, Contato, Equipe, FotoServico, Perguntas, PerguntarSobre,
+  AntesDepois, Assinatura, Avaliacoes, CartaoPromo, Contato, Equipe, FotoServico, Mapas, Perguntas, PerguntarSobre,
   Preco, Publicacoes, Revela, duracaoTexto, fotoDoSite, useFiltro,
 } from './comum.jsx';
+import { lugares } from '../enderecos.js';
 
 /**
  * Essencial (id `bandeja`) — estrutura a partir da referência Meni que o dono
@@ -65,7 +66,7 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
                     <FotoServico s={s} />
                   </button>
                   <div className="es-cartao-corpo">
-                    {s.categoria && <p className="es-kicker">{s.categoria}</p>}
+                    {exibir?.categorias !== false && s.categoria && <p className="es-kicker">{s.categoria}</p>}
                     <h3>{s.nome}</h3>
                     {s.descricao && <p className="es-desc">{s.descricao}</p>}
                     <p className="es-meta">
@@ -159,6 +160,15 @@ export default function Essencial({ dados, servicos, categorias, combos, agendar
           <div className="md-env md-env-estreito">
             <header className="es-cab"><p className="es-kicker">Dúvidas</p><h2>Perguntas frequentes</h2></header>
             <Perguntas faq={dados.faq} negocio={negocio} />
+          </div>
+        </section>
+      )}
+
+      {ligada('mapa') && lugares(dados).length > 0 && (
+        <section id="contato" className="es-sec es-sec-tom">
+          <div className="md-env">
+            <header className="es-cab"><p className="es-kicker">Onde estamos</p><h2>Como chegar</h2></header>
+            <Mapas dados={dados} />
           </div>
         </section>
       )}

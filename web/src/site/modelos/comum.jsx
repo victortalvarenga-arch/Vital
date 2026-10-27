@@ -264,6 +264,36 @@ export function Contato({ dados, negocio, mostrarPagamento }) {
   );
 }
 
+/**
+ * O mapa de cada endereço (chave "Mapa" no painel). Embed do Google Maps sem
+ * chave de API, só com o endereço da própria empresa — um por unidade, como
+ * na Clínica: a cliente quer ver onde fica a loja aonde ela vai.
+ */
+export function Mapas({ dados, className = 'md-mapas' }) {
+  const onde = lugares(dados);
+  if (!onde.length) return null;
+  return (
+    <div className={className + (onde.length > 1 ? ' md-mapas-varios' : '')}>
+      {onde.map(l => (
+        <Revela key={l.id || 'sede'}>
+          <figure className="md-mapa">
+            <div className="md-mapa-caixa">
+              <iframe title={`Localização no mapa${l.nome ? ` — ${l.nome}` : ''}`}
+                      src={`https://www.google.com/maps?q=${encodeURIComponent(l.endereco)}&output=embed`}
+                      loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+            </div>
+            <figcaption>
+              <MapPin size={16} aria-hidden="true" />
+              <span>{l.nome && <b>{l.nome} · </b>}{l.endereco}</span>
+              <a href={l.mapa} target="_blank" rel="noreferrer">Como chegar</a>
+            </figcaption>
+          </figure>
+        </Revela>
+      ))}
+    </div>
+  );
+}
+
 /** A primeira linha do horário, para um destaque curto ("Seg a sáb · 09:00 às 19:00"). */
 export function horarioCurto(horarios = []) {
   if (!horarios.length) return null;

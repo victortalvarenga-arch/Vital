@@ -189,6 +189,12 @@ escrito, não aconteceu.
   `revisao` — só códigos de regra, contagens e tempo. Regra nova de guardrail
   entra com um caso que ela barra e um parecido que ela deixa passar, em
   `atendente-guardrails.test.js`.
+- Toda opção de Configurações → Site da cliente vale em **todos** os modelos
+  do site (Essencial, Galeria, Serena e Clínica): a chave "No site" de cada
+  seção, "O que mostrar", os textos e as fotos. Seção nova ou modelo novo só
+  está pronto quando cada opção liga e desliga nele. Já aconteceu de o mapa
+  estar ligado no painel e não existir na Galeria. Foto que um modelo não
+  usa não aparece no painel desse modelo (`FOTOS_DO_MODELO`).
 - Funcionalidade nova entra também no `seed.js`. Ele é o que uma máquina nova
   enxerga: cenário desatualizado faz a pessoa achar que a funcionalidade não
   existe. `npm run reset` tem de reproduzir tudo.

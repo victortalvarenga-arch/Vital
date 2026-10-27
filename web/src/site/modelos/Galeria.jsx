@@ -2,9 +2,10 @@ import { useRef } from 'react';
 import { ArrowLeft, ArrowRight, Calendar, Sparkles } from 'lucide-react';
 import { quandoVale } from '../../shared/promocao.js';
 import {
-  AntesDepois, Assinatura, Avaliacoes, Contato, Equipe, FotoServico, Perguntas, Preco, Publicacoes, Revela,
+  AntesDepois, Assinatura, Avaliacoes, Contato, Equipe, FotoServico, Mapas, Perguntas, Preco, Publicacoes, Revela,
   brl, duracaoTexto, fotoDoSite,
 } from './comum.jsx';
+import { lugares } from '../enderecos.js';
 
 /**
  * Galeria (id `quadro`) — estrutura a partir da referência Aesthetica que o
@@ -20,6 +21,10 @@ import {
 export default function Galeria({ dados, servicos, categorias, combos, agendar, aoAgendar, aoAgendarCombo, ligada, temOQueAgendar }) {
   const { negocio, marca, textos, exibir } = dados;
   const titulo = textos?.hero || negocio.nome;
+  // "Separar por categoria" desligado: a tabela vira uma lista só, e o
+  // carrossel deixa de rotular cada serviço com a categoria.
+  const porCategoria = exibir?.categorias !== false;
+  const grupos = porCategoria ? categorias : [{ nome: 'Serviços', itens: servicos }];
 
   return (
     <>
@@ -56,7 +61,8 @@ export default function Galeria({ dados, servicos, categorias, combos, agendar, 
             <p className="md-vazio">{temOQueAgendar ? 'Por enquanto, só as promoções.' : 'Em breve: os serviços e os horários para agendar aparecem aqui.'}</p>
           )}
         </div>
-        {servicos.length > 0 && <Carrossel servicos={servicos} exibir={exibir} aoAgendar={aoAgendar} />}
+        {servicos.length > 0 && <Carrossel servicos={servicos} exibir={exibir} textos={textos}
+                                           porCategoria={porCategoria} aoAgendar={aoAgendar} />}
       </section>
 
       {combos.length > 0 && (
@@ -119,9 +125,9 @@ export default function Galeria({ dados, servicos, categorias, combos, agendar, 
             <div className="ga-precos-foto"><img src={fotoDoSite(marca, 'foto2')} alt="" loading="lazy" /></div>
             <div>
               <header className="ga-cab ga-cab-esq"><h2>Tabela de preços</h2></header>
-              {categorias.map(cat => (
+              {grupos.map(cat => (
                 <div key={cat.nome} className="ga-tabela">
-                  {categorias.length > 1 && <h3>{cat.nome}</h3>}
+                  {grupos.length > 1 && <h3>{cat.nome}</h3>}
                   <ul>
                     {cat.itens.map(s => (
                       <li key={s.id}>
@@ -162,6 +168,15 @@ export default function Galeria({ dados, servicos, categorias, combos, agendar, 
         </section>
       )}
 
+      {ligada('mapa') && lugares(dados).length > 0 && (
+        <section id="contato" className="ga-sec ga-sec-tom">
+          <div className="md-env">
+            <header className="ga-cab"><h2>Onde estamos</h2></header>
+            <Mapas dados={dados} />
+          </div>
+        </section>
+      )}
+
       {ligada('instagram') && negocio.instagram && (
         <section className="ga-insta">
           <Publicacoes negocio={negocio} posts={dados.instagramPosts} className="md-insta ga-insta-in" />
@@ -175,7 +190,7 @@ export default function Galeria({ dados, servicos, categorias, combos, agendar, 
  * Os serviços em cartões altos, de lado. Rolagem nativa com encaixe — o
  * dedo já sabe fazer isso no celular; no computador, duas setas.
  */
-function Carrossel({ servicos, exibir, aoAgendar }) {
+function Carrossel({ servicos, exibir, textos, porCategoria, aoAgendar }) {
   const trilho = useRef(null);
   const andar = sentido => trilho.current?.scrollBy({ left: sentido * trilho.current.clientWidth * 0.8, behavior: 'smooth' });
   return (
@@ -185,12 +200,13 @@ function Carrossel({ servicos, exibir, aoAgendar }) {
           <button key={s.id} className="ga-cartao" onClick={() => aoAgendar(s.id)} aria-label={`Agendar ${s.nome}`}>
             <FotoServico s={s} className="md-foto ga-cartao-foto" />
             <span className="ga-cartao-texto">
-              {s.categoria && <small>{s.categoria}</small>}
+              {porCategoria && s.categoria && <small>{s.categoria}</small>}
               <strong>{s.nome}</strong>
               <span>
                 <Preco s={s} />
                 {exibir?.duracao && <> · {duracaoTexto(s.duracao)}</>}
               </span>
+              <em className="ga-cartao-acao">{textos?.botaoAgendar || 'Agendar'} <ArrowRight size={14} /></em>
             </span>
           </button>
         ))}

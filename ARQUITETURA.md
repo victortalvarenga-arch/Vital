@@ -530,6 +530,18 @@ agendar também os usa. Toda grade de cartões é `flex-wrap` centralizado com
 largura fixa por item, nunca colunas fixas: com dois serviços numa grade de
 quatro colunas sobravam duas vazias sob um título centralizado.
 
+**Toda opção do painel vale nos quatro modelos.** Cada chave "No site"
+(sobre, equipe, antes e depois, avaliações, Instagram, perguntas, mapa), cada
+item de "O que mostrar" (preço, duração, fotos, categorias, escolher
+profissional) e cada texto liga e desliga do mesmo jeito em qualquer modelo.
+O que é dado a vitrine já filtra no servidor; o que é seção que existe sem
+dado próprio (Instagram, mapa) cada modelo confere com `ligada()`. "Separar
+por categoria" desligado tira também os rótulos de categoria dos cartões, a
+divisão da tabela de preços da Galeria e a lista de especialidades da
+Serena. As fotos que o painel oferece mudam com o modelo (`FOTOS_DO_MODELO`
+em `ConfigSite.jsx`), cada uma dizendo onde aparece. Decidido em 2026-10-27,
+depois de o mapa estar ligado no painel e não existir na Galeria.
+
 Os três têm lugares de **foto de clima** — `marca.capa`, `marca.foto2`,
 `marca.foto3` — que, vazios, mostram uma foto de exemplo do próprio modelo
 (`modelos/fotos/`, Unsplash, origem em `ORIGEM.md`). Foto de exemplo nunca
