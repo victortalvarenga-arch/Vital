@@ -185,6 +185,17 @@ publico.get('/vitrine', rota(async (req, res) => {
     // na outra faz — e para dizer o endereço certo na confirmação.
     profissionais: equipe.map(staffOut)
       .map(p => ({ id: p.id, nome: p.nome, funcao: p.funcao, cor: p.cor, unidadeId: p.unidadeId })),
+    // A seção Equipe, separada de `profissionais` (que é quem se agenda):
+    // tirar alguém daqui não tira essa pessoa do agendamento. A descrição que
+    // a empresa escreveu vence a `funcao` antiga, que não se edita mais.
+    equipe: secaoLigada(cfg, 'equipe')
+      ? equipe.map(staffOut)
+        .filter(p => !cfg.equipeSite?.[p.id]?.oculto)
+        .map(p => {
+          const site = cfg.equipeSite?.[p.id] || {};
+          return { id: p.id, nome: p.nome, cor: p.cor, foto: site.foto || '', descricao: site.descricao || p.funcao || '' };
+        })
+      : [],
   });
 }));
 

@@ -45,6 +45,28 @@ function casosDeAntesDepois(lista, usuario) {
   return saida;
 }
 
+/**
+ * A apresentação de cada pessoa na seção Equipe, conferida campo a campo.
+ *
+ * Só ids que existem nesta empresa (o resto é lixo ou tentativa), foto só do
+ * nosso armazenamento ou de https, texto curto. A vitrine sai daqui, e o que
+ * entra na config é o que vai para a internet.
+ */
+async function equipeDoSite(entrada) {
+  const ids = new Set((await db.all('SELECT id FROM staff')).map(s => s.id));
+  const saida = {};
+  for (const [id, p] of Object.entries(entrada && typeof entrada === 'object' ? entrada : {})) {
+    if (!ids.has(id) || !p || typeof p !== 'object') continue;
+    const foto = String(p.foto || '');
+    saida[id] = {
+      oculto: p.oculto === true,
+      foto: /^(\/uploads\/|https:\/\/)/.test(foto) ? foto.slice(0, 500) : '',
+      descricao: String(p.descricao || '').trim().slice(0, 120),
+    };
+  }
+  return saida;
+}
+
 /* ── Configuração do negócio ── */
 catalogo.get('/config', rota(async (req, res) => res.json(await getConfig())));
 catalogo.put('/config', exige('site'), rota(async (req, res) => {
@@ -62,6 +84,7 @@ catalogo.put('/config', exige('site'), rota(async (req, res) => {
     if (casos.erro) return res.status(400).json({ erro: casos.erro });
     corpo.antesDepois = casos;
   }
+  if (corpo.equipeSite !== undefined) corpo.equipeSite = await equipeDoSite(corpo.equipeSite);
   if (await db.get(`SELECT 1 FROM conexoes WHERE provedor = 'instagram'`)) {
     delete corpo.instagramPosts;
     delete corpo.instagram;

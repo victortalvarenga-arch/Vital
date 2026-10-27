@@ -295,24 +295,31 @@ function Cartao({ foto, inicial, rotulo, nome, descricao, pe, acao, aoClicar, ex
 
 /* ── equipe ── */
 
-export function SecaoEquipe({ profissionais }) {
-  if (!profissionais?.length) return null;
+/**
+ * Quem atende, como a empresa escolheu mostrar (Site da cliente → Equipe):
+ * foto, uma linha sobre a pessoa, e só quem ela deixou aparecer. Sem foto,
+ * a inicial no círculo.
+ */
+export function SecaoEquipe({ equipe }) {
+  if (!equipe?.length) return null;
   return (
     <section id="equipe" className="bloco bloco-cheio">
       <div className="env-largo">
         <TituloClinica olho="Equipe">Quem cuida de <em>você.</em></TituloClinica>
         <div className="equipe-grade">
-          {profissionais.map((p, i) => (
+          {equipe.map((p, i) => (
             <Revela key={p.id} className={`atraso-${Math.min(i, 5)}`}>
               <article className="equipe-item">
                 {/* A cor da pessoa vira o anel, não o fundo: sobre a faixa
                     escura, um fundo tingido com cor escura (o verde-musgo da
                     Laura, por exemplo) sumia junto com a inicial. */}
                 <span className="equipe-foto" style={p.cor ? { borderColor: p.cor } : undefined}>
-                  {p.nome.trim()[0].toUpperCase()}
+                  {p.foto
+                    ? <img src={p.foto} alt={`Foto de ${p.nome}`} loading="lazy" />
+                    : p.nome.trim()[0].toUpperCase()}
                 </span>
                 <h4>{p.nome}</h4>
-                {p.funcao && <p>{p.funcao}</p>}
+                {p.descricao && <p>{p.descricao}</p>}
               </article>
             </Revela>
           ))}

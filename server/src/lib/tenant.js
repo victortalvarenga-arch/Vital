@@ -204,6 +204,13 @@ export const configPadrao = {
   // sem ela — ver LGPD em `ARQUITETURA.md`.
   antesDepois: [],
 
+  // Como cada pessoa da equipe aparece na seção Equipe do site:
+  // `{ [staffId]: { oculto, foto, descricao } }`. É apresentação, por isso mora
+  // aqui com o resto do site, e não em `staff` — esconder alguém da seção não
+  // tira essa pessoa do agendamento. Quem não está na lista aparece com a
+  // inicial do nome. Conferido em `PUT /api/config` (routes/catalogo.js).
+  equipeSite: {},
+
   // Publicações do Instagram que o site mostra em grade: `{ imagem, link }`,
   // até 6, na ordem em que aparecem. Quem preenche é o job da conta conectada
   // (`conexoes/instagram.js`, que acrescenta `id` e `tipo`); o painel não tem

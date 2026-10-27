@@ -854,12 +854,12 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       conta não vê o back-office, então ninguém de fora estranha hoje — mas
       logo, favicon e e-mail precisam de uma cor só. Decidir se o roxo segue o
       verde. Ver `DESIGN.md`, "Vital — The Showcase".
-- [ ] **A função da profissional não se edita mais, mas ainda aparece no site.**
-      O campo saiu da ficha de Profissionais (os serviços já dizem o que a
-      pessoa faz), mas `staff.funcao` continua indo para a vitrine e a Clínica
-      mostra embaixo do nome (`site/Clinica.jsx`). Quem já tinha função fica
-      com ela para sempre; quem é cadastrado agora, sem. Decidir: tirar do
-      site também, ou mostrar ali os serviços no lugar.
+- [ ] **A função antiga da profissional ainda é o reserva da seção Equipe.**
+      Desde 2026-10-27 a linha embaixo do nome é escrita em Site da cliente →
+      Equipe (`config.equipeSite`), e vence; sem ela, a vitrine ainda usa
+      `staff.funcao`, que não se edita mais em lugar nenhum. Quem tinha função
+      continua com ela até escrever a linha nova. Quando ninguém mais depender
+      disso, tirar o reserva de `routes/publico.js`.
 - [ ] **Extras pagam a comissão do serviço principal.** O atendimento inteiro,
       adicionais incluídos, usa a taxa do serviço principal. Se o extra tiver
       comissão diferente, ela é ignorada. Dividir certo exige decidir a que

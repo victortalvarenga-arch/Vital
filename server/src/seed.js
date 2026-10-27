@@ -754,6 +754,14 @@ async function segundaEmpresa() {
     // R$ 15 por atendimento, e o João segue nos 40%.
     await db.run(`UPDATE staff SET comissao_tipo = 'fixo', comissao_fixo = 15 WHERE id = 'b2'`);
 
+    // A seção Equipe do site, como a empresa a escreve no painel: uma linha
+    // sobre cada barbeiro. Sem foto — o seed não tem foto de gente inventada,
+    // e a inicial no círculo é o que uma empresa nova vê.
+    await setConfig({ equipeSite: {
+      b1: { oculto: false, foto: '', descricao: 'Dono da casa, corte clássico e navalha' },
+      b2: { oculto: false, foto: '', descricao: 'Degradê e barba desenhada' },
+    } });
+
     // Um funil bem pior que o da Laura, de propósito: é com duas empresas
     // diferentes lado a lado que a tela da Vital mostra para que serve —
     // aqui a queda grande está logo na abertura do agendamento.

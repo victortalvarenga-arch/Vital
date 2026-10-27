@@ -290,6 +290,14 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cs-sec-cab { margin-bottom: 16px; }
 .cs-sec-cab h2 { font-size: 17px; }
 .cs-sec-cab p { color: var(--muted); font-size: 13.5px; margin: 4px 0 0; }
+/* A chave "No site" fica na linha do título, à direita: é o primeiro que se
+   procura ao chegar numa seção. Fora do site, o conteúdo esmaece mas continua
+   editável — preparar com a seção desligada é justamente o uso. */
+.cs-sec-titulo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cs-sec-chave { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px;
+  font-size: 12.5px; font-weight: 600; color: var(--ok); }
+.cs-sec-fora .cs-sec-chave { color: var(--muted); }
+.cs-sec-fora .cs-campos { opacity: .55; }
 
 .cs-campos { display: flex; flex-direction: column; gap: 16px; }
 .cs-campo label {
@@ -344,10 +352,24 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   position: absolute; top: 14px; left: 14px; padding: 2px 8px; border-radius: 999px;
   background: var(--ink); color: var(--porcelain); font-size: 11px; font-weight: 700; letter-spacing: .04em;
 }
-.cs-sub {
-  margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line);
-  font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700;
+/* equipe no site: uma linha por pessoa — foto, nome, chave e a linha sobre ela */
+.cs-eqs { display: flex; flex-direction: column; gap: 10px; }
+.cs-eq {
+  display: flex; gap: 14px; align-items: flex-start; padding: 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--paper);
 }
+.cs-eq-fora .cs-eq-foto, .cs-eq-fora input { opacity: .5; }
+.cs-eq-foto { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
+.cs-eq-avatar {
+  width: 64px; height: 64px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
+  background: var(--porcelain); border: 1px solid var(--line); font-size: 22px; font-weight: 700; color: var(--muted);
+}
+.cs-eq-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cs-eq-acao { font-size: 12px; color: var(--lacquer); padding: 6px 4px; min-height: 32px; }
+.cs-eq-dados { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.cs-eq-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cs-eq-topo b { font-size: 14.5px; }
+.cs-eq-dados input { width: 100%; }
 /* Item de flex em coluna, não de grid: aqui `aspect-ratio` na própria <img>
    basta, sem o problema da linha `auto` que o site tinha. */
 .cs-post > img {

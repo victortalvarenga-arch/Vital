@@ -106,6 +106,30 @@ describe('a vitrine respeita o painel', () => {
     await dona('PUT', '/api/config', { sobre: '', antesDepois: [], faq: [], instagramPosts: [] });
   });
 
+  test('equipe do site: foto, linha e quem aparece, sem tirar ninguém do agendamento', async () => {
+    const r = await dona('PUT', '/api/config', { equipeSite: {
+      p1: { foto: '/uploads/default/ana.jpg', descricao: 'Cortes e coloração' },
+      p2: { oculto: true },
+      inventado: { descricao: 'não existe' },
+      'p1-js': { foto: 'javascript:alert(1)' },
+    } });
+    assert.equal(r.status, 200);
+    assert.deepEqual(Object.keys(r.corpo.equipeSite).sort(), ['p1', 'p2'], 'id que não é desta empresa não entra');
+
+    const v = await vitrine();
+    assert.deepEqual(v.equipe.map(p => p.id), ['p1'], 'quem foi tirado não aparece na seção');
+    assert.equal(v.equipe[0].foto, '/uploads/default/ana.jpg');
+    assert.equal(v.equipe[0].descricao, 'Cortes e coloração');
+    assert.deepEqual(v.profissionais.map(p => p.id).sort(), ['p1', 'p2'], 'mas continua no agendamento');
+
+    await dona('PUT', '/api/config', { equipeSite: { p1: { foto: 'http://outro.site/x.jpg' } } });
+    assert.equal((await vitrine()).equipe[0].foto, '', 'foto só do nosso armazenamento ou https');
+
+    await dona('PUT', '/api/config', { exibir: { equipe: false } });
+    assert.deepEqual((await vitrine()).equipe, []);
+    await dona('PUT', '/api/config', { exibir: { equipe: true }, equipeSite: {} });
+  });
+
   test('caso gravado sem autorização (config antiga) não é publicado', async () => {
     await db.db.comEmpresa('default', () => db.setConfig({
       antesDepois: [{ titulo: 'Antigo', antes: '/a.jpg', depois: '/d.jpg' }],

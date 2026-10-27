@@ -36,6 +36,13 @@ export default function ConfigSite({ dados, acao, aviso }) {
     setSalvando(false);
   };
 
+  // A chave "No site" de uma seção. Mora em `exibir` como as outras, e o
+  // servidor respeita a mesma (`secaoLigada` em routes/publico.js).
+  const noSite = chave => ({
+    ligado: cfg.exibir?.[chave] !== false,
+    aoMudar: v => mudar(`exibir.${chave}`, v),
+  });
+
   const { contas, recarregarContas, retorno } = useConexoes();
   const insta = contas.find(c => c.provedor === 'instagram');
   const google = contas.find(c => c.provedor === 'google');
@@ -70,8 +77,6 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Texto rotulo="Nome do negócio" valor={cfg.nome} aoMudar={v => mudar('nome', v)} />
         <Texto rotulo="Slogan" valor={cfg.slogan} aoMudar={v => mudar('slogan', v)}
                dica="Uma linha curta abaixo do nome." />
-        <Area rotulo="Sobre" valor={cfg.sobre} aoMudar={v => mudar('sobre', v)}
-              dica="Um parágrafo sobre o negócio. Deixe vazio para não mostrar." />
       </Secao>
 
       <Secao titulo="Marca" ajuda="Modelo, cor e imagens. Mudam o site inteiro na hora.">
@@ -108,24 +113,32 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Texto rotulo="Cidade" valor={cfg.cidade} aoMudar={v => mudar('cidade', v)}
                dica="Só o nome da cidade. Entra no título da página e no cadastro que o Google lê —
                      é por cidade que as pessoas procuram serviço." />
-        <Texto rotulo="Link do mapa" valor={cfg.mapa} aoMudar={v => mudar('mapa', v)}
-               dica="Cole o link do Google Maps. Vazio: o site monta a busca pelo endereço." />
         <Texto rotulo="WhatsApp" valor={cfg.whatsapp} aoMudar={v => mudar('whatsapp', v)}
                dica="Só números, com DDD." />
       </Secao>
 
-      <Secao titulo="Perguntas frequentes"
-             ajuda="Viram uma seção no site, e o Google as usa para mostrar as respostas direto na busca.">
-        <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
+      {/* Daqui para baixo, na ordem em que aparecem no site: cada seção com a
+          chave "No site" ao lado do título. Desligar não apaga o conteúdo —
+          a seção só sai do site até ser ligada de novo. */}
+      <Secao titulo="Sobre" noSite={noSite('sobre')}
+             ajuda="Um parágrafo sobre o negócio, logo abaixo do topo. Também vira a descrição do link quando ele é compartilhado.">
+        <Area rotulo="Texto" valor={cfg.sobre} aoMudar={v => mudar('sobre', v)}
+              dica="Vazio, a seção não aparece." />
       </Secao>
 
-      <Secao titulo="Antes e depois"
+      <Secao titulo="Equipe" noSite={noSite('equipe')}
+             ajuda="No modelo Clínica, quem atende aparece numa faixa com foto, nome e uma linha sobre a pessoa. Quem você tira daqui continua podendo ser escolhido no agendamento.">
+        <EquipeDoSite staff={dados.staff} valor={cfg.equipeSite || {}}
+                      aoMudar={v => mudar('equipeSite', v)} aviso={aviso} />
+      </Secao>
+
+      <Secao titulo="Antes e depois" noSite={noSite('antesDepois')}
              ajuda="No modelo Clínica, viram uma seção de resultados no site, com as duas fotos lado a lado. A seção só aparece com pelo menos um caso.">
         <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
       </Secao>
 
-      <Secao titulo="Avaliações do Google"
-             ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. Para tirar a seção do site, use “O que mostrar”, abaixo.">
+      <Secao titulo="Avaliações do Google" noSite={noSite('avaliacoes')}
+             ajuda="No modelo Clínica, as avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. A seção só aparece com a conta conectada.">
         <Conexao info={google} nome="Google" agir={agirNaConta}
                  explica="Entre com a conta do Google que administra a ficha da empresa. O site mostra a nota, o total e as avaliações mais recentes de 4 e 5 estrelas, com link para todas." />
       </Secao>
@@ -133,7 +146,8 @@ export default function ConfigSite({ dados, acao, aviso }) {
       {/* As publicações não se escolhem à mão: vêm da conta conectada. Até a
           conexão existir, o que está no site é exemplo — e a tela diz isso,
           para ninguém achar que precisa montar a grade foto por foto. */}
-      <Secao titulo="Instagram" ajuda="O perfil vai para o rodapé e, no modelo Clínica, ganha uma seção com as publicações.">
+      <Secao titulo="Instagram" noSite={noSite('instagram')}
+             ajuda="No modelo Clínica, uma seção com o perfil e as publicações. Desligada, o perfil continua no rodapé.">
         <Conexao info={insta} nome="Instagram" agir={agirNaConta}
                  explica="Conecte a conta e as 6 publicações mais recentes entram no site sozinhas. Precisa ser conta profissional (comercial ou criador)." />
         {!insta?.conectado && (
@@ -143,7 +157,18 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <PreviaPublicacoes lista={cfg.instagramPosts || []} conectado={!!insta?.conectado} />
       </Secao>
 
-      <Secao titulo="O que mostrar" ajuda="Cada item liga ou desliga um pedaço do site.">
+      <Secao titulo="Perguntas frequentes" noSite={noSite('perguntas')}
+             ajuda="Viram uma seção no site, e o Google as usa para mostrar as respostas direto na busca.">
+        <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
+      </Secao>
+
+      <Secao titulo="Mapa" noSite={noSite('mapa')}
+             ajuda="No modelo Clínica, o mapa com o endereço, no fim da página.">
+        <Texto rotulo="Link do mapa" valor={cfg.mapa} aoMudar={v => mudar('mapa', v)}
+               dica="Cole o link do Google Maps. Vazio: o site monta a busca pelo endereço." />
+      </Secao>
+
+      <Secao titulo="O que mostrar" ajuda="Detalhes dos serviços e do agendamento.">
         <Chave rotulo="Preço dos serviços" ligado={cfg.exibir?.preco !== false}
                aoMudar={v => mudar('exibir.preco', v)}
                dica="Desligado, todos aparecem como “Sob consulta”." />
@@ -157,12 +182,6 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <Chave rotulo="Deixar escolher o profissional" ligado={cfg.exibir?.escolherProfissional !== false}
                aoMudar={v => mudar('exibir.escolherProfissional', v)}
                dica="Desligado, o sistema escolhe quem estiver livre." />
-
-        <div className="cs-sub">Seções do site</div>
-        {SECOES.map(([chave, rotulo, dica]) => (
-          <Chave key={chave} rotulo={rotulo} ligado={cfg.exibir?.[chave] !== false}
-                 aoMudar={v => mudar(`exibir.${chave}`, v)} dica={dica} />
-        ))}
       </Secao>
 
       <Secao titulo="Agenda" ajuda="Regras que o site respeita ao oferecer horários.">
@@ -188,33 +207,87 @@ export default function ConfigSite({ dados, acao, aviso }) {
   );
 }
 
-/**
- * As seções que a empresa tira e põe no site. Ligada e vazia, a seção já some
- * sozinha; a chave existe para tirar o que TEM conteúdo e ainda não está do
- * jeito que ela quer — e pôr de volta quando estiver. O servidor respeita a
- * mesma chave (`secaoLigada` em routes/publico.js).
- */
-const SECOES = [
-  ['sobre', 'Sobre', 'O parágrafo sobre o negócio, abaixo do topo.'],
-  ['perguntas', 'Perguntas frequentes', null],
-  ['equipe', 'Equipe', 'Modelo Clínica: quem atende, com foto e nome.'],
-  ['antesDepois', 'Antes e depois', 'Modelo Clínica. Só aparece com pelo menos um caso autorizado.'],
-  ['avaliacoes', 'Avaliações do Google', 'Modelo Clínica. Só aparece com a conta do Google conectada.'],
-  ['instagram', 'Instagram', 'Modelo Clínica: a grade de publicações. O perfil continua no rodapé.'],
-  ['mapa', 'Mapa', 'Modelo Clínica: o mapa com o endereço, no fim da página.'],
-];
-
 /* ── peças ── */
 
-const Secao = ({ titulo, ajuda, children }) => (
-  <section className="cs-sec">
+/**
+ * Um bloco da tela. Com `noSite`, ganha a chave ao lado do título: a seção sai
+ * do site e volta quando ela quiser, sem perder o que foi preenchido — ligada
+ * e vazia, a seção já some sozinha; a chave é para tirar o que TEM conteúdo e
+ * ainda não está do jeito que ela quer.
+ */
+const Secao = ({ titulo, ajuda, noSite, children }) => (
+  <section className={'cs-sec' + (noSite && !noSite.ligado ? ' cs-sec-fora' : '')}>
     <div className="cs-sec-cab">
-      <h2>{titulo}</h2>
+      <div className="cs-sec-titulo">
+        <h2>{titulo}</h2>
+        {noSite && (
+          <label className="cs-sec-chave">
+            <span>{noSite.ligado ? 'No site' : 'Fora do site'}</span>
+            <button type="button" className={'sw' + (noSite.ligado ? ' on' : '')}
+                    role="switch" aria-checked={noSite.ligado} aria-label={`Mostrar ${titulo} no site`}
+                    onClick={() => noSite.aoMudar(!noSite.ligado)}>
+              <span />
+            </button>
+          </label>
+        )}
+      </div>
       {ajuda && <p>{ajuda}</p>}
     </div>
     <div className="cs-campos">{children}</div>
   </section>
 );
+
+/**
+ * Como cada pessoa aparece na seção Equipe: foto, uma linha sobre ela e se
+ * aparece. Grava em `config.equipeSite`, por id — o cadastro da pessoa
+ * (Profissionais) continua sendo de quem atende; isto é só a vitrine.
+ */
+function EquipeDoSite({ staff, valor, aoMudar, aviso }) {
+  const ativos = (staff || []).filter(p => p.ativo);
+  if (!ativos.length) {
+    return <p className="cs-dica">Cadastre quem atende em Profissionais para a equipe aparecer aqui.</p>;
+  }
+  const trocar = (id, patch) => aoMudar({ ...valor, [id]: { oculto: false, foto: '', descricao: '', ...valor[id], ...patch } });
+  return (
+    <div className="cs-eqs">
+      {ativos.map(p => {
+        const site = valor[p.id] || {};
+        return (
+          <div key={p.id} className={'cs-eq' + (site.oculto ? ' cs-eq-fora' : '')}>
+            <FotoDaPessoa nome={p.nome} foto={site.foto} aviso={aviso}
+                          aoMudar={foto => trocar(p.id, { foto })} />
+            <div className="cs-eq-dados">
+              <div className="cs-eq-topo">
+                <b>{p.nome}</b>
+                <Chave rotulo="Aparece no site" ligado={!site.oculto}
+                       aoMudar={v => trocar(p.id, { oculto: !v })} />
+              </div>
+              <input value={site.descricao ?? ''} maxLength={120}
+                     placeholder="Uma linha sobre a pessoa"
+                     onChange={e => trocar(p.id, { descricao: e.target.value })} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FotoDaPessoa({ nome, foto, aoMudar, aviso }) {
+  const { entrada, subindo, escolher, abrir } = useEnviarImagem({ uso: 'equipe', largura: 400, aoEnviar: aoMudar, aviso });
+  return (
+    <div className="cs-eq-foto">
+      <button type="button" className="cs-eq-avatar" onClick={abrir} disabled={subindo}
+              aria-label={foto ? `Trocar a foto de ${nome}` : `Enviar foto de ${nome}`}>
+        {foto ? <img src={foto} alt="" /> : <span>{nome.trim()[0]?.toUpperCase()}</span>}
+      </button>
+      <button type="button" className="cs-eq-acao" onClick={foto ? () => aoMudar('') : abrir} disabled={subindo}>
+        {subindo ? 'Enviando…' : foto ? 'Tirar foto' : 'Enviar foto'}
+      </button>
+      <input ref={entrada} type="file" accept="image/*" hidden onChange={escolher} />
+    </div>
+  );
+}
 
 const Linha = ({ rotulo, dica, children }) => (
   <div className="cs-campo">

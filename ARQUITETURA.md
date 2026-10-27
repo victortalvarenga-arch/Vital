@@ -2431,13 +2431,22 @@ seção de avaliações some enquanto não houver avaliação, em vez de dizer "
 breve". A primeira entrega vai ao ar assim (2026-10-27); os cadastros nos
 consoles do Google e da Meta ficam para depois.
 
-**Cada seção do site tem chave em "O que mostrar"** (`config.exibir`: `sobre`,
-`perguntas`, `equipe`, `antesDepois`, `avaliacoes`, `instagram`, `mapa`, todas
-ligadas por padrão). A empresa tira o que ainda não está pronto e põe de volta
-quando estiver, sem apagar o conteúdo. Desligada, a seção não sai nem na
-vitrine (`secaoLigada` em `routes/publico.js`) — esconder só no site deixaria
-o conteúdo na resposta pública; equipe, Instagram e mapa, que aparecem mesmo
-sem conteúdo próprio, são conferidos também no site.
+**Cada seção do site tem um bloco em Site da cliente, com a chave "No site"
+ao lado do título** (`config.exibir`: `sobre`, `equipe`, `antesDepois`,
+`avaliacoes`, `instagram`, `perguntas`, `mapa`, todas ligadas por padrão; os
+blocos seguem a ordem do site). A empresa tira o que ainda não está pronto e
+põe de volta quando estiver, sem apagar o conteúdo — com a seção desligada, o
+bloco esmaece mas continua editável, porque preparar é o uso. Desligada, a
+seção não sai nem na vitrine (`secaoLigada` em `routes/publico.js`) — esconder
+só no site deixaria o conteúdo na resposta pública; Instagram e mapa, que
+aparecem mesmo sem conteúdo próprio, são conferidos também no site.
+
+**A seção Equipe é apresentação, separada de quem se agenda.**
+`config.equipeSite` guarda, por id, `{ oculto, foto, descricao }`; a vitrine
+devolve `equipe` (a seção) à parte de `profissionais` (o agendamento), então
+tirar alguém da seção não o tira da agenda. A linha escrita vence a
+`staff.funcao` antiga. `PUT /api/config` confere: só ids desta empresa, foto
+só de `/uploads/` ou `https://`, linha de até 120 caracteres.
 
 **Um endereço de retorno para todas as empresas, e a empresa no `state`
 assinado.** Google e Meta só devolvem a pessoa a URLs cadastradas no console
