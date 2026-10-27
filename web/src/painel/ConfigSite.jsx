@@ -526,6 +526,11 @@ function AntesDepois({ lista, aoMudar, aviso }) {
                  dica="O nome do procedimento. Ex.: Limpeza de pele profunda" />
           <fieldset className="cs-caso-aut">
             <legend>Autorização da cliente</legend>
+            {/* Caso gravado antes de a autorização ser pedida: o servidor o
+                guarda, mas a vitrine não publica até alguém registrar. */}
+            {!(c.autorizacao?.nome && c.autorizacao?.data) && c.antes && c.depois && (
+              <p className="cs-caso-pendente">Fora do site até registrar quem autorizou e quando.</p>
+            )}
             <Texto rotulo="Quem autorizou" valor={c.autorizacao?.nome}
                    aoMudar={v => autorizar(i, { nome: v })} />
             <Linha rotulo="Data da autorização">

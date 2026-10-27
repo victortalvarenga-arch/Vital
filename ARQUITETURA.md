@@ -306,6 +306,14 @@ autorização ou com data futura, e anota quem registrou e quando
 gravado antes da regra não sai — e manda só `antes`, `depois` e `titulo`: o
 nome de quem autorizou é dado da empresa, não do site. Sem caso, a seção some.
 
+O caso gravado antes da regra, que volta igual (mesmas fotos) e sem nenhum
+campo de autorização, é guardado como pendente em vez de recusado (decidido
+em 2026-10-27). A tela manda a config inteira a cada salvamento, e recusar
+travava qualquer outra mudança: a Laura não conseguia salvar nada no Site da
+cliente. O painel marca o caso como "Fora do site até registrar"; caso novo,
+foto trocada ou autorização começada continuam passando pela conferência
+inteira.
+
 **A gravação confere as mesmas regras que a tela mostra.** Agendamento com
 `origem: 'site'` é recusado se o serviço está arquivado, se a profissional está
 inativa ou não faz aquele serviço, ou se a data está fora do prazo — passado,

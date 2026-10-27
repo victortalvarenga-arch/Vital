@@ -19,14 +19,29 @@ export const catalogo = Router();
  * entra sem dizer **quem autorizou, quando e como** — o painel pede, e a
  * conferência mora aqui porque a tela se contorna. Quem registrou e quando
  * ficam congelados no primeiro registro.
+ *
+ * A exceção é o caso gravado antes de o painel exigir autorização, que volta
+ * igual, sem nenhum campo dela preenchido: ele fica guardado como pendente e
+ * a vitrine não o publica (`publico.js`). Recusar travava o salvamento de
+ * qualquer outra coisa da tela, porque ela manda a config inteira — e a
+ * empresa não conseguia nem mudar a cor sem antes resolver um caso antigo.
+ * Caso novo, foto trocada ou autorização começada a preencher passam pela
+ * conferência inteira.
  */
-function casosDeAntesDepois(lista, usuario) {
+function casosDeAntesDepois(lista, usuario, anteriores = []) {
   if (!Array.isArray(lista)) return { erro: 'antes e depois inválido' };
+  const semAutorizacao = c => !c?.autorizacao?.nome && !c?.autorizacao?.data && !c?.autorizacao?.como;
+  const pendentes = new Set((Array.isArray(anteriores) ? anteriores : [])
+    .filter(semAutorizacao).map(c => `${c.antes}|${c.depois}`));
   const saida = [];
   for (const [n, c] of lista.entries()) {
     const a = c?.autorizacao || {};
     const qual = c?.titulo ? `"${c.titulo}"` : `o caso ${n + 1}`;
     if (!c?.antes || !c?.depois) return { erro: `${qual} precisa das duas fotos` };
+    if (semAutorizacao(c) && pendentes.has(`${c.antes}|${c.depois}`)) {
+      saida.push({ antes: String(c.antes), depois: String(c.depois), titulo: String(c.titulo || '').slice(0, 80) });
+      continue;
+    }
     if (String(a.nome || '').trim().length < 2) return { erro: `${qual}: informe quem autorizou o uso das fotos` };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.data || '') || a.data > hoje()) {
       return { erro: `${qual}: informe a data da autorização` };
@@ -80,7 +95,7 @@ catalogo.put('/config', exige('site'), rota(async (req, res) => {
   // o que foi salvo na tela do atendente.
   delete corpo.atendente;
   if (corpo.antesDepois !== undefined) {
-    const casos = casosDeAntesDepois(corpo.antesDepois, req.usuario);
+    const casos = casosDeAntesDepois(corpo.antesDepois, req.usuario, (await getConfig()).antesDepois);
     if (casos.erro) return res.status(400).json({ erro: casos.erro });
     corpo.antesDepois = casos;
   }

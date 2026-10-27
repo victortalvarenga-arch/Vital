@@ -138,6 +138,28 @@ describe('a vitrine respeita o painel', () => {
     await db.db.comEmpresa('default', () => db.setConfig({ antesDepois: [] }));
   });
 
+  test('caso antigo sem autorização não trava salvar o resto, e caso novo sem ela continua recusado', async () => {
+    // A tela manda a config inteira: recusar o caso antigo impedia até mudar
+    // a cor. Ele volta guardado como estava, e continua fora do site.
+    const antigo = { titulo: 'Antigo', antes: '/a.jpg', depois: '/d.jpg' };
+    await db.db.comEmpresa('default', () => db.setConfig({ antesDepois: [antigo] }));
+    try {
+      const r = await dona('PUT', '/api/config', { slogan: 'Novo slogan', antesDepois: [antigo] });
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.corpo.antesDepois, [antigo]);
+      assert.deepEqual((await vitrine()).antesDepois, []);
+
+      // Mesmo formato, foto que não estava gravada: é caso novo, e sem
+      // autorização não entra.
+      const novo = { titulo: 'Novo', antes: '/b.jpg', depois: '/e.jpg' };
+      const r2 = await dona('PUT', '/api/config', { antesDepois: [antigo, novo] });
+      assert.equal(r2.status, 400);
+      assert.match(r2.corpo.erro, /"Novo": informe quem autorizou/);
+    } finally {
+      await db.db.comEmpresa('default', () => db.setConfig({ antesDepois: [] }));
+    }
+  });
+
   test('várias promoções de uma vez: cada uma com os seus serviços e a sua equipe', async () => {
     // As promoções são montadas todas juntas (três consultas, não três por
     // promoção). O risco de juntar é misturar: o serviço de uma ir parar na
