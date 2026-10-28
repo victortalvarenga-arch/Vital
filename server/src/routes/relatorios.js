@@ -88,6 +88,11 @@ relatorios.get('/resumo', rota(async (req, res) => {
     `SELECT
         SUM(CASE WHEN status='concluido' THEN pag_recebido ELSE 0 END) recebido,
         SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos,
+        -- A base do ticket médio: o que entrou dividido por quem pagou. Com
+        -- todos os concluídos no denominador, o atendimento ainda em aberto
+        -- puxava o ticket para baixo sem ter posto um centavo no numerador.
+        -- Entrada conta como paga: o que ela trouxe já está no recebido.
+        SUM(CASE WHEN status='concluido' AND pag_recebido > 0 THEN 1 ELSE 0 END) pagos,
         SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas,
         SUM(CASE WHEN status='cancelado' THEN 1 ELSE 0 END) cancelados,
         -- Do período, não de hoje: previstoHoje responde "quanto ainda entra
@@ -236,7 +241,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
     cancelados: g.cancelados || 0,
     previsto: g.previsto || 0,
     agendados: g.agendados || 0,
-    ticketMedio: g.atendimentos ? recebido / g.atendimentos : 0,
+    ticketMedio: g.pagos ? recebido / g.pagos : 0,
     porServico, porProfissional, porForma,
     // A tela precisa saber que está vendo um recorte, senão o dono acha que o
     // faturamento caiu quando na verdade está olhando pelo login errado.

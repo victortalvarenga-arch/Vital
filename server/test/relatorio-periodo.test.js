@@ -70,9 +70,12 @@ describe('resumo de um período', () => {
     assert.equal(corpo.cancelados, 1);
   });
 
-  test('o ticket médio divide o recebido pelos concluídos', async () => {
+  test('o ticket médio é do que foi pago: o concluído em aberto não o puxa para baixo', async () => {
+    // No dia: um concluído pago (100) e um concluído sem pagar. Dividir pelos
+    // dois dava 50 — metade do que qualquer cliente pagou de fato.
     const { corpo } = await dona('GET', `/api/relatorios/resumo?de=${DIA}&ate=${DIA}`);
-    assert.equal(corpo.ticketMedio, corpo.recebido / corpo.atendimentos);
+    assert.equal(corpo.atendimentos, 2);
+    assert.equal(corpo.ticketMedio, 100);
   });
 
   test('o intervalo recorta de verdade: o dia seguinte não entra', async () => {

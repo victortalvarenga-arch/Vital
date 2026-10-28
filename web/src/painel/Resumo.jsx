@@ -173,7 +173,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
         <Numero rotulo="Atendimentos no mês" valor={mensal && mensal.agendados}
                 dica="Horários marcados neste mês, tirando os cancelados." />
         <Numero rotulo="Ticket médio do mês" valor={mensal && brl(mensal.ticketMedio)}
-                dica="Quanto cada atendimento rendeu, em média, neste mês." />
+                dica="Quanto entrou, em média, por atendimento pago neste mês. Atendimento concluído e ainda em aberto não entra na conta." />
         <Numero rotulo="Faltas / cancelados no mês"
                 valor={mensal && `${mensal.faltas} / ${mensal.cancelados}`}
                 dica="Clientes que faltaram e horários cancelados neste mês." />

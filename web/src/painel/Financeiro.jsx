@@ -154,7 +154,7 @@ export default function Financeiro({ dados, poderes }) {
                     <span className="fin-atraso">{brl(r.aReceber)} em atraso, até hoje</span>
                   )} />
           <Numero rotulo="Ticket médio" valor={r && brl(r.ticketMedio)}
-                  dica="Quanto rendeu cada atendimento concluído, em média, neste período." />
+                  dica="Quanto entrou, em média, por atendimento pago neste período. Atendimento concluído e ainda em aberto não entra na conta." />
         </div>
 
         <GraficoFinanceiro pontos={serie?.por === por ? serie.pontos : null} por={por} comLucro={!meu} />

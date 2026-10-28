@@ -53,8 +53,9 @@ export default function Servicos({ dados, acao, aviso }) {
   for (const a of recentes) porServico.set(a.servico, (porServico.get(a.servico) || 0) + 1);
   const [topoId, topoQtd] = [...porServico].sort((a, b) => b[1] - a[1])[0] || [];
   const topo = servicos.find(s => s.id === topoId);
-  const concluidos = recentes.filter(a => a.status === 'concluido');
-  const ticket = concluidos.length ? concluidos.reduce((s, a) => s + a.valor, 0) / concluidos.length : null;
+  // Mesma base do Financeiro: o que entrou, dividido por quem pagou.
+  const pagos = recentes.filter(a => a.status === 'concluido' && Number(a.pagamento?.recebido) > 0);
+  const ticket = pagos.length ? pagos.reduce((s, a) => s + Number(a.pagamento.recebido), 0) / pagos.length : null;
 
   /* ── filtro ── */
   const q = chave(busca.trim());
@@ -94,7 +95,7 @@ export default function Servicos({ dados, acao, aviso }) {
         <Numero rotulo="Mais agendado" valor={topo ? topo.nome : '—'} texto
                 sub={topo ? `${topoQtd} ${topoQtd === 1 ? 'agendamento' : 'agendamentos'} em 30 dias` : 'nada nos últimos 30 dias'} />
         <Numero rotulo="Ticket médio" valor={ticket == null ? '—' : brl(ticket)}
-                sub="por atendimento, 30 dias" />
+                sub="por atendimento pago, 30 dias" />
       </div>
 
       <div className="card sv-filtros">
