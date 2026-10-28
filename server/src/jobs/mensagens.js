@@ -5,6 +5,7 @@ import { render, variaveis } from '../lib/templates.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
 import { fecharAtendimentos } from './fechamento.js';
 import { compactarFunil } from './funil.js';
+import { podarRegistro } from './registro.js';
 import { sincronizarTodas } from '../conexoes/index.js';
 import { tentarLideranca } from '../lib/lideranca.js';
 
@@ -255,6 +256,11 @@ function agendar() {
   // disputar a janela com backup e outros jobs de hora redonda.
   agendarCada('17 4 * * *', () => {
     compactarFunil().catch(e => console.error('[funil]', e.message));
+  });
+  // O registro do painel guarda dois anos (migration 027). Dez minutos depois
+  // do funil, para as duas podas não disputarem o banco.
+  agendarCada('27 4 * * *', () => {
+    podarRegistro().catch(e => console.error('[registro]', e.message));
   });
 
   // Avaliações do Google e publicações do Instagram, de hora em hora — no
