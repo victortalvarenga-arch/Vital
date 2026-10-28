@@ -154,8 +154,10 @@ function Painel({ sessao, aoSair }) {
   if (erro && !dados) return (
     <div className="p-centro">
       <TriangleAlert size={34} style={{ color: 'var(--p-marca)' }} />
-      <h2>Servidor fora do ar</h2>
-      <p>Não consegui falar com a API. Rode <code>npm run dev</code> em <code>server/</code> e recarregue.</p>
+      <h2>Sem conexão com o painel</h2>
+      <p>Confira a internet do aparelho e tente de novo. Se continuar, fale com o suporte da Vital.</p>
+      <button className="btn btn-p" style={{ marginTop: 8 }} onClick={() => window.location.reload()}>Tentar de novo</button>
+      {/* O detalhe técnico fica, pequeno: é o que o suporte vai pedir. */}
       <p className="p-fraco">{erro}</p>
     </div>
   );
@@ -1499,7 +1501,7 @@ function Clientes({ dados, acao, aviso }) {
   return (
     <>
       <div className="head">
-        <div><h2>Clientes</h2><div className="sub">{clientes.length} cadastradas · cadastro feito uma vez, no primeiro agendamento</div></div>
+        <div><h2>Clientes</h2><div className="sub">{clientes.length} {clientes.length === 1 ? 'cadastrada' : 'cadastradas'} · o cadastro é feito uma vez, no primeiro agendamento</div></div>
         <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', fone: '', nasc: '', end: '', obs: '' })}><Plus size={16} /> Nova cliente</button>
       </div>
       <div style={{ position: 'relative', marginBottom: 14, maxWidth: 380 }}>
@@ -1523,7 +1525,14 @@ function Clientes({ dados, acao, aviso }) {
             <a className="btn btn-wa btn-s" href={waLink(c.fone, `Oi ${c.nome.split(' ')[0]}! `)} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /></a>
           </div>
         ))}
-        {filtrados.length === 0 && <div style={{ padding: 34, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Nenhuma cliente com esse nome ou número.</div>}
+        {/* Lista vazia sem busca é empresa sem cliente nenhuma: diz de onde elas vêm. */}
+        {filtrados.length === 0 && (
+          <div style={{ padding: 34, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+            {q.trim()
+              ? 'Nenhuma cliente com esse nome ou número.'
+              : 'Nenhuma cliente ainda. Elas entram sozinhas quando agendam pelo site, ou você cadastra em “Nova cliente”.'}
+          </div>
+        )}
       </div>
 
       {sel && (() => {
@@ -1640,10 +1649,14 @@ function CRM({ dados, acao, aviso, fila, recarregarFila }) {
 
       {sub === 'fila' && (
         <>
-          <div className="card" style={{ padding: 14, marginBottom: 16, fontSize: 13, lineHeight: 1.55, background: '#F3F0F7', borderColor: '#D9D1EC' }}>
-            <b>Como funciona no sistema real:</b> essas mensagens saem sozinhas pela API oficial do WhatsApp Business, nos horários programados.
-            Aqui na demonstração cada uma tem um botão que abre a conversa já com o texto pronto, pra você conferir o tom antes de automatizar.
-          </div>
+          {/* Diz o que acontece hoje, sem "demonstração": é a tela de uma
+              empresa de verdade, que envia de verdade pelo botão. */}
+          {fila.modoManual && (
+            <div className="card crm-aviso">
+              Cada mensagem abre a conversa no WhatsApp com o texto pronto: você confere e envia.
+              O envio automático liga quando o número da empresa for conectado à Vital.
+            </div>
+          )}
           {pendentes.length === 0
             ? <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Fila zerada. Nada para enviar hoje.</div>
             : pendentes.map(f => (

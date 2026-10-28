@@ -552,7 +552,7 @@ function AcoesRapidas({ irPara, poderes, naFila }) {
     // conserto, e conserto tem o caminho dele nas pendências. Fechar um horário,
     // sim, se faz toda semana.
     { k: 'bloqueios', oQue: { novo: true }, icone: <Ban size={16} />, nome: 'Bloquear horário' },
-    ...(poderes.cadastros ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Novo cliente' }] : []),
+    ...(poderes.cadastros ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Nova cliente' }] : []),
     { k: 'crm', icone: <Send size={16} />, nome: 'Enviar lembretes', badge: naFila },
   ];
   return (
