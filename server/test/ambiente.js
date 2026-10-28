@@ -112,7 +112,7 @@ export async function prepararBanco() {
  */
 const TABELAS = [
   'conversa_mensagens', 'conversas',
-  'appointment_addons', 'appointments', 'blocks', 'messages',
+  'appointment_addons', 'appointments', 'blocks', 'bloqueio_series', 'messages',
   'service_addons', 'category_addons', 'service_staff',
   'users', 'services', 'clients', 'staff', 'units', 'templates', 'conexoes',
 ];
@@ -134,7 +134,7 @@ export async function limpar(db) {
  * equipe a cada teste somaria segundos à suíte sem testar nada de novo.
  */
 export async function limparAgenda(db) {
-  for (const t of ['appointment_addons', 'appointments', 'blocks', 'messages']) {
+  for (const t of ['appointment_addons', 'appointments', 'blocks', 'bloqueio_series', 'messages']) {
     await db.db.run(`DELETE FROM ${t}`);
   }
 }

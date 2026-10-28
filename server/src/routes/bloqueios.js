@@ -100,7 +100,21 @@ bloqueios.post('/', rota(async (req, res) => {
   const datas = explicitas
     ? explicitas.slice(0, MAX_DATAS)
     : Array.from({ length: vezes }, (_, i) => CADA[cada](b.data, i));
-  const serie = datas.length > 1 ? uid() : null;
+  // "Nunca termina": a tela manda, junto das datas, a regra que as gerou. Ela
+  // fica guardada para o job estender a série (migration 028).
+  const continua = explicitas && b.continua && ['diaria', 'semanal', 'mensal'].includes(b.continua.repetir)
+    ? {
+        repetir: b.continua.repetir,
+        diasSemana: (Array.isArray(b.continua.diasSemana) ? b.continua.diasSemana : [])
+          .map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6),
+        inicio: /^\d{4}-\d{2}-\d{2}$/.test(b.continua.inicio || '') ? b.continua.inicio : datas[0],
+      }
+    : null;
+  if (continua?.repetir === 'semanal' && !continua.diasSemana.length) {
+    return res.status(400).json({ erro: 'repetição semanal sem dia da semana' });
+  }
+
+  const serie = datas.length > 1 || continua ? uid() : null;
   const criados = [];
   for (const data of datas) {
     const id = uid();
@@ -111,6 +125,14 @@ bloqueios.post('/', rota(async (req, res) => {
       String(b.motivo || '').slice(0, 200), String(b.obs || '').slice(0, 500), serie, hoje()
     );
     criados.push(id);
+  }
+  if (continua) {
+    await db.run(
+      `INSERT INTO bloqueio_series (serie, staff_id, hora_ini, hora_fim, motivo, obs, repetir, dias_semana, inicio, ate)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      serie, staffId, b.horaIni, b.horaFim, String(b.motivo || '').slice(0, 200),
+      String(b.obs || '').slice(0, 500), continua.repetir, continua.diasSemana, continua.inicio, datas.at(-1)
+    );
   }
 
   // Já havia agendamento no intervalo? Bloquear não desmarca ninguém — seria
@@ -172,6 +194,9 @@ bloqueios.delete('/:id', rota(async (req, res) => {
   const apagados = aSerie
     ? await db.run('DELETE FROM blocks WHERE serie=?', alvo.serie)
     : await db.run('DELETE FROM blocks WHERE id=?', req.params.id);
+  // Liberar a série inteira encerra também a regra dela: sem isto o job de
+  // séries sem fim recriaria as datas na madrugada seguinte.
+  if (aSerie) await db.run('DELETE FROM bloqueio_series WHERE serie=?', alvo.serie);
 
   await req.registrar('bloqueio.liberado', {
     alvoId: alvo.id,

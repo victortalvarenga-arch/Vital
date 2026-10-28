@@ -469,6 +469,10 @@ function NovoBloqueio({ staff, eu, hoje, dataInicial = hoje, motivos, aviso, pod
         // motor de horários já entende intervalo, e não precisa aprender nada.
         horaIni: inteiro ? '00:00' : horaIni, horaFim: inteiro ? '23:59' : horaFim,
         datas,
+        // "Nunca": vai também a regra, para o servidor estender a série
+        // sozinho (migration 028) — as datas cobrem só o primeiro ano.
+        ...(repetir !== 'nao' && termina === 'nunca'
+          ? { continua: { repetir, diasSemana, inicio } } : {}),
       });
       criado(r.jaAgendados || []);
     } catch (erro) {
@@ -556,10 +560,10 @@ function NovoBloqueio({ staff, eu, hoje, dataInicial = hoje, motivos, aviso, pod
                   <span>Nunca</span>
                 </label>
                 {termina === 'nunca' && (
-                  // Uma linha por data (ver ARQUITETURA.md) não deixa existir
-                  // "para sempre": a tela diz até onde vai, em vez de fingir.
+                  // Cada data é uma linha (ver ARQUITETURA.md); o servidor
+                  // guarda a regra e vai criando as próximas sozinho.
                   <small className="bl-opcao-dica">
-                    Fecha os próximos 12 meses. Perto do fim, crie de novo.
+                    Continua sozinho: sempre os próximos 12 meses ficam fechados.
                   </small>
                 )}
                 <label className="bl-opcao">

@@ -6,6 +6,7 @@ import { enviar, modoManual } from '../whatsapp/index.js';
 import { fecharAtendimentos } from './fechamento.js';
 import { compactarFunil } from './funil.js';
 import { podarRegistro } from './registro.js';
+import { estenderSeries } from './bloqueios.js';
 import { sincronizarTodas } from '../conexoes/index.js';
 import { tentarLideranca } from '../lib/lideranca.js';
 
@@ -261,6 +262,11 @@ function agendar() {
   // do funil, para as duas podas não disputarem o banco.
   agendarCada('27 4 * * *', () => {
     podarRegistro().catch(e => console.error('[registro]', e.message));
+  });
+  // Bloqueio que "nunca termina" ganha as datas que faltam para 12 meses à
+  // frente (migration 028). Uma vez por dia basta: o horizonte é de um ano.
+  agendarCada('37 4 * * *', () => {
+    paraCadaEmpresa('bloqueios', estenderSeries).catch(e => console.error('[bloqueios]', e.message));
   });
 
   // Avaliações do Google e publicações do Instagram, de hora em hora — no
