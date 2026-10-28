@@ -140,7 +140,13 @@ function Painel({ sessao, aoSair }) {
   }, []);
   useEffect(() => { carregarFila(); }, [carregarFila]);
 
-  useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); } }, [toast]);
+  // Aviso com "Desfazer" fica mais tempo: é a janela para corrigir o toque
+  // errado, e ela precisa caber entre ver o aviso e alcançar o botão.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.desfazer ? 6000 : 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
   useEffect(() => { if (falha) { const t = setTimeout(() => setFalha(null), 4000); return () => clearTimeout(t); } }, [falha]);
 
   if (erro && !dados) return (
@@ -164,6 +170,8 @@ function Painel({ sessao, aoSair }) {
   }
 
   /** Executa uma chamada de API, recarrega o estado e avisa em caso de erro. */
+  // `mensagem` é o texto do aviso, ou `{ texto, desfazer }` quando a ação
+  // tem volta — o aviso então ganha o botão "Desfazer".
   const acao = async (fn, mensagem) => {
     try { await fn(); await recarregar(); if (mensagem) setToast(mensagem); return true; }
     catch (e) { setFalha(e.message); return false; }
@@ -281,7 +289,17 @@ function Painel({ sessao, aoSair }) {
         </ErroDeTela>
       </main>
 
-      {toast && <div className="p-aviso" role="status"><Check size={17} aria-hidden="true" />{toast}</div>}
+      {toast && (
+        <div className="p-aviso" role="status">
+          <Check size={17} aria-hidden="true" />
+          <span className="p-aviso-txt">{toast.texto ?? toast}</span>
+          {toast.desfazer && (
+            <button className="p-aviso-desfazer" onClick={() => { const d = toast.desfazer; setToast(null); d(); }}>
+              Desfazer
+            </button>
+          )}
+        </div>
+      )}
       {falha && <div className="p-aviso erro" role="alert"><TriangleAlert size={17} aria-hidden="true" />{falha}</div>}
     </div>
   );
@@ -432,8 +450,22 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // dois toques seguidos no mesmo atendimento, e fechar depois do primeiro
   // obrigava a achar o bloco de novo na grade. Quem redesenha é `aberto`, que
   // relê da lista recarregada.
+  //
+  // O aviso diz de quem e para onde ("Maria: faltou"), e traz "Desfazer": um
+  // toque errado entre uma cliente e outra registrava falta sem volta na
+  // hora — a correção existia, mas atrás do "Alterar".
   const mudarStatus = async (id, status) => {
-    await acao(() => api.atualizarAgendamento(id, { status }), 'Situação atualizada');
+    const antes = agendamentos.find(a => a.id === id);
+    const nome = clientes.find(c => c.id === antes?.cliente)?.nome.split(' ')[0];
+    const de = nome ? `${nome}: ` : '';
+    const volta = antes && antes.status !== status ? antes.status : null;
+    await acao(() => api.atualizarAgendamento(id, { status }), {
+      texto: de + FLUXO[status].rotulo.toLowerCase(),
+      desfazer: volta && (() => acao(
+        () => api.atualizarAgendamento(id, { status: volta }),
+        `${de}voltou para ${FLUXO[volta].rotulo.toLowerCase()}`
+      )),
+    });
   };
   /**
    * Receber é escrever quanto já entrou, no total — nunca um incremento.
@@ -857,16 +889,18 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
               )}
             </div>
 
-            {/* Uma ação por etapa: a seguinte. Faltou fica ao lado enquanto a
-                cliente ainda pode não vir; depois de concluído não faz sentido. */}
+            {/* Uma ação por etapa: a seguinte, sozinha na linha. "Marcar
+                falta" vai embaixo e menor: colada ao botão principal, era o
+                toque errado mais fácil do balcão. Depois de concluído não faz
+                sentido. */}
             {FLUXO[at.status].proximo && (
               <div className="at-fluxo">
                 <button className="btn btn-p" onClick={() => mudarStatus(at.id, FLUXO[at.status].proximo)}>
                   {FLUXO[at.status].acao}
                 </button>
                 {at.status !== 'em_atendimento' && (
-                  <button className="btn btn-g" onClick={() => mudarStatus(at.id, 'falta')}>
-                    Marcar falta
+                  <button className="at-falta" onClick={() => mudarStatus(at.id, 'falta')}>
+                    A cliente não veio · marcar falta
                   </button>
                 )}
               </div>

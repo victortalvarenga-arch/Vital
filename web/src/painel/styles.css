@@ -139,6 +139,10 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   box-shadow:0 8px 30px -12px rgba(0,0,0,.45);
 }
 .p-aviso.erro{ background:var(--erro); color:#fff; }
+.p-aviso-txt{flex:1; min-width:0}
+.p-aviso-desfazer{flex:none; min-height:36px; padding:0 12px; margin:-6px -8px -6px 0; border-radius:7px;
+  font-weight:700; color:var(--porcelain); text-decoration:underline; text-underline-offset:3px}
+.p-aviso-desfazer:hover{background:rgba(251,246,244,.08)}
 /* Excluir, em qualquer tela. Era `style={{color:"#8A2B2B"}}` colado em seis
    lugares — o mesmo botao, escrito seis vezes. */
 .btn-erro{ color:var(--erro); }
@@ -1334,7 +1338,10 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   text-align:left; transition:border-color .14s}
 .gm-dia:hover{border-color:var(--ink)}
 .gm-dia.hoje{border-color:var(--lacquer); box-shadow:0 0 0 1px var(--lacquer)}
-.gm-dia.fechado{background:var(--porcelain)}
+/* `gm-fechado`, e não `fechado`: esse nome é da faixa da grade do dia
+   (absoluta, por cima das horas), e herdá-la tirava o domingo da grade do mês
+   e empurrava os outros dias para a coluna errada. */
+.gm-dia.gm-fechado{background:var(--porcelain)}
 .gm-num{font-size:13px; font-weight:700}
 .gm-dia.hoje .gm-num{color:var(--lacquer)}
 .gm-hoje{font-size:10.5px; font-weight:700; color:var(--lacquer); text-transform:uppercase; letter-spacing:.08em}
@@ -1509,8 +1516,12 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .at-entrada input:focus-visible{outline:2px solid var(--uv); outline-offset:2px}
 .at-dica{margin:8px 0 0; font-size:12px; color:var(--muted)}
 
-.at-fluxo{display:flex; gap:8px; margin-bottom:18px}
-.at-fluxo .btn{flex:1; justify-content:center}
+.at-fluxo{display:flex; flex-direction:column; align-items:stretch; gap:6px; margin-bottom:18px}
+.at-fluxo .btn{justify-content:center}
+/* Secundária de propósito: texto, longe do botão principal, alvo de 44px. */
+.at-falta{align-self:center; min-height:44px; padding:0 12px; font-size:13px; color:var(--muted);
+  text-decoration:underline; text-underline-offset:3px}
+.at-falta:hover{color:var(--ink)}
 .at-acoes{display:flex; flex-direction:column; gap:8px}
 /* "Em atendimento" na recepção e na lista: azul, como no fluxo da gaveta. */
 .rc-agora{background:#E4EDF6; color:#1F5C96}

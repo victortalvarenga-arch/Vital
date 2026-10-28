@@ -50,7 +50,7 @@ export default function GradeDoMes({ mes, agendamentos, hoje, staff, aoEscolherD
             .map(id => staff.find(p => p.id === id)).filter(Boolean).slice(0, 4);
           return (
             <button key={dia} type="button"
-                    className={'gm-dia' + (dia === hoje ? ' hoje' : '') + (fechado ? ' fechado' : '')}
+                    className={'gm-dia' + (dia === hoje ? ' hoje' : '') + (fechado ? ' gm-fechado' : '')}
                     onClick={() => aoEscolherDia(dia)}>
               <span className="gm-num">{Number(dia.slice(8))}</span>
               {dia === hoje && <span className="gm-hoje">hoje</span>}
