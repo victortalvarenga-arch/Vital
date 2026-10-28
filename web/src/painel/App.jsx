@@ -3,6 +3,7 @@ import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { DIAS, MESES, emFaixas, faixaDeHoras, fmtData, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
 import Combos from './Combos.jsx';
+import { FLUXO, mudarSituacao } from './fluxo.js';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
 import Agendamentos from './Agendamentos.jsx';
@@ -450,23 +451,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // dois toques seguidos no mesmo atendimento, e fechar depois do primeiro
   // obrigava a achar o bloco de novo na grade. Quem redesenha é `aberto`, que
   // relê da lista recarregada.
-  //
-  // O aviso diz de quem e para onde ("Maria: faltou"), e traz "Desfazer": um
-  // toque errado entre uma cliente e outra registrava falta sem volta na
-  // hora — a correção existia, mas atrás do "Alterar".
-  const mudarStatus = async (id, status) => {
-    const antes = agendamentos.find(a => a.id === id);
-    const nome = clientes.find(c => c.id === antes?.cliente)?.nome.split(' ')[0];
-    const de = nome ? `${nome}: ` : '';
-    const volta = antes && antes.status !== status ? antes.status : null;
-    await acao(() => api.atualizarAgendamento(id, { status }), {
-      texto: de + FLUXO[status].rotulo.toLowerCase(),
-      desfazer: volta && (() => acao(
-        () => api.atualizarAgendamento(id, { status: volta }),
-        `${de}voltou para ${FLUXO[volta].rotulo.toLowerCase()}`
-      )),
-    });
-  };
+  // O aviso diz de quem e para onde, com "Desfazer" (`mudarSituacao`).
+  const mudarStatus = (id, status) => mudarSituacao({ acao, agendamentos, clientes }, id, status);
   /**
    * Receber é escrever quanto já entrou, no total — nunca um incremento.
    *
@@ -1022,23 +1008,6 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
     </>
   );
 }
-
-/**
- * O caminho de um atendimento, do dia marcado até o fim.
- *
- * Cada etapa mostra **uma** ação: a seguinte. A lista inteira de estados fica
- * atrás do "Alterar" — quem precisa dela está corrigindo alguma coisa, e
- * corrigir é o caso raro. Mostrar os seis botões o tempo todo fazia a pessoa
- * escolher entre seis quando só um fazia sentido naquele momento.
- */
-const FLUXO = {
-  agendado:       { rotulo: 'Agendado',       tom: 'espera',  proximo: 'confirmado',     acao: 'Confirmar' },
-  confirmado:     { rotulo: 'Confirmado',     tom: 'ok',      proximo: 'em_atendimento', acao: 'Cliente chegou' },
-  em_atendimento: { rotulo: 'Em atendimento', tom: 'agora',   proximo: 'concluido',      acao: 'Concluir' },
-  concluido:      { rotulo: 'Concluído',      tom: 'feito' },
-  falta:          { rotulo: 'Faltou',         tom: 'falta' },
-  cancelado:      { rotulo: 'Cancelado',      tom: 'ruim' },
-};
 
 /**
  * Agendamento pelo balcão — o botão "Agendar" do Calendário e o atalho do Resumo.

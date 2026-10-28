@@ -775,7 +775,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .rs-esperando{color:var(--line)}
 .rs-vazio{font-size:13px; color:var(--muted); margin:0}
 .rs-falha{background:var(--erro-claro); color:var(--erro); border-radius:10px;
-  padding:12px 16px; font-size:13.5px; margin-bottom:18px}
+  padding:10px 12px 10px 16px; font-size:13.5px; margin-bottom:18px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
 .rs-pos{width:18px; color:var(--muted); font-size:13px}
 .rs-av-pq{width:30px; height:30px; font-size:11px}
 .eq-av{width:20px; height:20px; font-size:9px}
@@ -1230,6 +1231,47 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .rs-selo{flex:none; font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px;
   background:var(--lacquer-tag); color:var(--lacquer-d)}
 .rs-selo.ok{background:#E4F0EA; color:var(--ok)}
+
+/* A próxima cliente: o maior objeto da tela, porque é a pergunta do balcão. */
+.rs-proxima{padding:18px; margin-bottom:12px}
+.rs-proxima-corpo{display:flex; align-items:baseline; gap:14px; margin:8px 0 16px}
+.rs-proxima-hora{font-size:27px; font-weight:500; color:var(--lacquer); line-height:1; font-variant-numeric:tabular-nums}
+.rs-proxima-nome{font-family:'Fraunces',serif; font-size:21px; line-height:1.2;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rs-proxima-mt{margin-top:5px; font-size:13px; color:var(--muted)}
+.rs-proxima-mt .rs-selo{display:inline-block; vertical-align:1px}
+.rs-proxima-acoes{display:flex; gap:8px; flex-wrap:wrap}
+.rs-proxima-acoes .btn-p{flex:1 1 180px; justify-content:center}
+.rs-proxima-nada{margin:0; font-size:14px; color:var(--muted)}
+/* Quem está sendo atendida agora, acima da próxima: o passo dela é concluir. */
+.rs-cadeira{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--line); font-size:13.5px}
+.rs-cadeira-ponto{display:inline-block; width:8px; height:8px; border-radius:50%; background:#1F5C96;
+  margin-right:8px; vertical-align:1px}
+
+/* O resto do dia, depois da próxima. */
+.rs-depois{padding:16px 18px; margin-bottom:12px}
+.rs-depois-hora{width:46px; flex:none; font-size:13.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+
+/* Primeiros passos: só para a empresa que ainda não atendeu ninguém. */
+.rs-passos{padding:20px; margin-bottom:12px}
+.rs-passos h3{font-family:'Fraunces',serif; font-size:21px; font-weight:400; margin:0 0 14px}
+.rs-passos ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:16px}
+.rs-passos li{display:flex; gap:12px; align-items:flex-start}
+.rs-passos b{font-size:14.5px; font-weight:600}
+.rs-passos p{margin:3px 0 8px; font-size:13px; color:var(--muted); max-width:52ch}
+.rs-passos-icone{flex:none; width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+  background:var(--blush); color:var(--lacquer-d)}
+
+/* O mês, recolhido: um cabeçalho que abre e fecha. */
+.rs-mes{margin-top:18px; border-top:1px solid var(--line)}
+.rs-mes-cab{width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  min-height:52px; padding:0 2px; font-size:15px; font-weight:600; color:var(--ink); text-align:left}
+.rs-mes-cab svg{flex:none; color:var(--muted); transition:transform .18s}
+.rs-mes-cab[aria-expanded="true"] svg{transform:rotate(180deg)}
+.rs-mes-corpo{display:flex; flex-direction:column; gap:12px; padding-bottom:8px}
+.rs-mes-corpo .stats{margin-bottom:0 !important}
+.rs-mes-corpo .rs-funil{margin-top:0}
 
 @media (max-width: 640px){
   /* Um atalho por linha empurrava o "Hoje" para fora da primeira tela. */

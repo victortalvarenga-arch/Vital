@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
-  Ban, Cake, Check, Clock, Plus, Send, TriangleAlert, Trophy, User, Wallet,
+  Ban, Cake, CalendarPlus, Check, ChevronDown, Copy, Globe, Plus, Send, TriangleAlert, Trophy, User, Wallet,
 } from 'lucide-react';
+import { FLUXO, mudarSituacao } from './fluxo.js';
 import { api } from '../shared/painel-api.js';
 import SeletorPessoas from './SeletorPessoas.jsx';
 import { brl } from '../shared/formato.js';
@@ -46,6 +47,8 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const [ranking, setRanking] = useState(null);
   const [serie, setSerie] = useState(null);
   const [falhou, setFalhou] = useState(false);
+  // Cada "Tentar de novo" muda este número, e os três carregamentos refazem.
+  const [tentativa, setTentativa] = useState(0);
 
   const mes = hoje.slice(0, 7);
 
@@ -62,7 +65,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
     api.resumo({ mes, ...filtro }).then(x => { if (vivo) setMensal(x); }).catch(falha);
     api.resumo({ de: hoje, ate: hoje, ...filtro }).then(x => { if (vivo) setDiario(x); }).catch(falha);
     return () => { vivo = false; };
-  }, [mes, hoje, quem]);
+  }, [mes, hoje, quem, tentativa]);
 
   // Os 12 meses do gráfico. Acompanham o filtro de pessoa, como os cartões.
   useEffect(() => {
@@ -72,7 +75,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
       .then(x => { if (vivo) setSerie(x.meses); })
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [quem]);
+  }, [quem, tentativa]);
 
   // O ranking é da equipe toda, então não muda com o filtro de pessoa: o
   // ranking de uma pessoa só não seria ranking.
@@ -82,7 +85,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
       .then(x => { if (vivo) setRanking(x.ranking); })
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [mes]);
+  }, [mes, tentativa]);
 
   const doMeuRecorte = a => !quem || a.prof === quem;
   const doDia = agendamentos
@@ -128,6 +131,13 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
     : doFiltro ? `${rotulo} · ${doFiltro.nome.split(' ')[0]}` : rotulo);
 
   const alertas = pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes, irPara });
+  // Quem está na cadeira agora: o próximo passo dela é "Concluir".
+  const naCadeira = doDia.filter(a => a.status === 'em_atendimento');
+  const avancar = (id, status) => mudarSituacao({ acao, agendamentos, clientes }, id, status);
+  // Empresa que ainda não atendeu ninguém: zeros ensinam nada. No lugar deles,
+  // os três passos até o primeiro agendamento. Só para o dono — quem atende
+  // não configura o negócio.
+  const comecando = poderes.verDeTodos && agendamentos.length === 0;
 
   return (
     <>
@@ -142,92 +152,56 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
                         podeVerTodos={poderes.verDeTodos} rotuloTodos="A equipe toda" />
       </div>
 
-      <AcoesRapidas irPara={irPara} poderes={poderes} naFila={fila?.itens.length || 0} />
-
       {falhou && (
-        <div className="rs-falha">
-          Não deu para carregar os números. Se você ficou muito tempo com a tela
-          aberta, a sessão pode ter expirado — recarregue a página.
+        <div className="rs-falha" role="alert">
+          <span>Não deu para carregar os números agora.</span>
+          <button className="btn btn-g btn-s" onClick={() => setTentativa(n => n + 1)}>Tentar de novo</button>
         </div>
       )}
 
-      <Hoje total={doDia.length} concluidos={concluidosHoje} proximo={proximos[0]}
-            clientes={clientes} diario={diario} pendencias={alertas.length} />
+      {/* O que se abre o painel para saber, quarenta vezes por dia: quem é a
+          próxima, e o botão do passo dela ali mesmo — o mesmo da gaveta. */}
+      {comecando
+        ? <PrimeirosPassos irPara={irPara} aviso={aviso} />
+        : <ProximaCliente proxima={proximos[0]} naCadeira={naCadeira} clientes={clientes}
+                          servicos={servicos} staff={staff} mostrarQuem={poderes.verDeTodos}
+                          avancar={avancar} irPara={irPara} />}
+
+      <Hoje total={doDia.length} concluidos={concluidosHoje}
+            diario={diario} pendencias={alertas.length} />
 
       <Atencao alertas={alertas} />
 
-      {/* Cada rótulo diz de quem é o número: para o dono é a empresa, para o
-          funcionário é a produção dele. Mesma palavra com dois significados
-          numa tela de dinheiro é o que faz alguém desconfiar do sistema. */}
-      <div className="stats" style={{ marginBottom: 18 }}>
-        <Numero rotulo={dono('Faturamento do mês')} valor={mensal && brl(mensal.recebido)}
-                dica={meu ? 'O que você atendeu neste mês e já foi pago.'
-                          : 'Tudo o que foi atendido e pago neste mês.'} />
-        {/* Lucro é do dono: o que sobra depois de pagar as comissões. O servidor
-            manda `null` para o funcionário; o `poderes` só evita o cartão vazio. */}
-        {poderes.verDeTodos && (
-          <Numero rotulo={doFiltro ? `Lucro do mês · ${doFiltro.nome.split(' ')[0]}` : 'Lucro do mês'}
-                  valor={mensal && brl(mensal.lucro)}
-                  dica="O faturamento do mês menos a comissão de cada profissional." />
-        )}
-        {/* O total e, embaixo, de que ele é feito. Só "4" ao lado de um
-            ranking que diz "1 atendimento" parecia número errado. */}
-        <Numero rotulo="Atendimentos no mês" valor={mensal && mensal.agendados}
-                extra={mensal && <span className="rs-stat-sub">{partesDoMes(mensal)}</span>}
-                dica="Horários marcados neste mês, tirando os cancelados: os já feitos, os que ainda vão acontecer e as faltas." />
-        <Numero rotulo="Ticket médio do mês" valor={mensal && brl(mensal.ticketMedio)}
-                dica="Quanto entrou, em média, por atendimento pago neste mês. Atendimento concluído e ainda em aberto não entra na conta." />
-        <Numero rotulo="Faltas / cancelados no mês"
-                valor={mensal && `${mensal.faltas} / ${mensal.cancelados}`}
-                dica="Clientes que faltaram e horários cancelados neste mês." />
-      </div>
+      <AcoesRapidas irPara={irPara} poderes={poderes} naFila={fila?.itens.length || 0} />
 
-      <GraficoMensal meses={serie}
-                     titulo={meu ? 'Seu faturamento por mês'
-                       : doFiltro ? `Lucro por mês · ${doFiltro.nome.split(' ')[0]}` : 'Lucro por mês'}
-                     dica={meu ? 'O que você atendeu e foi pago em cada mês: o mês atual e os 11 anteriores.'
-                               : 'O faturamento de cada mês menos a comissão de cada profissional: o mês atual e os 11 anteriores.'} />
-
-      <div className="rs-colunas" style={{ gridTemplateColumns: '1.1fr 1fr' }}>
-        <div className="card" style={{ padding: 18 }}>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>Próximos atendimentos</div>
-            {proximos.length === 0 && (
-              <p className="rs-vazio">Nada agendado pro resto do dia.</p>
-            )}
-            <div className="list">
-              {proximos.map(a => {
-                const c = clientes.find(x => x.id === a.cliente);
-                const s = servicos.find(x => x.id === a.servico);
-                const p = staff.find(x => x.id === a.prof);
-                return (
-                  <div key={a.id} className="li">
-                    <div className="avatar" style={{ background: p?.cor || '#999' }}>
-                      {p ? iniciais(p.nome) : '?'}
+      {proximos.length > 1 && (
+        <div className="card rs-depois">
+          <div className="eyebrow" style={{ marginBottom: 10 }}>Depois, hoje</div>
+          <div className="list">
+            {proximos.slice(1).map(a => {
+              const c = clientes.find(x => x.id === a.cliente);
+              const s = servicos.find(x => x.id === a.servico);
+              const p = staff.find(x => x.id === a.prof);
+              return (
+                <div key={a.id} className="li">
+                  <span className="mono rs-depois-hora">{a.hora}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="nm">{c?.nome}</div>
+                    <div className="mt">
+                      <span>{s?.nome}</span>
+                      {poderes.verDeTodos && <span>{p?.nome.split(' ')[0]}</span>}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="nm">{c?.nome}</div>
-                      <div className="mt">
-                        <span><Clock size={12} style={{ verticalAlign: -2 }} /> {a.hora}</span>
-                        <span>{s?.nome}</span>
-                        {poderes.verDeTodos && <span>{p?.nome.split(' ')[0]}</span>}
-                      </div>
-                    </div>
-                    {/* Confirmado ou não é o que decide se vale mandar mensagem —
-                        e é a informação que some quando a lista só mostra hora e
-                        nome. */}
-                    <span className={'rs-selo' + (a.status === 'confirmado' ? ' ok' : '')}>
-                      {a.status === 'confirmado' ? 'Confirmado' : 'Pendente'}
-                    </span>
                   </div>
-                );
-              })}
+                  {/* Confirmado ou não é o que decide se vale mandar mensagem. */}
+                  <span className={'rs-selo' + (a.status === 'confirmado' ? ' ok' : '')}>
+                    {a.status === 'confirmado' ? 'Confirmado' : 'Pendente'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
-
-        <Ranking staff={staff} ranking={ranking} falhou={falhou} />
-      </div>
-
-      {poderes.site && <FunilDoSite />}
+      )}
 
       <div style={{ marginTop: 12 }}>
         <div className="eyebrow" style={{ marginBottom: 14 }}>
@@ -239,6 +213,43 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
                        arrasto={arrastar.arrasto} aoPegar={arrastar.aoPegar}
                        arrastado={agendamentos.find(x => x.id === arrastar.arrasto?.id) || null} />
       </div>
+
+      {/* O mês é a pergunta de fim de dia, não a do balcão: fica recolhido,
+          a um toque. Cada rótulo diz de quem é o número — para o dono é a
+          empresa, para o funcionário é a produção dele. */}
+      <MesRecolhido>
+        <div className="stats" style={{ marginBottom: 18 }}>
+          <Numero rotulo={dono('Faturamento do mês')} valor={mensal && brl(mensal.recebido)}
+                  dica={meu ? 'O que você atendeu neste mês e já foi pago.'
+                            : 'Tudo o que foi atendido e pago neste mês.'} />
+          {/* Lucro é do dono: o servidor manda `null` para o funcionário. */}
+          {poderes.verDeTodos && (
+            <Numero rotulo={doFiltro ? `Lucro do mês · ${doFiltro.nome.split(' ')[0]}` : 'Lucro do mês'}
+                    valor={mensal && brl(mensal.lucro)}
+                    dica="O faturamento do mês menos a comissão de cada profissional." />
+          )}
+          {/* O total e, embaixo, de que ele é feito. Só "4" ao lado de um
+              ranking que diz "1 atendimento" parecia número errado. */}
+          <Numero rotulo="Atendimentos no mês" valor={mensal && mensal.agendados}
+                  extra={mensal && <span className="rs-stat-sub">{partesDoMes(mensal)}</span>}
+                  dica="Horários marcados neste mês, tirando os cancelados: os já feitos, os que ainda vão acontecer e as faltas." />
+          <Numero rotulo="Ticket médio do mês" valor={mensal && brl(mensal.ticketMedio)}
+                  dica="Quanto entrou, em média, por atendimento pago neste mês. Atendimento concluído e ainda em aberto não entra na conta." />
+          <Numero rotulo="Faltas / cancelados no mês"
+                  valor={mensal && `${mensal.faltas} / ${mensal.cancelados}`}
+                  dica="Clientes que faltaram e horários cancelados neste mês." />
+        </div>
+
+        <GraficoMensal meses={serie}
+                       titulo={meu ? 'Seu faturamento por mês'
+                         : doFiltro ? `Lucro por mês · ${doFiltro.nome.split(' ')[0]}` : 'Lucro por mês'}
+                       dica={meu ? 'O que você atendeu e foi pago em cada mês: o mês atual e os 11 anteriores.'
+                                 : 'O faturamento de cada mês menos a comissão de cada profissional: o mês atual e os 11 anteriores.'} />
+
+        <Ranking staff={staff} ranking={ranking} falhou={falhou} />
+
+        {poderes.site && <FunilDoSite />}
+      </MesRecolhido>
 
       {/* O mesmo rótulo flutuante da Agenda: onde vai cair, e por que não dá. */}
       {arrastar.arrasto?.hora && (
@@ -265,9 +276,8 @@ const primeiroNome = n => (n || '').trim().split(/\s+/)[0] || '';
  * A barra é a única coisa da tela que responde sem ler número nenhum — é para
  * ela que se olha de passagem, entre um atendimento e outro.
  */
-function Hoje({ total, concluidos, proximo, clientes, diario, pendencias }) {
+function Hoje({ total, concluidos, diario, pendencias }) {
   const feito = total ? Math.round(concluidos / total * 100) : 0;
-  const cliente = proximo && clientes.find(c => c.id === proximo.cliente);
 
   return (
     <div className="card rs-hoje">
@@ -295,10 +305,6 @@ function Hoje({ total, concluidos, proximo, clientes, diario, pendencias }) {
 
       <div className="rs-hoje-numeros">
         <div>
-          <span className="eyebrow">Próximo cliente</span>
-          <b>{proximo ? `${proximo.hora} · ${primeiroNome(cliente?.nome) || 'cliente'}` : '—'}</b>
-        </div>
-        <div>
           <span className="eyebrow">Já recebido hoje</span>
           <b className="mono">{diario ? brl(diario.recebido) : <span className="rs-esperando">—</span>}</b>
         </div>
@@ -308,6 +314,122 @@ function Hoje({ total, concluidos, proximo, clientes, diario, pendencias }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A próxima cliente, e o passo dela ali mesmo.
+ *
+ * É o que se abre o painel para saber entre um atendimento e outro. Antes era
+ * uma célula pequena ("14:00 · Maria") sem ação: confirmar ou dizer que ela
+ * chegou pedia Menu → Agenda → tocar no bloco → gaveta. O botão é o mesmo da
+ * gaveta (`FLUXO`), com o mesmo "Desfazer".
+ */
+function ProximaCliente({ proxima, naCadeira, clientes, servicos, staff, mostrarQuem, avancar, irPara }) {
+  const nome = a => clientes.find(c => c.id === a.cliente)?.nome || 'Cliente';
+  return (
+    <div className="card rs-proxima">
+      {naCadeira.map(a => (
+        <div key={a.id} className="rs-cadeira">
+          <span><i className="rs-cadeira-ponto" aria-hidden="true" />Na cadeira: <b>{primeiroNome(nome(a))}</b></span>
+          <button className="btn btn-g btn-s" onClick={() => avancar(a.id, 'concluido')}>Concluir</button>
+        </div>
+      ))}
+      {proxima ? (
+        <>
+          <div className="eyebrow">Próxima cliente</div>
+          <div className="rs-proxima-corpo">
+            <span className="mono rs-proxima-hora">{proxima.hora}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="rs-proxima-nome">{nome(proxima)}</div>
+              <div className="rs-proxima-mt">
+                {servicos.find(s => s.id === proxima.servico)?.nome}
+                {mostrarQuem && <> · {staff.find(p => p.id === proxima.prof)?.nome.split(' ')[0]}</>}
+                {' · '}<span className={'rs-selo' + (proxima.status === 'confirmado' ? ' ok' : '')}>
+                  {FLUXO[proxima.status].rotulo}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="rs-proxima-acoes">
+            <button className="btn btn-p" onClick={() => avancar(proxima.id, FLUXO[proxima.status].proximo)}>
+              {FLUXO[proxima.status].acao}
+            </button>
+            {irPara && <button className="btn btn-g" onClick={() => irPara('agenda')}>Ver na agenda</button>}
+          </div>
+        </>
+      ) : (
+        <p className="rs-proxima-nada">Ninguém mais marcado para hoje.</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A primeira tela de quem acabou de chegar.
+ *
+ * Empresa sem nenhum atendimento via cinco "R$ 0,00" e duas grades vazias —
+ * a tela parecia quebrada, e não ensinava o passo seguinte. Aqui ficam os três
+ * passos até o primeiro agendamento; somem sozinhos quando ele existir.
+ */
+function PrimeirosPassos({ irPara, aviso }) {
+  const link = `${window.location.origin}/`;
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(link); aviso?.('Link do site copiado'); }
+    catch { aviso?.(`O link do seu site é ${link}`); }
+  };
+  const passos = [
+    { icone: <Globe size={18} />, titulo: 'Confira o seu site', texto: 'É onde as clientes marcam sozinhas. Veja as fotos, os textos e os serviços.',
+      botao: irPara && <button className="btn btn-g btn-s" onClick={() => irPara('site')}>Ajustar o site</button> },
+    { icone: <Copy size={18} />, titulo: 'Mande o link para as clientes', texto: 'No status do WhatsApp, na bio do Instagram ou direto na conversa.',
+      botao: <button className="btn btn-g btn-s" onClick={copiar}>Copiar o link</button> },
+    { icone: <CalendarPlus size={18} />, titulo: 'Marque o primeiro horário', texto: 'Quem já é cliente e liga ou manda mensagem, você marca por aqui.',
+      botao: irPara && <button className="btn btn-p btn-s" onClick={() => irPara('agenda', 'novo')}>Novo agendamento</button> },
+  ];
+  return (
+    <div className="card rs-passos">
+      <h3>Primeiros passos</h3>
+      <ol>
+        {passos.map(p => (
+          <li key={p.titulo}>
+            <span className="rs-passos-icone" aria-hidden="true">{p.icone}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <b>{p.titulo}</b>
+              <p>{p.texto}</p>
+              {p.botao}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * O mês, recolhido. Aberto por padrão na tela larga, onde cabe; no celular,
+ * a um toque. A escolha fica lembrada neste aparelho — é conveniência, e
+ * falhar em lembrar não quebra nada.
+ */
+function MesRecolhido({ children }) {
+  const [aberto, setAberto] = useState(() => {
+    try {
+      const salvo = localStorage.getItem('rs-mes-aberto');
+      if (salvo != null) return salvo === '1';
+    } catch { /* sem armazenamento: vale o padrão */ }
+    return window.matchMedia?.('(min-width: 900px)').matches ?? false;
+  });
+  const alternar = () => setAberto(v => {
+    try { localStorage.setItem('rs-mes-aberto', v ? '0' : '1'); } catch { /* idem */ }
+    return !v;
+  });
+  return (
+    <section className="rs-mes">
+      <button type="button" className="rs-mes-cab" aria-expanded={aberto} onClick={alternar}>
+        <span>O mês: faturamento, ranking e o site</span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </button>
+      {aberto && <div className="rs-mes-corpo">{children}</div>}
+    </section>
   );
 }
 
