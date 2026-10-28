@@ -848,6 +848,13 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Produto
 
+- [ ] **As cores de estado da grade da Agenda não batem com as das etiquetas.**
+      O `DESIGN.md` diz que falta é violeta (`#EEE8F6`/`#5B3E93`) e "em
+      atendimento" é `#E4EDF6`; na grade, `.appt.falta` pinta de vermelho
+      (`#F3E6E6`, borda `#B4483F`, por cima da borda que diz de quem é o
+      horário) e `.appt.agora` usa `#EAF2F9`. Achado na revisão de CSS do
+      painel (2026-10-28) e deixado como estava: é a leitura de relance da
+      semana, e mudar pede olhar a grade cheia. Decidir qual dos dois vale.
 - [ ] **A marca da Vital tem duas cores.** A página de apresentação (out/2026)
       nasceu verde, com títulos em serifa, a partir de uma referência que o dono
       trouxe; o back-office (`#equipe`) continua roxo `#4B2E83`. Quem cria a

@@ -14,6 +14,13 @@ colors:
   painel-muted: "#7A6975"
   painel-ok: "#3E7D63"
   painel-warn: "#B4762A"
+  painel-erro: "#8A2B2B"
+  painel-erro-claro: "#F8E7E7"
+  painel-lacquer-claro: "#FDF5F7"
+  painel-lacquer-tag: "#F3E8EC"
+  painel-uv-claro: "#ECE8F8"
+  painel-warn-claro: "#FBF0DF"
+  painel-warn-texto: "#8A6410"
   vital-ink: "#17141C"
   vital-paper: "#FFFFFF"
   vital-ground: "#F6F4F8"
@@ -74,6 +81,18 @@ typography:
   painel-body:
     fontFamily: "Karla, system-ui, sans-serif"
     fontSize: "14px"
+  painel-meta:
+    fontFamily: "Karla, system-ui, sans-serif"
+    fontSize: "13px"
+  painel-titulo-cartao:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "21px"
+  painel-titulo-destaque:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "27px"
+  painel-titulo-pagina:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "30px"
   painel-mono:
     fontFamily: "IBM Plex Mono, monospace"
     fontSize: "10.5px–12.5px"
@@ -272,6 +291,10 @@ Three independent palettes. None is a variant of another — treat a color reque
 - **Unavailable time is grey, not a hue.** The Agenda's closed band (`.fechado`) is a 45° hatch of `rgba(122,105,117,.085)` over `rgba(122,105,117,.035)` — the muted grey, not a status colour, because "outside this person's working hours" is not a state an appointment can be in. It sits behind everything at `z-index: 0` and takes no pointer events. The red hatch above it (`.bloqueio`) is louder on purpose: someone closed that hour deliberately and there is a reason to read.
 - **People and categories are told apart by tone, not by hue** (`PALETA`, in `App.jsx`). Six tones of the panel's own wine (`#A32A4E`, `#59182B`, `#C2476C`, `#711E37`, `#B03B5E`, `#892443`), every one above 4.5:1 against the white initials. It used to be six unrelated hues (wine, violet, green, ochre, pink, blue) and the Summary, the agenda and the charts read as a rainbow. The order is by contrast between neighbours (middle, darkest, lightest, …) so the first three people already come out clearly different. The bar chart on the Summary uses the wine alone; the current month is the darker step. New colours for a person or category come from this list — a seventh hue is not added.
 
+**The Light-Twin Rule.** Each status or accent color that carries text on a pale fill has that fill named next to it: `--erro-claro`, `--lacquer-claro` (a selected option or chip), `--lacquer-tag` (the "pending" tag), `--uv-claro` (the recurrence tag), `--warn-claro` with `--warn-texto` (a warning notice; the same amber pair as the "waiting" status). They were literals in five screens, each a half-step off the others (`#F7EFEF` beside `#F8E7E7`, `#FBF1E3`/`#6B4A18` beside `#FBF0DF`/`#8A6410`) until the 2026-10-28 review. A new pale fill picks one of these, not a fresh hex.
+
+**No side stripes.** A 3px colored left border is not how the panel marks emphasis: the support reply sits in a porcelain box with a full hairline, and the recurrence options are indented to the text of the checkbox above them. The two remaining left borders are data, not decoration — the agenda block's border is *who* the appointment belongs to, and the registry line's border says whether the action was good or bad.
+
 **The Named-Twin Rule.** `--p-marca`, `--p-escuro` and `--p-linha` (defined for the shell) are exact aliases of `--lacquer`, `--ink` and `--line`. They are not a second palette — don't invent a divergent value for one while leaving the other unchanged.
 
 **The Unused-Token Rule.** `--gold` (`#A98243`) is declared in `:root` and used nowhere. Don't treat its presence as license to start using an unreviewed color; either give it a real job or leave it retired.
@@ -380,6 +403,8 @@ Three type systems, matched to what each audience is doing.
 **Label/Mono Font:** IBM Plex Mono (400–600) — every time, hour, log entry, and slot label.
 
 **Character:** A serif with just enough irregularity (`WONK 1`) to feel handwritten-adjacent sits over a plain grotesque body — an atelier ledger, not a spreadsheet. Numbers that matter (stat tiles, the wizard's title) get the serif treatment; numbers that are *data* (a 14:30 slot, a log timestamp) get monospace instead, so the two never compete for the same visual register.
+
+**Scale.** Body 14px; meta and helper lines 13px (the most used size in the panel); labels and mono 10.5–12.5px, never smaller for words. Fraunces at 21px for a card's title or headline number, 27px for a screen's one big number or a dialog's title, 30px for the page title. The only text under 10.5px is an avatar's initials, sized to the circle, and the chart's value labels when the columns are too tight for them. Before the 2026-10-28 review the agenda's client name and the mobile tab bar were 10px, and the login and dialog titles were 23px and 25px — one-off steps that had no reason to differ.
 
 **The Two-Number Rule.** A number is set in Fraunces when it's the headline of the moment (`.stat .v`, the assistant's step title) and in IBM Plex Mono when it's a coordinate someone is scanning against others (agenda times, registry timestamps). Don't set a scannable number in the display serif — it slows the exact reading it needs to support.
 

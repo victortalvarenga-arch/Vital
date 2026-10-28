@@ -284,7 +284,7 @@ function Hoje({ total, concluidos, proximo, clientes, diario, pendencias }) {
 
       {total > 0 && (
         <div className="rs-prog" role="img" aria-label={`${feito}% do dia concluído`}>
-          <div className="rs-prog-feito" style={{ width: `${feito}%` }} />
+          <div className="rs-prog-feito" style={{ '--feito': feito / 100 }} />
         </div>
       )}
 

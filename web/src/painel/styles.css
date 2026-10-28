@@ -10,6 +10,10 @@ body { --ink:#241A28; --ink2:#3B2B41; --porcelain:#FBF6F4; --paper:#FFFFFF;
      ja o nomeava como --v-erro. Mesmo valor de antes, so batizado. */
   --gold:#A98243; --line:#E7D8D4; --muted:#7A6975; --ok:#3E7D63; --warn:#B4762A;
   --erro:#8A2B2B;
+  /* Fundos claros de cada cor, para quando a cor é texto sobre eles. Eram
+     literais repetidos em cinco telas, cada um com uma variação de meio tom. */
+  --erro-claro:var(--erro-claro); --lacquer-claro:var(--lacquer-claro); --lacquer-tag:var(--lacquer-tag);
+  --uv-claro:var(--uv-claro); --warn-claro:#FBF0DF; --warn-texto:#8A6410;
   font-family:'Karla',system-ui,sans-serif; color:var(--ink); background:var(--porcelain);
   min-height:100vh; -webkit-font-smoothing:antialiased; }
 *{box-sizing:border-box}
@@ -178,16 +182,16 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 /* A de meia hora é mais fraca: divide sem competir com a da hora cheia. */
 .linha.meia{opacity:.4}
 
-.appt{position:absolute; border-radius:8px; padding:4px 6px; font-size:11px; line-height:1.28;
+.appt{position:absolute; border-radius:7px; padding:4px 6px; font-size:11px; line-height:1.28;
   overflow:hidden; border:none; border-left:4px solid; color:var(--ink); text-align:left; /* impeccable-disable-line side-tab -- a cor é o dado (de quem é o atendimento), não enfeite; ver ARQUITETURA.md "A agenda do painel" */
   touch-action:none; cursor:grab; transition:box-shadow .12s, transform .12s}
 .appt:hover{filter:brightness(.97)}
 .appt b{font-size:12px; display:block; font-weight:700; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
 .appt .t{font-family:'IBM Plex Mono',monospace; opacity:.75}
-.appt-quem{display:block; font-size:10px; font-weight:700; white-space:nowrap;
+.appt-quem{display:block; font-size:10.5px; font-weight:700; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
-.appt-pago{color:var(--ok); font-weight:700; font-size:10px}
+.appt-pago{color:var(--ok); font-weight:700; font-size:10.5px}
 .appt.done{opacity:.5; cursor:default}
 .appt.puxando{opacity:.75; cursor:grabbing; box-shadow:0 8px 22px rgba(36,26,40,.22);
   transform:scale(1.03); z-index:5}
@@ -263,7 +267,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   .shell{grid-template-columns:1fr}
   .rail{position:fixed; bottom:0; top:auto; height:auto; width:100%; flex-direction:row; overflow-x:auto; padding:8px; z-index:50; gap:2px}
   .rail .brand{display:none}
-  .nav{flex-direction:column; gap:4px; font-size:10px; padding:8px 10px; min-width:66px; text-align:center}
+  .nav{flex-direction:column; gap:4px; font-size:10.5px; padding:8px 10px; min-width:66px; text-align:center}
   .nav .badge{position:absolute; margin:0}
   .main{padding:18px 14px 96px}
   .auto{grid-template-columns:1fr}
@@ -380,7 +384,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 /* Item de flex em coluna, não de grid: aqui `aspect-ratio` na própria <img>
    basta, sem o problema da linha `auto` que o site tinha. */
 .cs-post > img {
-  display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px;
+  display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 7px;
   background: var(--porcelain);
 }
 
@@ -397,7 +401,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   border: 1px solid var(--line); border-radius: 10px;
 }
 .cs-caso-aut legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
-.cs-caso-pendente { margin: 0; font-size: 13px; font-weight: 600; color: #8A6410; }
+.cs-caso-pendente { margin: 0; font-size: 13px; font-weight: 600; color: var(--warn-texto); }
 
 /* contas conectadas (Google, Instagram): um cartão por conta */
 .cx {
@@ -499,7 +503,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   border: 1px solid var(--line); border-radius: 16px; padding: 30px 28px 28px;
   box-shadow: 0 10px 40px -20px rgba(36, 26, 40, .35);
 }
-.entrar-caixa h1 { font-size: 23px; margin-bottom: 6px; }
+.entrar-caixa h1 { font-size: 27px; margin-bottom: 6px; }
 .entrar-sub { color: var(--muted); font-size: 14px; margin: 0 0 22px; line-height: 1.5; }
 .entrar-dica { display: block; font-size: 12.5px; color: var(--muted); margin-top: 5px; }
 .entrar-aviso {
@@ -509,7 +513,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .entrar-erro {
   display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
   padding: 10px 13px; border-radius: 10px; font-size: 13.5px;
-  background: #F8E7E7; color: var(--erro);
+  background: var(--erro-claro); color: var(--erro);
 }
 
 /* quem está logado, no pé da lateral */
@@ -524,7 +528,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .usr { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 8px; }
 .usr.off { opacity: .55; }
 .usr-marca {
-  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  width: 38px; height: 38px; border-radius: 12px; flex: none;
   display: grid; place-items: center; background: var(--porcelain); color: var(--muted);
 }
 .usr-marca.dono { background: var(--blush); color: var(--lacquer-d); }
@@ -541,7 +545,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 /* ── bloqueio na agenda ── */
 .bloqueio {
   position: absolute; left: 2px; right: 2px; z-index: 1;
-  border-radius: 8px; padding: 4px 8px; text-align: left; overflow: hidden;
+  border-radius: 7px; padding: 4px 8px; text-align: left; overflow: hidden;
   /* Vermelho e listrado. A listra separa de um atendimento (o painel já usa
      uma cor por profissional, então cor sozinha diria pouco); o vermelho diz
      "aqui não entra ninguém" na única leitura que não precisa de legenda. */
@@ -595,7 +599,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .pr-menu{position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px;
   display:flex; flex-direction:column; padding:6px; background:var(--paper);
   border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
-.pr-menu button{text-align:left; padding:10px 12px; border-radius:8px; font-size:14px; min-height:40px}
+.pr-menu button{text-align:left; padding:10px 12px; border-radius:7px; font-size:14px; min-height:40px}
 .pr-menu button:hover{background:var(--porcelain)}
 
 .pr-cartoes{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px}
@@ -617,7 +621,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .pr-servico input[type=checkbox], .pr-opcao input[type=radio], .pr-check input{width:18px; height:18px;
   flex:none; margin:0; padding:0; accent-color:var(--lacquer)}
 .pr-servico{border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-height:44px; background:var(--paper)}
-.pr-servico.on{border-color:var(--lacquer); background:#FDF5F7}
+.pr-servico.on{border-color:var(--lacquer); background:var(--lacquer-claro)}
 .pr-servico-nome{flex:1; min-width:0}
 .pr-servico-preco{font-size:13px; color:var(--muted)}
 
@@ -657,13 +661,13 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .combo-conta{border-radius:12px; padding:11px 13px; margin-bottom:16px; font-size:13.5px}
 .combo-conta div{display:flex; justify-content:space-between; gap:12px; padding:2px 0}
 .combo-conta.ok{background:var(--blush); color:var(--lacquer-d)}
-.combo-conta.ruim{background:#F7EFEF; color:var(--erro)}
+.combo-conta.ruim{background:var(--erro-claro); color:var(--erro)}
 
 /* ── assistente de primeira configuração ────────────────────────────────── */
 .cm{background:var(--porcelain); border-radius:20px; padding:28px 26px; width:100%; max-width:520px;
   text-align:left; box-shadow:0 12px 40px rgba(36,26,40,.10)}
 .cm-bolinhas{display:flex; gap:6px; margin-bottom:18px}
-.cm-titulo{font-family:'Fraunces',serif; font-size:25px; font-weight:400; margin:0 0 6px}
+.cm-titulo{font-family:'Fraunces',serif; font-size:27px; font-weight:400; margin:0 0 6px}
 .cm-ajuda{font-size:13.5px; color:var(--muted); line-height:1.5; margin:0 0 20px}
 .cm-erro{font-size:13px; color:var(--erro); margin:0 0 10px}
 .cm-pular{display:block; margin:14px auto 0; background:none; border:none; cursor:pointer;
@@ -681,7 +685,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .und-marca{width:34px; height:34px; border-radius:10px; flex:none; display:grid; place-items:center;
   background:var(--blush); color:var(--lacquer-d)}
 .und-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
-  margin-left:8px; padding:2px 7px; border-radius:6px; background:var(--line); color:var(--muted)}
+  margin-left:8px; padding:2px 7px; border-radius:7px; background:var(--line); color:var(--muted)}
 /* total e duração do encaixe, calculados em vez de digitados */
 .encaixe-conta{display:flex; justify-content:space-between; align-items:baseline;
   background:var(--blush); color:var(--lacquer-d); border-radius:10px;
@@ -717,10 +721,10 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .form-marca{width:34px; height:34px; border-radius:10px; flex:none; display:grid; place-items:center;
   background:var(--blush); color:var(--lacquer-d)}
 .form-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
-  margin-left:8px; padding:2px 7px; border-radius:6px; background:var(--line); color:var(--muted)}
+  margin-left:8px; padding:2px 7px; border-radius:7px; background:var(--line); color:var(--muted)}
 
 /* o construtor: uma pergunta por bloco, na ordem em que a cliente vai ver */
-.perg{border:1px solid var(--line); border-radius:11px; padding:10px 12px; margin-bottom:8px;
+.perg{border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px;
   background:var(--porcelain)}
 .perg-topo{display:flex; gap:7px; align-items:center; flex-wrap:wrap}
 .perg-n{display:flex; align-items:center; gap:2px; font-size:11.5px; color:var(--muted); flex:none}
@@ -739,7 +743,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   color:var(--lacquer-d); border-radius:7px; padding:3px 8px; font-size:12.5px}
 .perg-op button{background:none; border:none; cursor:pointer; color:inherit; display:grid;
   place-items:center; padding:0}
-.ficha{border:1px solid var(--line); border-radius:11px; padding:12px 13px; margin:6px 0 14px}
+.ficha{border:1px solid var(--line); border-radius:12px; padding:12px 13px; margin:6px 0 14px}
 .ficha-t{font-size:12px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
   color:var(--muted); margin-bottom:8px}
 .ficha-obrig{color:var(--lacquer)}
@@ -752,7 +756,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
    pulam de altura a cada troca de período. */
 .rs-esperando{color:var(--line)}
 .rs-vazio{font-size:13px; color:var(--muted); margin:0}
-.rs-falha{background:#F8E7E7; color:var(--erro); border-radius:10px;
+.rs-falha{background:var(--erro-claro); color:var(--erro); border-radius:10px;
   padding:12px 16px; font-size:13.5px; margin-bottom:18px}
 .rs-pos{width:18px; color:var(--muted); font-size:13px}
 .rs-av-pq{width:30px; height:30px; font-size:11px}
@@ -814,11 +818,12 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   accent-color:var(--lacquer)}
 .bl-check{border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px;
   background:var(--paper)}
-.bl-check.on{border-color:var(--lacquer); background:#FDF5F7}
+.bl-check.on{border-color:var(--lacquer); background:var(--lacquer-claro)}
 .bl-check span{display:flex; flex-direction:column; gap:2px}
 .bl-check small{color:var(--muted); font-size:12.5px}
 
-.bl-repeticao{border-left:3px solid var(--blush); padding-left:14px; margin-bottom:14px}
+/* Recuado até o texto da opção de cima: é o recuo que diz "isto é dela". */
+.bl-repeticao{padding-left:28px; margin-bottom:14px}
 .bl-termina{display:flex; flex-direction:column; gap:10px}
 .bl-opcao{min-height:28px; align-items:center}
 .bl-opcao input{margin:0}
@@ -829,14 +834,14 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 .bl-resumo{font-size:13.5px; color:var(--muted); background:var(--paper); border:1px solid var(--line);
   border-radius:10px; padding:10px 12px; margin:4px 0 16px}
-.bl-resumo.ruim{color:var(--erro); background:#F8E7E7; border-color:transparent}
+.bl-resumo.ruim{color:var(--erro); background:var(--erro-claro); border-color:transparent}
 .bl-novo-botoes{display:flex; gap:8px; justify-content:flex-end}
 .bl-obs{font-size:12.5px; color:var(--muted); font-style:italic; margin-top:4px; white-space:pre-line}
 
 /* Conflito não é erro: o bloqueio foi criado. É aviso de que alguém precisa ser
    remarcada à mão — por isso fica em --warn, e não em --erro. */
 .bl-conflito{display:flex; gap:12px; align-items:flex-start; margin-bottom:16px;
-  background:#FBF1E3; color:#6B4A18; border-radius:10px; padding:14px 16px; font-size:13.5px}
+  background:var(--warn-claro); color:var(--warn-texto); border-radius:10px; padding:14px 16px; font-size:13.5px}
 .bl-conflito ul{margin:6px 0 0; padding-left:18px}
 .bl-conflito .btn{margin-left:auto; flex:none}
 
@@ -863,7 +868,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bl-quando-t{font-size:14.5px; font-weight:700}
 .bl-badge{font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px;
   background:var(--blush); color:var(--lacquer-d); white-space:nowrap}
-.bl-badge.rec{background:#ECE8F8; color:var(--uv)}
+.bl-badge.rec{background:var(--uv-claro); color:var(--uv)}
 .bl-motivo-t{font-size:14px; margin-top:3px}
 .bl-pessoa{font-size:13px; color:var(--muted)}
 .bl-rodinha{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--muted); margin-top:5px}
@@ -880,7 +885,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bl-linha{display:flex; flex-wrap:wrap; align-items:center; gap:12px;
   border:1px solid var(--line); border-radius:12px; padding:10px 8px 10px 12px}
 .bl-linha-ic{flex:none; width:34px; height:34px; border-radius:10px; display:grid; place-items:center;
-  background:#ECE8F8; color:var(--uv)}
+  background:var(--uv-claro); color:var(--uv)}
 .bl-linha-info{flex:1; min-width:180px}
 .bl-linha-info b{font-size:14px}
 .bl-linha-meta{font-size:13px; color:var(--muted); margin-top:1px}
@@ -948,7 +953,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .sup-msg{margin:8px 0 0; font-size:13.5px; color:var(--cinza); white-space:pre-wrap}
 /* A resposta destacada do pedido: quem abre a tela quer achar ela primeiro. */
 .sup-resposta{margin-top:12px; padding:12px 14px; border-radius:10px;
-  background:var(--porcelain); border-left:3px solid var(--lacquer)}
+  background:var(--porcelain); border:1px solid var(--line)}
 .sup-resposta p{margin:0; font-size:13.5px; white-space:pre-wrap}
 
 @media (max-width: 720px){
@@ -1090,8 +1095,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .fin-servico-linha{display:flex; justify-content:space-between; align-items:baseline; gap:10px;
   font-size:13px; margin-bottom:4px}
 .fin-servico-linha > span:last-child{white-space:nowrap; flex:none}
-.fin-trilho{height:6px; background:var(--line); border-radius:6px}
-.fin-preenche{height:6px; background:var(--lacquer); border-radius:6px}
+.fin-trilho{height:6px; background:var(--line); border-radius:999px}
+.fin-preenche{height:6px; background:var(--lacquer); border-radius:999px}
 .fin-atraso{font-size:12px; font-weight:600; color:var(--warn); margin-top:2px}
 
 /* Calendário de intervalo. Sobrepõe o conteúdo, sem empurrá-lo para baixo. */
@@ -1144,7 +1149,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .rs-graf-corpo.com-rotulos{padding-top:15px}
 .rs-col-area{position:relative}
 .rs-col-valor{position:absolute; left:-3px; right:-3px; text-align:center;
-  font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600;
   color:var(--ink); white-space:nowrap; transform:translateY(-3px); pointer-events:none}
 /* Muitas colunas com poucos valores: o número encolhe para não roçar no vizinho. */
 .rs-graf-corpo.rotulos-apertados .rs-col-valor{font-size:9px; letter-spacing:-.02em}
@@ -1170,7 +1175,9 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
    regras se atropelaram — a barra do dia virou um toco de 24px e as colunas do
    gráfico viraram pílulas cinzas de 8px. */
 .rs-prog{height:8px; border-radius:999px; background:var(--line); margin:14px 0; overflow:hidden}
-.rs-prog-feito{height:8px; border-radius:999px; background:var(--lacquer); transition:width .3s}
+/* A barra cresce por escala, não por largura: animar width refaz o layout. */
+.rs-prog-feito{height:8px; background:var(--lacquer); transform:scaleX(var(--feito, 0));
+  transform-origin:left; transition:transform .3s}
 .rs-hoje-numeros{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px}
 .rs-hoje-numeros > div{display:flex; flex-direction:column; gap:4px;
   padding:12px 14px; border:1px solid var(--line); border-radius:12px}
@@ -1192,7 +1199,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 /* Confirmado ou pendente, na lista dos próximos. */
 .rs-selo{flex:none; font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px;
-  background:#F3E8EC; color:var(--lacquer-d)}
+  background:var(--lacquer-tag); color:var(--lacquer-d)}
 .rs-selo.ok{background:#E4F0EA; color:var(--ok)}
 
 @media (max-width: 640px){
@@ -1235,7 +1242,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cd{position:relative}
 .cd input{padding-right:42px}
 .cd input[aria-invalid="true"]{border-color:var(--erro)}
-.cd-abrir{position:absolute; right:4px; top:4px; width:36px; height:36px; border-radius:8px;
+.cd-abrir{position:absolute; right:4px; top:4px; width:36px; height:36px; border-radius:7px;
   display:grid; place-items:center; color:var(--muted)}
 .cd-abrir:hover, .cd-abrir[aria-expanded="true"]{color:var(--lacquer); background:var(--blush)}
 .cd-pop{position:absolute; z-index:40; right:0; top:calc(100% + 6px); width:min(320px, 86vw);
@@ -1243,7 +1250,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 /* A pergunta de data passada, no lugar do botão de criar. */
 .ag-passado{margin-top:10px; padding:14px 16px; border-radius:12px;
-  background:#FBF0DF; border:1px solid #EBDFAE}
+  background:var(--warn-claro); border:1px solid #EBDFAE}
 .ag-passado b{display:flex; align-items:center; gap:7px; font-size:14px; color:var(--warn)}
 .ag-passado p{margin:6px 0 12px; font-size:13px; line-height:1.5; color:var(--ink2)}
 .ag-passado-botoes{display:flex; gap:8px; justify-content:flex-end}
@@ -1305,8 +1312,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .gm-dia.fechado{background:var(--porcelain)}
 .gm-num{font-size:13px; font-weight:700}
 .gm-dia.hoje .gm-num{color:var(--lacquer)}
-.gm-hoje{font-size:10px; font-weight:700; color:var(--lacquer); text-transform:uppercase; letter-spacing:.08em}
-.gm-conta{font-family:'Fraunces',serif; font-size:20px; font-weight:400; line-height:1.1; margin-top:auto}
+.gm-hoje{font-size:10.5px; font-weight:700; color:var(--lacquer); text-transform:uppercase; letter-spacing:.08em}
+.gm-conta{font-family:'Fraunces',serif; font-size:21px; font-weight:400; line-height:1.1; margin-top:auto}
 .gm-rot{font-size:11px; color:var(--muted)}
 .gm-fotos{display:flex; margin-top:4px}
 .gm-foto{width:18px; height:18px; font-size:7px; border:2px solid var(--paper)}
@@ -1327,7 +1334,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .rc-fim{display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none}
 .rc-fim i{font-style:normal; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px}
 .rc-pago{background:#E4F0EA; color:var(--ok)}
-.rc-pendente{background:#F3E8EC; color:var(--lacquer-d)}
+.rc-pendente{background:var(--lacquer-tag); color:var(--lacquer-d)}
 .rc-falta{background:#F3E6E6; color:var(--erro)}
 /* A marca de "agora": o que está acima já passou. */
 .rc-agora{display:flex; align-items:center; gap:8px; padding:2px 18px 4px}
@@ -1541,7 +1548,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .sv-menu{position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:180px;
   display:flex; flex-direction:column; padding:6px; background:var(--paper);
   border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
-.sv-menu button{text-align:left; padding:10px 12px; border-radius:8px; font-size:14px; min-height:40px}
+.sv-menu button{text-align:left; padding:10px 12px; border-radius:7px; font-size:14px; min-height:40px}
 .sv-menu button:hover{background:var(--porcelain)}
 .sv-vazio{padding:28px; text-align:center; color:var(--muted); font-size:14px; margin:0}
 
@@ -1559,7 +1566,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .sv-profs{display:flex; flex-direction:column; gap:6px}
 .sv-prof{display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px;
   padding:6px 8px 6px 12px; background:var(--paper)}
-.sv-prof.on{border-color:var(--lacquer); background:#FDF5F7}
+.sv-prof.on{border-color:var(--lacquer); background:var(--lacquer-claro)}
 .sv-prof-marca{flex:1; min-width:0; display:flex; align-items:center; gap:10px; margin:0; cursor:pointer;
   min-height:40px; text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
 .sv-prof-marca input{width:18px; height:18px; flex:none; margin:0; padding:0; accent-color:var(--lacquer)}
@@ -1585,7 +1592,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .sv-switch{display:flex; align-items:center; gap:10px; font-size:14px}
 .sv-switch small{color:var(--muted); font-size:13px}
 
-.sv-problema{font-size:13px; color:var(--erro); background:#F8E7E7; border-radius:10px; padding:10px 12px; margin:4px 0 12px}
+.sv-problema{font-size:13px; color:var(--erro); background:var(--erro-claro); border-radius:10px; padding:10px 12px; margin:4px 0 12px}
 .sv-botoes{display:flex; gap:8px; justify-content:flex-end; margin-top:6px}
 
 
@@ -1641,7 +1648,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .pf-menu{position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px;
   display:flex; flex-direction:column; padding:6px; background:var(--paper);
   border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
-.pf-menu button{text-align:left; padding:10px 12px; border-radius:8px; font-size:14px; min-height:40px}
+.pf-menu button{text-align:left; padding:10px 12px; border-radius:7px; font-size:14px; min-height:40px}
 .pf-menu button:hover{background:var(--porcelain)}
 .pf-servicos{grid-column:1 / -1; margin:0; padding-left:52px; font-size:13px; color:var(--muted)}
 .pf-servicos span{font-weight:600; color:var(--ink)}
@@ -1669,7 +1676,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .pf-servs-conta{margin:6px 0 0}
 .pf-serv{display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px;
   padding:4px 6px 4px 12px; background:var(--paper)}
-.pf-serv.on{border-color:var(--lacquer); background:#FDF5F7}
+.pf-serv.on{border-color:var(--lacquer); background:var(--lacquer-claro)}
 .pf-serv-marca{flex:1; min-width:0; display:flex; align-items:center; gap:10px; margin:0; cursor:pointer;
   min-height:42px; text-transform:none; letter-spacing:0; font-size:14px; font-weight:400; color:var(--ink)}
 .pf-serv-marca input, .pf-opcao input{width:18px; height:18px; flex:none; margin:0; padding:0; accent-color:var(--lacquer)}
@@ -1686,8 +1693,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .pf-hora{display:grid; grid-template-columns:110px 1fr 104px 82px; align-items:center; gap:10px;
   min-height:34px; font-size:13.5px}
 .pf-hora-dia{font-weight:600}
-.pf-hora-barra{position:relative; height:6px; border-radius:6px; background:var(--line)}
-.pf-hora-barra i{position:absolute; top:0; bottom:0; border-radius:6px; background:var(--lacquer)}
+.pf-hora-barra{position:relative; height:6px; border-radius:999px; background:var(--line)}
+.pf-hora-barra i{position:absolute; top:0; bottom:0; border-radius:999px; background:var(--lacquer)}
 .pf-hora-txt{font-size:12.5px; color:var(--muted); text-align:right}
 .pf-hora-st{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600}
 .pf-hora-st::before{content:''; width:8px; height:8px; border-radius:50%; border:2px solid currentColor}
