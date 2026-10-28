@@ -33,6 +33,8 @@ function celulasDoMes(ano, mes) {
  * O valor de fora e de volta continua sendo `'YYYY-MM-DD'`, como o resto do
  * sistema; o formato brasileiro só existe na tela.
  */
+CampoData.recebeId = true;
+
 export default function CampoData({ valor, aoMudar, min, id }) {
   const [texto, setTexto] = useState(paraBR(valor));
   const [aberto, setAberto] = useState(false);

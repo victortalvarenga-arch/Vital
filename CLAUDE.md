@@ -226,7 +226,9 @@ escrito, não aconteceu.
   diz o que falta: a pessoa toca e nada acontece. Fica ligado, e o toque
   escreve o erro embaixo do campo (`aria-invalid` + `aria-describedby`) e põe
   o foco nele. Janela que abre põe o foco dentro dela e devolve ao fechar —
-  ver `Agendar.jsx`.
+  no painel, `useJanela` (`Base.jsx`) faz isso; janela nova usa `Modal`,
+  `Gaveta` ou o hook, nunca um `.ovl` solto. Campo novo vai dentro de
+  `<Campo>`, que liga o rótulo; campo sem rótulo visível leva `aria-label`.
 - **Pense em muitas empresas.** A pergunta é sempre "isso funciona para uma
   Vital com 200 clientes, ou só para um estúdio?".
 

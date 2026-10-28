@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useJanela } from './Base.jsx';
 import { ClipboardList, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 
@@ -114,6 +115,7 @@ const vazio = () => ({ nome: '', descricao: '', ativo: true, campos: [], servico
 const perguntaVazia = () => ({ rotulo: '', ajuda: '', tipo: 'texto', obrigatorio: false, opcoes: [] });
 
 function Editar({ f0, servicos, fechar, aoSalvar, aoArquivar, aviso }) {
+  const janela = useJanela(fechar);
   const [f, setF] = useState(f0);
   const [ocupado, setOcupado] = useState(false);
   const muda = patch => setF(v => ({ ...v, ...patch }));
@@ -149,7 +151,7 @@ function Editar({ f0, servicos, fechar, aoSalvar, aoArquivar, aviso }) {
 
   return (
     <div className="ovl" onClick={fechar}>
-      <form className="modal wide" onClick={e => e.stopPropagation()} onSubmit={enviar}>
+      <form ref={janela} tabIndex={-1} role="dialog" aria-modal="true" className="modal wide" onClick={e => e.stopPropagation()} onSubmit={enviar}>
         <h2 style={{ fontSize: 24, marginBottom: 18 }}>{f.id ? f.nome : 'Novo formulário'}</h2>
 
         <div className="mfield">
@@ -185,9 +187,9 @@ function Editar({ f0, servicos, fechar, aoSalvar, aoArquivar, aviso }) {
           <div key={i} className="perg">
             <div className="perg-topo">
               <span className="perg-n"><GripVertical size={13} /> {i + 1}</span>
-              <input className="perg-rotulo" value={c.rotulo} placeholder="O que perguntar"
+              <input className="perg-rotulo" aria-label={`Pergunta ${i + 1}`} value={c.rotulo} placeholder="O que perguntar"
                      onChange={e => mudaCampo(i, { rotulo: e.target.value })} />
-              <select value={c.tipo}
+              <select value={c.tipo} aria-label={`Tipo de resposta da pergunta ${i + 1}`}
                       onChange={e => mudaCampo(i, { tipo: e.target.value, opcoes: [] })}>
                 {TIPOS.map(([k, rotulo]) => <option key={k} value={k}>{rotulo}</option>)}
               </select>
@@ -209,7 +211,7 @@ function Editar({ f0, servicos, fechar, aoSalvar, aoArquivar, aviso }) {
                        onChange={e => mudaCampo(i, { obrigatorio: e.target.checked })} />
                 Obrigatória
               </label>
-              <input className="perg-ajuda" value={c.ajuda} maxLength={120}
+              <input className="perg-ajuda" aria-label={`Explicação da pergunta ${i + 1}`} value={c.ajuda} maxLength={120}
                      placeholder="Explicação, se precisar"
                      onChange={e => mudaCampo(i, { ajuda: e.target.value })} />
             </div>
@@ -254,7 +256,7 @@ function Opcoes({ valores, aoMudar }) {
                   aria-label={`Remover ${v}`}><X size={11} /></button>
         </span>
       ))}
-      <input value={nova} placeholder="nova opção + Enter"
+      <input value={nova} aria-label="Nova opção" placeholder="nova opção + Enter"
              onChange={e => setNova(e.target.value)}
              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); juntar(); } }}
              onBlur={juntar} />

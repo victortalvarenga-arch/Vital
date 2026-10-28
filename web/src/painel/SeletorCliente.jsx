@@ -32,7 +32,9 @@ const LIMITE = 8;
  * Teclado e toque valem igual: setas e Enter para quem está no balcão com
  * teclado, alvos de 44px para quem está no celular.
  */
-export default function SeletorCliente({ clientes, valor, aoMudar, autoFoco }) {
+SeletorCliente.recebeId = true;
+
+export default function SeletorCliente({ id, clientes, valor, aoMudar, autoFoco }) {
   const escolhida = clientes.find(c => c.id === valor);
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState(false);
@@ -106,6 +108,7 @@ export default function SeletorCliente({ clientes, valor, aoMudar, autoFoco }) {
       <Search size={16} className="sc-lupa" />
       <input
         ref={campo}
+        id={id}
         type="text"
         role="combobox"
         aria-expanded={aberto}

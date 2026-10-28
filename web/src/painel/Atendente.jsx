@@ -84,7 +84,7 @@ export default function Atendente({ aviso }) {
               <b>Atendimento no WhatsApp</b>
               <p>Liga quando o número da clínica for conectado. Até lá, use o teste desta página.</p>
             </div>
-            <Switch on={cfg.ligado} onChange={() => salvar({ ligado: !cfg.ligado })} />
+            <Switch on={cfg.ligado} rotulo="Atendimento no WhatsApp" onChange={() => salvar({ ligado: !cfg.ligado })} />
           </div>
 
           <div className="atd-modos" role="radiogroup" aria-label="Como a IA responde">
@@ -135,7 +135,7 @@ export default function Atendente({ aviso }) {
               <RotateCcw size={14} /> Recomeçar
             </button>
           </div>
-          <input className="atd-fone" value={fone} inputMode="tel"
+          <input className="atd-fone" value={fone} type="tel" inputMode="tel" aria-label="WhatsApp de quem escreve, opcional"
                  placeholder="WhatsApp de quem escreve (opcional, para testar como cliente cadastrada)"
                  onChange={e => setFone(e.target.value)} />
 
@@ -160,7 +160,7 @@ export default function Atendente({ aviso }) {
           </div>
 
           <div className="atd-escrever">
-            <input value={texto} placeholder="Mensagem da cliente…" disabled={pensando}
+            <input value={texto} aria-label="Mensagem da cliente" placeholder="Mensagem da cliente…" disabled={pensando}
                    onChange={e => setTexto(e.target.value)}
                    onKeyDown={e => { if (e.key === 'Enter') enviar(); }} />
             <button className="btn btn-p" onClick={enviar} disabled={!texto.trim() || pensando} aria-label="Enviar">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useJanela } from './Base.jsx';
 import { MapPin, Plus, Trash2, Users } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 
@@ -110,6 +111,7 @@ export default function Unidades({ dados, acao, aviso }) {
 const vazia = () => ({ nome: '', endereco: '', fone: '', mapa: '', ativo: true, ordem: 0 });
 
 function Editar({ u, fechar, aoSalvar, aoArquivar, aviso }) {
+  const janela = useJanela(fechar);
   const [f, setF] = useState(u);
   const [ocupado, setOcupado] = useState(false);
   const muda = patch => setF(v => ({ ...v, ...patch }));
@@ -123,7 +125,7 @@ function Editar({ u, fechar, aoSalvar, aoArquivar, aviso }) {
 
   return (
     <div className="ovl" onClick={fechar}>
-      <form className="modal" onClick={e => e.stopPropagation()} onSubmit={enviar}>
+      <form ref={janela} tabIndex={-1} role="dialog" aria-modal="true" className="modal" onClick={e => e.stopPropagation()} onSubmit={enviar}>
         <h2 style={{ fontSize: 24, marginBottom: 18 }}>{f.id ? f.nome : 'Nova unidade'}</h2>
 
         <div className="mfield">

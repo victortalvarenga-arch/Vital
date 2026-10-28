@@ -281,8 +281,8 @@ function Painel({ sessao, aoSair }) {
         </ErroDeTela>
       </main>
 
-      {toast && <div className="p-aviso"><Check size={17} />{toast}</div>}
-      {falha && <div className="p-aviso erro"><TriangleAlert size={17} />{falha}</div>}
+      {toast && <div className="p-aviso" role="status"><Check size={17} aria-hidden="true" />{toast}</div>}
+      {falha && <div className="p-aviso erro" role="alert"><TriangleAlert size={17} aria-hidden="true" />{falha}</div>}
     </div>
   );
 }
@@ -648,7 +648,12 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                       <button key={b.id} className="bloqueio" style={{ top, height: h }}
                               title={meu ? `Liberar (${p?.nome || '—'})` : 'Fecha a empresa toda'}
                               disabled={!meu && !poderes.verDeTodos}
-                              onClick={() => acao(() => api.removerBloqueio(b.id), 'Horário liberado')}>
+                              onClick={() => {
+                                // Um toque sem querer na grade não pode
+                                // reabrir um horário fechado de propósito.
+                                if (!confirm(`Liberar este horário${b.motivo ? ` (${b.motivo})` : ''}?`)) return;
+                                acao(() => api.removerBloqueio(b.id), 'Horário liberado');
+                              }}>
                         <span>{b.motivo || 'Bloqueado'}{p ? ` · ${p.nome.split(' ')[0]}` : ''}</span>
                       </button>
                     );
@@ -1095,7 +1100,12 @@ function NovoAgendamento({ dados, acao, data, fechar }) {
   };
 
   const ehPassado = Boolean(f.data) && f.data < hojeISO();
+  // O que falta para criar, dito por extenso embaixo do botão — desligado,
+  // ele não explicava nada.
+  const [tentou, setTentou] = useState(false);
+  const faltando = [!f.cliente && 'a cliente', !f.hora && 'o horário', !prof && 'quem atende'].filter(Boolean);
   const tentarSalvar = () => {
+    if (faltando.length) return setTentou(true);
     if (ehPassado && !confirmarPassado) return setConfirmarPassado(true);
     salvar();
   };
@@ -1238,10 +1248,17 @@ function NovoAgendamento({ dados, acao, data, fechar }) {
           </div>
         </div>
       ) : (
-        <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }}
-                disabled={ocupado || !f.cliente || !f.hora || !prof} onClick={tentarSalvar}>
-          {ocupado ? 'Criando…' : ehCombo ? 'Agendar promoção' : 'Criar agendamento'}
-        </button>
+        <>
+          {tentou && faltando.length > 0 && (
+            <p className="mf-erro" role="alert">
+              Falta escolher {faltando.length > 1 ? `${faltando.slice(0, -1).join(', ')} e ${faltando.at(-1)}` : faltando[0]}.
+            </p>
+          )}
+          <button className="btn btn-p" style={{ width: '100%', marginTop: 8 }}
+                  disabled={ocupado} onClick={tentarSalvar}>
+            {ocupado ? 'Criando…' : ehCombo ? 'Agendar promoção' : 'Criar agendamento'}
+          </button>
+        </>
       )}
     </Gaveta>
   );
@@ -1443,7 +1460,7 @@ function Clientes({ dados, acao, aviso }) {
       </div>
       <div style={{ position: 'relative', marginBottom: 14, maxWidth: 380 }}>
         <Search size={16} style={{ position: 'absolute', left: 12, top: 13, color: 'var(--muted)' }} />
-        <input placeholder="Buscar por nome ou WhatsApp" value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 36 }} />
+        <input type="search" aria-label="Buscar cliente" placeholder="Buscar por nome ou WhatsApp…" value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 36 }} />
       </div>
       <div className="card list">
         {filtrados.map(c => (
@@ -1517,23 +1534,33 @@ function Clientes({ dados, acao, aviso }) {
 
 function EditarCliente({ c, acao, fechar }) {
   const [f, setF] = useState({ nome: c.nome, fone: c.fone, nasc: c.nasc || '', end: c.end || '', obs: c.obs || '' });
+  const [erroNome, setErroNome] = useState('');
   const salvar = async () => {
+    if (f.nome.trim().length < 3) {
+      setErroNome('Escreva o nome completo da cliente.');
+      document.getElementById('cl-nome')?.focus();
+      return;
+    }
     const ok = await acao(() => api.salvarCliente({ ...c, ...f, fone: soDigitos(f.fone) }), 'Cadastro salvo');
     if (ok) fechar();
   };
   return (
     <Modal onClose={fechar}>
       <h2 style={{ fontSize: 24, marginBottom: 18 }}>{c.id ? 'Editar cadastro' : 'Nova cliente'}</h2>
-      <Campo label="Nome completo"><input value={f.nome} onChange={e => setF(v => ({ ...v, nome: e.target.value }))} /></Campo>
+      <Campo label="Nome completo">
+        <input id="cl-nome" value={f.nome} aria-invalid={!!erroNome} aria-describedby={erroNome ? 'cl-nome-erro' : undefined}
+               onChange={e => { setF(v => ({ ...v, nome: e.target.value })); setErroNome(''); }} />
+      </Campo>
+      {erroNome && <p id="cl-nome-erro" className="mf-erro">{erroNome}</p>}
       <div className="mrow">
-        <Campo label="WhatsApp"><input value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>
+        <Campo label="WhatsApp"><input type="tel" inputMode="tel" value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>
         <Campo label="Nascimento">
           <CampoData valor={f.nasc} aoMudar={d => setF(v => ({ ...v, nasc: d }))} />
         </Campo>
       </div>
       <Campo label="Endereço"><input value={f.end} onChange={e => setF(v => ({ ...v, end: e.target.value }))} /></Campo>
       <Campo label="Observações"><textarea rows={2} value={f.obs} onChange={e => setF(v => ({ ...v, obs: e.target.value }))} placeholder="Alergias, preferências, cuidados" /></Campo>
-      <button className="btn btn-p" style={{ width: '100%' }} disabled={f.nome.trim().length < 3} onClick={salvar}>Salvar</button>
+      <button className="btn btn-p" style={{ width: '100%' }} onClick={salvar}>Salvar</button>
     </Modal>
   );
 }

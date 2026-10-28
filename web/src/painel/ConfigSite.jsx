@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useRotulo } from './Base.jsx';
 import { ChevronDown, ChevronUp, ExternalLink, Image, Link2, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { prepararImagem } from '../shared/imagem.js';
@@ -294,7 +295,7 @@ function EquipeDoSite({ staff, valor, aoMudar, aviso }) {
                 <Chave rotulo="Aparece no site" ligado={!site.oculto}
                        aoMudar={v => trocar(p.id, { oculto: !v })} />
               </div>
-              <input value={site.descricao ?? ''} maxLength={120}
+              <input value={site.descricao ?? ''} maxLength={120} aria-label={`Uma linha sobre ${p.nome}`}
                      placeholder="Uma linha sobre a pessoa"
                      onChange={e => trocar(p.id, { descricao: e.target.value })} />
             </div>
@@ -321,13 +322,16 @@ function FotoDaPessoa({ nome, foto, aoMudar, aviso }) {
   );
 }
 
-const Linha = ({ rotulo, dica, children }) => (
-  <div className="cs-campo">
-    <label>{rotulo}</label>
-    {children}
-    {dica && <span className="cs-dica">{dica}</span>}
-  </div>
-);
+const Linha = ({ rotulo, dica, children }) => {
+  const ligado = useRotulo(children);
+  return (
+    <div className="cs-campo" {...ligado.grupo}>
+      <label {...ligado.rotulo}>{rotulo}</label>
+      {ligado.filhos}
+      {dica && <span className="cs-dica">{dica}</span>}
+    </div>
+  );
+};
 
 const Texto = ({ rotulo, valor, aoMudar, dica }) => (
   <Linha rotulo={rotulo} dica={dica}>
@@ -516,9 +520,9 @@ function Perguntas({ lista, aoMudar }) {
       <div className="cs-faq">
         {lista.map((p, i) => (
           <div key={i} className="cs-faq-item">
-            <input placeholder="A pergunta, como a cliente faria" value={p.pergunta || ''}
+            <input aria-label={`Pergunta ${i + 1}`} placeholder="A pergunta, como a cliente faria" value={p.pergunta || ''}
                    onChange={e => trocar(i, { pergunta: e.target.value })} />
-            <textarea rows={3} placeholder="A resposta, curta e direta" value={p.resposta || ''}
+            <textarea rows={3} aria-label={`Resposta ${i + 1}`} placeholder="A resposta, curta e direta" value={p.resposta || ''}
                       onChange={e => trocar(i, { resposta: e.target.value })} />
             <div className="cs-faq-btns">
               {/* Lista vertical: a seta aponta para onde o item vai. */}

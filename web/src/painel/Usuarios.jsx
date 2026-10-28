@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useJanela } from './Base.jsx';
 import { Plus, ShieldCheck, Trash2, User as UserIcon } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 
@@ -93,6 +94,7 @@ export default function Usuarios({ dados, eu, aviso }) {
 }
 
 function EditarUsuario({ u, staff, eu, aoSalvar, aoRemover, fechar }) {
+  const janela = useJanela(fechar);
   const [f, setF] = useState({ ...u });
   const [ocupado, setOcupado] = useState(false);
   const novo = !u.id;
@@ -109,7 +111,7 @@ function EditarUsuario({ u, staff, eu, aoSalvar, aoRemover, fechar }) {
 
   return (
     <div className="ovl" onClick={fechar}>
-      <form className="modal" onClick={e => e.stopPropagation()} onSubmit={enviar}>
+      <form ref={janela} tabIndex={-1} role="dialog" aria-modal="true" className="modal" onClick={e => e.stopPropagation()} onSubmit={enviar}>
         <h2 style={{ fontSize: 24, marginBottom: 18 }}>
           {novo ? 'Nova pessoa no painel' : f.nome}
         </h2>
@@ -181,7 +183,7 @@ function EditarUsuario({ u, staff, eu, aoSalvar, aoRemover, fechar }) {
 
         {!novo && !souEu && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-            <Switch on={f.ativo} onChange={() => setF(v => ({ ...v, ativo: !v.ativo }))} />
+            <Switch on={f.ativo} rotulo="Acesso ativo" onChange={() => setF(v => ({ ...v, ativo: !v.ativo }))} />
             <span style={{ fontSize: 14 }}>
               Pode entrar {!f.ativo && <span style={{ color: 'var(--muted)' }}>— desativado não faz login</span>}
             </span>
@@ -205,9 +207,9 @@ function EditarUsuario({ u, staff, eu, aoSalvar, aoRemover, fechar }) {
   );
 }
 
-const Switch = ({ on, onChange }) => (
+const Switch = ({ on, onChange, rotulo }) => (
   <button type="button" className={'sw' + (on ? ' on' : '')} onClick={onChange}
-          role="switch" aria-checked={on}>
+          role="switch" aria-checked={on} aria-label={rotulo}>
     <span />
   </button>
 );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../shared/painel-api.js';
 
 /**
@@ -72,19 +72,20 @@ export default function Ficha({ servicoId, clienteId, valor, aoMudar }) {
 
 function Pergunta({ campo, valor, aoMudar }) {
   const marcadas = Array.isArray(valor) ? valor : [];
+  const id = useId();
 
   return (
-    <div className="mfield">
-      <label>
+    <div className="mfield" role="group" aria-labelledby={`${id}-r`}>
+      <label id={`${id}-r`} htmlFor={id}>
         {campo.rotulo}
         {campo.obrigatorio && <span className="ficha-obrig"> *</span>}
       </label>
 
       {campo.tipo === 'longo' && (
-        <textarea rows={2} value={valor || ''} onChange={e => aoMudar(e.target.value)} />
+        <textarea id={id} rows={2} value={valor || ''} onChange={e => aoMudar(e.target.value)} />
       )}
       {['texto', 'numero', 'data'].includes(campo.tipo) && (
-        <input type={campo.tipo === 'data' ? 'date' : campo.tipo === 'numero' ? 'number' : 'text'}
+        <input id={id} type={campo.tipo === 'data' ? 'date' : campo.tipo === 'numero' ? 'number' : 'text'}
                value={valor ?? ''} onChange={e => aoMudar(e.target.value)} />
       )}
       {campo.tipo === 'sim_nao' && (
