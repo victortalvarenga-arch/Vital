@@ -1355,7 +1355,7 @@ a.btn{text-decoration:none}
 
 /* A pergunta de data passada, no lugar do botão de criar. */
 .ag-passado{margin-top:10px; padding:14px 16px; border-radius:12px;
-  background:var(--warn-claro); border:1px solid #EBDFAE}
+  background:var(--warn-claro); border:1px solid color-mix(in srgb, var(--warn) 30%, var(--warn-claro))}
 .ag-passado b{display:flex; align-items:center; gap:7px; font-size:14px; color:var(--warn)}
 .ag-passado p{margin:6px 0 12px; font-size:13px; line-height:1.5; color:var(--ink2)}
 .ag-passado-botoes{display:flex; gap:8px; justify-content:flex-end}
