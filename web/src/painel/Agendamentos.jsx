@@ -42,7 +42,7 @@ const ESTADOS = {
   agendado: { rotulo: 'Agendado', tom: 'aguarda', busca: 'agendado,confirmado' },
   em_atendimento: { rotulo: 'Em atendimento', tom: 'agora', busca: 'em_atendimento' },
   concluido: { rotulo: 'Atendido', tom: 'feito', busca: 'concluido' },
-  falta: { rotulo: 'Faltou', tom: 'ruim', busca: 'falta' },
+  falta: { rotulo: 'Faltou', tom: 'falta', busca: 'falta' },
   cancelado: { rotulo: 'Cancelado', tom: 'ruim', busca: 'cancelado' },
 };
 

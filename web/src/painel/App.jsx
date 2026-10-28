@@ -1511,7 +1511,7 @@ function Clientes({ dados, acao, aviso }) {
                     <span className="mono" style={{ fontSize: 12, color: 'var(--muted)', width: 84 }}>{fmtDataLonga(a.data)}</span>
                     <span style={{ flex: 1, fontSize: 14 }}>{s?.nome}</span>
                     <span className="mono" style={{ fontSize: 13 }}>{brl(a.valor)}</span>
-                    {a.status === 'falta' && <span className="tag" style={{ background: '#F3E6E6', color: 'var(--erro)' }}>faltou</span>}
+                    {a.status === 'falta' && <span className="tag" style={{ background: '#EEE8F6', color: '#5B3E93' }}>faltou</span>}
                   </div>
                 );
               })}
