@@ -285,6 +285,62 @@
           "web/src/painel/styles.css"
         ],
         "createdAt": "2026-10-28T14:24:34.661Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#e4edf6",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.044Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#1f5c96",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.130Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#dceae1",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.197Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#20573f",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.263Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#eee8f6",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.346Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#5b3e93",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.421Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#f3e6e6",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T15:54:23.488Z"
       }
     ]
   }

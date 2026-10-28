@@ -170,8 +170,11 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
                   valor={mensal && brl(mensal.lucro)}
                   dica="O faturamento do mês menos a comissão de cada profissional." />
         )}
+        {/* O total e, embaixo, de que ele é feito. Só "4" ao lado de um
+            ranking que diz "1 atendimento" parecia número errado. */}
         <Numero rotulo="Atendimentos no mês" valor={mensal && mensal.agendados}
-                dica="Horários marcados neste mês, tirando os cancelados." />
+                extra={mensal && <span className="rs-stat-sub">{partesDoMes(mensal)}</span>}
+                dica="Horários marcados neste mês, tirando os cancelados: os já feitos, os que ainda vão acontecer e as faltas." />
         <Numero rotulo="Ticket médio do mês" valor={mensal && brl(mensal.ticketMedio)}
                 dica="Quanto entrou, em média, por atendimento pago neste mês. Atendimento concluído e ainda em aberto não entra na conta." />
         <Numero rotulo="Faltas / cancelados no mês"
@@ -524,6 +527,16 @@ export function GraficoMensal({ meses, titulo, dica }) {
 
 const rotuloAtendimentos = n => `${n} atendimento${n === 1 ? '' : 's'}`;
 
+/** "1 feito · 3 marcados · 1 faltou" — só as partes que existem. */
+function partesDoMes({ agendados = 0, atendimentos = 0, faltas = 0 }) {
+  const marcados = Math.max(agendados - atendimentos - faltas, 0);
+  return [
+    `${atendimentos} ${atendimentos === 1 ? 'feito' : 'feitos'}`,
+    marcados > 0 && `${marcados} ${marcados === 1 ? 'marcado' : 'marcados'}`,
+    faltas > 0 && `${faltas} ${faltas === 1 ? 'faltou' : 'faltaram'}`,
+  ].filter(Boolean).join(' · ');
+}
+
 /**
  * Quem mais atendeu no mês. A equipe toda vê o ranking, mas só o dono vê o valor
  * de cada um: para o funcionário o servidor nem manda `producao`, então não
@@ -533,7 +546,7 @@ function Ranking({ staff, ranking, falhou }) {
   return (
     <div className="card rs-relativo" style={{ padding: 18 }}>
       <div className="eyebrow" style={{ marginBottom: 14 }}>
-        <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do mês
+        <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do mês · atendimentos feitos
       </div>
       <Dica texto="Quem mais fez atendimentos neste mês. Só contam os concluídos." />
       {falhou && !ranking && <p className="rs-vazio">Não deu para carregar.</p>}
