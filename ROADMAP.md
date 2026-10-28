@@ -1016,6 +1016,24 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       esse branch é com o dono da conta. O mesmo job rodaria `npm run lint`.
       O `web/` não tem teste nenhum; as telas são conferidas à mão.
       Levantado em 2026-10-28.
+      **Adiado de propósito (decisão do dono, 2026-10-28):** cada rodada leva
+      uns 3 minutos de banco ligado e gasta horas do plano gratuito da Neon.
+      Liga quando o produto estiver pronto para publicar (Bloco 13). Até lá,
+      `npm run lint` e `cd server && npm test` à mão antes de commitar.
+      Como montar quando chegar a hora:
+      1. Neon → Branches → New branch `ci`, com pai **`dev`** (o `production`
+         copiaria dado de cliente real para um robô do GitHub).
+      2. No branch `ci`: Roles → `neondb_owner` → Reset password; Connect, sem
+         "Connection pooling" (host sem `-pooler`) → essa é a
+         `DATABASE_ADMIN_URL`. No SQL Editor do `ci`:
+         `ALTER ROLE vital_app PASSWORD '...'` → mesma URL com `vital_app` e
+         essa senha é a `DATABASE_URL`. Senhas próprias, para o segredo do
+         GitHub não abrir o banco de trabalho.
+      3. GitHub → Settings → Secrets and variables → Actions: os dois segredos
+         com esses nomes.
+      4. `.github/workflows/` com Node 20+, `npm ci` na raiz e no `server/`,
+         `npm run lint` e `cd server && npm test`. A suíte cria e apaga o
+         próprio `neondb_teste` dentro do branch (`server/test/ambiente.js`).
 - [ ] **Nove avisos de `react-hooks/exhaustive-deps`** sobraram quando o ESLint
       entrou (2026-10-28), em `App.jsx`, `Bloqueios.jsx`, `Combos.jsx`,
       `Equipe.jsx`, `Ficha.jsx` e `Agendar.jsx`. Quase todos são efeitos que
