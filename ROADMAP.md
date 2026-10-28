@@ -984,8 +984,10 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       4. `.github/workflows/` com Node 20+, `npm ci` na raiz e no `server/`,
          `npm run lint` e `cd server && npm test`. A suíte cria e apaga o
          próprio `neondb_teste` dentro do branch (`server/test/ambiente.js`).
-- [ ] **Nove avisos de `react-hooks/exhaustive-deps`** sobraram quando o ESLint
-      entrou (2026-10-28), em `App.jsx`, `Bloqueios.jsx`, `Combos.jsx`,
+- [ ] **Sete avisos de `react-hooks/exhaustive-deps`** sobraram quando o ESLint
+      entrou (2026-10-28; eram nove — os dois do "pedido" da Agenda e de
+      Horários fechados eram bug de verdade: o atalho não abria nada com a
+      tela já aberta). Estão em `App.jsx`, `Bloqueios.jsx`, `Combos.jsx`,
       `Equipe.jsx`, `Ficha.jsx` e `Agendar.jsx`. Quase todos são efeitos que
       rodam só quando muda o dia ou o pedido, de propósito. Cada um precisa ser
       lido antes de mexer: completar a lista no automático faz efeito virar

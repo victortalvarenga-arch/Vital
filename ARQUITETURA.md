@@ -175,7 +175,9 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    Usuarios.jsx (acesso),
                    Comecar.jsx (assistente de primeira configuração),
                    Formularios.jsx (monta), Ficha.jsx (responde no atendimento),
-                   Registro.jsx (quem fez o quê)
+                   Registro.jsx (quem fez o quê),
+                   Base.jsx (Modal, Gaveta, Campo e `useJanela`),
+                   fluxo.js (as situações do atendimento e o passo seguinte)
   src/vital/       Inicio.jsx + inicio.css (página de apresentação),
                    Cadastro.jsx (formulário de empresa nova, dentro dela),
                    Equipe.jsx (back-office), api.js (cookie próprio),
