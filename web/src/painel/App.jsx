@@ -33,7 +33,7 @@ import Servicos from './Servicos.jsx';
 import ErroDeTela from './ErroDeTela.jsx';
 import Atendente from './Atendente.jsx';
 import {
-  Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
+  Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
   Store, Bell, Megaphone, TriangleAlert, ExternalLink, Menu, Globe,
   LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
@@ -131,6 +131,7 @@ function Painel({ sessao, aoSair }) {
   // senão voltar para a tela depois reabriria a janela sozinha.
   const [pedido, setPedido] = useState(null);
   const [menuAberto, setMenuAberto] = useState(false);
+  const [ajustesAbertos, setAjustesAbertos] = useState(false);
   const [toast, setToast] = useState(null);
   const [falha, setFalha] = useState(null);
   const [fila, setFila] = useState({ modoManual: true, itens: [] });
@@ -181,28 +182,32 @@ function Painel({ sessao, aoSair }) {
   // Esconder o que o papel não pode é cortesia, não segurança: a rota também
   // recusa. Um sem o outro é enganoso — ou dá erro feio, ou deixa passar.
   const p = sessao.poderes;
+  // Agrupado por quantas vezes se usa, não pelo tipo de coisa: o dia a dia
+  // em cima, o que se cadastra de vez em quando no meio, e o que se configura
+  // uma vez recolhido em "Ajustes". Eram 18 itens abertos, com Unidades e
+  // Exportar dados no mesmo peso da Agenda.
   const GRUPOS = [
     { titulo: null, itens: [
       { k: 'resumo', nome: 'Resumo', icon: LayoutDashboard },
       // Calendário e Agendamentos eram duas telas para a mesma pergunta — uma
       // desenhava a agenda, a outra listava a mesma agenda. Hoje são abas.
       { k: 'agenda', nome: 'Agenda', icon: Calendar },
-      { k: 'bloqueios', nome: 'Horários fechados', icon: CalendarOff },
+      ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
       ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
+      { k: 'crm', nome: 'WhatsApp', icon: MessageCircle, badge: fila.itens.length },
     ] },
     { titulo: 'Cadastros', itens: [
       ...(p.cadastros ? [{ k: 'servicos', nome: 'Serviços', icon: Sparkles }] : []),
       // Sem guarda de papel de propósito: quem atende também cria promoção.
       { k: 'combos', nome: 'Promoções', icon: Tag },
       ...(p.equipe ? [{ k: 'equipe', nome: 'Profissionais', icon: Store }] : []),
-      ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
-      ...(p.cadastros ? [{ k: 'unidades', nome: 'Unidades', icon: MapPinIcon }] : []),
-      ...(p.cadastros ? [{ k: 'formularios', nome: 'Formulários', icon: ClipboardList }] : []),
+      { k: 'bloqueios', nome: 'Horários fechados', icon: CalendarOff },
     ] },
-    { titulo: 'Configurações', itens: [
-      { k: 'crm', nome: 'Mensagens', icon: MessageCircle, badge: fila.itens.length },
+    { titulo: 'Ajustes', recolhivel: true, itens: [
       ...(p.site ? [{ k: 'site', nome: 'Site da cliente', icon: Globe }] : []),
       ...(p.site && dados.recursos?.atendente ? [{ k: 'atendente', nome: 'Atendente IA', icon: Bot }] : []),
+      ...(p.cadastros ? [{ k: 'unidades', nome: 'Unidades', icon: MapPinIcon }] : []),
+      ...(p.cadastros ? [{ k: 'formularios', nome: 'Formulários', icon: ClipboardList }] : []),
       ...(p.equipe ? [{ k: 'usuarios', nome: 'Acesso ao painel', icon: KeyRound }] : []),
       // Sem guarda: funcionário vê o próprio rastro, e é o servidor que recorta.
       { k: 'registro', nome: 'Registro', icon: ScrollText },
@@ -212,6 +217,16 @@ function Painel({ sessao, aoSair }) {
   ].filter(g => g.itens.length);
 
   const atual = GRUPOS.flatMap(g => g.itens).find(i => i.k === secao);
+  // A barra de baixo do celular: os quatro caminhos do balcão e "Mais", que
+  // abre o menu inteiro. O "+" é o mesmo atalho do Resumo.
+  const BARRA = [
+    { k: 'resumo', nome: 'Resumo', icon: LayoutDashboard },
+    { k: 'agenda', nome: 'Agenda', icon: Calendar },
+    { k: 'novo', nome: 'Agendar', icon: Plus, ir: () => irPara('agenda', 'novo') },
+    p.cadastros
+      ? { k: 'clientes', nome: 'Clientes', icon: Users }
+      : { k: 'bloqueios', nome: 'Fechar horário', icon: CalendarOff },
+  ];
   const irPara = (k, oQue = null) => { setSecao(k); setPedido(oQue); setMenuAberto(false); };
 
   return (
@@ -232,10 +247,21 @@ function Painel({ sessao, aoSair }) {
           <span className="p-marca-sigla">{(dados.config.nome || '?').trim()[0].toUpperCase()}</span>
           <span className="p-marca-nome">{dados.config.nome}</span>
         </div>
-        {GRUPOS.map((g, i) => (
+        {GRUPOS.map((g, i) => {
+          // "Ajustes" fica recolhido, e abre sozinho quando a tela aberta é dele.
+          const dentro = g.itens.some(item => item.k === secao);
+          const fechado = g.recolhivel && !ajustesAbertos && !dentro;
+          return (
           <div key={i} className="p-grupo">
-            {g.titulo && <div className="p-grupo-t">{g.titulo}</div>}
-            {g.itens.map(item => (
+            {g.titulo && !g.recolhivel && <div className="p-grupo-t">{g.titulo}</div>}
+            {g.recolhivel && (
+              <button className="p-grupo-t p-grupo-abre" aria-expanded={!fechado}
+                      onClick={() => setAjustesAbertos(v => !(v || dentro))}>
+                {g.titulo}
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+            )}
+            {!fechado && g.itens.map(item => (
               <button key={item.k}
                       className={'p-nav' + (secao === item.k ? ' on' : '')}
                       onClick={() => irPara(item.k)}>
@@ -245,7 +271,8 @@ function Painel({ sessao, aoSair }) {
               </button>
             ))}
           </div>
-        ))}
+          );
+        })}
         <a className="p-nav p-nav-fim" href="/"><ExternalLink size={18} /><span>Ver o site</span></a>
         <div className="p-eu">
           <div className="p-eu-nome">{sessao.usuario.nome}</div>
@@ -253,6 +280,22 @@ function Painel({ sessao, aoSair }) {
         </div>
         <button className="p-nav" onClick={async () => { await api.sair(); aoSair(); }}>
           <LogOut size={18} /><span>Sair</span>
+        </button>
+      </nav>
+
+      <nav className="p-barra" aria-label="Atalhos">
+        {BARRA.map(b => (
+          <button key={b.k} className={'p-barra-item' + (b.k === 'novo' ? ' mais' : '') + (secao === b.k ? ' on' : '')}
+                  aria-current={secao === b.k ? 'page' : undefined}
+                  onClick={b.ir || (() => irPara(b.k))}>
+            <b.icon size={b.k === 'novo' ? 22 : 20} aria-hidden="true" />
+            <span>{b.nome}</span>
+          </button>
+        ))}
+        <button className={'p-barra-item' + (menuAberto ? ' on' : '')} aria-expanded={menuAberto}
+                onClick={() => setMenuAberto(v => !v)}>
+          <Menu size={20} aria-hidden="true" />
+          <span>Mais</span>
         </button>
       </nav>
 

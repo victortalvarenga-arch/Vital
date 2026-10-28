@@ -93,6 +93,12 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
   color:rgba(251,246,244,.42); padding:12px 12px 6px; font-weight:700;
 }
+/* "Ajustes": o mesmo rótulo, mas é um botão que abre e fecha o grupo. */
+.p-grupo-abre{display:flex; align-items:center; justify-content:space-between; width:100%;
+  min-height:40px; border-radius:8px; text-align:left}
+.p-grupo-abre:hover{color:rgba(251,246,244,.78)}
+.p-grupo-abre svg{transition:transform .18s}
+.p-grupo-abre[aria-expanded="true"] svg{transform:rotate(180deg)}
 .p-nav{
   display:flex; align-items:center; gap:11px; width:100%; text-align:left;
   padding:11px 12px; border-radius:10px; font-size:14.5px; color:rgba(251,246,244,.78);
@@ -110,8 +116,30 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 .p-conteudo{ padding:18px 16px 40px; }
 
+/* Celular: barra de atalhos no rodapé, ao alcance do polegar. `--p-rodape`
+   é a altura dela, para o que é fixo embaixo (avisos, barra de salvar) subir
+   junto em vez de ficar escondido atrás. */
+.p-app{ --p-rodape:calc(62px + env(safe-area-inset-bottom)); }
+.p-barra{
+  position:fixed; left:0; right:0; bottom:0; z-index:35; display:flex;
+  height:var(--p-rodape); padding:0 4px env(safe-area-inset-bottom);
+  background:var(--paper); border-top:1px solid var(--line);
+}
+.p-barra-item{
+  flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  font-size:11px; font-weight:600; color:var(--muted);
+}
+.p-barra-item span{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.p-barra-item.on{ color:var(--lacquer); }
+/* O "+" é a ação do balcão: em destaque, mas na mesma linha das outras. */
+.p-barra-item.mais svg{ width:38px; height:30px; padding:4px 8px; border-radius:999px;
+  background:var(--lacquer); color:#fff; }
+.p-conteudo{ padding-bottom:calc(40px + var(--p-rodape)); }
+
 /* computador: lateral fixa, sem topo nem gaveta */
 @media (min-width:900px){
+  .p-app{ --p-rodape:0px; }
+  .p-barra{ display:none; }
   .p-topo, .p-veu{ display:none; }
   .p-lado{ transform:none; }
   .p-conteudo{ margin-left:240px; padding:28px 32px 48px; }
@@ -129,7 +157,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .et .et-detalhe { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; word-break: break-word; }
 
 .p-aviso{
-  position:fixed; left:16px; right:16px; bottom:16px; max-width:400px; margin:0 auto;
+  position:fixed; left:16px; right:16px; bottom:calc(16px + var(--p-rodape, 0px)); max-width:400px; margin:0 auto;
   display:flex; align-items:center; gap:9px; padding:13px 17px; border-radius:12px;
   background:var(--ink); color:var(--porcelain); font-size:14px;
   /* Acima do modal (.ovl é 100): com 60, o aviso de erro nascia ATRÁS da janela
@@ -201,7 +229,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   transform:scale(1.03); z-index:5}
 
 /* para onde vai, enquanto o dedo ainda está em cima */
-.arrasto-aviso{position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+.arrasto-aviso{position:fixed; bottom:calc(22px + var(--p-rodape, 0px)); left:50%; transform:translateX(-50%);
   background:var(--ink); color:var(--porcelain); padding:9px 16px; border-radius:9px;
   font-size:13.5px; font-weight:600; z-index:60; pointer-events:none}
 /* Violeta, como a etiqueta `.at-tag.falta`; a borda da esquerda continua
@@ -457,7 +485,7 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 /* barra fixa: some do caminho no celular quando há coisa por salvar */
 .cs-barra {
-  position: sticky; bottom: 0; margin-top: 22px;
+  position: sticky; bottom: var(--p-rodape, 0px); margin-top: 22px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 16px; border-radius: 12px;
   background: var(--ink); color: var(--porcelain); font-size: 14px;
@@ -1366,7 +1394,13 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   border-bottom:2px solid transparent; margin-bottom:-1px}
 .ag-aba:hover{color:var(--ink)}
 .ag-aba.on{color:var(--ink); border-bottom-color:var(--lacquer)}
-.ag-conta{margin-left:auto; font-size:12.5px; color:var(--muted)}
+.ag-conta{margin-left:auto; font-size:12.5px; color:var(--muted); white-space:nowrap}
+/* No celular as três abas ocupam a largura: o total desce para a linha de
+   baixo, inteiro, em vez de quebrar em três linhas espremidas ao lado delas. */
+@media (max-width: 560px){
+  .ag-abas{flex-wrap:wrap}
+  .ag-conta{order:1; flex-basis:100%; margin-left:0; padding:6px 2px 8px}
+}
 
 /* Mês: um quadrado por dia, com a contagem. Tocar leva para o dia. */
 .gm{margin-top:4px}
