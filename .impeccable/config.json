@@ -221,6 +221,70 @@
         "value": "#e4f0ea",
         "createdAt": "2026-10-27T19:18:06.727Z",
         "reason": "DESIGN.md, Colors > Painel: tons de status da agenda (aguardando #FBF0DF/#8A6410, confirmado #E4F0EA), documentados no texto"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "22px",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.146Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "20px",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.231Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "18px",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.294Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "9px",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.362Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "9.5px",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.438Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "7px",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.517Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,.08)",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.593Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,.25)",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-28T14:24:34.661Z"
       }
     ]
   }
