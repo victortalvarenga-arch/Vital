@@ -314,4 +314,5 @@ export const api = {
   },
   // Ranking de atendimentos do mês ('YYYY-MM'). Para funcionário vem sem valor.
   ranking: ({ mes } = {}) => req('/relatorios/ranking' + (mes ? `?mes=${mes}` : '')),
+  funil: (dias = 30) => req(`/relatorios/funil?dias=${dias}`),
 };

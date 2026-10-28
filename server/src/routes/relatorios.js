@@ -2,9 +2,22 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { hoje, addDias, diasEntre } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
-import { escopoDe } from '../lib/auth.js';
+import { escopoDe, exige } from '../lib/auth.js';
+import { funilDaEmpresa } from '../lib/funil.js';
 
 export const relatorios = Router();
+
+/**
+ * O funil do site desta empresa: onde as visitas desistem.
+ *
+ * Só para quem cuida do site (`site`, o dono): é sobre a página, não sobre a
+ * produção de alguém. Contagem, nunca linha — a mesma resposta que o
+ * back-office da Vital vê, recortada pelo RLS na empresa da sessão.
+ */
+relatorios.get('/funil', exige('site'), rota(async (req, res) => {
+  const dias = Math.min(Math.max(Number(req.query.dias) || 30, 1), 365);
+  res.json(await funilDaEmpresa({ dias }));
+}));
 
 /**
  * Quanto do atendimento é de quem atendeu, em percentual. Ver migration 020.

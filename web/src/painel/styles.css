@@ -866,6 +866,15 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .bl-stats{margin-bottom:16px}
 .bl-stat-sub{font-size:12.5px; color:var(--muted)}
 .rs-stat-sub{font-size:12.5px; color:var(--muted)}
+/* Funil do site: uma linha por passo, a barra é a fração de quem abriu o site. */
+.rs-funil{padding:18px; margin-top:12px}
+.rs-funil-passos{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
+.rs-funil-passos li{display:grid; grid-template-columns:minmax(0, 150px) 1fr 44px; align-items:center; gap:12px; font-size:13.5px}
+.rs-funil-rotulo{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rs-funil-trilho{height:8px; border-radius:999px; background:var(--line); overflow:hidden}
+.rs-funil-trilho i{display:block; height:100%; background:var(--lacquer)}
+.rs-funil-passos b{text-align:right; font-variant-numeric:tabular-nums}
+.rs-funil-queda{margin:14px 0 0; font-size:13px; color:var(--muted)}
 .bl-busca{position:relative; margin-bottom:10px}
 .bl-busca svg{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted)}
 .bl-busca input{padding-left:38px; min-height:44px}

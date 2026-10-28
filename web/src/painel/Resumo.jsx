@@ -227,6 +227,8 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
         <Ranking staff={staff} ranking={ranking} falhou={falhou} />
       </div>
 
+      {poderes.site && <FunilDoSite />}
+
       <div style={{ marginTop: 12 }}>
         <div className="eyebrow" style={{ marginBottom: 14 }}>
           {poderes.verDeTodos ? 'Como está o dia, por profissional' : 'Como está o meu dia'}
@@ -525,6 +527,57 @@ export function GraficoMensal({ meses, titulo, dica }) {
   );
 }
 
+/**
+ * Onde as visitas do site desistem, nos últimos 30 dias.
+ *
+ * É do dono: ele é quem pode mexer no site, e o número que diria "você perde
+ * 70% na abertura do agendamento" ficava só no back-office da Vital. A conta
+ * vem pronta do servidor (`comTaxas`, em lib/funil.js) — a tela não divide.
+ */
+function FunilDoSite() {
+  const [funil, setFunil] = useState(null);
+  const [falhou, setFalhou] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    api.funil(30).then(x => { if (vivo) setFunil(x); }).catch(() => { if (vivo) setFalhou(true); });
+    return () => { vivo = false; };
+  }, []);
+
+  const passos = funil?.passos || [];
+  const vazio = funil && !passos[0]?.total;
+  const queda = funil?.maiorQueda;
+  return (
+    <div className="card rs-relativo rs-funil">
+      <div className="eyebrow" style={{ marginBottom: 14 }}>Seu site · últimos 30 dias</div>
+      <Dica texto="Quantas visitas chegaram a cada passo do agendamento pelo site. Cada visita conta uma vez por passo; ninguém é identificado." />
+      {falhou && <p className="rs-vazio">Não deu para carregar.</p>}
+      {!falhou && !funil && <p className="rs-vazio">Calculando…</p>}
+      {vazio && <p className="rs-vazio">Ainda não houve visita ao site nestes 30 dias.</p>}
+      {funil && !vazio && (
+        <>
+          <ol className="rs-funil-passos">
+            {passos.map(p => (
+              <li key={p.chave}>
+                <span className="rs-funil-rotulo">{p.rotulo}</span>
+                <span className="rs-funil-trilho" aria-hidden="true">
+                  <i style={{ width: `${p.doTopo ?? 0}%` }} />
+                </span>
+                <b className="mono">{p.total}</b>
+              </li>
+            ))}
+          </ol>
+          {queda && (
+            <p className="rs-funil-queda">
+              A maior perda é entre “{queda.de}” e “{queda.para}”:{' '}
+              <b>{queda.perdidos} {queda.perdidos === 1 ? 'visita' : 'visitas'}</b>.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 const rotuloAtendimentos = n => `${n} atendimento${n === 1 ? '' : 's'}`;
 
 /** "1 feito · 3 marcados · 1 faltou" — só as partes que existem. */
@@ -545,9 +598,10 @@ function partesDoMes({ agendados = 0, atendimentos = 0, faltas = 0 }) {
 function Ranking({ staff, ranking, falhou }) {
   return (
     <div className="card rs-relativo" style={{ padding: 18 }}>
-      <div className="eyebrow" style={{ marginBottom: 14 }}>
-        <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do mês · atendimentos feitos
+      <div className="eyebrow">
+        <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do mês
       </div>
+      <p className="rs-stat-sub" style={{ margin: '2px 0 12px' }}>Pelos atendimentos já feitos</p>
       <Dica texto="Quem mais fez atendimentos neste mês. Só contam os concluídos." />
       {falhou && !ranking && <p className="rs-vazio">Não deu para carregar.</p>}
       {!falhou && !ranking && <p className="rs-vazio">Calculando…</p>}
