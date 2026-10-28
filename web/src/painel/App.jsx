@@ -880,8 +880,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
             {/* `at.servico` e `at.cliente`, não `servicoId`/`clienteId`: o
                 painel traduz os nomes do servidor em `painel-api.js`, e aqui
                 dentro o agendamento já chega com os nomes curtos. */}
-            <FichaRespondida agendamentoId={at.id} servicoId={at.servico}
-                             clienteId={at.cliente} aviso={aviso} />
+            <FichaRespondida agendamentoId={at.id} clienteId={at.cliente} aviso={aviso} />
 
             {at.adicionais.length > 0 && (
               <div className="extras">
@@ -1355,7 +1354,7 @@ function FichasDaCliente({ cliente, aviso }) {
  * a ficha de saúde de todo mundo no navegador de quem só queria ver os
  * horários do dia.
  */
-function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
+function FichaRespondida({ agendamentoId, clienteId, aviso }) {
   const [fichas, setFichas] = useState(null);
   const [temFormulario, setTemFormulario] = useState(false);
   const [respostas, setRespostas] = useState({});
@@ -1374,13 +1373,12 @@ function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
   // todo atendimento e, em serviço sem formulário, abria um espaço vazio com
   // "Gravar ficha" — botão que promete uma tela que não existe.
   useEffect(() => {
-    if (!servicoId) return setTemFormulario(false);
     let valeu = true;
-    api.formulariosDoServico(servicoId)
+    api.formulariosDoAgendamento(agendamentoId)
       .then(fs => { if (valeu) setTemFormulario(fs.length > 0); })
       .catch(() => { if (valeu) setTemFormulario(false); });
     return () => { valeu = false; };
-  }, [servicoId]);
+  }, [agendamentoId]);
 
   const gravar = async () => {
     setSalvando(true);
@@ -1410,7 +1408,7 @@ function FichaRespondida({ agendamentoId, servicoId, clienteId, aviso }) {
 
       {abrindo ? (
         <div style={{ marginBottom: 14 }}>
-          <Ficha servicoId={servicoId} clienteId={clienteId} valor={respostas}
+          <Ficha agendamentoId={agendamentoId} clienteId={clienteId} valor={respostas}
                  aoMudar={(formId, lista) => setRespostas(r => ({ ...r, [formId]: lista }))} />
           <div className="chips">
             <button className="btn btn-p btn-s" disabled={salvando} onClick={gravar}>

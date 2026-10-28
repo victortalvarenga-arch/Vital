@@ -7,7 +7,7 @@ import { escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
 import { comboCompleto, profissionaisDoCombo, ratearCombo, usosDe, valeNoDia } from '../lib/combos.js';
-import { formsDoServico, validarRespostas, gravarRespostas, respostasDoAgendamento } from '../lib/formularios.js';
+import { formsDoServico, formsDoAgendamento, validarRespostas, gravarRespostas, respostasDoAgendamento } from '../lib/formularios.js';
 import { enfileirarConfirmacao } from '../jobs/mensagens.js';
 import { pagamentoDe } from '../lib/pagamento.js';
 
@@ -42,6 +42,19 @@ function podeMexer(usuario, staffId) {
 }
 
 /* ── Disponibilidade ── */
+/**
+ * Os formulários que este atendimento pede — numa promoção, os do pacote
+ * inteiro, sem repetir (`formsDoAgendamento`). Mesma guarda das respostas.
+ */
+agendamentos.get('/:id/formularios', rota(async (req, res) => {
+  const a = await db.get('SELECT staff_id, service_id, combo_grupo FROM appointments WHERE id=?', req.params.id);
+  if (!a) return res.status(404).json({ erro: 'agendamento não encontrado' });
+  if (!podeMexer(req.usuario, a.staff_id)) {
+    return res.status(403).json({ erro: 'esta ficha não é de um atendimento seu' });
+  }
+  res.json(await formsDoAgendamento(a));
+}));
+
 /** As respostas de um agendamento. Quem atende precisa lê-las antes de começar. */
 agendamentos.get('/:id/respostas', rota(async (req, res) => {
   const a = await db.get('SELECT staff_id FROM appointments WHERE id=?', req.params.id);
@@ -67,7 +80,7 @@ agendamentos.get('/:id/respostas', rota(async (req, res) => {
  * é a mesma função do balcão, para não haver duas versões da mesma conferência.
  */
 agendamentos.post('/:id/respostas', rota(async (req, res) => {
-  const a = await db.get('SELECT id, staff_id, service_id, client_id FROM appointments WHERE id=?', req.params.id);
+  const a = await db.get('SELECT id, staff_id, service_id, client_id, combo_grupo FROM appointments WHERE id=?', req.params.id);
   if (!a) return res.status(404).json({ erro: 'agendamento não encontrado' });
   if (!podeMexer(req.usuario, a.staff_id)) {
     return res.status(403).json({ erro: 'esta ficha não é de um atendimento seu' });
@@ -77,7 +90,7 @@ agendamentos.post('/:id/respostas', rota(async (req, res) => {
   const jaRespondidos = new Set((await respostasDoAgendamento(a.id)).map(r => r.formulario));
   const gravar = [];
 
-  for (const form of await formsDoServico(a.service_id)) {
+  for (const form of await formsDoAgendamento(a)) {
     // Resposta dada não se edita (`REVOKE UPDATE` na migration 012): é o
     // registro do que a cliente declarou naquele dia. Responder de novo cria
     // outra linha, e a tela mostra as duas — corrigir é acrescentar, não

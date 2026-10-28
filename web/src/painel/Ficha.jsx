@@ -14,17 +14,19 @@ import { api } from '../shared/painel-api.js';
  * respondeu da última vez. No site isso não é possível — lá ela só é
  * identificada no fim.
  */
-export default function Ficha({ servicoId, clienteId, valor, aoMudar }) {
+export default function Ficha({ servicoId, agendamentoId, clienteId, valor, aoMudar }) {
   const [forms, setForms] = useState([]);
 
+  // Atendimento que já existe pergunta pelo agendamento: numa promoção, são as
+  // fichas do pacote inteiro. No balcão, antes de existir, pelo serviço.
   useEffect(() => {
-    if (!servicoId) return setForms([]);
+    if (!servicoId && !agendamentoId) return setForms([]);
     let valeu = true;
-    api.formulariosDoServico(servicoId)
+    (agendamentoId ? api.formulariosDoAgendamento(agendamentoId) : api.formulariosDoServico(servicoId))
       .then(fs => { if (valeu) setForms(fs); })
       .catch(() => { if (valeu) setForms([]); });
     return () => { valeu = false; };
-  }, [servicoId]);
+  }, [servicoId, agendamentoId]);
 
   // O que ela respondeu da última vez entra como sugestão, e só onde ainda não
   // se mexeu — quem já começou a preencher não pode ver o texto trocar sozinho.

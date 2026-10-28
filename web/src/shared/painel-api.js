@@ -152,6 +152,7 @@ export const api = {
     : req('/formularios', { method: 'POST', body: f }),
   removerFormulario: id => req(`/formularios/${id}`, { method: 'DELETE' }),
   formulariosDoServico: id => req(`/formularios/servico/${id}`),
+  formulariosDoAgendamento: id => req(`/agendamentos/${id}/formularios`),
   ultimaFicha: (formId, clienteId) => req(`/formularios/${formId}/ultima/${clienteId}`),
   respostasDoAgendamento: id => req(`/agendamentos/${id}/respostas`),
   // O histórico de anamneses de uma cliente. Rota própria e sob demanda: dado

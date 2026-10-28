@@ -117,13 +117,45 @@ export async function gravarRespostas(tx, { formId, agendamentoId, clienteId, it
   );
 }
 
-/** As respostas de um agendamento, para quem vai atender ver antes de começar. */
+/**
+ * Os formulários de um atendimento.
+ *
+ * Avulso, são os do serviço. Numa promoção (vários agendamentos com o mesmo
+ * `combo_grupo`), são os de TODOS os serviços do pacote, cada formulário uma
+ * vez só — decisão do dono em 2026-10-28. Antes a promoção pedia só a ficha
+ * do próprio horário, e a anamnese de limpeza + peeling aparecia duas vezes.
+ */
+export async function formsDoAgendamento(a) {
+  if (!a.combo_grupo) return formsDoServico(a.service_id);
+  const servicos = await db.all(
+    `SELECT DISTINCT service_id FROM appointments WHERE combo_grupo = ? ORDER BY service_id`, a.combo_grupo
+  );
+  const vistos = new Map();
+  for (const { service_id: id } of servicos) {
+    for (const f of await formsDoServico(id)) if (!vistos.has(f.id)) vistos.set(f.id, f);
+  }
+  return [...vistos.values()];
+}
+
+/** Os agendamentos que dividem a mesma ficha: o pacote inteiro, ou só ele. */
+async function doMesmoAtendimento(agendamentoId) {
+  const a = await db.get('SELECT id, combo_grupo FROM appointments WHERE id = ?', agendamentoId);
+  if (!a?.combo_grupo) return [agendamentoId];
+  return (await db.all('SELECT id FROM appointments WHERE combo_grupo = ?', a.combo_grupo)).map(x => x.id);
+}
+
+/**
+ * As respostas de um agendamento, para quem vai atender ver antes de começar.
+ * Numa promoção, as do pacote inteiro: a ficha respondida no primeiro horário
+ * vale para o segundo.
+ */
 export async function respostasDoAgendamento(agendamentoId) {
+  const ids = await doMesmoAtendimento(agendamentoId);
   const linhas = await db.all(
     `SELECT r.id, r.respostas, r.criado_em, f.nome
        FROM form_answers r JOIN forms f ON f.id = r.form_id
-      WHERE r.appointment_id = ? ORDER BY r.criado_em`,
-    agendamentoId
+      WHERE r.appointment_id IN (${ids.map(() => '?').join(',')}) ORDER BY r.criado_em`,
+    ...ids
   );
   return linhas.map(l => ({
     id: l.id, formulario: l.nome, quando: l.criado_em, respostas: l.respostas || [],
