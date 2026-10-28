@@ -7,6 +7,7 @@ import { hoje, addDias } from './lib/dates.js';
 import { prepararEmpresaPadrao, provisionarEmpresa } from './lib/provisionar.js';
 import { hashDaSenha } from './lib/auth.js';
 import { compactarFunil } from './jobs/funil.js';
+import { proximasDatas, HORIZONTE_DIAS } from './jobs/bloqueios.js';
 
 /** Senha das contas de desenvolvimento. Não vai para lugar nenhum além daqui. */
 const SENHA_DEV = 'vital1234';
@@ -428,6 +429,21 @@ async function oResto() {
     const dia = new Date(d + 'T12:00:00').getDay();
     if (dia >= 1 && dia <= 5) await bloqueio('s1', d, '12:00', '13:00', 'Almoço', almoco);
   }
+
+  // Toda segunda, das 8 às 9, sem data para acabar (migration 028): um ano de
+  // datas e a regra guardada, que o job da madrugada vai estendendo. Gerada
+  // pela mesma função do job, para o seed não ter uma terceira versão da conta.
+  const semFim = uid();
+  const regra = { repetir: 'semanal', diasSemana: [1], inicio: h };
+  const limite = addDias(h, HORIZONTE_DIAS);
+  for (const d of proximasDatas(regra, addDias(h, -1), limite)) {
+    await bloqueio('s2', d, '08:00', '09:00', 'Planejamento da semana', semFim);
+  }
+  await db.run(
+    `INSERT INTO bloqueio_series (serie, staff_id, hora_ini, hora_fim, motivo, obs, repetir, dias_semana, inicio, ate)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    semFim, 's2', '08:00', '09:00', 'Planejamento da semana', '', regra.repetir, regra.diasSemana, h, limite
+  );
 
   /* ── serviços adicionais ──────────────────────────────────────────────── */
   // Um extra que também se vende sozinho (design de sobrancelha na limpeza) e

@@ -63,6 +63,12 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `021_promocao_com_regras` | Começo, dias da semana, limite e pausa nas promoções; desconto gravado na venda |
 | `022_comissao_fixa` | A comissão padrão da profissional pode ser valor fixo por atendimento |
 | `023_conexoes` | Tokens do Google e do Instagram por empresa, cifrados e com RLS |
+| `024_redefinir_senha` | Pedido de nova senha do painel, com prazo e uso único |
+| `025_comissao_congelada` | A regra de comissão é gravada no atendimento ao concluir |
+| `026_atendente` | Atendente por IA: conversas, mensagens e revisão |
+| `027_registro_com_prazo` | `logs` guarda dois anos; uma função do banco poda o resto |
+| `028_bloqueio_sem_fim` | `bloqueio_series`: a regra do "nunca termina", que um job estende |
+| `029_comissao_dos_extras` | Cada extra paga a própria comissão, congelada na conclusão |
 
 ## Visão geral
 
@@ -952,6 +958,18 @@ concluídos, próximo cliente, recebido e previsto do dia), *o que precisa de mi
 (as **pendências**) e *como vai o negócio* (cartões do mês, gráfico de lucro por
 mês, ranking, e a grade do dia por profissional).
 
+**Ticket médio é o recebido dividido pelos atendimentos pagos** (concluídos com
+`pag_recebido > 0`), decisão do dono em 2026-10-28. Dividir por todos os
+concluídos puxava o número para baixo com atendimento ainda em aberto, que não
+pôs nada no numerador. O cartão "Atendimentos no mês" mostra o total e, embaixo,
+quantos foram feitos, quantos ainda estão marcados e quantos faltaram — ao lado
+de um ranking que conta só os feitos, o "4" sozinho parecia número errado.
+
+**O funil do site aparece no Resumo, só para o dono** (`GET
+/api/relatorios/funil`, com `exige('site')`): onde as visitas desistem, nos
+últimos 30 dias. A conta é a mesma do back-office (`funilDaEmpresa`, ver "Onde
+as pessoas somem"); a tela não divide nada.
+
 Cartões do mês: faturamento, atendimentos, ticket médio e faltas / cancelados —
 mais o **lucro do mês, só para o dono**. Lucro é o recebido (concluído e pago, a
 mesma base do faturamento) menos as comissões, cada uma arredondada em centavos
@@ -1578,6 +1596,11 @@ aparece, para a página e a janela concordarem sempre (`lugares()`, em
 Félix Heinzelmann" e a janela oferecendo "Centro" e "Zona Sul" — cliente que vê
 dois endereços diferentes desconfia do negócio inteiro.
 
+Com **uma unidade só**, o site mostra o endereço da config, e o da unidade pode
+estar diferente sem ninguém ver. A tela de Unidades avisa quando os dois
+divergem e oferece copiar um para o outro (decisão de 2026-10-28) — não
+sincroniza sozinha, porque não há como saber qual dos dois está certo.
+
 Arquivar uma unidade (`ativo = 0`) não apaga: a agenda antiga aponta para ela. E
 não desvincula a equipe sozinho — a resposta devolve quem ficou sem endereço,
 porque mover gente de loja é decisão de quem administra, não efeito colateral.
@@ -1704,6 +1727,13 @@ O recorte por papel é o mesmo dos dois lados: funcionário vê as fichas dos
 atendimentos que ele atendeu, e **quem filtra é a consulta**, não a tela —
 o que ele não pode ver nem chega a atravessar a rede.
 
+**A ficha de uma promoção é a do pacote inteiro** (decisão de 2026-10-28). A
+promoção vira um agendamento por serviço, ligados por `combo_grupo`;
+`formsDoAgendamento()` junta os formulários de todos os serviços do grupo, cada
+um uma vez, e `respostasDoAgendamento()` lê as respostas do grupo — respondida
+no primeiro horário, a anamnese vale para o segundo. A tela pergunta pelo
+atendimento (`GET /api/agendamentos/:id/formularios`), não pelo serviço.
+
 ## Horários fechados
 
 Almoço, folga, feriado, férias, reforma. É o outro lado da jornada: a jornada
@@ -1732,6 +1762,16 @@ O custo é escrever N linhas; para um mês de férias são vinte e poucas. A col
 semanas" ser um comando e não três. `?serie=1` no DELETE apaga o grupo — e a
 rota confere que o laço existe antes, senão pedir série num bloqueio avulso
 rodaria `WHERE serie IS NULL` e levaria junto todo avulso da empresa.
+
+**"Nunca termina" não termina** (migration 028, decisão de 2026-10-28). A tela
+manda as datas do primeiro ano e, junto, a regra (`continua`: diária, semanal
+com os dias, ou mensal a partir do início). A regra fica em `bloqueio_series`, e
+o job da madrugada (`jobs/bloqueios.js`, por empresa) cria as datas que faltam
+para a série ter sempre 12 meses à frente. Ele só cria depois de `ate`, a última
+já criada — por isso a ocorrência liberada à mão não volta. Liberar a série
+inteira apaga a regra junto, e uma série sem nenhuma data de pé perde a regra na
+passada seguinte. As três regras de repetição existem em dois lugares, a tela
+(`gerarDatas`) e o job (`proximasDatas`): mudar uma é mudar a outra.
 
 **Uma porta só.** Até outubro de 2026 a Agenda tinha a própria gaveta de
 **Bloquear horário** (um dia, um intervalo e um *Repetir* de quatro opções), e
@@ -1986,6 +2026,14 @@ explícito.
 A armadilha não é de `logs`: **qualquer tabela nova em `public` nasce com os
 quatro verbos liberados para a aplicação.** É o padrão certo para tabela de
 negócio e o errado para tabela que só cresce.
+
+**Dois anos, e depois sai** (migration 027, decisão de 2026-10-28). Dois anos
+respondem a qualquer "quem mexeu nisso no ano passado?". A aplicação continua
+sem DELETE em `logs`; quem poda é `plataforma.podar_registro()`, `SECURITY
+DEFINER`, que só alcança o que passou do prazo e recusa prazo menor que um ano
+— um valor errado no ambiente não vira "apaga o registro de ontem". Roda toda
+madrugada (`jobs/registro.js`), para todas as empresas de uma vez, como a
+compactação do funil.
 
 ## Suporte
 

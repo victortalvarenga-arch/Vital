@@ -21,13 +21,13 @@ colors:
   painel-uv-claro: "#ECE8F8"
   painel-warn-claro: "#FBF0DF"
   painel-warn-texto: "#8A6410"
-  vital-ink: "#17141C"
+  vital-ink: "#1D2A23"
   vital-paper: "#FFFFFF"
-  vital-ground: "#F6F4F8"
-  vital-line: "#E4E0EA"
-  vital-muted: "#6D6678"
-  vital-purple: "#4B2E83"
-  vital-purple-soft: "#F0EAFA"
+  vital-ground: "#F7F5EF"
+  vital-line: "#E3DFD4"
+  vital-muted: "#5C6A62"
+  vital-green: "#2D5E48"
+  vital-green-soft: "#E4EEE6"
   vital-ok: "#2E7D5B"
   vital-warn: "#8A5A00"
   vital-error: "#8A2B2B"
@@ -218,7 +218,7 @@ components:
     backgroundColor: "{colors.painel-paper}"
     rounded: "{rounded.painel-lg}"
   vital-button-primary:
-    backgroundColor: "{colors.vital-purple}"
+    backgroundColor: "{colors.vital-green}"
     textColor: "#FFFFFF"
     rounded: "{rounded.vital-sm}"
     padding: "12px 16px"
@@ -259,7 +259,7 @@ components:
 
 Vital is not one interface wearing three skins — it is three coherent, independently-evolved visual systems, each serving a public that never sees the other two. The product's own architecture forces this: site, painel and `vital.html` are separate Vite bundles, separate CSS files, separate audiences, and the codebase already gives two of the three systems descriptive token names (`porcelain`, `lacquer`, `blush`, `ink`) that read like they were designed on purpose, not defaulted into.
 
-Two of the three are **ledgers** — fixed, opinionated, unapologetically branded design languages that exist regardless of which tenant is using the product. **The Atelier Ledger** (painel) is warm, serif-headlined, porcelain-and-lacquer, built for a person who opens it fifty times a day from a phone at the counter. **The Plain Ledger** (`vital.html`) is the same record-keeping instinct with the warmth stripped out — purple, Inter, mostly borders, because this is where the Vital *team* administers other people's businesses and the tone is administrative trust, not hospitality.
+Two of the three are **ledgers** — fixed, opinionated, unapologetically branded design languages that exist regardless of which tenant is using the product. **The Atelier Ledger** (painel) is warm, serif-headlined, porcelain-and-lacquer, built for a person who opens it fifty times a day from a phone at the counter. **The Plain Ledger** (`vital.html`) is the same record-keeping instinct with the warmth stripped out — the brand green, IBM Plex, mostly borders, because this is where the Vital *team* administers other people's businesses and the tone is administrative trust, not hospitality.
 
 The third is **The Blank Canvas** (site) — the one system in the product whose primary color is not a design decision at all. `--marca` arrives at runtime from the tenant's own config; the system's real signature is everything that *doesn't* change: the pill-shaped buttons, the circular photo grid, the 14px corner radius, the slow zoom-in on the cover photo. Site is the only surface designed to be worn by a color it doesn't choose.
 
@@ -300,17 +300,19 @@ Three independent palettes. None is a variant of another — treat a color reque
 **The Unused-Token Rule.** `--gold` (`#A98243`) is declared in `:root` and used nowhere. Don't treat its presence as license to start using an unreviewed color; either give it a real job or leave it retired.
 
 ### Vital — The Plain Ledger
-- **Ink** (`#17141C`): primary text — darker and cooler than painel's ink, with no warmth in it.
-- **Paper** (`#FFFFFF`) / **Ground** (`#F6F4F8`): surface and page background, the same porcelain-adjacent relationship as painel but desaturated toward gray instead of warm.
-- **Line** (`#E4E0EA`): borders and dividers — the system's only structural device, since Vital rarely uses shadow.
-- **Muted** (`#6D6678`): secondary text.
-- **Purple** (`#4B2E83`): the single fixed accent — buttons, active tab, links, the plan-badge chip. This is Vital's own brand, distinct from any tenant's `--marca`, and it never appears on the site or painel of a tenant.
-- **Purple, Soft** (`#F0EAFA`): accent-tinted background for the active tab and the confirmation badge circle.
+**One brand, green** (owner's decision, 2026-10-28). The back-office was purple (`#4B2E83`) while the showcase page was green; logo, favicon and e-mail needed a single color, and the one people outside see won. The back-office now takes the showcase's paper, ink and green; its layout and type (IBM Plex) are unchanged.
+
+- **Ink** (`#1D2A23`): primary text, the showcase's green-black.
+- **Paper** (`#FFFFFF`) / **Ground** (`#F7F5EF`): surface and page background, the showcase's paper.
+- **Line** (`#E3DFD4`): borders and dividers — the system's only structural device, since Vital rarely uses shadow.
+- **Muted** (`#5C6A62`): secondary text.
+- **Green** (`#2D5E48`): the single fixed accent — buttons, active tab, links, the plan-badge chip. This is Vital's own brand, distinct from any tenant's `--marca`, and it never appears on the site or painel of a tenant.
+- **Green, Soft** (`#E4EEE6`): accent-tinted background for the active tab and the confirmation badge circle.
 - **Ok** (`#2E7D5B`) / **Warn** (`#8A5A00`) / **Error** (`#8A2B2B`): status-only, desaturated relative to painel's equivalents to match the quieter overall palette.
 
 ### Vital — The Showcase (página de apresentação)
 
-The front door of `vital.html` (`Inicio.jsx`, `inicio.css`, prefix `lp-`) is the one place Vital *sells*, and it does not wear the Plain Ledger. It was drawn from a reference the user brought (Oct/2026): paper ground, deep green, one clay accent, serif headlines. The back-office keeps its purple; the two never share a stylesheet. Whether the purple should eventually follow is an open brand decision (ROADMAP, "Achados").
+The front door of `vital.html` (`Inicio.jsx`, `inicio.css`, prefix `lp-`) is the one place Vital *sells*, and it does not wear the Plain Ledger. It was drawn from a reference the user brought (Oct/2026): paper ground, deep green, one clay accent, serif headlines. The two never share a stylesheet, but since 2026-10-28 they share the palette: the back-office took this page's green, paper and ink (see "Vital — The Plain Ledger").
 
 - **Paper** (`#F7F5EF`) / **White** (`#FFFFFF`): page ground and card surface.
 - **Ink** (`#1D2A23`, a green-black) / **Muted** (`#5C6A62`, 5.2:1 on paper, 4.8:1 on the light green band): text.
@@ -560,7 +562,7 @@ Site carries two shadow vocabularies now, used for different jobs. `--sombra` (`
 
 ### Buttons
 - **Painel:** pill radius (999px), `padding: 11px 18px`. Primary (`.btn-p`) is lacquer-on-white; dark (`.btn-d`) is ink-on-porcelain for a secondary emphasis tier; ghost (`.btn-g`) is a bordered paper button; a WhatsApp-green variant (`.btn-wa`, `#1f9d55`) exists specifically for the "send via WhatsApp" action and is the one hardcoded off-palette color in the system, justified because it borrows WhatsApp's own brand recognition rather than Vital's.
-- **Vital:** 9px radius, full-width by default (`.v-btn`), purple-on-white, `filter: brightness(1.1)` on hover rather than a second named color — the only surface that uses a filter instead of a discrete hover token.
+- **Vital:** 9px radius, full-width by default (`.v-btn`), green-on-white, `filter: brightness(1.1)` on hover rather than a second named color — the only surface that uses a filter instead of a discrete hover token.
 - **Site:** pill radius, `min-height: 48px` (a hard floor for comfortable touch, not a suggestion), primary is tenant-accent-on-white-text; secondary (`.b-c`) is bordered, turning accent-colored border+text on hover.
 - **Site — Clínica:** same pills, different voice — every `.b` goes 11px / 700 / `.15em` / uppercase, inside the booking window too, and lifts `translateY(-2px)` on hover (`.18s ease`) instead of only shifting color. One extra variant, **gold** (`.clinica-cta-ouro`: `--ouro-claro` fill, `--texto` on top, `brightness(1.04)` on hover), used in exactly two places: the hero's "Agende seu horário" and the WhatsApp FAB. Every other filled button — the top bar's "Agendar", the Agende card's CTA, "Seguir no Instagram" — is the ordinary `.b-p` in the tenant's `--marca-escura`. Beside the gold CTA sits a **text link** (`.clinica-cta-link`, "Conheça os serviços", same uppercase voice, inherits the band's white, gold on hover), so the hero offers one action and one glance, not two buttons; the same link, in `--texto` with gold hover, closes the services section ("Falar no WhatsApp", only when the tenant has a number). The service cards carry **no visible button at all**: the card is the button (a transparent `.cartao-acao` stretched over it, with an `aria-label`), and the 36px "+" circle in the photo's corner is the only cue — as in the reference.
 
@@ -596,7 +598,7 @@ Site carries two shadow vocabularies now, used for different jobs. `--sombra` (`
 
 ### Navigation
 - **Painel:** dark (ink) fixed sidebar ≥900px, slide-in drawer + sticky top bar below it. Active item gets a solid lacquer pill background; hover gets a translucent porcelain wash (`rgba(251,246,244,.08)`).
-- **Vital:** a flat top bar with pill-style tab buttons (`.v-abas button.on`: purple-soft background, purple text) — no sidebar; Vital's information architecture is shallow enough not to need one.
+- **Vital:** a flat top bar with pill-style tab buttons (`.v-abas button.on`: green-soft background, green text) — no sidebar; Vital's information architecture is shallow enough not to need one.
 - **Site:** a single floating top bar that starts transparent-over-cover-photo (white text, dark scrim) and solidifies (`--fundo` background, bottom border) after 120px of scroll — the only navigation in the system with a scroll-driven state change.
 - **Site — Clínica:** the same bar, born solid (`temCapa` is forced false — there is no cover strip to float over, the portrait lives inside the hero), and restyled: cream at 94% with a 10px `backdrop-filter` blur, a 70%-alpha line beneath, no shadow; the tenant's name at 12.5px uppercase `.22em` **and no logo mark** — the 30px circle the other models show is unreadable at that size and the client asked for it out, so the tracked name is the bar's mark, as in the reference; and, from 900px, an **anchor nav** (Serviços / Equipe / Avaliações / Instagram / Contato — only the sections that rendered for this tenant, so no link points at a missing `id`) at 11px uppercase `--cinza`, gold on hover. Below 900px the nav hides and the bar keeps only "Falar" and the "Agendar" pill.
 

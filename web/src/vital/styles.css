@@ -12,14 +12,17 @@
    sistema em silêncio) ao lado de uma mono de família diferente. */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
+/* Uma marca só, verde (decisão do dono, 2026-10-28): os mesmos valores da
+   página de apresentação (`inicio.css`). O back-office era roxo, e logo,
+   favicon e e-mail precisavam de uma cor. */
 :root {
-  --v-tinta: #17141C;
+  --v-tinta: #1D2A23;
   --v-papel: #FFFFFF;
-  --v-fundo: #F6F4F8;
-  --v-linha: #E4E0EA;
-  --v-fraco: #6D6678;
-  --v-marca: #4B2E83;
-  --v-marca-clara: #F0EAFA;
+  --v-fundo: #F7F5EF;
+  --v-linha: #E3DFD4;
+  --v-fraco: #5C6A62;
+  --v-marca: #2D5E48;
+  --v-marca-clara: #E4EEE6;
   --v-ok: #2E7D5B;
   --v-alerta: #8A5A00;
   --v-erro: #8A2B2B;

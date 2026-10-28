@@ -821,24 +821,6 @@ na conversa se perde na próxima sessão.
 
 Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
-**Decididos pelo dono em 2026-10-28, em execução** (cada um sai daqui e da
-lista abaixo quando estiver feito, com a decisão migrada para
-`ARQUITETURA.md` ou `DESIGN.md`):
-1. Cor de "faltou" e "em atendimento" na grade: segue a etiqueta (violeta e
-   azul do `DESIGN.md`); a borda esquerda é sempre de quem é o horário.
-2. Marca da Vital: tudo verde — o back-office deixa o roxo.
-3. Extras: cada um paga a própria comissão (sem a dele, a do profissional);
-   pagamento parcial divide na proporção do preço de cada parte.
-4. Bloqueio "Nunca termina": um job estende a série sozinho.
-5. Ticket médio: recebido ÷ atendimentos concluídos **e pagos**.
-6. Resumo: o cartão do mês mostra o total e separa "feitos · marcados"; o
-   ranking diz que conta só feitos.
-7. Promoção pede a ficha de todos os serviços do pacote, sem repetir.
-8. Unidade única com endereço diferente do site: a tela de Unidades avisa e
-   oferece copiar.
-9. `logs` guarda 2 anos; uma rotina poda o resto toda madrugada.
-10. O funil da empresa aparece no Resumo, só para o dono.
-
 ### Banco
 
 - [ ] **O branch `dev` e o `production` da Neon não são distinguíveis pela URL
@@ -855,9 +837,6 @@ lista abaixo quando estiver feito, com a decisão migrada para
       tabela de negócio e o errado para tabela que só cresce — `logs` precisou de
       um `REVOKE` explícito, e o teste é que pegou. Ao criar tabela de histórico,
       lembrar de revogar.
-- [ ] `logs` cresce para sempre e nada a poda. Com uma empresa movimentada são
-      milhares de linhas por mês. Decidir prazo de retenção antes de virar
-      problema de espaço.
 - [x] ~~`funil` cresce junto, e mais rápido que `logs`.~~ Resolvido na
       migration 016: o dia antigo vira uma linha em `funil_diario` e o cru sai,
       com a série histórica inteira preservada. O detalhe que o desenho
@@ -866,35 +845,12 @@ lista abaixo quando estiver feito, com a decisão migrada para
 
 ### Produto
 
-- [ ] **As cores de estado da grade da Agenda não batem com as das etiquetas.**
-      O `DESIGN.md` diz que falta é violeta (`#EEE8F6`/`#5B3E93`) e "em
-      atendimento" é `#E4EDF6`; na grade, `.appt.falta` pinta de vermelho
-      (`#F3E6E6`, borda `#B4483F`, por cima da borda que diz de quem é o
-      horário) e `.appt.agora` usa `#EAF2F9`. Achado na revisão de CSS do
-      painel (2026-10-28) e deixado como estava: é a leitura de relance da
-      semana, e mudar pede olhar a grade cheia. Decidir qual dos dois vale.
-- [ ] **A marca da Vital tem duas cores.** A página de apresentação (out/2026)
-      nasceu verde, com títulos em serifa, a partir de uma referência que o dono
-      trouxe; o back-office (`#equipe`) continua roxo `#4B2E83`. Quem cria a
-      conta não vê o back-office, então ninguém de fora estranha hoje — mas
-      logo, favicon e e-mail precisam de uma cor só. Decidir se o roxo segue o
-      verde. Ver `DESIGN.md`, "Vital — The Showcase".
 - [ ] **A função antiga da profissional ainda é o reserva da seção Equipe.**
       Desde 2026-10-27 a linha embaixo do nome é escrita em Site da cliente →
       Equipe (`config.equipeSite`), e vence; sem ela, a vitrine ainda usa
       `staff.funcao`, que não se edita mais em lugar nenhum. Quem tinha função
       continua com ela até escrever a linha nova. Quando ninguém mais depender
       disso, tirar o reserva de `routes/publico.js`.
-- [ ] **Extras pagam a comissão do serviço principal.** O atendimento inteiro,
-      adicionais incluídos, usa a taxa do serviço principal. Se o extra tiver
-      comissão diferente, ela é ignorada. Dividir certo exige decidir a que
-      parte do atendimento um pagamento parcial se refere.
-- [ ] **Bloqueio que "nunca termina" termina em 12 meses, sem aviso.** Com uma
-      linha por data (migration 013), o *Nunca* do formulário de Fechar
-      horários cria os próximos 365 dias, e a tela diz isso só na hora de
-      criar. Passado um ano, a folga semanal some e a agenda volta a oferecer
-      o horário. Precisa de um alerta no Resumo quando um recorrente estiver a
-      um mês do fim, ou de um job que estenda a série.
 - [ ] **Horas diferentes por dia viram duas criações.** O formulário novo de
       bloqueio tem um horário só para todos os dias marcados; o antigo montava
       uma lista de faixas ("seg e qua 8–10, sex 14–16") de uma vez. Se aparecer
@@ -907,10 +863,6 @@ lista abaixo quando estiver feito, com a decisão migrada para
       linha por recebimento, com forma e valor), que também daria o histórico
       sem depender do `logs` — custa RLS, rota e mudar de novo toda consulta de
       dinheiro, e por isso ficou para quando o caso aparecer de verdade.
-- [ ] Combo não pede formulário. São vários serviços, e cada um poderia pedir o
-      seu — precisa decidir se pergunta a união de todos ou só o do primeiro.
-      Menos urgente desde que a ficha saiu do site (2026-09-23): quem responde
-      é a profissional, e ela vê o que cada serviço pede no painel.
 
 - [ ] **Nada avisa que um atendimento está com a ficha pendente.** Desde que a
       anamnese saiu do site, todo agendamento online nasce sem ela, e a
@@ -938,19 +890,12 @@ lista abaixo quando estiver feito, com a decisão migrada para
       percorrer o fluxo inteiro — incluindo o "tirar dúvida" e o botão
       flutuante, que saem do webview para o app do WhatsApp e podem não voltar.
 
-
 - [ ] **`npm run reset` com o `npm run dev` rodando deixa o servidor com cache
       de empresa velho.** O id da Barbearia é sorteado a cada reset, e o
       processo em execução continua com a lista antiga por alguns segundos — o
       site abre como a empresa padrão ("Meu negócio", sem catálogo) e parece
       que o seed falhou. Passa sozinho, mas custa um susto; `esquecerCacheDeEmpresas()`
       existe e só é chamado nos testes.
-
-- [ ] **Unidade com endereço diferente da config, quando é a única.** Com uma
-      unidade só, o site mostra `config.endereco` (regra de `lugares()`), e a
-      unidade pode ter outro endereço gravado — nada avisa. Caso raro (quem
-      tem uma loja não cadastra unidade), mas o painel poderia esconder a tela
-      de Unidades até a segunda, ou sincronizar os dois.
 
 - [ ] **O fechamento automático pode mandar mensagem para quem não veio.** Se
       ninguém marcar a falta, o sistema conclui o atendimento e a cliente
@@ -968,20 +913,12 @@ lista abaixo quando estiver feito, com a decisão migrada para
       posição do ponteiro em horário no arrastar-para-remarcar — mexer nelas
       sem cuidado desalinha o solto do agarrado.
 
-- [ ] **Três vermelhos claros sem nome.** `#F8E7E7`, `#F7EFEF` e `#F3E6E6` são
-      o fundo suave do mesmo estado de erro, em valores quase iguais e
-      escritos à mão. `--erro` acabou de nascer para o tom forte; falta
-      decidir se os três viram um `--erro-claro` só — o que muda pixel em três
-      telas, e por isso não entrou junto.
-
-
 - [ ] **Imagem que falha no site não deixa rastro nenhum.** Nenhum `<img>` do
       bundle tem `onError`, então URL quebrada vira caixa vazia — no antes e
       depois é pior, porque os rótulos "Antes"/"Depois" dão lugar à foto e não
       sobra nem texto. Indistinguível de seção sem conteúdo, tanto para quem
       visita quanto para quem está depurando. Um `onError` que volte ao rótulo
       resolveria os dois casos.
-
 
 ### Cobertura de teste
 
@@ -1006,11 +943,6 @@ lista abaixo quando estiver feito, com a decisão migrada para
 
 ### Produto
 
-- [ ] **`ticketMedio` divide o recebido (só o pago) por TODOS os concluídos**,
-      pagos ou não (`relatorios.js`, `/resumo`). Um atendimento concluído e ainda
-      em aberto entra no denominador e não no numerador, e o ticket médio sai
-      menor do que é. Definir se a base é "concluído e pago" (coerente com o
-      faturamento) e testar. Notado ao montar o Resumo de mês/ano.
 - [ ] **"Custos" no Financeiro são só as comissões.** Não há cadastro de despesa
       — aluguel, produto, conta de luz, taxa da maquininha —, então o "Lucro" da
       tela é receita menos comissões, e nenhuma empresa fecha o mês por ele. O
@@ -1084,10 +1016,6 @@ lista abaixo quando estiver feito, com a decisão migrada para
 
 ### Operação
 
-- [ ] **No Resumo, "Atendimentos no mês" e o ranking contam coisas
-      diferentes.** Com 1 concluído e 3 agendados, o cartão diz 4 e o ranking
-      diz "1 atendimento". Os dois podem estar certos, mas nenhum diz o que
-      conta. Achado em 2026-10-10.
 - [ ] **Abrir o painel traz todas as clientes e 120 dias de agenda.** O
       `/api/estado` é uma resposta só com `SELECT * FROM clients` inteiro e os
       agendamentos desde 120 dias atrás, mais os vínculos e modelos. Com a
@@ -1127,13 +1055,6 @@ lista abaixo quando estiver feito, com a decisão migrada para
       Vital como provedora de tecnologia. Enquanto isso, o modo `manual`
       (links `wa.me`) é o único que serve a mais de uma empresa. Notado em
       2026-10-09.
-- [ ] **O funil só existe no back-office da Vital; a empresa não vê o dela.**
-      É o dono que decide mexer no próprio site, e hoje o número que diria
-      "você perde 70% na abertura do agendamento" está só do nosso lado.
-      `funilDaEmpresa()` em `lib/funil.js` já devolve isso pronto, dentro do
-      contexto da empresa — falta a rota no painel e um lugar na tela de
-      Resumo. Foi deixado de fora de propósito: a primeira pergunta era
-      nossa ("a tela de agendamento funciona?"), e a dela vem depois.
 - [ ] Não há como importar. Empresa que chega de outro sistema, de planilha ou
       de caderno precisa redigitar clientes e agendamentos futuros um a um —
       atrito justamente no "se configura sozinha" do cadastro self-service. A
