@@ -23,6 +23,15 @@ export default function Unidades({ dados, acao, aviso }) {
   const unidades = dados.unidades || [];
   const semUnidade = dados.staff.filter(p => p.ativo && !p.unidadeId);
 
+  // Com um endereço só, o site mostra o da config (`lugares()`, em
+  // site/enderecos.js), não o da unidade. Os dois divergindo passava calado:
+  // a dona corrigia aqui e o site continuava com o antigo.
+  const siteEndereco = (dados.config.endereco || '').trim();
+  const comEndereco = unidades.filter(u => u.ativo && u.endereco?.trim());
+  const igual = (a, b) => a.toLowerCase().replace(/\s+/g, ' ') === b.toLowerCase().replace(/\s+/g, ' ');
+  const unica = comEndereco.length === 1 && !igual(comEndereco[0].endereco.trim(), siteEndereco)
+    ? comEndereco[0] : null;
+
   const arquivar = async u => {
     if (!confirm(`Tirar "${u.nome}" do ar?\n\nOs atendimentos que aconteceram lá continuam no histórico.`)) return;
     try {
@@ -83,6 +92,28 @@ export default function Unidades({ dados, acao, aviso }) {
           );
         })}
       </div>
+
+      {unica && (
+        <div className="card und-diferente" role="status">
+          <p>
+            Com uma unidade só, o site mostra o endereço de <b>Site da cliente</b>
+            {siteEndereco ? <> (“{siteEndereco}”)</> : ' — que está vazio'}, e não o
+            desta unidade (“{unica.endereco}”). Qual está certo?
+          </p>
+          <div className="und-diferente-btns">
+            <button className="btn btn-p btn-s"
+                    onClick={() => acao(() => api.salvarConfig({ endereco: unica.endereco }), 'Endereço do site atualizado')}>
+              Usar o da unidade no site
+            </button>
+            {siteEndereco && (
+              <button className="btn btn-g btn-s"
+                      onClick={() => acao(() => api.salvarUnidade({ ...unica, endereco: siteEndereco }), 'Unidade atualizada')}>
+                Usar o do site na unidade
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {unidades.some(u => u.ativo) && semUnidade.length > 0 && (
         <p className="add-ajuda" style={{ marginTop: 14 }}>

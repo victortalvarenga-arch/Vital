@@ -695,6 +695,11 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   background:var(--blush); color:var(--lacquer-d)}
 .und-tag{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
   margin-left:8px; padding:2px 7px; border-radius:7px; background:var(--line); color:var(--muted)}
+/* Aviso, não erro: os dois endereços podem estar certos, só um aparece. */
+.und-diferente{margin-top:14px; padding:14px 16px; background:var(--warn-claro); border-color:transparent;
+  color:var(--warn-texto); font-size:13.5px}
+.und-diferente p{margin:0 0 10px}
+.und-diferente-btns{display:flex; gap:8px; flex-wrap:wrap}
 /* total e duração do encaixe, calculados em vez de digitados */
 .encaixe-conta{display:flex; justify-content:space-between; align-items:baseline;
   background:var(--blush); color:var(--lacquer-d); border-radius:10px;
