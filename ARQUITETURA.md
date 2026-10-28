@@ -951,12 +951,36 @@ algum valor. Era "clique na forma marcada", e quem o fechamento automático
 quitou fica com a forma `'local'`, que não tem chip — o caso em que mais se
 quer desfazer não tinha como.
 
-**O Resumo (tela inicial) responde três perguntas, de cima para baixo, na ordem
-em que alguém abre o painel de manhã**: *como está o dia agora* (saudação pelo
-nome, os atalhos, e o bloco **Hoje** — barra de quantos atendimentos já foram
-concluídos, próximo cliente, recebido e previsto do dia), *o que precisa de mim*
-(as **pendências**) e *como vai o negócio* (cartões do mês, gráfico de lucro por
-mês, ranking, e a grade do dia por profissional).
+**O Resumo (tela inicial) começa pela próxima cliente** (revisão de UX de
+2026-10-28). Quem abre o painel quarenta vezes por dia, no balcão, quer saber
+quem é a próxima e dar o passo dela — e isso pedia Menu → Agenda → bloco →
+gaveta. De cima para baixo:
+1. **A próxima cliente**, grande, com o botão do passo dela ("Confirmar" ou
+   "Cliente chegou") e, acima, quem está na cadeira com "Concluir". É o mesmo
+   passo da gaveta: as duas telas usam `FLUXO` e `mudarSituacao()`
+   (`painel/fluxo.js`), com o aviso "Maria: faltou" e o botão **Desfazer**.
+2. **Hoje** (feitos, recebido, previsto), as **pendências**, os atalhos, o resto
+   do dia e a grade por profissional.
+3. **O mês recolhido** — faturamento, lucro, ticket, gráfico, ranking e funil.
+   Aberto por padrão na tela larga, a um toque no celular; a escolha fica no
+   `localStorage` do aparelho, como conveniência.
+
+Empresa sem nenhum atendimento vê **Primeiros passos** (conferir o site, copiar
+o link, marcar o primeiro horário) no lugar dos zeros; some sozinho quando o
+primeiro agendamento existir.
+
+**O menu é agrupado pelo uso, não pelo tipo de coisa.** Dia a dia (Resumo,
+Agenda, Clientes, Financeiro, WhatsApp), Cadastros (Serviços, Promoções,
+Profissionais, Horários fechados) e **Ajustes**, recolhido, que abre sozinho
+quando a tela aberta é dele. Eram 18 itens abertos. No celular há uma barra no
+rodapé (Resumo, Agenda, "+", Clientes, Mais); `--p-rodape` é a altura dela, e o
+que fica fixo embaixo (avisos, barra de salvar) sobe junto. O "+" manda o
+pedido `'novo'` para a Agenda, que reage a cada pedido, inclusive já aberta.
+
+**Falta e conclusão têm volta.** Um toque errado entre uma cliente e outra
+registrava falta sem desfazer à mão; agora o aviso traz **Desfazer** por seis
+segundos, e "Marcar falta" fica embaixo e menor, longe do botão principal. A
+correção posterior continua no "Alterar" da gaveta.
 
 **Ticket médio é o recebido dividido pelos atendimentos pagos** (concluídos com
 `pag_recebido > 0`), decisão do dono em 2026-10-28. Dividir por todos os

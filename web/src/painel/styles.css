@@ -30,11 +30,13 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 
 /* botões */
 .btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px 18px; border-radius:999px;
-  font-size:14px; font-weight:600; transition:.16s; white-space:nowrap}
+  font-size:14px; font-weight:600; transition:background-color .16s, border-color .16s, color .16s; white-space:nowrap}
+/* Link com cara de botão ("Abrir o site"): sem o azul sublinhado do navegador. */
+a.btn{text-decoration:none}
 .btn-p{background:var(--lacquer); color:#fff}
 .btn-p:hover{background:var(--lacquer-d)}
 .btn-p:disabled{background:var(--line); color:var(--muted); cursor:not-allowed}
-.btn-g{border:1px solid var(--line); background:var(--paper)}
+.btn-g{border:1px solid var(--line); background:var(--paper); color:var(--ink)}
 .btn-g:hover{border-color:var(--ink); }
 .btn-d{background:var(--ink); color:var(--porcelain)}
 .btn-d:hover{background:var(--ink2)}
@@ -1239,7 +1241,8 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 /* A barra cresce por escala, não por largura: animar width refaz o layout. */
 .rs-prog-feito{height:8px; background:var(--lacquer); transform:scaleX(var(--feito, 0));
   transform-origin:left; transition:transform .3s}
-.rs-hoje-numeros{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px}
+.rs-hoje-numeros{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-top:14px}
+.rs-prog + .rs-hoje-numeros{margin-top:0}
 .rs-hoje-numeros > div{display:flex; flex-direction:column; gap:4px;
   padding:12px 14px; border:1px solid var(--line); border-radius:12px}
 .rs-hoje-numeros b{font-size:16px; font-weight:600}
@@ -1563,6 +1566,11 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
   background:var(--paper)}
 .at-status .eyebrow{display:block; margin-bottom:6px}
 .at-todos{margin:-4px 0 14px}
+/* A observação da cliente: o que quem atende precisa ler antes de começar. */
+.at-obs{display:flex; gap:9px; align-items:flex-start; padding:12px 14px; margin-bottom:16px;
+  border-radius:12px; background:var(--warn-claro); color:var(--warn-texto); font-size:13.5px}
+.at-obs svg{flex:none; margin-top:1px}
+.encaixe-pausa{font-style:normal; color:var(--muted)}
 /* As cores do fluxo: amarelo espera, verde confirmado, azul acontecendo agora,
    verde-escuro feito, roxo falta. Estado é o único eixo do painel que usa mais
    de um matiz — pessoas e categorias seguem em tons de uma cor só. */

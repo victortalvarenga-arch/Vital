@@ -76,7 +76,13 @@ export default function Bloqueios({ dados, aviso, poderes, acao, pedido, aoConsu
   const [criando, setCriando] = useState(
     pedido?.novo ? { data: pedido.data && pedido.data > hoje ? pedido.data : hoje } : null
   );
-  useEffect(() => { if (pedido) aoConsumirPedido?.(); }, []);
+  // Também com a tela já aberta (o atalho do Resumo e da Agenda chega aqui
+  // de novo): cada pedido novo abre o formulário, e é consumido.
+  useEffect(() => {
+    if (!pedido) return;
+    if (pedido.novo) setCriando({ data: pedido.data && pedido.data > hoje ? pedido.data : hoje });
+    aoConsumirPedido?.();
+  }, [pedido, aoConsumirPedido, hoje]);
 
   // A grade da Agenda lê os bloqueios do estado geral do painel, não desta
   // lista: sem recarregar lá, o que se fecha aqui só aparece na Agenda depois

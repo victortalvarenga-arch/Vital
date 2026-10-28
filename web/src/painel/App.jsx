@@ -36,7 +36,7 @@ import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
   Store, Bell, Megaphone, TriangleAlert, ExternalLink, Menu, Globe,
-  LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
+  LogOut, KeyRound, Ban, Tag, StickyNote, MapPin as MapPinIcon, ScrollText,
   ClipboardList, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
@@ -446,8 +446,15 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   const [entrada, setEntrada] = useState('');
   /** Abrir outro atendimento zera o campo: valor digitado não se herda. */
   const abrirAtendimento = a => { setEntrada(''); setTrocandoStatus(false); setSel(a); };
-  // O pedido vale para esta montagem só; `novo` já nasceu com ele acima.
-  useEffect(() => { if (pedido) aoConsumirPedido(); }, []);
+  // O pedido também chega com a Agenda já aberta: o "+" da barra do celular
+  // é tocado de dentro dela. Por isso reage a cada pedido novo, e não só ao
+  // montar — antes, o "+" na própria Agenda não fazia nada. Consumido, some.
+  useEffect(() => {
+    if (!pedido) return;
+    if (pedido === 'novo') setNovo(true);
+    if (pedido === 'lista') setAba('lista');
+    aoConsumirPedido();
+  }, [pedido, aoConsumirPedido]);
 
   // Como se está olhando. `aba` escolhe a forma (grade, lista, recepção) e
   // `escala` o tamanho do recorte. Recepção não tem escala: é sempre o dia, que
@@ -958,7 +965,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                 ))}
               </div>
             )}
-            {c?.obs && <div className="card" style={{ padding: 12, fontSize: 13, marginBottom: 16, background: '#FFFBEE', borderColor: '#EBDFAE' }}>📌 {c.obs}</div>}
+            {c?.obs && <div className="at-obs"><StickyNote size={15} aria-hidden="true" /><span>{c.obs}</span></div>}
 
             <div className="at-secao">
               <span className="eyebrow">Cliente</span>
@@ -1114,6 +1121,10 @@ function NovoAgendamento({ dados, acao, data, fechar }) {
   const duracao = ehCombo
     ? (combo?.duracao || 0)
     : (svc ? svc.duracao + (svc.intervalo || 0) + extras.reduce((n, x) => n + x.duracao + (x.intervalo || 0), 0) : 0);
+  // O intervalo entra na duração (ocupa a agenda), mas o serviço diz 30 min
+  // e a conta dizia 35 sem explicar: o rodapé passa a dizer de onde vem.
+  const pausa = ehCombo || !svc ? 0
+    : (svc.intervalo || 0) + extras.reduce((n, x) => n + (x.intervalo || 0), 0);
   const total = ehCombo
     ? (combo?.preco || 0)
     : (svc ? Number(svc.preco) + extras.reduce((n, x) => n + Number(x.preco), 0) : 0);
@@ -1269,7 +1280,7 @@ function NovoAgendamento({ dados, acao, data, fechar }) {
           mão e errava. */}
       {duracao > 0 && (
         <div className="encaixe-conta">
-          <span>{duracao} min</span>
+          <span>{duracao} min{pausa > 0 && <i className="encaixe-pausa"> · com {pausa} de intervalo</i>}</span>
           <b className="mono">{brl(total)}</b>
         </div>
       )}
@@ -1553,7 +1564,7 @@ function Clientes({ dados, acao, aviso }) {
             </div>
             <div className="card" style={{ padding: 14, fontSize: 13.5, lineHeight: 1.7, marginBottom: 16 }}>
               <div><MapPin size={13} style={{ verticalAlign: -2 }} /> {sel.end || 'Endereço não informado'}</div>
-              {sel.obs && <div style={{ marginTop: 4 }}>📌 {sel.obs}</div>}
+              {sel.obs && <div style={{ marginTop: 4 }}><StickyNote size={13} style={{ verticalAlign: -2 }} aria-hidden="true" /> {sel.obs}</div>}
             </div>
             <div className="eyebrow" style={{ marginBottom: 8 }}>Histórico</div>
             <div className="card list" style={{ maxHeight: 240, overflowY: 'auto' }}>
