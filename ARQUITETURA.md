@@ -2466,7 +2466,9 @@ ao lado do título** (`config.exibir`: `sobre`, `equipe`, `antesDepois`,
 `avaliacoes`, `instagram`, `perguntas`, `mapa`, todas ligadas por padrão; os
 blocos seguem a ordem do site). A empresa tira o que ainda não está pronto e
 põe de volta quando estiver, sem apagar o conteúdo — com a seção desligada, o
-bloco esmaece mas continua editável, porque preparar é o uso. Desligada, a
+bloco fecha e fica só o título com a chave; ligar abre os campos de novo, como
+estavam. A tela tem uma dúzia de seções, e campo do que não vai ao site é
+leitura a mais (decisão de 2026-10-27; antes, o bloco só esmaecia). Desligada, a
 seção não sai nem na vitrine (`secaoLigada` em `routes/publico.js`) — esconder
 só no site deixaria o conteúdo na resposta pública; Instagram e mapa, que
 aparecem mesmo sem conteúdo próprio, são conferidos também no site.

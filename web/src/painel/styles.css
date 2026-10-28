@@ -291,13 +291,18 @@ label{display:block; font-size:11px; letter-spacing:.09em; text-transform:upperc
 .cs-sec-cab h2 { font-size: 17px; }
 .cs-sec-cab p { color: var(--muted); font-size: 13.5px; margin: 4px 0 0; }
 /* A chave "No site" fica na linha do título, à direita: é o primeiro que se
-   procura ao chegar numa seção. Fora do site, o conteúdo esmaece mas continua
-   editável — preparar com a seção desligada é justamente o uso. */
+   procura ao chegar numa seção. Fora do site, a seção fecha e fica só essa
+   linha; ao ligar, os campos abrem logo abaixo. */
 .cs-sec-titulo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cs-sec-chave { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px;
   font-size: 12.5px; font-weight: 600; color: var(--ok); }
 .cs-sec-fora .cs-sec-chave { color: var(--muted); }
-.cs-sec-fora .cs-campos { opacity: .55; }
+.cs-sec-fora { padding-bottom: 12px; }
+.cs-sec-fora .cs-sec-cab { margin-bottom: 0; }
+.cs-sec-fora h2 { color: var(--muted); }
+.cs-sec-cab + .cs-campos { animation: cs-abre .2s ease-out; }
+@keyframes cs-abre { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .cs-sec-cab + .cs-campos { animation: none; } }
 
 .cs-campos { display: flex; flex-direction: column; gap: 16px; }
 .cs-campo label {

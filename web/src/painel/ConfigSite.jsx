@@ -239,28 +239,35 @@ export default function ConfigSite({ dados, acao, aviso }) {
  * do site e volta quando ela quiser, sem perder o que foi preenchido — ligada
  * e vazia, a seção já some sozinha; a chave é para tirar o que TEM conteúdo e
  * ainda não está do jeito que ela quer.
+ *
+ * Desligada, a seção fecha e fica só o título com a chave: a tela tem uma
+ * dúzia de seções, e campo de seção que não vai ao site é campo a mais para
+ * ler. Fechar não apaga nada — ao religar, volta tudo como estava.
  */
-const Secao = ({ titulo, ajuda, noSite, children }) => (
-  <section className={'cs-sec' + (noSite && !noSite.ligado ? ' cs-sec-fora' : '')}>
-    <div className="cs-sec-cab">
-      <div className="cs-sec-titulo">
-        <h2>{titulo}</h2>
-        {noSite && (
-          <label className="cs-sec-chave">
-            <span>{noSite.ligado ? 'No site' : 'Fora do site'}</span>
-            <button type="button" className={'sw' + (noSite.ligado ? ' on' : '')}
-                    role="switch" aria-checked={noSite.ligado} aria-label={`Mostrar ${titulo} no site`}
-                    onClick={() => noSite.aoMudar(!noSite.ligado)}>
-              <span />
-            </button>
-          </label>
-        )}
+const Secao = ({ titulo, ajuda, noSite, children }) => {
+  const fechada = noSite && !noSite.ligado;
+  return (
+    <section className={'cs-sec' + (fechada ? ' cs-sec-fora' : '')}>
+      <div className="cs-sec-cab">
+        <div className="cs-sec-titulo">
+          <h2>{titulo}</h2>
+          {noSite && (
+            <label className="cs-sec-chave">
+              <span>{noSite.ligado ? 'No site' : 'Fora do site'}</span>
+              <button type="button" className={'sw' + (noSite.ligado ? ' on' : '')}
+                      role="switch" aria-checked={noSite.ligado} aria-label={`Mostrar ${titulo} no site`}
+                      onClick={() => noSite.aoMudar(!noSite.ligado)}>
+                <span />
+              </button>
+            </label>
+          )}
+        </div>
+        {ajuda && !fechada && <p>{ajuda}</p>}
       </div>
-      {ajuda && <p>{ajuda}</p>}
-    </div>
-    <div className="cs-campos">{children}</div>
-  </section>
-);
+      {!fechada && <div className="cs-campos">{children}</div>}
+    </section>
+  );
+};
 
 /**
  * Como cada pessoa aparece na seção Equipe: foto, uma linha sobre ela e se
