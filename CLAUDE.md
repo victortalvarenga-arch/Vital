@@ -222,6 +222,11 @@ escrito, não aconteceu.
   com permissões diferentes — e o funcionário vê só o que é dele. Esconder
   botão não é controle de acesso: a rota também precisa recusar, e rota que
   devolve agenda ou dinheiro passa por `escopoDe`.
+- **Botão de enviar não fica desligado esperando campo.** Desligado, ele não
+  diz o que falta: a pessoa toca e nada acontece. Fica ligado, e o toque
+  escreve o erro embaixo do campo (`aria-invalid` + `aria-describedby`) e põe
+  o foco nele. Janela que abre põe o foco dentro dela e devolve ao fechar —
+  ver `Agendar.jsx`.
 - **Pense em muitas empresas.** A pergunta é sempre "isso funciona para uma
   Vital com 200 clientes, ou só para um estúdio?".
 
