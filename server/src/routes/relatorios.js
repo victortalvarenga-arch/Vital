@@ -26,9 +26,8 @@ relatorios.get('/funil', exige('site'), rota(async (req, res) => {
  * comissão do serviço, senão a da pessoa. Nulo em cada nível é "não decide
  * aqui"; zero é zero.
  *
- * A taxa é a do serviço PRINCIPAL e vale para o atendimento inteiro, extras
- * incluídos: dividir um pagamento parcial entre o principal e cada extra pediria
- * decidir qual parte foi paga primeiro. O desacerto está em ROADMAP.md.
+ * Esta é a taxa do serviço PRINCIPAL. Cada extra paga a própria (migration
+ * 029), calculada em `comissaoCentavos()`.
  *
  * Toda conta de comissão passa por `comissaoCentavos()`, que usa estas duas
  * constantes. Um COALESCE escrito à mão em outra consulta é o Resumo e o
@@ -54,20 +53,39 @@ const TAXA = 'COALESCE(ss.comissao, sv.comissao, p.comissao, 0)';
  * Atendimento concluído usa a regra gravada nele quando foi concluído
  * (`a.comissao_tipo`, migration 025), e não a de hoje.
  */
-const comissaoCentavos = base => `CASE
+const comissaoCentavos = base => {
+  // Quanto do valor do atendimento a base representa: pagou metade, cada
+  // parte (principal e extras) conta metade do seu preço.
+  const fracao = `(CASE WHEN a.valor > 0 THEN ${base} / a.valor ELSE 0 END)`;
+  const extras = `(SELECT COALESCE(SUM(x.preco), 0) FROM appointment_addons x WHERE x.appointment_id = a.id)`;
+  // Cada extra com a taxa dele (migration 029): a congelada, se o atendimento
+  // já foi concluído; senão a viva — exceção da pessoa no extra, senão a do
+  // serviço-extra, senão a da pessoa (zero para quem ganha fixo: o fixo já
+  // paga o horário inteiro). Em centavos: reais × percentual.
+  const doExtras = `(SELECT COALESCE(SUM(x.preco * COALESCE(
+        CASE WHEN a.comissao_tipo IS NOT NULL THEN x.comissao_taxa END,
+        ssx.comissao, svx.comissao,
+        CASE WHEN p.comissao_tipo = 'fixo' THEN 0 ELSE p.comissao END, 0)), 0)
+      FROM appointment_addons x
+      LEFT JOIN services svx ON svx.id = x.service_id
+      LEFT JOIN service_staff ssx ON ssx.service_id = x.service_id AND ssx.staff_id = a.staff_id
+     WHERE x.appointment_id = a.id)`;
+  // O principal fica com o que sobra da base depois da parte dos extras.
+  const principal = `(${base} - ${extras} * ${fracao})`;
+  const parteFixa = `CASE WHEN a.valor > 0 THEN LEAST(1, ${base} / a.valor) ELSE 1 END`;
+  return `ROUND(CASE
     -- Atendimento concluído leva a regra que valia na hora (migration 025):
     -- mudar a taxa hoje não reescreve o caixa de meses atrás.
     WHEN a.comissao_tipo = 'fixo'
-      THEN ROUND(COALESCE(a.comissao_fixo, 0) * 100
-                 * CASE WHEN a.valor > 0 THEN LEAST(1, ${base} / a.valor) ELSE 1 END)
+      THEN COALESCE(a.comissao_fixo, 0) * 100 * ${parteFixa}
     WHEN a.comissao_tipo = 'percentual'
-      THEN ROUND(${base} * 100 * a.comissao_taxa / 100)
+      THEN ${principal} * a.comissao_taxa
     -- Ainda não concluído: a regra viva.
     WHEN ss.comissao IS NULL AND sv.comissao IS NULL AND p.comissao_tipo = 'fixo'
-      THEN ROUND(COALESCE(p.comissao_fixo, 0) * 100
-                 * CASE WHEN a.valor > 0 THEN LEAST(1, ${base} / a.valor) ELSE 1 END)
-    ELSE ROUND(${base} * 100 * ${TAXA} / 100)
-  END`;
+      THEN COALESCE(p.comissao_fixo, 0) * 100 * ${parteFixa}
+    ELSE ${principal} * ${TAXA}
+  END + ${doExtras} * ${fracao})`;
+};
 
 /**
  * Resumo financeiro de um período.

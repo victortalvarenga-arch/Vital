@@ -26,6 +26,11 @@ before(async () => {
     await limpar(db);
     await cenario(db);
     await db.db.run(`UPDATE staff SET comissao=40 WHERE id='p1'`);
+    // Um extra de R$ 50 oferecido no s1 (R$ 100): atendimento de R$ 150.
+    await db.db.run(`INSERT INTO services (id,nome,categoria,preco,duracao,intervalo,ativo,ordem)
+                     VALUES ('x1','Hidratação','Cabelo',50,15,0,1,1)`);
+    await db.salvarVinculos('x1', ['p1']);
+    await db.db.run(`INSERT INTO service_addons (service_id, addon_id) VALUES ('s1','x1')`);
   });
   ({ dono: dona } = await criarEquipe(api));
 });
@@ -38,7 +43,7 @@ after(async () => {
 beforeEach(async () => {
   await db.db.comEmpresa('default', async () => {
     await limparAgenda(db);
-    await db.db.run(`UPDATE services SET comissao=NULL, obs='' WHERE id='s1'`);
+    await db.db.run(`UPDATE services SET comissao=NULL, obs='' WHERE id IN ('s1','x1')`);
     await db.db.run(`UPDATE service_staff SET comissao=NULL`);
     await db.db.run(`UPDATE staff SET comissao=40, comissao_tipo='percentual', comissao_fixo=NULL WHERE id='p1'`);
     await db.salvarVinculos('s1', ['p1', 'p2'], {});
@@ -66,6 +71,65 @@ async function salvarServico(mudanca) {
   const atual = await servico();
   return dona('PUT', '/api/servicos/s1', { ...atual, ...mudanca });
 }
+
+/** s1 (R$ 100) + o extra x1 (R$ 50), concluído; `recebido` é quanto entrou. */
+async function comExtra(recebido = 150) {
+  const r = await dona('POST', '/api/agendamentos', {
+    clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: DIA, hora: '10:00',
+    adicionaisIds: ['x1'], forcar: true,
+  });
+  assert.equal(r.status, 201, r.corpo?.erro);
+  await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'concluido' });
+  await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { pagamento: { recebido, forma: 'pix' } });
+  return r.corpo.id;
+}
+
+describe('cada extra paga a própria comissão (migration 029)', () => {
+  test('extra com taxa própria paga a dele; o principal, a da pessoa', async () => {
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET comissao=10 WHERE id='x1'`));
+    await comExtra();
+    // 40% de 100 + 10% de 50. Pela regra antiga, 40% de 150 = 60.
+    assert.equal(await custos(), 45);
+  });
+
+  test('extra sem taxa própria usa a da pessoa, não a do serviço principal', async () => {
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET comissao=20 WHERE id='s1'`));
+    await comExtra();
+    // 20% de 100 (o serviço decide) + 40% de 50 (o extra cai na da pessoa).
+    assert.equal(await custos(), 40);
+  });
+
+  test('pagamento parcial divide na proporção do preço de cada parte', async () => {
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET comissao=10 WHERE id='x1'`));
+    await comExtra(75);
+    // Pagou metade: metade de cada parte. (40% de 50) + (10% de 25).
+    assert.equal(await custos(), 22.5);
+  });
+
+  test('quem ganha fixo não recebe de novo pelo extra sem taxa própria', async () => {
+    await db.db.comEmpresa('default', () =>
+      db.db.run(`UPDATE staff SET comissao_tipo='fixo', comissao_fixo=30 WHERE id='p1'`));
+    await comExtra();
+    assert.equal(await custos(), 30);
+  });
+
+  test('extra gravado depois da conclusão usa a regra viva do extra', async () => {
+    // É o caso do balcão que registra um atendimento passado: ele nasce
+    // concluído, e o extra chega logo depois, sem taxa congelada.
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET comissao=10 WHERE id='x1'`));
+    const id = await comExtra();
+    await db.db.comEmpresa('default', () =>
+      db.db.run(`UPDATE appointment_addons SET comissao_taxa = NULL WHERE appointment_id = ?`, id));
+    assert.equal(await custos(), 45);
+  });
+
+  test('a taxa do extra congela na conclusão', async () => {
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET comissao=10 WHERE id='x1'`));
+    await comExtra();
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE services SET comissao=90 WHERE id='x1'`));
+    assert.equal(await custos(), 45, 'mudar a taxa do extra depois não reescreve o caixa');
+  });
+});
 
 describe('a comissão do que já foi concluído não muda (migration 025)', () => {
   test('mudar a taxa da pessoa depois não reescreve o passado', async () => {

@@ -1000,11 +1000,22 @@ pessoa habilitada) e na ficha da profissional, que liga e desliga os serviços
 dela e grava a exceção em cada um de uma vez
 (`PUT /api/profissionais/:id/servicos`). Os dois escrevem em `service_staff`.
 
-A taxa é a do serviço **principal** e vale para o atendimento inteiro, extras
-incluídos; dividir um pagamento parcial entre principal e extras pediria decidir
-qual parte foi paga primeiro. A comissão também não é congelada no atendimento:
-mudar a taxa hoje muda o lucro dos meses passados. Os dois limites estão em
-`ROADMAP.md`, em "Achados".
+**Cada extra paga a própria comissão** (migration 029, decisão do dono em
+2026-10-28). O atendimento se divide em partes: o principal vale `valor` menos
+os extras, cada extra vale o preço gravado em `appointment_addons`. Cada parte
+paga a sua taxa — o principal pelos três níveis acima; o extra pela exceção da
+pessoa naquele extra, senão a do serviço-extra, senão a da pessoa. Quem ganha
+fixo não recebe de novo pelo extra sem taxa própria: o fixo já é o pagamento do
+horário inteiro. Pagamento parcial vale na proporção do preço de cada parte —
+pagou metade, cada parte conta metade. Com as taxas iguais, a conta dá
+exatamente o que dava quando tudo pagava a do principal.
+
+A taxa é **congelada na conclusão** (migration 025 para o principal, 029 para os
+extras): mudar a comissão hoje não reescreve o caixa de meses atrás. Os extras
+de atendimentos concluídos antes da 029 receberam a taxa que de fato pagavam (a
+do principal), para o passado não mudar. Extra gravado depois da conclusão — o
+balcão que registra um atendimento passado — fica sem taxa congelada e usa a
+regra viva, que naquele instante é a mesma.
 
 `services.obs` é nota interna. A vitrine pública copia o serviço inteiro, então
 `comissao`, `comissoes` e `obs` são tirados pelo nome em `comPrecoEExtras`
