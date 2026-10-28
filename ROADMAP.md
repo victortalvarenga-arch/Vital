@@ -821,6 +821,24 @@ na conversa se perde na próxima sessão.
 
 Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
+**Decididos pelo dono em 2026-10-28, em execução** (cada um sai daqui e da
+lista abaixo quando estiver feito, com a decisão migrada para
+`ARQUITETURA.md` ou `DESIGN.md`):
+1. Cor de "faltou" e "em atendimento" na grade: segue a etiqueta (violeta e
+   azul do `DESIGN.md`); a borda esquerda é sempre de quem é o horário.
+2. Marca da Vital: tudo verde — o back-office deixa o roxo.
+3. Extras: cada um paga a própria comissão (sem a dele, a do profissional);
+   pagamento parcial divide na proporção do preço de cada parte.
+4. Bloqueio "Nunca termina": um job estende a série sozinho.
+5. Ticket médio: recebido ÷ atendimentos concluídos **e pagos**.
+6. Resumo: o cartão do mês mostra o total e separa "feitos · marcados"; o
+   ranking diz que conta só feitos.
+7. Promoção pede a ficha de todos os serviços do pacote, sem repetir.
+8. Unidade única com endereço diferente do site: a tela de Unidades avisa e
+   oferece copiar.
+9. `logs` guarda 2 anos; uma rotina poda o resto toda madrugada.
+10. O funil da empresa aparece no Resumo, só para o dono.
+
 ### Banco
 
 - [ ] **O branch `dev` e o `production` da Neon não são distinguíveis pela URL
