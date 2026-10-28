@@ -84,6 +84,14 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
   const [aviso, setAviso] = useState(null);
   const [resumoAberto, setResumoAberto] = useState(false);
   const janela = useRef(null);
+  const tituloPasso = useRef(null);
+
+  // Quem abriu pelo teclado volta para o mesmo botão ao fechar; sem isso o
+  // foco cai no começo da página e a pessoa perde onde estava.
+  useEffect(() => {
+    const quemAbriu = document.activeElement;
+    return () => quemAbriu?.focus?.({ preventScroll: true });
+  }, []);
 
   // Segundo passo do funil: a janela abriu. Uma vez por visita — o servidor
   // deduplica, então reabrir não conta de novo.
@@ -170,6 +178,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
   const info = PASSOS[indice];
   // As bolinhas mostram só os passos que esta cliente vai ver de fato.
   const visiveis = PASSOS.filter(p => p.k !== 'pronto' && util(p.k));
+  const numeroDoPasso = visiveis.findIndex(p => p.k === passo) + 1;
 
   // Esc fecha, e o foco fica preso dentro da janela: quem navega por teclado
   // não deve sair para a página atrás sem perceber.
@@ -197,6 +206,11 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
     const t = setTimeout(() => setAviso(null), 3600);
     return () => clearTimeout(t);
   }, [aviso]);
+
+  // O foco vai para o título de cada passo, inclusive o primeiro: é o que faz
+  // o leitor de tela anunciar que uma janela abriu e em que passo ela está.
+  // Sem isso o foco fica no botão da página de trás.
+  useEffect(() => { tituloPasso.current?.focus({ preventScroll: true }); }, [passo]);
 
   // Caiu num passo sem nada a perguntar: segue adiante sozinho.
   useEffect(() => {
@@ -245,7 +259,11 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
         {/* coluna 2 — o passo */}
         <section className="jn-centro">
           <header className="jn-cab">
-            <h2>{info.titulo}</h2>
+            <h2 ref={tituloPasso} tabIndex={-1}>
+              {/* As bolinhas são só visuais; quem ouve a tela ouve isto. */}
+              {numeroDoPasso > 0 && <span className="so-leitor">Passo {numeroDoPasso} de {visiveis.length}: </span>}
+              {info.titulo}
+            </h2>
             <button className="jn-x" onClick={aoFechar} aria-label="Fechar"><X size={20} /></button>
           </header>
 
@@ -334,7 +352,9 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
           aberto={resumoAberto} aoAlternar={() => setResumoAberto(v => !v)}
         />
 
-        {aviso && <div className="jn-aviso">{aviso}</div>}
+        {/* `alert`: o erro mais comum aqui é "esse horário acabou de ser
+            ocupado", e quem não vê a tela precisa ouvir antes de ele sumir. */}
+        {aviso && <div className="jn-aviso" role="alert">{aviso}</div>}
       </div>
     </div>
   );
@@ -408,7 +428,8 @@ function Opcoes({ itens, aoEscolher, marcado }) {
               vem escrito ao lado dela. Descrevê-la faria o leitor de tela ler
               o mesmo nome duas vezes em cada item da lista. */}
           {o.foto
-            ? <img className="jn-opcao-foto" src={o.foto} alt="" />
+            ? <img className="jn-opcao-foto" src={o.foto} alt="" width={44} height={44}
+                   loading="lazy" decoding="async" />
             : <span className="jn-opcao-marca" style={o.cor ? { background: o.cor } : undefined}>
                 {o.icone ? <User size={18} /> : o.nome.trim()[0].toUpperCase()}
               </span>}
@@ -603,7 +624,8 @@ function PassoData({ escolha, negocio, equipe, ofertados, aoMudarProfissional, a
   // de a pessoa vê-lo.
   const tocarDia = iso => {
     abrirDia(iso);
-    painelHoras.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const calmo = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    painelHoras.current?.scrollIntoView({ block: 'nearest', behavior: calmo ? 'auto' : 'smooth' });
   };
 
   return (
@@ -654,7 +676,7 @@ function PassoData({ escolha, negocio, equipe, ofertados, aoMudarProfissional, a
           <span><i className="cal-legenda-livre" /> com horário</span>
           <span><i className="cal-legenda-hoje" /> hoje</span>
         </p>
-        {comVaga === null && <p className="jn-vazio">Consultando a agenda…</p>}
+        {comVaga === null && <p className="jn-vazio" role="status">Consultando a agenda…</p>}
       </div>
 
       <div className="cal-horas" ref={painelHoras}>
@@ -673,7 +695,7 @@ function PassoData({ escolha, negocio, equipe, ofertados, aoMudarProfissional, a
         {dia && (
           <>
             <h4>{porExtenso(dia)}</h4>
-            {horas === null && <p className="jn-vazio">Buscando horários…</p>}
+            {horas === null && <p className="jn-vazio" role="status">Buscando horários…</p>}
             {horas?.length === 0 && (
               <VazioAgenda
                 titulo="Não há horários nesta data"
@@ -745,13 +767,20 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   // Digitou o número de outra pessoa? O agendamento cairia no cadastro dela, e
   // o lembrete iria para o WhatsApp dela. Confirmar quem é evita isso.
   const [souEu, setSouEu] = useState(false);
-  const [form, setForm] = useState({ nome: '', nascimento: '', aceitaMensagens: true });
+  const [form, setForm] = useState({ nome: '', aceitaMensagens: true });
+  const [nasc, setNasc] = useState({ dia: '', mes: '', ano: '' });
   const [obs, setObs] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('local');
   const [ocupado, setOcupado] = useState(false);
+  // Erro de cada campo, escrito embaixo dele. O botão não fica desligado
+  // esperando: desligado, ele não diz o que falta, e a cliente toca e nada
+  // acontece.
+  const [erros, setErros] = useState({});
+  const campoFone = useRef(null);
 
   const digitos = soDigitos(fone);
   const valido = digitos.length >= 10;
+  const nascimento = dataDeNascimento(nasc);
 
   const checar = async () => {
     if (!valido) return;
@@ -761,7 +790,26 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
     finally { setOcupado(false); }
   };
 
+  const continuar = () => {
+    if (!valido) {
+      setErros({ fone: 'Digite o WhatsApp com DDD, só os números.' });
+      campoFone.current?.focus();
+      return;
+    }
+    checar();
+  };
+
   const confirmar = async () => {
+    if (!conhecida.cadastrada) {
+      const faltando = {};
+      if (form.nome.trim().length < 3) faltando.nome = 'Escreva seu nome completo.';
+      if (!nascimento.iso) faltando.nasc = nascimento.erro;
+      if (Object.keys(faltando).length) {
+        setErros(faltando);
+        document.getElementById(faltando.nome ? 'jn-nome' : 'jn-nasc-dia')?.focus();
+        return;
+      }
+    }
     setOcupado(true);
     try {
       aoConfirmar(await api.agendar({
@@ -779,7 +827,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         formaPagamento,
         obs,
         adicionaisIds: escolha.adicionaisIds,
-        ...(conhecida?.cadastrada ? {} : form),
+        ...(conhecida?.cadastrada ? {} : { ...form, nascimento: nascimento.iso }),
       }));
     } catch (e) { aviso(e.message); setOcupado(false); }
   };
@@ -791,16 +839,20 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
     <div className="jn-form">
       <div className="campo">
         <label htmlFor="jn-fone">Seu WhatsApp</label>
-        <input id="jn-fone" type="tel" inputMode="numeric" autoComplete="tel"
-               placeholder="(47) 99999-9999" value={mascaraFone(fone)}
-               onChange={e => { setFone(e.target.value); setConhecida(null); setSouEu(false); }}
+        {/* `tel-national`: o número é guardado sem o +55, e `tel` faz o
+            navegador preencher com ele. */}
+        <input id="jn-fone" name="whatsapp" type="tel" inputMode="numeric" autoComplete="tel-national"
+               ref={campoFone} placeholder="(47) 99999-9999" value={mascaraFone(fone)}
+               aria-invalid={!!erros.fone} aria-describedby={erros.fone ? 'jn-fone-erro' : undefined}
+               onChange={e => { setFone(e.target.value); setConhecida(null); setSouEu(false); setErros({}); }}
                onBlur={checar} />
+        <Erro id="jn-fone-erro" texto={erros.fone} />
       </div>
 
       {conhecida === null && (
         <>
           <p className="ajuda">É por ele que você recebe a confirmação e o lembrete.</p>
-          <button className="b b-p b-larg" disabled={!valido || ocupado} onClick={checar}>Continuar</button>
+          <button className="b b-p b-larg" disabled={ocupado} onClick={continuar}>Continuar</button>
         </>
       )}
 
@@ -809,7 +861,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
           <p>Encontramos um cadastro em <strong>{conhecida.primeiroNome}</strong>.</p>
           <div className="jn-confere-btns">
             <button className="b b-p b-peq" onClick={() => setSouEu(true)}>Sou eu</button>
-            <button className="b b-c b-peq" onClick={() => { setConhecida(null); setFone(''); }}>
+            <button className="b b-c b-peq" onClick={() => { setConhecida(null); setFone(''); campoFone.current?.focus(); }}>
               Não · corrigir número
             </button>
           </div>
@@ -825,16 +877,13 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
           <p className="ajuda">Primeira vez por aqui — só precisamos destes dados, uma vez só.</p>
           <div className="campo">
             <label htmlFor="jn-nome">Nome completo</label>
-            <input id="jn-nome" autoComplete="name" value={form.nome}
-                   onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
+            <input id="jn-nome" name="nome" autoComplete="name" value={form.nome}
+                   aria-invalid={!!erros.nome} aria-describedby={erros.nome ? 'jn-nome-erro' : undefined}
+                   onChange={e => { setForm(f => ({ ...f, nome: e.target.value })); setErros(x => ({ ...x, nome: undefined })); }} />
+            <Erro id="jn-nome-erro" texto={erros.nome} />
           </div>
-          <div className="campo">
-            <label htmlFor="jn-nasc">Nascimento</label>
-            <input id="jn-nasc" type="date" required value={form.nascimento}
-                   max={hojeISO()}
-                   onChange={e => setForm(f => ({ ...f, nascimento: e.target.value }))} />
-            <span className="jn-porque">Para te mandar um mimo no seu aniversário.</span>
-          </div>
+          <Nascimento valor={nasc} erro={erros.nasc}
+                      aoMudar={v => { setNasc(v); setErros(x => ({ ...x, nasc: undefined })); }} />
         </>
       )}
 
@@ -871,10 +920,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
               eu recebo de qualquer forma.
             </label>
           )}
-          <button className="b b-p b-larg"
-                  disabled={ocupado || (!conhecida.cadastrada
-                    && (form.nome.trim().length < 3 || !form.nascimento))}
-                  onClick={confirmar}>
+          <button className="b b-p b-larg" disabled={ocupado} onClick={confirmar}>
             {ocupado ? 'Confirmando…' : 'Confirmar horário'}
           </button>
           {/* Aviso, não caixa de "li e aceito": o agendamento se apoia no
@@ -887,6 +933,62 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
       )}
     </div>
   );
+}
+
+const Erro = ({ id, texto }) => texto ? <span id={id} className="jn-erro">{texto}</span> : null;
+
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+  'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/**
+ * Nascimento em três listas: dia, mês e ano.
+ *
+ * Era um `<input type="date">`, e no celular o calendário nativo abre no ano
+ * corrente — para chegar em 1990 a cliente rolava ano a ano, no último campo
+ * antes de confirmar. Lista abre a roleta do sistema, não deixa digitar data
+ * que não existe e não depende do formato de data do aparelho.
+ */
+function Nascimento({ valor, aoMudar, erro }) {
+  const anoAtual = Number(hojeISO().slice(0, 4));
+  const anos = Array.from({ length: 101 }, (_, i) => anoAtual - i);
+  const mudar = (k, v) => aoMudar({ ...valor, [k]: v });
+  const descrito = erro ? 'jn-nasc-erro jn-nasc-porque' : 'jn-nasc-porque';
+  return (
+    <fieldset className="campo jn-nasc" aria-describedby={descrito}>
+      <legend>Nascimento</legend>
+      <div className="jn-nasc-listas">
+        <select id="jn-nasc-dia" aria-label="Dia" value={valor.dia} aria-invalid={!!erro}
+                onChange={e => mudar('dia', e.target.value)}>
+          <option value="">Dia</option>
+          {Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
+        </select>
+        <select aria-label="Mês" value={valor.mes} aria-invalid={!!erro}
+                onChange={e => mudar('mes', e.target.value)}>
+          <option value="">Mês</option>
+          {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+        </select>
+        <select aria-label="Ano" value={valor.ano} aria-invalid={!!erro}
+                onChange={e => mudar('ano', e.target.value)}>
+          <option value="">Ano</option>
+          {anos.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+      <Erro id="jn-nasc-erro" texto={erro} />
+      <span id="jn-nasc-porque" className="jn-porque">Para te mandar um mimo no seu aniversário.</span>
+    </fieldset>
+  );
+}
+
+/** As três listas viram `'YYYY-MM-DD'`, ou o motivo de ainda não virarem. */
+function dataDeNascimento({ dia, mes, ano }) {
+  if (!dia || !mes || !ano) return { erro: 'Escolha o dia, o mês e o ano.' };
+  const [d, m, a] = [Number(dia), Number(mes), Number(ano)];
+  if (d > new Date(Date.UTC(a, m, 0)).getUTCDate()) {
+    return { erro: `${MESES[m - 1][0].toUpperCase()}${MESES[m - 1].slice(1)} de ${a} não tem dia ${d}.` };
+  }
+  const iso = `${a}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  if (iso > hojeISO()) return { erro: 'Essa data ainda não chegou.' };
+  return { iso };
 }
 
 function Pronto({ resultado, escolha, servico, profissional, extras, dados, unidade, textos, aoFechar }) {
