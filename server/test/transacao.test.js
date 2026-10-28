@@ -63,7 +63,7 @@ before(async () => {
   app.get('/empresa', rota(async (req, res) => {
     res.json(await db.db.get(`SELECT current_setting('app.tenant_id', true) AS empresa`));
   }));
-  app.use((err, req, res, next) => { res.locals.desfazer = true; res.status(500).json({ erro: err.message }); });
+  app.use((err, req, res, _next) => { res.locals.desfazer = true; res.status(500).json({ erro: err.message }); });
 
   servidor = app.listen(0);
   await new Promise(ok => servidor.once('listening', ok));

@@ -65,7 +65,7 @@ cadastro.post('/', LIMITE_DE_CADASTROS, rota(async (req, res) => {
   // para nada, e deixar isso para um segundo passo cria o estado intermediário
   // em que alguém pode reivindicá-la.
   const dono = await db.comEmpresa(empresa.id, () =>
-    criarPrimeiroDono({ nome: b.responsavel, email: b.email, senha: b.senha, tenantId: empresa.id })
+    criarPrimeiroDono({ nome: b.responsavel, email: b.email, senha: b.senha })
   );
   if (dono?.erro) return res.status(409).json({ erro: dono.erro });
 

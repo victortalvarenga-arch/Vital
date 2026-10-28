@@ -10,7 +10,14 @@
     "dev:api": "cd server && npm run dev",
     "dev:web": "cd web && npm run dev",
     "build": "npm --prefix server ci --omit=dev && npm --prefix web ci && npm --prefix web run build",
-    "start": "npm --prefix server start"
+    "start": "npm --prefix server start",
+    "lint": "eslint ."
   },
-  "devDependencies": { "concurrently": "^9.1.0" }
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.1.0",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0"
+  }
 }

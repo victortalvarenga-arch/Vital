@@ -176,7 +176,16 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    styles.css (a marca da Vital no back-office)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
                    imagem.js (reduz a foto antes de subir), formato.js (moeda)
+eslint.config.mjs  um linter para server/ e web/ (`npm run lint`, na raiz)
 ```
+
+**O linter procura erro, não estilo.** ESLint 10 com as regras recomendadas e
+as do React para hooks: variável que não existe, import que sobrou, hook
+chamado dentro de `if` ou de função auxiliar. Aspas, ponto e vírgula e
+espaçamento ficam de fora: reformatar o repositório inteiro só para caber num
+estilo é diff que esconde mudança de verdade. Não há `eslint-plugin-react`,
+porque o ESLint 10 já reconhece um componente usado só no JSX e o plugin ainda
+não aceita essa versão (out/2026).
 
 ## Decisões estruturais
 

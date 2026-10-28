@@ -23,7 +23,7 @@ const MAX_DESCRICAO = 155;
 const DIAS_SCHEMA = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export function aplicarSeo(dados, lugares = []) {
-  const { negocio, marca, servicos = [], faq = [] } = dados;
+  const { marca, faq = [] } = dados;
 
   document.title = titulo(dados);
   meta('description', descricao(dados));

@@ -69,7 +69,7 @@ async function aplicarPendentes(pool) {
       console.log(`  migration aplicada: ${arquivo}`);
     } catch (erro) {
       await cliente.query('ROLLBACK');
-      throw new Error(`migration ${arquivo} falhou e foi desfeita: ${erro.message}`);
+      throw new Error(`migration ${arquivo} falhou e foi desfeita: ${erro.message}`, { cause: erro });
     } finally {
       cliente.release();
     }

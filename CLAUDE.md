@@ -198,6 +198,10 @@ escrito, não aconteceu.
 - Funcionalidade nova entra também no `seed.js`. Ele é o que uma máquina nova
   enxerga: cenário desatualizado faz a pessoa achar que a funcionalidade não
   existe. `npm run reset` tem de reproduzir tudo.
+- Antes de commitar, `npm run lint` (na raiz) sem erro. Aviso de
+  `exhaustive-deps` não se resolve completando a lista no automático: efeito
+  que passa a depender de uma função recriada a cada render vira loop de
+  requisição. Sobra de propósito leva `_` na frente do nome.
 - Mexeu em regra de negócio, rode `cd server && npm test`. Teste novo entra em
   `server/test/`, com banco de verdade — ver `ARQUITETURA.md`.
 - Teste verde não é prova. Antes de dar a cobertura por feita, quebre o código

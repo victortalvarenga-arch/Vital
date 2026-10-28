@@ -22,7 +22,7 @@ aplicação prende a empresa à conexão (`ARQUITETURA.md`), e um pooler em modo
 transação misturaria as empresas.
 
 ```bash
-npm install                              # concurrently, na raiz
+npm install                              # concurrently e ESLint, na raiz
 cp server/.env.example server/.env       # preencha as duas URLs e VITAL_BANCO_DESCARTAVEL=sim
 npm run setup                            # instala server/ e web/, cria e popula o banco
 npm run dev                              # API em :3333, front em :5173
@@ -128,6 +128,7 @@ localhost: o `seed` confere a `DATABASE_URL` antes de criar qualquer uma.
 | `cd server && npm run reset` | Apaga tudo e popula de novo (só em `localhost` ou com `VITAL_BANCO_DESCARTAVEL=sim`) |
 | `cd server && npm run senha-app` | Redefine a senha do usuário da aplicação |
 | `cd server && npm test` | Roda a suíte automatizada |
+| `npm run lint` | Confere `server/` e `web/` com o ESLint (variável que não existe, import que sobrou, hook fora de lugar) |
 | `cd server && npm run seed -- --vazio` | Popula como uma empresa recém-cadastrada: só config e textos |
 
 As migrations rodam sozinhas quando a API sobe.

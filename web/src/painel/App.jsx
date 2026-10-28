@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { DIAS, MESES, emFaixas, faixaDeHoras, fmtData, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
-import { podeRemarcar } from '../shared/remarcar.js';
 import Combos from './Combos.jsx';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
 import Agendamentos from './Agendamentos.jsx';
 import Bloqueios from './Bloqueios.jsx';
-import SeletorProfissional from './Seletor.jsx';
 import SeletorPessoas from './SeletorPessoas.jsx';
 import GradeDoDia, { classeDoBloco } from './GradeDoDia.jsx';
 import Remarcar from './Remarcar.jsx';
@@ -35,11 +33,10 @@ import ErroDeTela from './ErroDeTela.jsx';
 import Atendente from './Atendente.jsx';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronLeft,
-  ChevronRight, Search, Phone, MapPin, Cake, Gift, Clock, Trash2, Pencil, Send,
-  ArrowRight, ArrowLeft, User, CreditCard, Banknote, QrCode, Store, Instagram,
-  Bell, Megaphone, HeartHandshake, TriangleAlert, ExternalLink, Menu, Globe,
+  ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
+  Store, Bell, Megaphone, TriangleAlert, ExternalLink, Menu, Globe,
   LogOut, KeyRound, Ban, Tag, MapPin as MapPinIcon, ScrollText,
-  ClipboardList, ClipboardCheck, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
+  ClipboardList, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────
@@ -49,7 +46,6 @@ import {
 
 
 /* ─────────── utilidades ─────────── */
-const uid = () => Math.random().toString(36).slice(2, 9);
 const addDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dow = iso => new Date(iso + 'T12:00:00').getDay();
 
@@ -398,7 +394,6 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // a escolha — o servidor já entrega só a agenda dele.
   const [pessoas, setPessoas] = useState([]);
 
-  const passo = dados.config.passoAgenda || 30;
   const hoje = hojeISO();
   const semana = useMemo(() => semanaDe(ancora), [ancora]);
   const escalaAtiva = aba === 'recepcao' ? 'dia' : escala;
@@ -487,16 +482,15 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
    * cada grade se resolve sozinha nos `data-dia` / `data-prof` das colunas,
    * e é por isso que um motor só serve as duas.
    */
-  const arrastarNa = (grade, faixa, regua) => useArrastar({
+  const motor = {
     agendamentos, bloqueios: dados.bloqueios || [], servicos, staff,
     agora: { data: hoje, hora: toHora(new Date().getHours() * 60 + new Date().getMinutes()) },
-    faixa, regua, grade, virarPagina: andar,
-    aoSoltar: setRemarcar, aoTocar: abrirAtendimento, aviso,
-  });
+    virarPagina: andar, aoSoltar: setRemarcar, aoTocar: abrirAtendimento, aviso,
+  };
   // Cada grade tem a sua altura de hora, e a do dia ainda se estica para caber
   // um atendimento das 7h — a mesma `faixaDeHoras` que ela usa para desenhar.
-  const naSemana = arrastarNa('.agenda', [H_INI, H_FIM], [PX_H, TOPO]);
-  const noDia = arrastarNa('.eq-timeline', faixaDeHoras(doPeriodo), [34, 8]);
+  const naSemana = useArrastar({ ...motor, grade: '.agenda', faixa: [H_INI, H_FIM], regua: [PX_H, TOPO] });
+  const noDia = useArrastar({ ...motor, grade: '.eq-timeline', faixa: faixaDeHoras(doPeriodo), regua: [34, 8] });
   // O rótulo flutuante ("onde vai cair, e por que não dá") é um só para a tela:
   // só uma grade está desenhada por vez, e só um dedo arrasta por vez.
   const arrasto = naSemana.arrasto || noDia.arrasto;
@@ -1007,8 +1001,6 @@ const FLUXO = {
   falta:          { rotulo: 'Faltou',         tom: 'falta' },
   cancelado:      { rotulo: 'Cancelado',      tom: 'ruim' },
 };
-const ROTULO_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, v.rotulo]));
-const TOM_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, v.tom]));
 
 /**
  * Agendamento pelo balcão — o botão "Agendar" do Calendário e o atalho do Resumo.
@@ -1022,7 +1014,7 @@ const TOM_STATUS = Object.fromEntries(Object.entries(FLUXO).map(([k, v]) => [k, 
  * O que ela **não** fura é conflito com outro atendimento — isso o servidor
  * recusa dos dois lados. Por que não é a tela do site: ver `ARQUITETURA.md`.
  */
-function NovoAgendamento({ dados, acao, data, fechar, aviso }) {
+function NovoAgendamento({ dados, acao, data, fechar }) {
   const { staff, clientes, agendamentos } = dados;
   // Só a que está no ar vende, no balcão como no site; o dia o servidor confere.
   const combos = (dados.combos || []).filter(c => c.situacao === 'ativa');
@@ -1428,7 +1420,7 @@ const formatarResposta = v =>
 
 /* ── Clientes ── */
 function Clientes({ dados, acao, aviso }) {
-  const { clientes, agendamentos, servicos, config, templates } = dados;
+  const { clientes, agendamentos, servicos } = dados;
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(null);
   const [edit, setEdit] = useState(null);
@@ -1523,7 +1515,7 @@ function Clientes({ dados, acao, aviso }) {
   );
 }
 
-function EditarCliente({ c, acao, fechar, aviso }) {
+function EditarCliente({ c, acao, fechar }) {
   const [f, setF] = useState({ nome: c.nome, fone: c.fone, nasc: c.nasc || '', end: c.end || '', obs: c.obs || '' });
   const salvar = async () => {
     const ok = await acao(() => api.salvarCliente({ ...c, ...f, fone: soDigitos(f.fone) }), 'Cadastro salvo');
@@ -1639,7 +1631,7 @@ function CRM({ dados, acao, aviso, fila, recarregarFila }) {
   );
 }
 
-function EditarTemplate({ t, acao, fechar, aviso }) {
+function EditarTemplate({ t, acao, fechar }) {
   const [txt, setTxt] = useState(t.texto);
   const VARS = ['cliente', 'servico', 'profissional', 'data', 'hora', 'valor', 'estudio', 'endereco', 'link', 'dias'];
   const ref = useRef(null);
@@ -1666,7 +1658,7 @@ function EditarTemplate({ t, acao, fechar, aviso }) {
 }
 
 function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
-  const { clientes, config, agendamentos, servicos } = dados;
+  const { clientes, config, servicos } = dados;
   const [sel, setSel] = useState(clientes.map(c => c.id));
   const toggle = id => setSel(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id]);
   const texto = c => renderTemplate(t.texto, {

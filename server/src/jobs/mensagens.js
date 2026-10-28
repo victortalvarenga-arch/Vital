@@ -3,7 +3,6 @@ import { db, uid, getConfig } from '../db.js';
 import { hoje, agora, addDias, toMin, toHora, diasEntre } from '../lib/dates.js';
 import { render, variaveis } from '../lib/templates.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
-import { TENANT_PADRAO } from '../lib/tenant.js';
 import { fecharAtendimentos } from './fechamento.js';
 import { compactarFunil } from './funil.js';
 import { sincronizarTodas } from '../conexoes/index.js';

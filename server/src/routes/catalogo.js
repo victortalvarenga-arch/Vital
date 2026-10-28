@@ -3,7 +3,7 @@ import { db, uid, staffOut, serviceOut, unitOut, listarServicos, listarUnidades,
 import { hoje, soDigitos } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { adicionaisDe } from '../lib/adicionais.js';
-import { comboCompleto, combosCompletos, combosAtivos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
+import { comboCompleto, combosCompletos, economiaDe, profissionaisDoCombo } from '../lib/combos.js';
 import { exige, pode, escopoDe } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
 import { servicosPara, profissionaisPara } from '../lib/taxas.js';

@@ -178,7 +178,7 @@ describe('o motor de horários respeita todas as ocorrências', () => {
 
 describe('desfazer', () => {
   async function tresSemanas() {
-    const r = await dona('POST', '/api/bloqueios', {
+    await dona('POST', '/api/bloqueios', {
       profissionalId: 'p1', data: TERCA, horaIni: '09:00', horaFim: '18:00',
       repetir: { cada: 'semana', vezes: 3 },
     });

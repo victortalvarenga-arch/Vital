@@ -274,7 +274,8 @@ if (fs.existsSync(PASTA_WEB)) {
   app.use(express.static(PASTA_WEB, { index: 'index.html', maxAge: 0 }));
 }
 
-app.use((err, req, res, next) => {
+// Os quatro argumentos são o que faz o Express tratar isto como handler de erro.
+app.use((err, req, res, _next) => {
   console.error(err);
   // A requisição é uma transação (`db.naRequisicao`): o que ela gravou antes
   // de quebrar é desfeito, em vez de ficar pela metade.

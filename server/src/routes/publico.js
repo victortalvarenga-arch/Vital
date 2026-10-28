@@ -55,7 +55,6 @@ async function comPrecoEExtras(servicos, cfg) {
     // Comissão e observação são da equipe: quanto a empresa paga a quem atende
     // não é assunto de quem agenda. Tirados pelo nome, porque o resto do
     // serviço sai inteiro — campo interno novo precisa entrar nesta lista.
-    // eslint-disable-next-line no-unused-vars
     const { comissao, comissoes, obs, ...publico } = s;
     saida.push({
       ...publico,
@@ -78,7 +77,7 @@ async function comPrecoEExtras(servicos, cfg) {
  * sem os dois números o selo de promoção não tem o que provar, e um combo sem
  * vantagem visível é só mais um item na lista.
  */
-async function vitrineDeCombos(cfg) {
+async function vitrineDeCombos() {
   const lista = await combosAtivos();
   // Quem faz cada pacote inteiro, de todos de uma vez. O site precisa da lista
   // para saber se há escolha de profissional a oferecer — e para não oferecer
@@ -179,7 +178,7 @@ publico.get('/vitrine', rota(async (req, res) => {
     // Preço só sai se a empresa quiser mostrar — algumas preferem "sob consulta".
     servicos: await comPrecoEExtras(servicos, cfg),
     // Promoção vencida não sai da vitrine: `combosAtivos` já a esconde.
-    combos: await vitrineDeCombos(cfg),
+    combos: await vitrineDeCombos(),
     // `unidadeId` sai porque é onde a pessoa atende, não dado dela: o site
     // precisa saber para não oferecer, numa unidade, serviço que só quem está
     // na outra faz — e para dizer o endereço certo na confirmação.

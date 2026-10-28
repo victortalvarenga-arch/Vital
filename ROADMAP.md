@@ -1009,14 +1009,20 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Código
 
-- [ ] **Não há linter nem execução automática dos testes.** Os 41 arquivos de
-      `server/test/` só rodam quando alguém lembra de `npm test`; nada roda a
-      cada commit ou push, e não existe ESLint no `server/` nem no `web/`. O
-      `web/` não tem teste nenhum — as telas são conferidas à mão. Sem linter,
-      `className` sem regra no CSS e import morto só aparecem na tela. Os
-      testes precisam de banco de verdade, então a automação precisa de um
-      branch da Neon só para ela (nunca o de produção). Levantado em
-      2026-10-28.
+- [ ] **Os testes não rodam sozinhos.** Os 41 arquivos de `server/test/` só
+      rodam quando alguém lembra de `npm test`; nada roda a cada push. Os
+      testes precisam de banco de verdade, então a automação (GitHub Actions)
+      precisa de um branch da Neon só para ela, nunca o de produção — criar
+      esse branch é com o dono da conta. O mesmo job rodaria `npm run lint`.
+      O `web/` não tem teste nenhum; as telas são conferidas à mão.
+      Levantado em 2026-10-28.
+- [ ] **Nove avisos de `react-hooks/exhaustive-deps`** sobraram quando o ESLint
+      entrou (2026-10-28), em `App.jsx`, `Bloqueios.jsx`, `Combos.jsx`,
+      `Equipe.jsx`, `Ficha.jsx` e `Agendar.jsx`. Quase todos são efeitos que
+      rodam só quando muda o dia ou o pedido, de propósito. Cada um precisa ser
+      lido antes de mexer: completar a lista no automático faz efeito virar
+      loop. O de `Combos.jsx` (`combos` recriado a cada render dentro de um
+      `useMemo`) é o único que parece desperdício de verdade.
 - [ ] `web/src/painel/App.jsx` passou de 1300 linhas e junta agenda, clientes,
       serviços, equipe, CRM e financeiro. Cada tela nova que nasce ali aumenta o
       risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e ConfigSite

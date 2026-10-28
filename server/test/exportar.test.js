@@ -20,7 +20,7 @@ const DIA = '2027-03-05';
 let db, api, dona, ana;
 
 /** CSV em linhas de células. Basta para o que o teste confere: sem `;` dentro de aspas. */
-const tabela = texto => texto.replace(/^﻿/, '').trim().split('\r\n').map(l => l.split(';'));
+const tabela = texto => texto.replace(/^\uFEFF/, '').trim().split('\r\n').map(l => l.split(';'));
 
 before(async () => {
   db = await prepararBanco();

@@ -19,7 +19,7 @@ export async function pedir(url, { method = 'GET', form, token, json } = {}) {
 
   const r = await fetch(url, { method, headers, body });
   const texto = await r.text();
-  let dados = null;
+  let dados;
   try { dados = texto ? JSON.parse(texto) : null; } catch { dados = null; }
 
   if (!r.ok) {
