@@ -197,8 +197,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
   );
 
   const producao = await db.all(
+    // A comissão por pessoa é sobre o que já foi PAGO, a mesma base do cartão
+    // de custos e do lucro (decisão de 2026-10-29). Sobre `a.valor`, as linhas
+    // somavam R$ 226,50 ao lado de um total de R$ 206,25 na mesma tela, e a
+    // dona que confere à mão via o sistema errando. A produção continua sendo
+    // o que foi feito — é outra pergunta, e o rótulo diz qual.
     `SELECT p.id, p.nome, p.comissao, COUNT(*) qtd, SUM(a.valor) producao,
-            SUM(${comissaoCentavos('a.valor')}) comissao_centavos
+            SUM(${comissaoCentavos('a.pag_recebido')}) comissao_centavos
        FROM appointments a ${COM_TAXA}
       WHERE a.data >= ? AND a.data <= ? AND a.status='concluido' ${meuA}
       GROUP BY p.id, p.nome, p.comissao ORDER BY producao DESC`,
@@ -230,12 +235,20 @@ relatorios.get('/resumo', rota(async (req, res) => {
 
   // O mesmo tanto de dias, imediatamente antes: sem comparação, um número
   // sozinho não diz se o mês está indo bem ou mal.
+  //
+  // Período em andamento compara só o trecho que já passou (decisão de
+  // 2026-10-29): de 1 a 29 de outubro contra os mesmos 29 dias de antes, e não
+  // contra o período anterior inteiro. Senão todo mês "caía 42%" até o último
+  // dia, e a seta vermelha assustava a dona sem motivo.
   const dias = diasEntre(de, ate) + 1;
+  const corridos = ate > h && de <= h ? diasEntre(de, h) + 1 : dias;
+  const antDe = addDias(de, -dias);
+  const antAte = addDias(antDe, corridos - 1);
   const anterior = await db.get(
     `SELECT SUM(CASE WHEN status='concluido' THEN pag_recebido ELSE 0 END) recebido,
             SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) atendimentos
        FROM appointments WHERE data >= ? AND data <= ? ${meu}`,
-    addDias(de, -dias), addDias(de, -1), ...arg
+    antDe, antAte, ...arg
   );
 
   const recebido = g.recebido || 0;
@@ -285,7 +298,9 @@ relatorios.get('/resumo', rota(async (req, res) => {
     // inteira.
     profissionalId: so || null,
     anterior: {
-      de: addDias(de, -dias), ate: addDias(de, -1),
+      de: antDe, ate: antAte,
+      // A tela diz "até hoje" quando o período ainda não terminou.
+      parcial: corridos < dias,
       recebido: anterior?.recebido || 0,
       atendimentos: anterior?.atendimentos || 0,
     },

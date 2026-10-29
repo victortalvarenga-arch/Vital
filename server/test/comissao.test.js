@@ -212,6 +212,21 @@ describe('qual comissão vale', () => {
     const serie = (await dona('GET', `/api/relatorios/serie?por=dia&de=${DIA}&ate=${DIA}`)).corpo;
     assert.equal(serie.pontos[0].custos, 25);
   });
+
+  test('as linhas por profissional somam o mesmo que o cartão de custos', async () => {
+    // Um pago e um feito sem pagar: a comissão do segundo só existe quando
+    // ele for pago, nas linhas como no total.
+    await atendidoEPago();
+    const r = await dona('POST', '/api/agendamentos', {
+      clienteId: 'c1', servicoId: 's1', profissionalId: 'p1', data: DIA, hora: '14:00', forcar: true,
+    });
+    await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status: 'concluido' });
+
+    const resumo = (await dona('GET', `/api/relatorios/resumo?de=${DIA}&ate=${DIA}`)).corpo;
+    const somaDasLinhas = resumo.porProfissional.reduce((n, p) => n + p.comissaoValor, 0);
+    assert.equal(resumo.custos, 40);
+    assert.equal(somaDasLinhas, resumo.custos);
+  });
 });
 
 describe('editar', () => {

@@ -142,7 +142,7 @@ export default function Financeiro({ dados, poderes }) {
           <Numero rotulo={meu ? 'Sua receita' : `Receita${de1}`} valor={r && brl(r.recebido)}
                   dica={meu ? 'O que você atendeu neste período e já foi pago.'
                             : 'Tudo o que foi atendido e já foi pago neste período.'}
-                  extra={r && <Variacao de={r.anterior.recebido} para={r.recebido} />} />
+                  extra={r && <Variacao de={r.anterior.recebido} para={r.recebido} parcial={r.anterior.parcial} />} />
           {meu
             ? <Numero rotulo="Sua comissão" valor={r && brl(r.custos)}
                       dica="A sua parte sobre o que foi pago, pela sua porcentagem de comissão." />
@@ -166,7 +166,7 @@ export default function Financeiro({ dados, poderes }) {
 }
 
 /** Quanto subiu ou desceu em relação ao período anterior de mesmo tamanho. */
-const Variacao = ({ de, para }) => {
+const Variacao = ({ de, para, parcial }) => {
   // Sem base de comparação não há porcentagem que signifique alguma coisa —
   // "cresceu infinito" a partir de zero é ruído, não informação.
   if (!de) return null;
@@ -174,10 +174,15 @@ const Variacao = ({ de, para }) => {
   const tom = pct > 0 ? 'sobe' : pct < 0 ? 'desce' : 'igual';
   return (
     <span className={'variacao ' + tom}>
-      {pct > 0 ? '↑' : pct < 0 ? '↓' : '='} {Math.abs(pct)}% vs. período anterior
+      {pct > 0 ? '↑' : pct < 0 ? '↓' : '='} {Math.abs(pct)}%{' '}
+      {/* Período em andamento compara o mesmo trecho do anterior, e diz isso. */}
+      {parcial ? 'vs. o mesmo trecho do período anterior' : 'vs. período anterior'}
     </span>
   );
 };
+
+/** A forma de pagamento como se escreve. A chave vem do banco ("cartao"). */
+const NOME_FORMA = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', local: 'No local' };
 
 const DIAS_ABREV = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -349,7 +354,7 @@ function Detalhes({ r, staff, meu }) {
     <>
       <div className="fin-quadros">
         <div className="card fin-quadro">
-          <div className="eyebrow">Serviços mais lucrativos</div>
+          <div className="eyebrow">Serviços que mais faturaram</div>
           {/* A lista rola dentro do cartão em vez de esticá-lo: uma empresa com
               quarenta serviços empurraria o resto da tela para baixo, e a
               coluna do lado ficaria com um vão do tamanho de uma página. */}
@@ -408,7 +413,7 @@ function Detalhes({ r, staff, meu }) {
           <div className="eyebrow">Pagamentos</div>
           {formas.map(f => (
             <div key={f.forma} className="fin-linha">
-              <span style={{ textTransform: 'capitalize' }}>{f.forma}</span>
+              <span>{NOME_FORMA[f.forma] || f.forma}</span>
               <span>
                 <b className="mono">{brl(f.total)}</b>
                 <i className="fin-pct">{pct(f.total, r.recebido)}</i>
@@ -435,6 +440,8 @@ function Detalhes({ r, staff, meu }) {
                 </span>
                 <span>
                   <b className="mono">{brl(prod)}</b>
+                  {/* Sobre o que já foi pago, como o total de Comissão ao lado: as linhas
+                      somam o total. */}
                   <i className="fin-pct">comissão {brl(comissaoPor[p.id] || 0)}</i>
                 </span>
               </div>

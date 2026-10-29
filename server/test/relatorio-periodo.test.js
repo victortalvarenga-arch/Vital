@@ -78,6 +78,21 @@ describe('resumo de um período', () => {
     assert.equal(corpo.ticketMedio, 100);
   });
 
+  test('período em andamento compara só o trecho que já passou', async () => {
+    // Um mês que vai até daqui a 20 dias: o anterior tem o mesmo número de
+    // dias que já correram, e não o tamanho do mês inteiro.
+    const { hoje, addDias, diasEntre } = await import('../src/lib/dates.js');
+    const h = hoje();
+    const de = addDias(h, -9), ate = addDias(h, 20);
+    const { corpo } = await dona('GET', `/api/relatorios/resumo?de=${de}&ate=${ate}`);
+    assert.equal(corpo.anterior.parcial, true);
+    assert.equal(diasEntre(corpo.anterior.de, corpo.anterior.ate) + 1, 10, 'dez dias de cada lado');
+    assert.equal(corpo.anterior.ate, addDias(de, -30 + 9));
+
+    const fechado = (await dona('GET', `/api/relatorios/resumo?de=${DIA}&ate=${DIA}`)).corpo;
+    assert.equal(fechado.anterior.parcial, false, 'período que já passou compara inteiro');
+  });
+
   test('o intervalo recorta de verdade: o dia seguinte não entra', async () => {
     await marcar({ hora: '09:00', data: OUTRO, status: 'concluido', pago: true });
 
