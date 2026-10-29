@@ -868,6 +868,16 @@ a.btn{text-decoration:none}
 .ag-estado.feito{background:#E4F0EA; color:var(--ok)}
 .ag-estado.ruim{background:#F3E6E6; color:var(--erro)}
 .ag-estado.falta{background:#EEE8F6; color:#5B3E93}
+/* Pagamento na Lista: o mesmo par da gaveta (pago verde, entrada azul, a pagar âmbar). */
+.ag-pag{display:inline-block; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px}
+.ag-pag.pago{background:#E4F0EA; color:#20573F}
+.ag-pag.parcial{background:#E4EDF6; color:#1F5C96}
+.ag-pag.aberto, .ag-pag.estornado{background:var(--warn-claro); color:var(--warn-texto)}
+/* Clientes filtrada nas aniversariantes, vinda do aviso do Resumo. */
+.cl-filtro{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:10px 12px 10px 16px; margin-bottom:12px; border-radius:12px; background:var(--blush); font-size:13.5px; font-weight:600}
+.cl-filtro span{display:inline-flex; align-items:center; gap:8px}
+.cl-niver{color:var(--lacquer-d); font-weight:600}
 
 @media (max-width: 720px){
   .ag-tabela th, .ag-tabela td{padding:10px 9px}

@@ -26,7 +26,7 @@ import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
 import Usuarios from './Usuarios.jsx';
-import Resumo from './Resumo.jsx';
+import Resumo, { emSeteDias } from './Resumo.jsx';
 import Financeiro from './Financeiro.jsx';
 import Equipe from './Equipe.jsx';
 import Servicos from './Servicos.jsx';
@@ -36,7 +36,7 @@ import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
   Store, Bell, Megaphone, TriangleAlert, ExternalLink, Menu, Globe,
-  LogOut, KeyRound, Ban, Tag, StickyNote, RotateCcw, MapPin as MapPinIcon, ScrollText,
+  LogOut, KeyRound, Ban, Tag, StickyNote, RotateCcw, Cake, MapPin as MapPinIcon, ScrollText,
   ClipboardList, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
@@ -318,7 +318,8 @@ function Painel({ sessao, aoSair }) {
                   aviso={setToast} poderes={p} pedido={pedido} irPara={irPara}
                   aoConsumirPedido={() => setPedido(null)} />
         )}
-        {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast}
+                                            pedido={pedido} aoConsumirPedido={() => setPedido(null)} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
@@ -452,6 +453,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   const [entrada, setEntrada] = useState('');
   /** Abrir outro atendimento zera o campo: valor digitado não se herda. */
   const [adiantado, setAdiantado] = useState(false);
+  // Filtro com que a Lista abre ('' ou 'receber', vindo do aviso do Resumo).
+  const [filtroLista, setFiltroLista] = useState('');
   const abrirAtendimento = a => { setEntrada(''); setTrocandoStatus(false); setAdiantado(false); setSel(a); };
   // O pedido também chega com a Agenda já aberta: o "+" da barra do celular
   // é tocado de dentro dela. Por isso reage a cada pedido novo, e não só ao
@@ -460,6 +463,11 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
     if (!pedido) return;
     if (pedido === 'novo') setNovo(true);
     if (pedido === 'lista') setAba('lista');
+    if (pedido.receber) { setAba('lista'); setFiltroLista('receber'); }
+    if (pedido.abrir) {
+      const alvo = agendamentos.find(a => a.id === pedido.abrir);
+      if (alvo) { setAba('calendario'); setEscala('dia'); setAncora(alvo.data); abrirAtendimento(alvo); }
+    }
     aoConsumirPedido();
   }, [pedido, aoConsumirPedido]);
 
@@ -665,8 +673,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
       </div>
 
       {aba === 'lista' && (
-        <Agendamentos dados={dados} acao={acao} poderes={poderes}
-                      de={de} ate={ate} pessoas={pessoas} />
+        <Agendamentos key={filtroLista} dados={dados} acao={acao} poderes={poderes}
+                      de={de} ate={ate} pessoas={pessoas} filtroInicial={filtroLista}
+                      aoAbrir={abrirAtendimento} />
       )}
 
       {aba === 'recepcao' && (
@@ -1571,9 +1580,12 @@ const formatarResposta = v =>
   v === true ? 'sim' : v === false ? 'não' : Array.isArray(v) ? v.join(', ') : String(v);
 
 /* ── Clientes ── */
-function Clientes({ dados, acao, aviso }) {
+function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido }) {
   const { clientes, agendamentos, servicos } = dados;
   const [q, setQ] = useState('');
+  // Vindo do aviso de aniversariantes do Resumo, a lista abre filtrada nelas.
+  const [soNiver, setSoNiver] = useState(pedido === 'aniversario');
+  useEffect(() => { if (pedido) aoConsumirPedido?.(); }, [pedido, aoConsumirPedido]);
   const [sel, setSel] = useState(null);
   const [edit, setEdit] = useState(null);
 
@@ -1585,7 +1597,9 @@ function Clientes({ dados, acao, aviso }) {
     return { ...c, visitas: passados.length, gasto, ultima, diasSem: ultima ? diasEntre(ultima, hojeISO()) : null };
   }).sort((a, b) => a.nome.localeCompare(b.nome)), [clientes, agendamentos]);
 
-  const filtrados = enriquecidos.filter(c => c.nome.toLowerCase().includes(q.toLowerCase()) || soDigitos(c.fone).includes(soDigitos(q)));
+  const filtrados = enriquecidos
+    .filter(c => !soNiver || (c.nasc && emSeteDias(c.nasc, hojeISO())))
+    .filter(c => c.nome.toLowerCase().includes(q.toLowerCase()) || soDigitos(c.fone).includes(soDigitos(q)));
 
   return (
     <>
@@ -1597,6 +1611,12 @@ function Clientes({ dados, acao, aviso }) {
         <Search size={16} style={{ position: 'absolute', left: 12, top: 13, color: 'var(--muted)' }} />
         <input type="search" aria-label="Buscar cliente" placeholder="Buscar por nome ou WhatsApp…" value={q} onChange={e => setQ(e.target.value)} style={{ paddingLeft: 36 }} />
       </div>
+      {soNiver && (
+        <div className="cl-filtro">
+          <span><Cake size={15} aria-hidden="true" /> Aniversariantes dos próximos 7 dias</span>
+          <button className="btn btn-g btn-s" onClick={() => setSoNiver(false)}>Ver todas</button>
+        </div>
+      )}
       <div className="card list">
         {filtrados.map(c => (
           <div key={c.id} className="li">
@@ -1608,16 +1628,19 @@ function Clientes({ dados, acao, aviso }) {
                 <span>{c.visitas} {c.visitas === 1 ? 'visita' : 'visitas'}</span>
                 <span>{brl(c.gasto)}</span>
                 {c.ultima && <span style={{ color: c.diasSem > 60 ? 'var(--lacquer)' : 'inherit' }}>última visita {haQuanto(c.diasSem)}</span>}
+                {soNiver && <span className="cl-niver">aniversário {c.nasc.slice(8, 10)}/{c.nasc.slice(5, 7)}</span>}
               </div>
             </div>
             <button className="btn btn-g btn-s" onClick={() => setSel(c)}>Ficha</button>
-            <a className="btn btn-wa btn-s" href={waLink(c.fone, `Oi ${c.nome.split(' ')[0]}! `)} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /></a>
+            <a className="btn btn-wa btn-s" href={waLink(c.fone, `Oi ${c.nome.split(' ')[0]}! `)} target="_blank" rel="noopener noreferrer"
+               aria-label={`WhatsApp de ${c.nome.split(' ')[0]}`}><MessageCircle size={15} aria-hidden="true" /></a>
           </div>
         ))}
         {/* Lista vazia sem busca é empresa sem cliente nenhuma: diz de onde elas vêm. */}
         {filtrados.length === 0 && (
           <div style={{ padding: 34, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
-            {q.trim()
+            {soNiver ? 'Nenhuma aniversariante nos próximos 7 dias.'
+              : q.trim()
               ? 'Nenhuma cliente com esse nome ou número.'
               : 'Nenhuma cliente ainda. Elas entram sozinhas quando agendam pelo site, ou você cadastra em “Nova cliente”.'}
           </div>

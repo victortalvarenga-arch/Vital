@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Check, UserX, X } from 'lucide-react';
+import { Check, UserX, Wallet, X } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
+import { hojeISO } from '../shared/tempo.js';
 
 
 /**
@@ -44,17 +45,26 @@ const ESTADOS = {
   concluido: { rotulo: 'Atendido', tom: 'feito', busca: 'concluido' },
   falta: { rotulo: 'Faltou', tom: 'falta', busca: 'falta' },
   cancelado: { rotulo: 'Cancelado', tom: 'ruim', busca: 'cancelado' },
+  // Não é estado do atendimento, é do dinheiro: atendida e ainda não paga.
+  // Olha todos os dias até hoje, e não o período da Agenda — é o que o aviso
+  // de "pagamento pendente" do Resumo conta.
+  receber: { rotulo: 'A receber', tom: 'aguarda', busca: 'concluido', todosOsDias: true },
 };
+
+/** Como o dinheiro do atendimento aparece na linha. */
+const PAGAMENTO = { pago: 'Pago', parcial: 'Entrada', aberto: 'A pagar' };
 
 /** O estado do banco, traduzido para o que a tela mostra. */
 const comoAparece = status =>
   ESTADOS[status === 'confirmado' ? 'agendado' : status]
   || { rotulo: status, tom: 'aguarda' };
 
-export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = [] }) {
+export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = [], filtroInicial = '', aoAbrir }) {
   const { staff, clientes, servicos } = dados;
 
-  const [estado, setEstado] = useState('');
+  const [estado, setEstado] = useState(filtroInicial);
+  const hoje = hojeISO();
+  const todos = ESTADOS[estado]?.todosOsDias;
   const [lista, setLista] = useState(null);
   const [falhou, setFalhou] = useState(false);
   const [versao, setVersao] = useState(0);
@@ -69,11 +79,11 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
     let vivo = true;
     setLista(null);
     setFalhou(false);
-    api.listarAgendamentos({ de, ate, status: ESTADOS[estado]?.busca })
+    api.listarAgendamentos({ de: todos ? '2000-01-01' : de, ate: todos ? hoje : ate, status: ESTADOS[estado]?.busca })
       .then(l => { if (vivo) setLista(l); })
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [de, ate, estado, versao]);
+  }, [de, ate, estado, versao, todos, hoje]);
 
   // `acao` recarrega o estado global do painel; `versao` recarrega esta lista,
   // que o estado global não conhece.
@@ -85,7 +95,9 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
     setVersao(v => v + 1);
   };
 
-  const visiveis = (lista || []).filter(a => pessoas.length === 0 || pessoas.includes(a.prof));
+  const visiveis = (lista || [])
+    .filter(a => pessoas.length === 0 || pessoas.includes(a.prof))
+    .filter(a => estado !== 'receber' || a.pagamento?.status !== 'pago');
   const total = visiveis
     .filter(a => a.status === 'concluido')
     .reduce((s, a) => s + Number(a.valor || 0), 0);
@@ -94,7 +106,9 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
     <>
       <div className="ag-filtros">
         <span className="ag-resumo">
-          {lista ? `${visiveis.length} no período · ${brl(total)} atendidos` : 'Carregando…'}
+          {!lista ? 'Carregando…'
+            : todos ? `${visiveis.length} a receber, de qualquer dia até hoje`
+            : `${visiveis.length} no período · ${brl(total)} atendidos`}
         </span>
         <div className="chips">
           <button className={'chip' + (estado === '' ? ' on' : '')} onClick={() => setEstado('')}>Todo estado</button>
@@ -127,6 +141,7 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
                 {poderes.verDeTodos && <th>Profissional</th>}
                 <th className="num">Valor</th>
                 <th>Estado</th>
+                <th>Pagamento</th>
                 <th />
               </tr>
             </thead>
@@ -144,17 +159,27 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
                     {poderes.verDeTodos && <td>{p?.nome.split(' ')[0] || '—'}</td>}
                     <td className="num mono">{brl(a.valor)}</td>
                     <td><span className={'ag-estado ' + e.tom}>{e.rotulo}</span></td>
+                    {/* O dinheiro tem coluna própria: "Atendido" sozinho não dizia
+                        se pagou, e a Recepção dizia — pareciam se contradizer. */}
+                    <td>{a.status === 'concluido'
+                      ? <span className={'ag-pag ' + (a.pagamento?.status || 'aberto')}>{PAGAMENTO[a.pagamento?.status] || 'A pagar'}</span>
+                      : '—'}</td>
                     <td className="ag-acoes">
+                      {aoAbrir && a.status === 'concluido' && a.pagamento?.status !== 'pago' && (
+                        <button className="btn btn-p btn-s" onClick={() => aoAbrir(a)}>
+                          <Wallet size={14} aria-hidden="true" /> Receber
+                        </button>
+                      )}
                       {a.status !== 'concluido' && (
-                        <button className="btn btn-g btn-s" title="Marcar como atendida"
+                        <button className="btn btn-g btn-s" title="Marcar como atendida" aria-label="Marcar como atendida"
                                 onClick={() => mudar(a, 'concluido')}><Check size={14} /></button>
                       )}
                       {a.status !== 'falta' && (
-                        <button className="btn btn-g btn-s" title="Registrar falta"
+                        <button className="btn btn-g btn-s" title="Registrar falta" aria-label="Registrar falta"
                                 onClick={() => mudar(a, 'falta')}><UserX size={14} /></button>
                       )}
                       {a.status !== 'cancelado' && (
-                        <button className="btn btn-g btn-s btn-erro" title="Cancelar e liberar o horário"
+                        <button className="btn btn-g btn-s btn-erro" title="Cancelar e liberar o horário" aria-label="Cancelar e liberar o horário"
                                 onClick={() => mudar(a, 'cancelado')}><X size={14} /></button>
                       )}
                     </td>

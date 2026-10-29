@@ -492,24 +492,36 @@ function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes,
   // Raro de propósito: o fechamento automático já marca como pago o que passou
   // da hora (ver `jobs/fechamento.js`). Sobra o caso de alguém ter mexido no
   // pagamento à mão, que é justamente quando vale avisar.
-  const aCobrar = agendamentos.filter(a =>
+  //
+  // Leva ao atendimento, não à Agenda: o aviso conta qualquer dia até hoje, e
+  // a Agenda abre no dia de hoje — o pendente de ontem nem aparecia lá, e a
+  // pessoa via outro atendimento, já pago, e achava que o aviso mentia.
+  const cobrar = agendamentos.filter(a =>
     a.data <= hoje && a.status === 'concluido'
-    && a.pagamento?.status === 'aberto' && doMeuRecorte(a)).length;
-  if (aCobrar) {
+    && a.pagamento?.status === 'aberto' && doMeuRecorte(a));
+  if (cobrar.length) {
+    const nome = a => clientes.find(c => c.id === a.cliente)?.nome.split(' ')[0] || 'cliente';
     lista.push({
-      k: 'cobrar', icone: <Wallet size={15} />, ir: ir('agenda', 'lista'),
-      titulo: `${aCobrar} ${aCobrar === 1 ? 'pagamento pendente' : 'pagamentos pendentes'}`,
-      detalhe: 'Atendimento feito e ainda não pago.',
+      k: 'cobrar', icone: <Wallet size={15} />,
+      ir: cobrar.length === 1 ? ir('agenda', { abrir: cobrar[0].id }) : ir('agenda', { receber: true }),
+      titulo: `${cobrar.length} ${cobrar.length === 1 ? 'pagamento pendente' : 'pagamentos pendentes'}`,
+      detalhe: cobrar.length === 1
+        ? `${nome(cobrar[0])}, ${cobrar[0].data.slice(8)}/${cobrar[0].data.slice(5, 7)}: atendida e ainda não pagou.`
+        : 'Atendimentos feitos e ainda não pagos.',
     });
   }
 
   // Aniversário dos próximos sete dias, dia e mês — o ano não interessa.
-  const aniversariantes = clientes.filter(c => c.nasc && emSeteDias(c.nasc, hoje)).length;
-  if (aniversariantes && poderes.cadastros) {
+  // O aviso diz quem são, e leva para a lista já filtrada nelas: "2
+  // aniversariantes" e uma lista de todas as clientes não dizia de quem.
+  const aniversariantes = clientes.filter(c => c.nasc && emSeteDias(c.nasc, hoje));
+  if (aniversariantes.length && poderes.cadastros) {
+    const nomes = aniversariantes.slice(0, 3).map(c => c.nome.split(' ')[0]).join(', ')
+      + (aniversariantes.length > 3 ? ` e mais ${aniversariantes.length - 3}` : '');
     lista.push({
-      k: 'aniversario', icone: <Cake size={15} />, ir: ir('clientes'),
-      titulo: `${aniversariantes} ${aniversariantes === 1 ? 'aniversariante' : 'aniversariantes'} na semana`,
-      detalhe: 'Boa hora para uma mensagem.',
+      k: 'aniversario', icone: <Cake size={15} />, ir: ir('clientes', 'aniversario'),
+      titulo: `${aniversariantes.length} ${aniversariantes.length === 1 ? 'aniversariante' : 'aniversariantes'} na semana`,
+      detalhe: `${nomes}. Boa hora para uma mensagem.`,
     });
   }
 
@@ -526,7 +538,7 @@ function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes,
 }
 
 /** O aniversário cai nos próximos sete dias? Compara só dia e mês. */
-function emSeteDias(nasc, hoje) {
+export function emSeteDias(nasc, hoje) {
   const alvo = nasc.slice(5);
   const base = new Date(`${hoje}T12:00:00`);
   for (let i = 0; i < 7; i++) {
