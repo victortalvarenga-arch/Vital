@@ -292,7 +292,7 @@ function Hoje({ total, concluidos, diario, pendencias }) {
         </div>
         {pendencias > 0 && (
           <span className="rs-pendencias">
-            {pendencias} {pendencias === 1 ? 'pendência' : 'pendências'}
+            {pendencias} {pendencias === 1 ? 'aviso abaixo' : 'avisos abaixo'}
           </span>
         )}
       </div>
@@ -702,6 +702,16 @@ function FunilDoSite() {
 
 const rotuloAtendimentos = n => `${n} atendimento${n === 1 ? '' : 's'}`;
 
+/**
+ * O dono vê o ranking pelo que cada um produziu: com o valor ao lado, quem
+ * faturou mais aparecendo em 2º parecia erro. O servidor ordena por
+ * atendimentos de propósito — é a ordem do funcionário, que não recebe valor e
+ * não pode deduzir o faturamento dos colegas por ela (ver `/ranking`).
+ */
+const ordenado = linhas => (linhas.some(l => l.producao != null)
+  ? [...linhas].sort((a, b) => (b.producao || 0) - (a.producao || 0) || b.qtd - a.qtd)
+  : linhas);
+
 /** "1 feito · 3 marcados · 1 faltou" — só as partes que existem. */
 function partesDoMes({ agendados = 0, atendimentos = 0, faltas = 0 }) {
   const marcados = Math.max(agendados - atendimentos - faltas, 0);
@@ -723,14 +733,16 @@ function Ranking({ staff, ranking, falhou }) {
       <div className="eyebrow">
         <Trophy size={13} style={{ verticalAlign: -2 }} /> Ranking do mês
       </div>
-      <p className="rs-stat-sub" style={{ margin: '2px 0 12px' }}>Pelos atendimentos já feitos</p>
+      <p className="rs-stat-sub" style={{ margin: '2px 0 12px' }}>
+        {ranking?.some(l => l.producao != null) ? 'Pelo que cada um produziu no mês' : 'Pelos atendimentos já feitos'}
+      </p>
       <Dica texto="Quem mais fez atendimentos neste mês. Só contam os concluídos." />
       {falhou && !ranking && <p className="rs-vazio">Não deu para carregar.</p>}
       {!falhou && !ranking && <p className="rs-vazio">Calculando…</p>}
       {ranking && ranking.length === 0 && (
         <p className="rs-vazio">Nenhum atendimento concluído este mês ainda.</p>
       )}
-      {ranking && ranking.map((linha, i) => {
+      {ranking && ordenado(ranking).map((linha, i) => {
         const p = staff.find(x => x.id === linha.id);
         return (
           <div key={linha.id} className="li" style={{ padding: '9px 0' }}>

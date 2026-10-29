@@ -1163,7 +1163,9 @@ a.btn{text-decoration:none}
 .fin-servico-linha > span:last-child{white-space:nowrap; flex:none}
 .fin-trilho{height:6px; background:var(--line); border-radius:999px}
 .fin-preenche{height:6px; background:var(--lacquer); border-radius:999px}
-.fin-atraso{font-size:12px; font-weight:600; color:var(--warn); margin-top:2px}
+/* O número que pede ação (cobrar) era o menor da tela, em âmbar a 3:1. */
+.fin-atraso{align-self:flex-start; margin-top:6px; padding:4px 10px; border-radius:999px;
+  font-size:13px; font-weight:700; color:var(--warn-texto); background:var(--warn-claro)}
 
 /* Calendário de intervalo. Sobrepõe o conteúdo, sem empurrá-lo para baixo. */
 .dr{position:absolute; z-index:20; right:0; top:100%; width:min(348px, 100%); margin-top:8px; padding:14px;

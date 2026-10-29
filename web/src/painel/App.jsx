@@ -902,7 +902,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
 
             <div className="at-resumo">
               <div><span>Serviço</span><b>{s?.nome}</b></div>
-              <div><span>Duração</span><b>{at.duracao} min</b></div>
+              {/* A duração do atendimento soma o intervalo do serviço: o
+                  serviço diz 60 e aqui dizia 65 sem explicar. */}
+              <div><span>Duração</span><b>{at.duracao} min{s?.intervalo > 0 && <i className="encaixe-pausa"> · com intervalo</i>}</b></div>
               <div><span>Profissional</span><b>{p?.nome}</b></div>
               <div><span>Valor</span><b className="mono">{brl(at.valor)}</b></div>
             </div>
