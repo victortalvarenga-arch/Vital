@@ -585,6 +585,9 @@ export function GraficoMensal({ meses, titulo, dica }) {
   const valores = (meses || []).map(m => m.lucro ?? m.recebido);
   const teto = tetoDoEixo(Math.max(0, ...valores));
   const vazio = meses && valores.every(v => v <= 0);
+  // Com menos de três meses de movimento, doze colunas são onze vazias e uma
+  // barra: parece produto parado. Até lá, o número do mês fala sozinho.
+  const poucos = meses && !vazio && valores.filter(v => v > 0).length < 3;
   const ativo = sel ?? (meses ? meses.length - 1 : 0);
   const [anoAtivo, mesAtivo] = meses ? meses[ativo].mes.split('-').map(Number) : [0, 0];
 
@@ -603,8 +606,13 @@ export function GraficoMensal({ meses, titulo, dica }) {
 
       {!meses && <p className="rs-vazio">Calculando…</p>}
       {vazio && <p className="rs-vazio">Ainda não há atendimentos pagos nestes meses.</p>}
+      {poucos && (
+        <p className="rs-vazio">
+          A comparação mês a mês aparece quando houver três meses de movimento.
+        </p>
+      )}
 
-      {meses && !vazio && (
+      {meses && !vazio && !poucos && (
         <div className="rs-graf-corpo com-rotulos">
           <div className="rs-graf-eixo" aria-hidden="true">
             {[teto, teto / 2, 0].map(v => <span key={v}>{compacto(v)}</span>)}
