@@ -96,7 +96,7 @@ a.btn{text-decoration:none}
 .p-grupo{ display:flex; flex-direction:column; gap:2px; margin-bottom:10px; }
 .p-grupo-t{
   font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
-  color:rgba(251,246,244,.42); padding:12px 12px 6px; font-weight:700;
+  color:rgba(251,246,244,.62); padding:12px 12px 6px; font-weight:700;
 }
 /* "Ajustes": o mesmo rótulo, mas é um botão que abre e fecha o grupo. */
 .p-grupo-abre{display:flex; align-items:center; justify-content:space-between; width:100%;
@@ -222,7 +222,7 @@ a.btn{text-decoration:none}
 /* A de meia hora é mais fraca: divide sem competir com a da hora cheia. */
 .linha.meia{opacity:.4}
 
-.appt{position:absolute; border-radius:7px; padding:4px 8px; font-size:11px; line-height:1.28;
+.appt{position:absolute; border-radius:7px; padding:4px 8px; font-size:11px; line-height:1.32;
   overflow:hidden; border:none; border-left:4px solid; color:var(--ink); text-align:left; /* impeccable-disable-line side-tab -- a cor é o dado (de quem é o atendimento), não enfeite; ver ARQUITETURA.md "A agenda do painel" */
   touch-action:none; cursor:grab; transition:box-shadow .12s, transform .12s}
 .appt:hover{filter:brightness(.97)}
@@ -865,7 +865,7 @@ a.btn{text-decoration:none}
 .ag-estado{display:inline-block; padding:3px 10px; border-radius:999px;
   font-size:12px; font-weight:600; white-space:nowrap}
 .ag-estado.aguarda{background:var(--blush); color:var(--lacquer-d)}
-.ag-estado.feito{background:#E4F0EA; color:var(--ok)}
+.ag-estado.feito{background:#E4F0EA; color:#20573F}
 .ag-estado.ruim{background:#F3E6E6; color:var(--erro)}
 .ag-estado.falta{background:#EEE8F6; color:#5B3E93}
 /* Pagamento na Lista: o mesmo par da gaveta (pago verde, entrada azul, a pagar âmbar). */
