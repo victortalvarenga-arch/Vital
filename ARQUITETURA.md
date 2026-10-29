@@ -1002,6 +1002,16 @@ gráfico de doze meses só aparece com três meses de movimento; antes disso
 eram onze colunas vazias e uma barra. O selo do cartão Hoje diz quantos
 **avisos** há abaixo (tipos de pendência), não uma soma de pessoas.
 
+**"Em atraso" é de quem já foi atendida** — concluída ou na cadeira, e ainda
+sem pagar (decisão de 2026-10-29). Contava o agendado de hoje que nem tinha
+chegado. **Um nome por estado:** "A confirmar" e "Confirmado" em todas as telas
+(eram Pendente, a confirmar e Agendado). A **Lista** só oferece o que faz
+sentido no estado — "Atendida" e "Faltou" depois da hora marcada, "Cancelar"
+antes de acontecer, "Receber" no atendido sem pagar —, com texto nos botões e o
+mesmo Desfazer da gaveta no lugar da caixa do navegador. Na ficha da cliente,
+visitas e última visita contam só o que foi atendido, o histórico diz o que foi
+cada linha e abre o atendimento, e há **Agendar para ela**.
+
 **Cada aviso do Resumo leva ao que ele conta** (correção de 2026-10-29). O de
 pagamento pendente conta qualquer dia até hoje, e levava à Agenda, que abre no
 dia de hoje: o pendente de ontem nem aparecia, a Recepção mostrava outro

@@ -3,7 +3,7 @@ import { Check, UserX, Wallet, X } from 'lucide-react';
 import { mudarSituacao } from './fluxo.js';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
-import { hojeISO } from '../shared/tempo.js';
+import { hojeISO, toMin } from '../shared/tempo.js';
 
 
 /**
@@ -65,6 +65,10 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
   const [estado, setEstado] = useState(filtroInicial);
   const hoje = hojeISO();
   const todos = ESTADOS[estado]?.todosOsDias;
+  // "Atendida" e "Faltou" só depois da hora marcada, como na gaveta: às 12h a
+  // das 14h30 ainda não foi atendida nem faltou.
+  const agoraMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const jaComecou = a => a.data < hoje || (a.data === hoje && toMin(a.hora) <= agoraMin);
   const [lista, setLista] = useState(null);
   const [falhou, setFalhou] = useState(false);
   const [versao, setVersao] = useState(0);
@@ -170,12 +174,12 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
                           <Wallet size={14} aria-hidden="true" /> Receber
                         </button>
                       )}
-                      {(a.status === 'em_atendimento' || (['agendado', 'confirmado'].includes(a.status) && a.data <= hoje)) && (
+                      {(a.status === 'em_atendimento' || (['agendado', 'confirmado'].includes(a.status) && jaComecou(a))) && (
                         <button className="btn btn-g btn-s" onClick={() => mudar(a, 'concluido')}>
                           <Check size={14} aria-hidden="true" /> Atendida
                         </button>
                       )}
-                      {['agendado', 'confirmado'].includes(a.status) && a.data <= hoje && (
+                      {['agendado', 'confirmado'].includes(a.status) && jaComecou(a) && (
                         <button className="btn btn-g btn-s" onClick={() => mudar(a, 'falta')}>
                           <UserX size={14} aria-hidden="true" /> Faltou
                         </button>
