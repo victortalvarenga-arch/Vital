@@ -136,9 +136,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
     de, ate, ...arg
   );
 
+  // Em atraso é de quem JÁ foi atendida — concluída ou na cadeira agora — e
+  // ainda não pagou (decisão de 2026-10-29). Antes contava o agendado de hoje
+  // que nem tinha chegado, e deixava de fora quem estava na cadeira: o
+  // Financeiro dizia R$ 375 em atraso ao lado de um aviso de R$ 45 no Resumo.
   const aReceber = (await db.get(
     `SELECT SUM(valor - pag_recebido) v FROM appointments
-      WHERE pag_status <> 'pago' AND data <= ? AND status IN ('agendado','confirmado','concluido') ${meu}`,
+      WHERE pag_status <> 'pago' AND data <= ? AND status IN ('em_atendimento','concluido') ${meu}`,
     h, ...arg
   )).v || 0;
 
@@ -154,7 +158,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
   const aReceberNoPeriodo = (await db.get(
     `SELECT SUM(valor - pag_recebido) v FROM appointments
       WHERE data >= ? AND data <= ? AND pag_status <> 'pago'
-        AND status IN ('agendado','confirmado','concluido') ${meu}`,
+        AND status IN ('agendado','confirmado','em_atendimento','concluido') ${meu}`,
     de, ate, ...arg
   )).v || 0;
 

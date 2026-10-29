@@ -133,7 +133,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const alertas = pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes, irPara });
   // Quem está na cadeira agora: o próximo passo dela é "Concluir".
   const naCadeira = doDia.filter(a => a.status === 'em_atendimento');
-  const avancar = (id, status) => mudarSituacao({ acao, agendamentos, clientes }, id, status);
+  const avancar = (id, status) => mudarSituacao({ acao, agendamentos, clientes, irPara }, id, status);
   // Empresa que ainda não atendeu ninguém: zeros ensinam nada. No lugar deles,
   // os três passos até o primeiro agendamento. Só para o dono — quem atende
   // não configura o negócio.

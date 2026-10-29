@@ -78,6 +78,27 @@ describe('resumo de um período', () => {
     assert.equal(corpo.ticketMedio, 100);
   });
 
+  test('em atraso é só de quem já foi atendida: horário que ainda vem não conta', async () => {
+    const { hoje } = await import('../src/lib/dates.js');
+    const h = hoje();
+    // Valores diferentes de propósito: com os três iguais, a regra antiga
+    // (conta o futuro, esquece a cadeira) dava o mesmo total por acaso.
+    const balcao = async (hora, valor, status) => {
+      const r = await dona('POST', '/api/agendamentos', {
+        clienteId: 'c1', servicoId: 's1', profissionalId: 'p2', data: h, hora, valor, forcar: true,
+      });
+      assert.equal(r.status, 201, r.corpo?.erro);
+      if (status) await dona('PUT', `/api/agendamentos/${r.corpo.id}`, { status });
+    };
+    const antes = (await dona('GET', `/api/relatorios/resumo?de=${h}&ate=${h}`)).corpo;
+    await balcao('06:00', 100, 'concluido');        // atendida, não pagou: atraso
+    await balcao('07:00', 50, 'em_atendimento');    // na cadeira, não pagou: atraso
+    await balcao('23:00', 30);                      // ainda vai chegar: não é atraso
+    const { corpo } = await dona('GET', `/api/relatorios/resumo?de=${h}&ate=${h}`);
+    assert.equal(corpo.aReceber - antes.aReceber, 150, 'os dois atendidos, e não o das 23h');
+    assert.equal(corpo.aReceberNoPeriodo - antes.aReceberNoPeriodo, 180, 'a receber do período conta os três');
+  });
+
   test('período em andamento compara só o trecho que já passou', async () => {
     // Um mês que vai até daqui a 20 dias: o anterior tem o mesmo número de
     // dias que já correram, e não o tamanho do mês inteiro.

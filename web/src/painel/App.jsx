@@ -346,6 +346,11 @@ function Painel({ sessao, aoSair }) {
         <div className="p-aviso" role="status">
           <Check size={17} aria-hidden="true" />
           <span className="p-aviso-txt">{toast.texto ?? toast}</span>
+          {toast.extra && (
+            <button className="p-aviso-desfazer" onClick={() => { const x = toast.extra; setToast(null); x.ir(); }}>
+              {toast.extra.rotulo}
+            </button>
+          )}
           {toast.desfazer && (
             <button className="p-aviso-desfazer" onClick={() => { const d = toast.desfazer; setToast(null); d(); }}>
               Desfazer

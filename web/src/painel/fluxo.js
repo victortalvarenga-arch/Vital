@@ -26,16 +26,21 @@ export const FLUXO = {
  * outra registrava falta sem volta na hora — a correção existia, mas atrás do
  * "Alterar" da gaveta.
  */
-export function mudarSituacao({ acao, agendamentos, clientes }, id, status) {
+export function mudarSituacao({ acao, agendamentos, clientes, irPara }, id, status) {
   const antes = agendamentos.find(a => a.id === id);
   const nome = clientes.find(c => c.id === antes?.cliente)?.nome.split(' ')[0];
   const de = nome ? `${nome}: ` : '';
   const volta = antes && antes.status !== status ? antes.status : null;
+  // Concluir sem ter recebido deixava a cliente sair "a receber" sem ninguém
+  // ver: o aviso diz quanto falta e leva à gaveta, onde se recebe.
+  const falta = antes ? Number(antes.valor || 0) - Number(antes.pagamento?.recebido || 0) : 0;
+  const cobrar = status === 'concluido' && falta > 0 && irPara;
   return acao(() => api.atualizarAgendamento(id, { status }), {
-    texto: de + FLUXO[status].rotulo.toLowerCase(),
+    texto: de + FLUXO[status].rotulo.toLowerCase() + (cobrar ? ' · falta receber' : ''),
     desfazer: volta && (() => acao(
       () => api.atualizarAgendamento(id, { status: volta }),
       `${de}voltou para ${FLUXO[volta].rotulo.toLowerCase()}`
     )),
+    ...(cobrar ? { extra: { rotulo: 'Receber', ir: () => irPara('agenda', { abrir: id }) } } : {}),
   });
 }
