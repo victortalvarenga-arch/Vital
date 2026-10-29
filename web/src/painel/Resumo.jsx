@@ -194,7 +194,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
                   </div>
                   {/* Confirmado ou não é o que decide se vale mandar mensagem. */}
                   <span className={'rs-selo' + (a.status === 'confirmado' ? ' ok' : '')}>
-                    {a.status === 'confirmado' ? 'Confirmado' : 'Pendente'}
+                    {a.status === 'confirmado' ? 'Confirmado' : 'A confirmar'}
                   </span>
                 </div>
               );

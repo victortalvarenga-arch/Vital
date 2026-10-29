@@ -12,7 +12,7 @@ import { api } from '../shared/painel-api.js';
  * chegou" no cartão da próxima cliente é o mesmo botão da gaveta.
  */
 export const FLUXO = {
-  agendado:       { rotulo: 'Agendado',       tom: 'espera',  proximo: 'confirmado',     acao: 'Confirmar' },
+  agendado:       { rotulo: 'A confirmar',    tom: 'espera',  proximo: 'confirmado',     acao: 'Confirmar' },
   confirmado:     { rotulo: 'Confirmado',     tom: 'ok',      proximo: 'em_atendimento', acao: 'Cliente chegou' },
   em_atendimento: { rotulo: 'Em atendimento', tom: 'agora',   proximo: 'concluido',      acao: 'Concluir' },
   concluido:      { rotulo: 'Concluído',      tom: 'feito' },

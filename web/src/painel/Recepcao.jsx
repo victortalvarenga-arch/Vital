@@ -42,7 +42,9 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
             {primeiroFuturo && lista.some(x => toMin(x.hora) + x.duracao <= minAgora) && (
               <div className="rc-agora"><span>agora</span></div>
             )}
-            <button type="button" className={'rc-linha' + (passou ? ' passou' : '')}
+            {/* Atendida e ainda não paga é a única linha passada que pede ação:
+                não desbota com as outras, e diz "a pagar". */}
+            <button type="button" className={'rc-linha' + (passou && !(a.status === 'concluido' && a.pagamento?.status !== 'pago') ? ' passou' : '')}
                     onClick={() => aoTocar(a)}>
               <span className="rc-hora mono">
                 {a.hora}
@@ -62,9 +64,10 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
                 <b className="mono">{brl(a.valor)}</b>
                 {a.status === 'falta' ? <i className="rc-falta">faltou</i>
                   : a.status === 'em_atendimento' ? <i className="rc-agora">na cadeira</i>
-                  : a.status === 'agendado' ? <i className="rc-pendente">a confirmar</i>
+                  : a.status === 'agendado' ? <i className="rc-confirmar">a confirmar</i>
                   : a.pagamento?.status === 'pago' ? <i className="rc-pago">pago</i>
-                  : a.pagamento?.status === 'parcial' ? <i className="rc-pendente">entrada</i> : null}
+                  : a.pagamento?.status === 'parcial' ? <i className="rc-pendente">entrada</i>
+                  : a.status === 'concluido' ? <i className="rc-apagar">a pagar</i> : null}
               </span>
             </button>
           </div>

@@ -136,7 +136,8 @@ export default function Servicos({ dados, acao, aviso }) {
               <span role="cell" className="mono sv-dur">{s.duracao} min</span>
               <span role="cell" className="mono sv-preco">{brl(s.preco)}</span>
               <span role="cell" className="sv-com">
-                {s.comissao != null ? `${pct(s.comissao)}%` : <i>Da profissional</i>}
+                {/* Sem comissão no serviço vale a de cada pessoa; dizer isso, e não "Da profissional", que soava como dado. */}
+                {s.comissao != null ? `${pct(s.comissao)}%` : <i>a de cada profissional</i>}
                 {excecoes > 0 && <small>{excecoes} {excecoes === 1 ? 'exceção' : 'exceções'}</small>}
               </span>
               <span role="cell" className={'sv-status ' + estadoDe(s).tom}>{estadoDe(s).rotulo}</span>
@@ -352,7 +353,7 @@ function EditarServico({ s, staff, servicos = [], acao, fechar, aviso, categoria
         <Campo label="Comissão do serviço">
           <span className="campo-pct sv-com-campo">
             <input type="number" min={0} max={100} step="0.5" inputMode="decimal"
-                   value={f.comissao ?? ''} placeholder="Da profissional"
+                   value={f.comissao ?? ''} placeholder="a de cada profissional"
                    onChange={e => mudar('comissao', e.target.value)} />
             <i>%</i>
           </span>

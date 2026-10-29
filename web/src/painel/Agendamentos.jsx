@@ -41,7 +41,8 @@ import { hojeISO } from '../shared/tempo.js';
  * aqui agora", e é isso que se pergunta a uma lista no meio do dia.
  */
 const ESTADOS = {
-  agendado: { rotulo: 'Agendado', tom: 'aguarda', busca: 'agendado,confirmado' },
+  agendado: { rotulo: 'A confirmar', tom: 'aguarda', busca: 'agendado' },
+  confirmado: { rotulo: 'Confirmado', tom: 'confirmado', busca: 'confirmado' },
   em_atendimento: { rotulo: 'Em atendimento', tom: 'agora', busca: 'em_atendimento' },
   concluido: { rotulo: 'Atendido', tom: 'feito', busca: 'concluido' },
   falta: { rotulo: 'Faltou', tom: 'falta', busca: 'falta' },
@@ -56,9 +57,7 @@ const ESTADOS = {
 const PAGAMENTO = { pago: 'Pago', parcial: 'Entrada', aberto: 'A pagar' };
 
 /** O estado do banco, traduzido para o que a tela mostra. */
-const comoAparece = status =>
-  ESTADOS[status === 'confirmado' ? 'agendado' : status]
-  || { rotulo: status, tom: 'aguarda' };
+const comoAparece = status => ESTADOS[status] || { rotulo: status, tom: 'aguarda' };
 
 export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = [], filtroInicial = '', aoAbrir, irPara }) {
   const { staff, clientes, servicos } = dados;
@@ -108,7 +107,7 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
             : `${visiveis.length} no período`}
         </span>
         <div className="chips">
-          <button className={'chip' + (estado === '' ? ' on' : '')} onClick={() => setEstado('')}>Todo estado</button>
+          <button className={'chip' + (estado === '' ? ' on' : '')} onClick={() => setEstado('')}>Todos</button>
           {Object.entries(ESTADOS).map(([k, e]) => (
             <button key={k} className={'chip' + (estado === k ? ' on' : '')}
                     onClick={() => setEstado(k)}>{e.rotulo}</button>

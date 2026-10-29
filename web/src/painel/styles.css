@@ -864,7 +864,11 @@ a.btn{text-decoration:none}
 .ag-acoes{display:flex; gap:6px; justify-content:flex-end}
 .ag-estado{display:inline-block; padding:3px 10px; border-radius:999px;
   font-size:12px; font-weight:600; white-space:nowrap}
-.ag-estado.aguarda{background:var(--blush); color:var(--lacquer-d)}
+.ag-estado.aguarda{background:var(--warn-claro); color:var(--warn-texto)}
+.ag-estado.confirmado{background:#E4F0EA; color:#20573F}
+/* Linha do histórico da cliente: é um botão (abre o atendimento). */
+.cl-hist{width:100%; padding:10px 14px; text-align:left; gap:10px}
+.cl-hist:hover{background:var(--porcelain)}
 .ag-estado.feito{background:#E4F0EA; color:#20573F}
 .ag-estado.ruim{background:#F3E6E6; color:var(--erro)}
 .ag-estado.falta{background:#EEE8F6; color:#5B3E93}
@@ -1495,9 +1499,12 @@ a.btn{text-decoration:none}
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .rc-fim{display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none}
 .rc-fim i{font-style:normal; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px}
-.rc-pago{background:#E4F0EA; color:var(--ok)}
-.rc-pendente{background:var(--lacquer-tag); color:var(--lacquer-d)}
+/* As cores do eixo de estado (DESIGN.md): a confirmar âmbar, entrada azul, pago verde. */
+.rc-pago{background:#E4F0EA; color:#20573F}
+.rc-pendente{background:#E4EDF6; color:#1F5C96}
+.rc-confirmar{background:var(--warn-claro); color:var(--warn-texto)}
 .rc-falta{background:#EEE8F6; color:#5B3E93}
+.rc-apagar{background:var(--warn-claro); color:var(--warn-texto)}
 /* A marca de "agora": o que está acima já passou. */
 .rc-agora{display:flex; align-items:center; gap:8px; padding:2px 18px 4px}
 .rc-agora::after{content:''; flex:1; height:1px; background:var(--lacquer)}

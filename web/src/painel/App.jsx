@@ -319,7 +319,7 @@ function Painel({ sessao, aoSair }) {
                   aoConsumirPedido={() => setPedido(null)} />
         )}
         {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast}
-                                            pedido={pedido} aoConsumirPedido={() => setPedido(null)} />}
+                                            pedido={pedido} aoConsumirPedido={() => setPedido(null)} irPara={irPara} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'unidades' && p.cadastros && <Unidades dados={dados} acao={acao} aviso={setFalha} />}
@@ -441,6 +441,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   const [ancora, setAncora] = useState(hojeISO());
   const [sel, setSel] = useState(null);
   const [novo, setNovo] = useState(pedido === 'novo');
+  // Vindo da ficha ("Agendar para ela"): a cliente já escolhida.
+  const [novoCliente, setNovoCliente] = useState('');
   // Onde o atendimento foi solto, esperando a confirmação. Arrastar move o
   // dinheiro de dia e avisa a cliente — perto demais de um tapa na tela para
   // valer sem perguntar.
@@ -467,6 +469,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   useEffect(() => {
     if (!pedido) return;
     if (pedido === 'novo') setNovo(true);
+    if (pedido.novo && pedido.cliente) { setNovoCliente(pedido.cliente); setNovo(true); }
     if (pedido === 'lista') setAba('lista');
     if (pedido.receber) { setAba('lista'); setFiltroLista('receber'); }
     if (pedido.abrir) {
@@ -894,6 +897,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
         const vaiReceber = Number.isFinite(pedido) && pedido > 0 && pedido <= falta ? pedido : 0;
 
         const antesDeChegar = at.status === 'agendado' || at.status === 'confirmado';
+        // Falta só depois da hora marcada: ao meio-dia, a das 14h30 ainda não faltou.
+        const agoraMin = new Date().getHours() * 60 + new Date().getMinutes();
+        const jaComecou = at.data < hoje || (at.data === hoje && toMin(at.hora) <= agoraMin);
         const blocoPagamento = (
           <>
               {/* O pagamento em contas fechadas: total, quanto entrou, quanto
@@ -958,7 +964,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                   <button className="btn btn-p" onClick={() => mudarStatus(at.id, FLUXO[at.status].proximo)}>
                     {FLUXO[at.status].acao}
                   </button>
-                  {at.status !== 'em_atendimento' && (
+                  {at.status !== 'em_atendimento' && jaComecou && (
                     <button className="at-falta" onClick={() => mudarStatus(at.id, 'falta')}>
                       A cliente não veio · marcar falta
                     </button>
@@ -1088,8 +1094,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
           solta derrubava a Agenda inteira no clique — a tela sumia sem modal e
           sem erro visível. */}
       {novo && (
-        <NovoAgendamento dados={dados} acao={acao} data={diaParaAcao}
-                         fechar={() => setNovo(false)} aviso={aviso} />
+        <NovoAgendamento dados={dados} acao={acao} data={diaParaAcao} clienteInicial={novoCliente}
+                         fechar={() => { setNovo(false); setNovoCliente(''); }} aviso={aviso} />
       )}
 
       {/* Reagendar pela gaveta: o mesmo destino que o arrasto produz, para quem
@@ -1165,7 +1171,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
  * O que ela **não** fura é conflito com outro atendimento — isso o servidor
  * recusa dos dois lados. Por que não é a tela do site: ver `ARQUITETURA.md`.
  */
-function NovoAgendamento({ dados, acao, data, fechar }) {
+function NovoAgendamento({ dados, acao, data, fechar, clienteInicial = '' }) {
   const { staff, clientes, agendamentos } = dados;
   // Só a que está no ar vende, no balcão como no site; o dia o servidor confere.
   const combos = (dados.combos || []).filter(c => c.situacao === 'ativa');
@@ -1175,7 +1181,7 @@ function NovoAgendamento({ dados, acao, data, fechar }) {
 
   const [tipo, setTipo] = useState('servico');       // 'servico' | 'combo'
   const [f, setF] = useState({
-    cliente: '', servico: vendaveis[0]?.id || '', combo: combos[0]?.id || '',
+    cliente: clienteInicial, servico: vendaveis[0]?.id || '', combo: combos[0]?.id || '',
     prof: '', data, hora: '', extras: [],
   });
   const [ofertados, setOfertados] = useState([]);
@@ -1585,7 +1591,7 @@ const formatarResposta = v =>
   v === true ? 'sim' : v === false ? 'não' : Array.isArray(v) ? v.join(', ') : String(v);
 
 /* ── Clientes ── */
-function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido }) {
+function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido, irPara }) {
   const { clientes, agendamentos, servicos } = dados;
   const [q, setQ] = useState('');
   // Vindo do aviso de aniversariantes do Resumo, a lista abre filtrada nelas.
@@ -1596,8 +1602,8 @@ function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido }) {
 
   const enriquecidos = useMemo(() => clientes.map(c => {
     const meus = agendamentos.filter(a => a.cliente === c.id && a.status !== 'cancelado');
-    const passados = meus.filter(a => a.data <= hojeISO()).sort((a, b) => b.data.localeCompare(a.data));
-    const gasto = meus.filter(a => a.pagamento.status === 'pago').reduce((s, a) => s + a.valor, 0);
+    const passados = meus.filter(a => a.status === 'concluido').sort((a, b) => b.data.localeCompare(a.data));
+    const gasto = meus.reduce((s, a) => s + Number(a.pagamento?.recebido || 0), 0);
     const ultima = passados[0]?.data;
     return { ...c, visitas: passados.length, gasto, ultima, diasSem: ultima ? diasEntre(ultima, hojeISO()) : null };
   }).sort((a, b) => a.nome.localeCompare(b.nome)), [clientes, agendamentos]);
@@ -1663,6 +1669,12 @@ function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido }) {
                 <div style={{ fontSize: 13, color: 'var(--muted)' }} className="mono">{fmtFone(sel.fone)}</div>
               </div>
             </div>
+            {irPara && (
+              <button className="btn btn-p btn-s" style={{ marginBottom: 16 }}
+                      onClick={() => { setSel(null); irPara('agenda', { novo: true, cliente: sel.id }); }}>
+                <Plus size={16} aria-hidden="true" /> Agendar para {sel.nome.split(' ')[0]}
+              </button>
+            )}
             <div className="stats" style={{ marginBottom: 18 }}>
               <div className="card stat"><span className="eyebrow">Visitas</span><span className="v">{sel.visitas}</span></div>
               <div className="card stat"><span className="eyebrow">Total gasto</span><span className="v">{brl(sel.gasto)}</span></div>
@@ -1673,16 +1685,21 @@ function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido }) {
               {sel.obs && <div style={{ marginTop: 4 }}><StickyNote size={13} style={{ verticalAlign: -2 }} aria-hidden="true" /> {sel.obs}</div>}
             </div>
             <div className="eyebrow" style={{ marginBottom: 8 }}>Histórico</div>
-            <div className="card list" style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {/* Cada linha diz o que foi (cancelado, faltou, a confirmar…), e não
+                só "faltou": um cancelado aparecia como visita, cobrando. Tocar
+                abre o atendimento. Sem rolagem própria: rolagem dentro da
+                janela que já rola se perdia no celular. */}
+            <div className="card list">
               {hist.map(a => {
                 const s = servicos.find(x => x.id === a.servico);
                 return (
-                  <div key={a.id} className="li" style={{ padding: '10px 14px' }}>
+                  <button key={a.id} type="button" className="li cl-hist"
+                          onClick={irPara ? () => { setSel(null); irPara('agenda', { abrir: a.id }); } : undefined}>
                     <span className="mono" style={{ fontSize: 12, color: 'var(--muted)', width: 84 }}>{fmtDataLonga(a.data)}</span>
                     <span style={{ flex: 1, fontSize: 14 }}>{s?.nome}</span>
                     <span className="mono" style={{ fontSize: 13 }}>{brl(a.valor)}</span>
-                    {a.status === 'falta' && <span className="tag" style={{ background: '#EEE8F6', color: '#5B3E93' }}>faltou</span>}
-                  </div>
+                    {a.status !== 'concluido' && <i className={'at-tag ' + FLUXO[a.status].tom}>{FLUXO[a.status].rotulo}</i>}
+                  </button>
                 );
               })}
               {hist.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Ainda sem atendimentos.</div>}
