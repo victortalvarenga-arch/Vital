@@ -953,6 +953,21 @@ algum valor. Era "clique na forma marcada", e quem o fechamento automático
 quitou fica com a forma `'local'`, que não tem chip — o caso em que mais se
 quer desfazer não tinha como.
 
+**Receber grava no toque, com Desfazer** (decisão do dono, 2026-10-28). Pix,
+Cartão ou Dinheiro registram na hora, e o aviso diz quanto, de quem e em quê
+("Thiago: R$ 70,00 no Pix"), com **Desfazer** por seis segundos, que devolve o
+pagamento ao que era antes (valor e forma). Foi escolhido em vez de um passo de
+confirmar: o caminho certo continua com um toque, e o toque errado tem volta.
+O "Desfazer recebimento" da gaveta perdeu a caixa de confirmação pelo mesmo
+motivo — ele também traz o Desfazer.
+
+**"Cliente" é feminino no painel, de propósito** (decisão do dono,
+2026-10-28): "Nova cliente", "A cliente não veio", "Próxima cliente". A revisão
+de UX apontou que soa estranho numa barbearia; o dono manteve, porque a maior
+parte das empresas da Vital hoje é de estética. Não é descuido a corrigir numa
+próxima revisão — mudar é decisão de produto, e o caminho seria um termo por
+empresa, não trocar o texto fixo.
+
 **O Resumo (tela inicial) começa pela próxima cliente** (revisão de UX de
 2026-10-28). Quem abre o painel quarenta vezes por dia, no balcão, quer saber
 quem é a próxima e dar o passo dela — e isso pedia Menu → Agenda → bloco →
@@ -966,6 +981,13 @@ gaveta. De cima para baixo:
 3. **O mês recolhido** — faturamento, lucro, ticket, gráfico, ranking e funil.
    Aberto por padrão na tela larga, a um toque no celular; a escolha fica no
    `localStorage` do aparelho, como conveniência.
+
+No **ranking**, o dono vê a ordem pelo que cada um produziu (ele recebe os
+valores); o funcionário continua vendo pela quantidade de atendimentos, que é a
+ordem do servidor — por valor, ele deduziria o faturamento dos colegas. O
+gráfico de doze meses só aparece com três meses de movimento; antes disso
+eram onze colunas vazias e uma barra. O selo do cartão Hoje diz quantos
+**avisos** há abaixo (tipos de pendência), não uma soma de pessoas.
 
 Empresa sem nenhum atendimento vê **Primeiros passos** (conferir o site, copiar
 o link, marcar o primeiro horário) no lugar dos zeros; some sozinho quando o
