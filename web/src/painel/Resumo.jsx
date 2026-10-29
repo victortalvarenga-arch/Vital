@@ -694,7 +694,7 @@ function FunilDoSite() {
   return (
     <div className="card rs-relativo rs-funil">
       <div className="eyebrow" style={{ marginBottom: 14 }}>Seu site · últimos 30 dias</div>
-      <Dica texto="Quantas visitas chegaram a cada passo do agendamento pelo site. Cada visita conta uma vez por passo; ninguém é identificado." />
+      <Dica texto="Quantas visitas chegaram a cada passo do agendamento pelo site. Cada visita conta uma vez por passo; ninguém é identificado. O que você marca pelo painel não entra aqui — só quem agenda sozinha pelo site." />
       {falhou && <p className="rs-vazio">Não deu para carregar.</p>}
       {!falhou && !funil && <p className="rs-vazio">Calculando…</p>}
       {vazio && <p className="rs-vazio">Ainda não houve visita ao site nestes 30 dias.</p>}

@@ -442,7 +442,9 @@ function Detalhes({ r, staff, meu }) {
                   <b className="mono">{brl(prod)}</b>
                   {/* Sobre o que já foi pago, como o total de Comissão ao lado: as linhas
                       somam o total. */}
-                  <i className="fin-pct">comissão {brl(comissaoPor[p.id] || 0)}</i>
+                  {/* Quem não recebe comissão (a dona, quase sempre) não ganha
+                      um "comissão R$ 0,00" com cara de dado. */}
+                  {comissaoPor[p.id] > 0 && <i className="fin-pct">comissão {brl(comissaoPor[p.id])}</i>}
                 </span>
               </div>
             );

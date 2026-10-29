@@ -265,8 +265,9 @@ a.btn{text-decoration:none}
 .eq-horas-corpo{position:relative}
 .eq-hlabel{position:absolute; right:6px; transform:translateY(-50%);
   font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted)}
-.eq-cols{display:flex; flex:1; overflow-x:auto}
-.eq-col{flex:1; min-width:130px; border-left:1px solid var(--line)}
+/* Rola de coluna em coluna: parar no meio deixava "a / gel" de uma pessoa cortada. */
+.eq-cols{display:flex; flex:1; overflow-x:auto; scroll-snap-type:x proximity}
+.eq-col{flex:1; min-width:130px; border-left:1px solid var(--line); scroll-snap-align:start}
 .eq-colhead{height:40px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:6px;
   padding:0 10px; font-size:12px; font-weight:700}
 .eq-colbody{position:relative}
@@ -351,7 +352,12 @@ a.btn{text-decoration:none}
 
 .cs-sec { border-top: 1px solid var(--line); padding: 24px 0; scroll-margin-top: 72px; }
 /* Índice das seções: uma faixa que rola de lado, sem quebrar em várias linhas. */
-.cs-indice { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 18px; padding-bottom: 2px; }
+/* Preso no topo enquanto se rola a tela, e o esmaecido na borda direita diz
+   que há mais atalhos para o lado. */
+.cs-indice { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -2px 18px; padding: 8px 2px;
+  position: sticky; top: 0; z-index: 6; background: var(--porcelain);
+  -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
+@media (max-width: 899px) { .cs-indice { top: 56px; } }
 .cs-indice::-webkit-scrollbar { display: none; }
 .cs-indice a { flex: none; padding: 7px 12px; min-height: 36px; display: inline-flex; align-items: center;
   border: 1px solid var(--line); border-radius: 999px; background: var(--paper);
