@@ -36,7 +36,7 @@ import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
   Store, Bell, Megaphone, TriangleAlert, ExternalLink, Menu, Globe,
-  LogOut, KeyRound, Ban, Tag, StickyNote, MapPin as MapPinIcon, ScrollText,
+  LogOut, KeyRound, Ban, Tag, StickyNote, RotateCcw, MapPin as MapPinIcon, ScrollText,
   ClipboardList, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
@@ -451,7 +451,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // a gaveta inteira é um render só.
   const [entrada, setEntrada] = useState('');
   /** Abrir outro atendimento zera o campo: valor digitado não se herda. */
-  const abrirAtendimento = a => { setEntrada(''); setTrocandoStatus(false); setSel(a); };
+  const [adiantado, setAdiantado] = useState(false);
+  const abrirAtendimento = a => { setEntrada(''); setTrocandoStatus(false); setAdiantado(false); setSel(a); };
   // O pedido também chega com a Agenda já aberta: o "+" da barra do celular
   // é tocado de dentro dela. Por isso reage a cada pedido novo, e não só ao
   // montar — antes, o "+" na própria Agenda não fazia nada. Consumido, some.
@@ -867,6 +868,81 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
         // válido que cabe no que falta; o resto, quando está vazio.
         const vaiReceber = Number.isFinite(pedido) && pedido > 0 && pedido <= falta ? pedido : 0;
 
+        const antesDeChegar = at.status === 'agendado' || at.status === 'confirmado';
+        const blocoPagamento = (
+          <>
+              {/* O pagamento em contas fechadas: total, quanto entrou, quanto
+                  falta. Três linhas e não uma etiqueta porque "pagou 20 de 45" é
+                  a pergunta do balcão, e etiqueta só sabe responder sim ou não. */}
+              <div className="at-pagamento">
+                <div className="at-pag-topo">
+                  <span className="eyebrow">Pagamento</span>
+                  <i className={'at-tag ' + (quitado ? 'ok' : pago > 0 ? 'agora' : 'espera')}>
+                    {quitado ? 'Pago' : pago > 0 ? 'Entrada' : 'A pagar'}
+                  </i>
+                </div>
+                <div><span>Valor total</span><b className="mono">{brl(total)}</b></div>
+                <div><span>Pago</span><b className="mono">{brl(pago)}</b></div>
+                <div><span>Falta receber</span><b className="mono">{brl(falta)}</b></div>
+
+                {/* Vazio recebe o que falta — é o clique de sempre. O campo existe
+                    para o outro caso: entrou parte agora, o resto na saída. */}
+                {!quitado && (
+                  <label className="at-entrada">
+                    <span>Receber agora</span>
+                    <input inputMode="decimal" value={entrada} placeholder={brl(falta)}
+                           onChange={e => setEntrada(e.target.value.replace(/[^\d,.]/g, ''))} />
+                  </label>
+                )}
+
+                <div className="chips at-formas">
+                  {['pix', 'cartao', 'dinheiro'].map(fm => (
+                    <button key={fm} disabled={!quitado && !(vaiReceber > 0)}
+                            className={'chip' + (pago > 0 && at.pagamento.forma === fm ? ' on' : '')}
+                            onClick={() => (quitado ? (at.pagamento.forma !== fm && trocarForma(at.id, fm))
+                              : receber(at.id, pago + vaiReceber, fm))}>{NOME_FORMA[fm]}</button>
+                  ))}
+                </div>
+                <p className="at-dica">
+                  {quitado && at.pagamento.forma === 'local'
+                    ? 'Dado como pago pelo fechamento automático. Se a cliente não pagou, desfaça abaixo.'
+                    : quitado ? 'Toque em outra forma para trocar.'
+                    : vaiReceber > 0 ? `Escolha a forma para registrar ${brl(vaiReceber)}.`
+                    : 'Valor inválido — apague o campo para receber o que falta.'}
+                </p>
+                {/* Botão próprio, e não "clique na forma acesa": quem o fechamento
+                    automático quitou fica com a forma 'local', que não tem chip —
+                    justo o caso em que mais se quer desfazer. */}
+                {pago > 0 && (
+                  <button className="btn btn-g btn-s btn-erro"
+                          onClick={() => desfazerPagamento(at.id)}>
+                    Desfazer recebimento
+                  </button>
+                )}
+              </div>
+          </>
+        );
+        const blocoFluxo = (
+          <>
+              {/* Uma ação por etapa: a seguinte, sozinha na linha. "Marcar
+                  falta" vai embaixo e menor: colada ao botão principal, era o
+                  toque errado mais fácil do balcão. Depois de concluído não faz
+                  sentido. */}
+              {FLUXO[at.status].proximo && (
+                <div className="at-fluxo">
+                  <button className="btn btn-p" onClick={() => mudarStatus(at.id, FLUXO[at.status].proximo)}>
+                    {FLUXO[at.status].acao}
+                  </button>
+                  {at.status !== 'em_atendimento' && (
+                    <button className="at-falta" onClick={() => mudarStatus(at.id, 'falta')}>
+                      A cliente não veio · marcar falta
+                    </button>
+                  )}
+                </div>
+              )}
+          </>
+        );
+
         const tplLembrete = dados.templates.find(t => t.chave === 'lembrete_dia');
         const msg = renderTemplate(tplLembrete.texto, {
           cliente: c.nome.split(' ')[0], hora: at.hora, endereco: dados.config.endereco,
@@ -910,72 +986,20 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
               <div><span>Valor</span><b className="mono">{brl(at.valor)}</b></div>
             </div>
 
-            {/* O pagamento em contas fechadas: total, quanto entrou, quanto
-                falta. Três linhas e não uma etiqueta porque "pagou 20 de 45" é
-                a pergunta do balcão, e etiqueta só sabe responder sim ou não. */}
-            <div className="at-pagamento">
-              <div className="at-pag-topo">
-                <span className="eyebrow">Pagamento</span>
-                <i className={'at-tag ' + (quitado ? 'ok' : pago > 0 ? 'agora' : 'espera')}>
-                  {quitado ? 'Pago' : pago > 0 ? 'Entrada' : 'A pagar'}
-                </i>
-              </div>
-              <div><span>Valor total</span><b className="mono">{brl(total)}</b></div>
-              <div><span>Pago</span><b className="mono">{brl(pago)}</b></div>
-              <div><span>Falta receber</span><b className="mono">{brl(falta)}</b></div>
-
-              {/* Vazio recebe o que falta — é o clique de sempre. O campo existe
-                  para o outro caso: entrou parte agora, o resto na saída. */}
-              {!quitado && (
-                <label className="at-entrada">
-                  <span>Receber agora</span>
-                  <input inputMode="decimal" value={entrada} placeholder={brl(falta)}
-                         onChange={e => setEntrada(e.target.value.replace(/[^\d,.]/g, ''))} />
-                </label>
-              )}
-
-              <div className="chips at-formas">
-                {['pix', 'cartao', 'dinheiro'].map(fm => (
-                  <button key={fm} disabled={!quitado && !(vaiReceber > 0)}
-                          className={'chip' + (pago > 0 && at.pagamento.forma === fm ? ' on' : '')}
-                          onClick={() => (quitado ? (at.pagamento.forma !== fm && trocarForma(at.id, fm))
-                            : receber(at.id, pago + vaiReceber, fm))}>{NOME_FORMA[fm]}</button>
-                ))}
-              </div>
-              <p className="at-dica">
-                {quitado && at.pagamento.forma === 'local'
-                  ? 'Dado como pago pelo fechamento automático. Se a cliente não pagou, desfaça abaixo.'
-                  : quitado ? 'Toque em outra forma para trocar.'
-                  : vaiReceber > 0 ? `Escolha a forma para registrar ${brl(vaiReceber)}.`
-                  : 'Valor inválido — apague o campo para receber o que falta.'}
-              </p>
-              {/* Botão próprio, e não "clique na forma acesa": quem o fechamento
-                  automático quitou fica com a forma 'local', que não tem chip —
-                  justo o caso em que mais se quer desfazer. */}
-              {pago > 0 && (
-                <button className="btn btn-g btn-s btn-erro"
-                        onClick={() => desfazerPagamento(at.id)}>
-                  Desfazer recebimento
-                </button>
-              )}
-            </div>
-
-            {/* Uma ação por etapa: a seguinte, sozinha na linha. "Marcar
-                falta" vai embaixo e menor: colada ao botão principal, era o
-                toque errado mais fácil do balcão. Depois de concluído não faz
-                sentido. */}
-            {FLUXO[at.status].proximo && (
-              <div className="at-fluxo">
-                <button className="btn btn-p" onClick={() => mudarStatus(at.id, FLUXO[at.status].proximo)}>
-                  {FLUXO[at.status].acao}
-                </button>
-                {at.status !== 'em_atendimento' && (
-                  <button className="at-falta" onClick={() => mudarStatus(at.id, 'falta')}>
-                    A cliente não veio · marcar falta
+            {/* Antes de a cliente chegar, o passo dela vem primeiro e o pagamento
+                fica recolhido em "Receber adiantado": com Pix/Cartão/Dinheiro no
+                topo, um toque cobrava quem ainda nem tinha chegado. Quem cobra
+                sinal abre. Depois da chegada, o pagamento volta a vir antes. */}
+            {antesDeChegar ? (
+              <>
+                {blocoFluxo}
+                {pago > 0 || adiantado ? blocoPagamento : (
+                  <button className="btn btn-g at-adiantado" onClick={() => setAdiantado(true)}>
+                    <Wallet size={16} aria-hidden="true" /> Receber adiantado
                   </button>
                 )}
-              </div>
-            )}
+              </>
+            ) : <>{blocoPagamento}{blocoFluxo}</>}
             {/* Quem atende precisa saber o que foi comprado junto antes de
                 começar — e o valor só fecha com o total quando os extras
                 aparecem discriminados. */}
@@ -1012,15 +1036,25 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
               </a>
             </div>
 
-            <div className="at-acoes">
-              <button className="btn btn-g" onClick={() => setReagendando({ a: at, data: at.data, hora: '' })}>
-                <Repeat size={16} /> Reagendar
-              </button>
-              <button className="btn btn-g btn-erro" disabled={at.status === 'cancelado'}
-                      onClick={() => setCancelando(at)}>
-                <Ban size={16} /> {at.status === 'cancelado' ? 'Já cancelado' : 'Cancelar atendimento'}
-              </button>
-            </div>
+            {/* Concluído não se cancela nem se reagenda: o que se corrige ali é
+                ter concluído cedo demais, e é isso que o botão oferece. */}
+            {at.status === 'concluido' ? (
+              <div className="at-acoes">
+                <button className="btn btn-g" onClick={() => mudarStatus(at.id, 'em_atendimento')}>
+                  <RotateCcw size={16} aria-hidden="true" /> Desfazer conclusão
+                </button>
+              </div>
+            ) : (
+              <div className="at-acoes">
+                <button className="btn btn-g" onClick={() => setReagendando({ a: at, data: at.data, hora: '' })}>
+                  <Repeat size={16} /> Reagendar
+                </button>
+                <button className="btn btn-g btn-erro" disabled={at.status === 'cancelado'}
+                        onClick={() => setCancelando(at)}>
+                  <Ban size={16} /> {at.status === 'cancelado' ? 'Já cancelado' : 'Cancelar atendimento'}
+                </button>
+              </div>
+            )}
           </Gaveta>
         );
       })()}
