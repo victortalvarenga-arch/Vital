@@ -341,6 +341,14 @@
           "web/src/painel/styles.css"
         ],
         "createdAt": "2026-10-28T15:54:23.488Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#5b3e93",
+        "files": [
+          "web/src/painel/App.jsx"
+        ],
+        "createdAt": "2026-10-29T15:36:50.319Z"
       }
     ]
   }

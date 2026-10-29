@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { emFaixas, faixaDeHoras, iniciais, toMin } from '../shared/tempo.js';
 import { fechadoNoDia } from '../shared/jornada.js';
@@ -23,6 +24,9 @@ const MIN_POR_PX = 60 / PX_H;
  */
 export const classeDoBloco = status =>
   'appt'
+  // "A confirmar" e "confirmado" eram o mesmo bloco: na grade cheia não dava
+  // para ver de quem ainda falta a resposta.
+  + (status === 'agendado' ? ' pendente' : '')
   + (status === 'concluido' ? ' done' : '')
   + (status === 'falta' ? ' falta' : '')
   + (status === 'em_atendimento' ? ' agora' : '');
@@ -30,6 +34,18 @@ export const classeDoBloco = status =>
 export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, staff = [], aoTocar,
                                      data, bloqueios = [], mostrarFechado = false,
                                      arrasto = null, arrastado = null, aoPegar = null }) {
+  // No celular cabem duas colunas, e quem está atendendo agora podia ficar
+  // fora da tela — justo a coluna que se abre a grade para ver. Ao abrir o
+  // dia, a faixa rola até ela; rola só a faixa, nunca a página.
+  const moldura = useRef(null);
+  const naCadeira = agendamentos.find(a => a.status === 'em_atendimento')?.prof;
+  useEffect(() => {
+    const cols = moldura.current?.querySelector('.eq-cols');
+    const alvo = naCadeira && moldura.current?.querySelector(`[data-prof="${naCadeira}"]`);
+    if (!cols || !alvo || cols.scrollWidth <= cols.clientWidth) return;
+    cols.scrollLeft += alvo.getBoundingClientRect().left - cols.getBoundingClientRect().left - 8;
+  }, [data, naCadeira]);
+
   if (colunas.length === 0) {
     return <p className="rs-vazio">Nenhum profissional ativo.</p>;
   }
@@ -42,7 +58,7 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
   const altura = (H_FIM - H_INI) * PX_H + TOPO * 2;
 
   return (
-    <div className="eq-timeline">
+    <div className="eq-timeline" ref={moldura}>
       {/* A faixa que carrega na beirada. Enquanto o dedo fica ali ela enche, e
           a cada volta o dia vira — mesmo aviso, mesma animação da semana; o que
           muda é o tamanho do passo, que é de quem chamou. Sem ela a agenda pula
@@ -155,6 +171,7 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                           altura para uma, e ela precisa dizer quando e quem. */}
                       <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
                       {s?.nome}
+                      {a.status === 'agendado' && <span className="so-leitor"> · a confirmar</span>}
                     </Bloco>
                   );
                 })}

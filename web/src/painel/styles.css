@@ -222,7 +222,7 @@ a.btn{text-decoration:none}
 /* A de meia hora é mais fraca: divide sem competir com a da hora cheia. */
 .linha.meia{opacity:.4}
 
-.appt{position:absolute; border-radius:7px; padding:4px 6px; font-size:11px; line-height:1.28;
+.appt{position:absolute; border-radius:7px; padding:4px 8px; font-size:11px; line-height:1.28;
   overflow:hidden; border:none; border-left:4px solid; color:var(--ink); text-align:left; /* impeccable-disable-line side-tab -- a cor é o dado (de quem é o atendimento), não enfeite; ver ARQUITETURA.md "A agenda do painel" */
   touch-action:none; cursor:grab; transition:box-shadow .12s, transform .12s}
 .appt:hover{filter:brightness(.97)}
@@ -230,10 +230,17 @@ a.btn{text-decoration:none}
   overflow:hidden; text-overflow:ellipsis}
 .appt .t{font-family:'IBM Plex Mono',monospace; opacity:.75}
 .appt b .t{font-weight:500; margin-right:2px}
+/* Bloco estreito (dois atendimentos lado a lado): o nome da cliente vale mais
+   que a hora, que a régua da grade já mostra. */
+.appt{container-type:inline-size}
+@container (max-width: 78px){ .appt b .t{display:none} }
 .appt-quem{display:block; font-size:10.5px; font-weight:700; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
 .appt-pago{color:var(--ok); font-weight:700; font-size:10.5px}
 .appt.done{opacity:.72; cursor:default}
+/* A confirmar: contorno tracejado no âmbar de "aguardando". O contorno, e não
+   a borda esquerda — ela é de quem é o horário. */
+.appt.pendente{outline:1.5px dashed var(--warn); outline-offset:-2px}
 .appt.puxando{opacity:.75; cursor:grabbing; box-shadow:0 8px 22px rgba(36,26,40,.22);
   transform:scale(1.03); z-index:5}
 
@@ -309,6 +316,9 @@ a.btn{text-decoration:none}
 /* A janela recebe o foco ao abrir para o leitor de tela anunciá-la; ela não é
    um controle, e um anel em volta dela inteira só confundiria. */
 .modal:focus, .gv:focus{outline:none}
+/* Só para leitor de tela: o que a tela diz por cor ou forma. */
+.so-leitor{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0 0 0 0); white-space:nowrap; border:0}
 
 .toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
   padding:13px 22px; border-radius:999px; font-size:14px; z-index:200; box-shadow:0 8px 30px rgba(36,26,40,.3); display:flex; gap:9px; align-items:center}

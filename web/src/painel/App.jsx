@@ -475,6 +475,16 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   const hoje = hojeISO();
   const semana = useMemo(() => semanaDe(ancora), [ancora]);
   const escalaAtiva = aba === 'recepcao' ? 'dia' : escala;
+  // A semana no celular mostra três dias e abria na segunda, com hoje fora da
+  // tela. Ao mostrar a semana, a faixa rola até hoje — só a faixa, não a página.
+  useEffect(() => {
+    if (escalaAtiva !== 'semana') return;
+    const faixa = document.querySelector('.semana');
+    const dia = faixa?.querySelector('.dia.hoje');
+    if (!faixa || !dia || faixa.scrollWidth <= faixa.clientWidth) return;
+    faixa.scrollLeft += dia.getBoundingClientRect().left - faixa.getBoundingClientRect().left
+      - (faixa.clientWidth - dia.clientWidth) / 2;
+  }, [escalaAtiva, semana]);
   const { de, ate } = useMemo(
     () => faixaDaEscala(escalaAtiva, ancora, semana), [escalaAtiva, ancora, semana]
   );
@@ -810,6 +820,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                         onPointerDown={e => naSemana.aoPegar(e, a)}>
                         <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
                         {s?.nome}
+                        {a.status === 'agendado' && <span className="so-leitor"> · a confirmar</span>}
                         {/* Quem atende é dito aqui, já que a coluna virou o dia. */}
                         <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
                         {a.pagamento.status === 'pago' && <span className="appt-pago">✓ pago</span>}
