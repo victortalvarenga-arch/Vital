@@ -680,7 +680,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
       {aba === 'lista' && (
         <Agendamentos key={filtroLista} dados={dados} acao={acao} poderes={poderes}
                       de={de} ate={ate} pessoas={pessoas} filtroInicial={filtroLista}
-                      aoAbrir={abrirAtendimento} />
+                      aoAbrir={abrirAtendimento} irPara={irPara} />
       )}
 
       {aba === 'recepcao' && (

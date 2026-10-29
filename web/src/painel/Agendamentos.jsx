@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, UserX, Wallet, X } from 'lucide-react';
+import { mudarSituacao } from './fluxo.js';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { hojeISO } from '../shared/tempo.js';
@@ -59,7 +60,7 @@ const comoAparece = status =>
   ESTADOS[status === 'confirmado' ? 'agendado' : status]
   || { rotulo: status, tom: 'aguarda' };
 
-export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = [], filtroInicial = '', aoAbrir }) {
+export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = [], filtroInicial = '', aoAbrir, irPara }) {
   const { staff, clientes, servicos } = dados;
 
   const [estado, setEstado] = useState(filtroInicial);
@@ -86,29 +87,25 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
   }, [de, ate, estado, versao, todos, hoje]);
 
   // `acao` recarrega o estado global do painel; `versao` recarrega esta lista,
-  // que o estado global não conhece.
-  const mudar = async (a, status) => {
-    const nome = clientes.find(c => c.id === a.cliente)?.nome || 'a cliente';
-    const verbo = status === 'falta' ? 'registrar falta de' : status === 'cancelado' ? 'cancelar o horário de' : 'marcar como atendida';
-    if (!confirm(`Confirma ${verbo} ${nome}, ${a.data} às ${a.hora}?`)) return;
-    await acao(() => api.atualizarAgendamento(a.id, { status }), 'Atendimento atualizado');
-    setVersao(v => v + 1);
-  };
+  // que o estado global não conhece. O desfazer do aviso passa por aqui também.
+  const acaoDaLista = async (fn, msg) => { const ok = await acao(fn, msg); setVersao(v => v + 1); return ok; };
+  // A mesma mudança da gaveta: aviso com o nome e Desfazer, no lugar da caixa
+  // do navegador (que ainda mostrava a data em "2026-10-29").
+  const mudar = (a, status) => mudarSituacao({ acao: acaoDaLista, agendamentos: lista || [], clientes, irPara }, a.id, status);
 
   const visiveis = (lista || [])
     .filter(a => pessoas.length === 0 || pessoas.includes(a.prof))
     .filter(a => estado !== 'receber' || a.pagamento?.status !== 'pago');
-  const total = visiveis
-    .filter(a => a.status === 'concluido')
-    .reduce((s, a) => s + Number(a.valor || 0), 0);
 
   return (
     <>
       <div className="ag-filtros">
         <span className="ag-resumo">
+          {/* Um total só por tela: o dinheiro do período já está no topo da
+              Agenda, e um segundo valor aqui, com outra base, parecia outro número. */}
           {!lista ? 'Carregando…'
             : todos ? `${visiveis.length} a receber, de qualquer dia até hoje`
-            : `${visiveis.length} no período · ${brl(total)} atendidos`}
+            : `${visiveis.length} no período`}
         </span>
         <div className="chips">
           <button className={'chip' + (estado === '' ? ' on' : '')} onClick={() => setEstado('')}>Todo estado</button>
@@ -164,24 +161,32 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
                     <td>{a.status === 'concluido'
                       ? <span className={'ag-pag ' + (a.pagamento?.status || 'aberto')}>{PAGAMENTO[a.pagamento?.status] || 'A pagar'}</span>
                       : '—'}</td>
+                    {/* Só o que faz sentido naquele estado: antes, "atendida"
+                        aparecia em cancelado e em atendimento de amanhã, e falta
+                        e cancelar apareciam no que já foi atendido e pago. O
+                        resto mora na gaveta, que o "Abrir" mostra. */}
                     <td className="ag-acoes">
                       {aoAbrir && a.status === 'concluido' && a.pagamento?.status !== 'pago' && (
                         <button className="btn btn-p btn-s" onClick={() => aoAbrir(a)}>
                           <Wallet size={14} aria-hidden="true" /> Receber
                         </button>
                       )}
-                      {a.status !== 'concluido' && (
-                        <button className="btn btn-g btn-s" title="Marcar como atendida" aria-label="Marcar como atendida"
-                                onClick={() => mudar(a, 'concluido')}><Check size={14} /></button>
+                      {(a.status === 'em_atendimento' || (['agendado', 'confirmado'].includes(a.status) && a.data <= hoje)) && (
+                        <button className="btn btn-g btn-s" onClick={() => mudar(a, 'concluido')}>
+                          <Check size={14} aria-hidden="true" /> Atendida
+                        </button>
                       )}
-                      {a.status !== 'falta' && (
-                        <button className="btn btn-g btn-s" title="Registrar falta" aria-label="Registrar falta"
-                                onClick={() => mudar(a, 'falta')}><UserX size={14} /></button>
+                      {['agendado', 'confirmado'].includes(a.status) && a.data <= hoje && (
+                        <button className="btn btn-g btn-s" onClick={() => mudar(a, 'falta')}>
+                          <UserX size={14} aria-hidden="true" /> Faltou
+                        </button>
                       )}
-                      {a.status !== 'cancelado' && (
-                        <button className="btn btn-g btn-s btn-erro" title="Cancelar e liberar o horário" aria-label="Cancelar e liberar o horário"
-                                onClick={() => mudar(a, 'cancelado')}><X size={14} /></button>
+                      {['agendado', 'confirmado'].includes(a.status) && (
+                        <button className="btn btn-g btn-s btn-erro" onClick={() => mudar(a, 'cancelado')}>
+                          <X size={14} aria-hidden="true" /> Cancelar
+                        </button>
                       )}
+                      {aoAbrir && <button className="btn btn-g btn-s" onClick={() => aoAbrir(a)}>Abrir</button>}
                     </td>
                   </tr>
                 );
