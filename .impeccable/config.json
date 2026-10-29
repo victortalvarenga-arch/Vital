@@ -356,6 +356,15 @@
         ],
         "createdAt": "2026-10-29T15:36:50.319Z",
         "reason": "Eixo de estado do atendimento: texto de \"faltou\" (DESIGN.md, Colors)."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#000",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-29T16:06:58.336Z",
+        "reason": "Usado só em mask-image (esmaecido do índice do Site da cliente): a máscara lê a transparência, a cor nunca aparece."
       }
     ]
   }
