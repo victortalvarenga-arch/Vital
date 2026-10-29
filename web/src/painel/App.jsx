@@ -40,6 +40,9 @@ import {
   ClipboardList, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
+/** Como cada forma de pagamento aparece escrita. A chave vem do banco. */
+const NOME_FORMA = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
+
 /* ────────────────────────────────────────────────────────────────
    Painel + site público. Todo dado vem da API em server/.
    A tela nunca grava nada direto: chama api.*, depois recarrega o estado.
@@ -517,21 +520,45 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
    * antes de a cliente sentar, e concluir por causa do dinheiro faria o
    * atendimento nascer atendido — quem conclui é o botão do fluxo.
    */
+  //
+  // Grava no toque, como a situação: o aviso diz quanto, de quem e em quê
+  // ("Pedro: R$ 70,00 no Pix") e traz Desfazer, que devolve o pagamento ao
+  // que era. Um dedo errado na gaveta rolando marcava dinheiro que não entrou,
+  // e só se corrigia por uma caixa de confirmação.
+  const pagamentoAntes = id => {
+    const a = agendamentos.find(x => x.id === id);
+    const nome = clientes.find(c => c.id === a?.cliente)?.nome.split(' ')[0];
+    return { a, de: nome ? `${nome}: ` : '' };
+  };
+  const voltarPagamento = (id, a, de) => () => acao(
+    () => api.atualizarAgendamento(id, {
+      pagamento: Number(a.pagamento.recebido) > 0
+        ? { recebido: Number(a.pagamento.recebido), forma: a.pagamento.forma }
+        : { status: 'aberto' },
+    }),
+    `${de}pagamento voltou ao que era`
+  );
   const receber = async (id, total, forma) => {
+    const { a, de } = pagamentoAntes(id);
+    const agora = Number(total.toFixed(2)) - Number(a?.pagamento.recebido || 0);
     await acao(() => api.atualizarAgendamento(id, {
       pagamento: { recebido: Number(total.toFixed(2)), forma },
-    }), 'Pagamento registrado');
+    }), { texto: `${de}${brl(agora)} ${NOME_FORMA[forma] ? 'no ' + NOME_FORMA[forma] : ''}`.trim(),
+          desfazer: a && voltarPagamento(id, a, de) });
     setEntrada('');
   };
   const desfazerPagamento = async id => {
+    const { a, de } = pagamentoAntes(id);
     await acao(() => api.atualizarAgendamento(id, {
       pagamento: { status: 'aberto' },
-    }), 'Pagamento desfeito');
+    }), { texto: `${de}recebimento desfeito`, desfazer: a && voltarPagamento(id, a, de) });
     setEntrada('');
   };
   /** Trocar a forma de um atendimento já quitado não recebe nada de novo. */
   const trocarForma = async (id, forma) => {
-    await acao(() => api.atualizarAgendamento(id, { pagamento: { forma } }), 'Forma atualizada');
+    const { a, de } = pagamentoAntes(id);
+    await acao(() => api.atualizarAgendamento(id, { pagamento: { forma } }),
+      { texto: `${de}pago no ${NOME_FORMA[forma] || forma}`, desfazer: a && voltarPagamento(id, a, de) });
   };
   /**
    * Cancelar é marcar `cancelado`, não apagar. O horário volta para a agenda e
@@ -906,7 +933,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                   <button key={fm} disabled={!quitado && !(vaiReceber > 0)}
                           className={'chip' + (pago > 0 && at.pagamento.forma === fm ? ' on' : '')}
                           onClick={() => (quitado ? (at.pagamento.forma !== fm && trocarForma(at.id, fm))
-                            : receber(at.id, pago + vaiReceber, fm))}>{fm}</button>
+                            : receber(at.id, pago + vaiReceber, fm))}>{NOME_FORMA[fm]}</button>
                 ))}
               </div>
               <p className="at-dica">
@@ -921,7 +948,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                   justo o caso em que mais se quer desfazer. */}
               {pago > 0 && (
                 <button className="btn btn-g btn-s btn-erro"
-                        onClick={() => window.confirm(`Desfazer ${brl(pago)} recebido?`) && desfazerPagamento(at.id)}>
+                        onClick={() => desfazerPagamento(at.id)}>
                   Desfazer recebimento
                 </button>
               )}
