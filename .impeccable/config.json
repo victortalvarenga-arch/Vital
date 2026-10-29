@@ -365,6 +365,15 @@
         ],
         "createdAt": "2026-10-29T16:06:58.336Z",
         "reason": "Usado só em mask-image (esmaecido do índice do Site da cliente): a máscara lê a transparência, a cor nunca aparece."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#146b39",
+        "files": [
+          "web/src/painel/styles.css"
+        ],
+        "createdAt": "2026-10-29T16:11:21.201Z",
+        "reason": "Hover do botão do WhatsApp: um passo mais escuro que #187f44, que passou a ser o normal por contraste (4,5:1 com branco)."
       }
     ]
   }
