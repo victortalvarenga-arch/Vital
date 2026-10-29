@@ -953,6 +953,19 @@ algum valor. Era "clique na forma marcada", e quem o fechamento automático
 quitou fica com a forma `'local'`, que não tem chip — o caso em que mais se
 quer desfazer não tinha como.
 
+**Antes de a cliente chegar, o passo vem antes do pagamento** (2026-10-29): em
+atendimento agendado ou confirmado, a gaveta mostra primeiro "Confirmar" ou
+"Cliente chegou", e o pagamento fica recolhido em **Receber adiantado**, para
+quem cobra sinal. Com Pix/Cartão/Dinheiro no topo, um toque cobrava quem nem
+tinha chegado. No atendimento **concluído**, "Reagendar" e "Cancelar" dão lugar
+a **Desfazer conclusão** (volta para "em atendimento"): o que se corrige ali é
+ter concluído cedo, não desmarcar o que já aconteceu.
+
+**Na grade, "a confirmar" tem contorno tracejado âmbar** — o contorno, porque a
+borda esquerda é de quem é o horário. O leitor de tela ouve "a confirmar". A
+semana no celular rola até hoje e o dia rola até a coluna de quem está
+atendendo; rola só a faixa da grade, nunca a página.
+
 **Receber grava no toque, com Desfazer** (decisão do dono, 2026-10-28). Pix,
 Cartão ou Dinheiro registram na hora, e o aviso diz quanto, de quem e em quê
 ("Thiago: R$ 70,00 no Pix"), com **Desfazer** por seis segundos, que devolve o
@@ -988,6 +1001,16 @@ ordem do servidor — por valor, ele deduziria o faturamento dos colegas. O
 gráfico de doze meses só aparece com três meses de movimento; antes disso
 eram onze colunas vazias e uma barra. O selo do cartão Hoje diz quantos
 **avisos** há abaixo (tipos de pendência), não uma soma de pessoas.
+
+**Cada aviso do Resumo leva ao que ele conta** (correção de 2026-10-29). O de
+pagamento pendente conta qualquer dia até hoje, e levava à Agenda, que abre no
+dia de hoje: o pendente de ontem nem aparecia, a Recepção mostrava outro
+atendimento já pago, e as três telas pareciam se contradizer. Hoje, com um
+pendente, o aviso abre a gaveta dele; com vários, a Lista no filtro **A
+receber**, que olha todos os dias até hoje. A Lista ganhou a coluna de
+pagamento (Pago / Entrada / A pagar) e o botão **Receber**, que abre a gaveta —
+"Atendido" sozinho não dizia se pagou. O aviso de aniversariantes diz os nomes
+e abre Clientes filtrada nelas, com a data de cada uma.
 
 Empresa sem nenhum atendimento vê **Primeiros passos** (conferir o site, copiar
 o link, marcar o primeiro horário) no lugar dos zeros; some sozinho quando o
@@ -1065,6 +1088,14 @@ Edita-se pelos dois lados: na tela de Serviços (comissão do serviço e a de ca
 pessoa habilitada) e na ficha da profissional, que liga e desliga os serviços
 dela e grava a exceção em cada um de uma vez
 (`PUT /api/profissionais/:id/servicos`). Os dois escrevem em `service_staff`.
+
+**A comissão de cada profissional, nos relatórios, é sobre o que já foi
+pago** (decisão do dono, 2026-10-29) — a mesma base do cartão de custos e do
+lucro. As linhas por pessoa usavam o valor do que foi feito e somavam mais que o
+total ao lado, na mesma tela. A **produção** de cada uma continua sendo o que
+foi feito: é outra pergunta. E a variação do Financeiro, num período em
+andamento, compara o mesmo trecho do período anterior (`anterior.parcial`), e
+não o anterior inteiro.
 
 **Cada extra paga a própria comissão** (migration 029, decisão do dono em
 2026-10-28). O atendimento se divide em partes: o principal vale `valor` menos
