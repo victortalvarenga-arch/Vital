@@ -63,7 +63,7 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
               <span className="rc-fim">
                 <b className="mono">{brl(a.valor)}</b>
                 {a.status === 'falta' ? <i className="rc-falta">faltou</i>
-                  : a.status === 'em_atendimento' ? <i className="rc-agora">na cadeira</i>
+                  : a.status === 'em_atendimento' ? <i className="rc-cadeira">na cadeira</i>
                   : a.status === 'agendado' ? <i className="rc-confirmar">a confirmar</i>
                   : a.pagamento?.status === 'pago' ? <i className="rc-pago">pago</i>
                   : a.pagamento?.status === 'parcial' ? <i className="rc-pendente">entrada</i>

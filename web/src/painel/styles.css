@@ -41,8 +41,8 @@ a.btn{text-decoration:none}
 .btn-d{background:var(--ink); color:var(--porcelain)}
 .btn-d:hover{background:var(--ink2)}
 .btn-s{padding:7px 13px; font-size:13px}
-.btn-wa{background:#1f9d55; color:#fff}
-.btn-wa:hover{background:#187f44}
+.btn-wa{background:#187f44; color:#fff}
+.btn-wa:hover{background:#146b39}
 
 /* cartões */
 .card{background:var(--paper); border:1px solid var(--line); border-radius:16px}
@@ -1674,7 +1674,7 @@ a.btn{text-decoration:none}
 .at-falta:hover{color:var(--ink)}
 .at-acoes{display:flex; flex-direction:column; gap:8px}
 /* "Em atendimento" na recepção e na lista: azul, como no fluxo da gaveta. */
-.rc-agora{background:#E4EDF6; color:#1F5C96}
+.rc-cadeira{background:#E4EDF6; color:#1F5C96}
 .ag-estado.agora{background:#E4EDF6; color:#1F5C96}
 
 /* Quem está na cadeira agora: fundo azul e um anel fino por dentro. O anel e
@@ -1836,7 +1836,7 @@ a.btn{text-decoration:none}
   border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(36,26,40,.14)}
 .pf-menu button{text-align:left; padding:10px 12px; border-radius:7px; font-size:14px; min-height:40px}
 .pf-menu button:hover{background:var(--porcelain)}
-.pf-servicos{grid-column:1 / -1; margin:0; padding-left:52px; font-size:13px; color:var(--muted); max-width:calc(70ch + 52px)}
+.pf-servicos{grid-column:1 / -1; margin:0; padding-left:52px; font-size:13px; color:var(--muted); max-width:calc(60ch + 52px)}
 .pf-servicos span{font-weight:600; color:var(--ink)}
 
 /* a ficha */
