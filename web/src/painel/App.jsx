@@ -56,7 +56,7 @@ const NOME_FORMA = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
 const addDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dow = iso => new Date(iso + 'T12:00:00').getDay();
 
-const fmtDataLonga = iso => { const d = new Date(iso + 'T12:00:00'); return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; };
+const fmtDataLonga = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const soDigitos = s => (s || '').replace(/\D/g, '');
 const fmtFone = s => { const d = soDigitos(s).slice(0, 11); if (d.length <= 2) return d; if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; };
 const waLink = (fone, texto) => `https://wa.me/55${soDigitos(fone)}?text=${encodeURIComponent(texto)}`;
@@ -1607,7 +1607,7 @@ function Clientes({ dados, acao, aviso }) {
                 <span className="mono">{fmtFone(c.fone)}</span>
                 <span>{c.visitas} {c.visitas === 1 ? 'visita' : 'visitas'}</span>
                 <span>{brl(c.gasto)}</span>
-                {c.ultima && <span style={{ color: c.diasSem > 60 ? 'var(--lacquer)' : 'inherit' }}>{haQuanto(c.diasSem)}</span>}
+                {c.ultima && <span style={{ color: c.diasSem > 60 ? 'var(--lacquer)' : 'inherit' }}>última visita {haQuanto(c.diasSem)}</span>}
               </div>
             </div>
             <button className="btn btn-g btn-s" onClick={() => setSel(c)}>Ficha</button>
@@ -1638,7 +1638,7 @@ function Clientes({ dados, acao, aviso }) {
             <div className="stats" style={{ marginBottom: 18 }}>
               <div className="card stat"><span className="eyebrow">Visitas</span><span className="v">{sel.visitas}</span></div>
               <div className="card stat"><span className="eyebrow">Total gasto</span><span className="v">{brl(sel.gasto)}</span></div>
-              <div className="card stat"><span className="eyebrow">Aniversário</span><span className="v" style={{ fontSize: 20 }}>{sel.nasc ? fmtDataLonga(sel.nasc).slice(0, 5) : '—'}</span></div>
+              <div className="card stat"><span className="eyebrow">Aniversário</span><span className="v" style={{ fontSize: 20 }}>{sel.nasc ? `${sel.nasc.slice(8, 10)}/${sel.nasc.slice(5, 7)}` : '—'}</span></div>
             </div>
             <div className="card" style={{ padding: 14, fontSize: 13.5, lineHeight: 1.7, marginBottom: 16 }}>
               <div><MapPin size={13} style={{ verticalAlign: -2 }} /> {sel.end || 'Endereço não informado'}</div>

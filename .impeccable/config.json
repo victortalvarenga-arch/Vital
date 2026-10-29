@@ -228,7 +228,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.146Z"
+        "createdAt": "2026-10-28T14:24:34.146Z",
+        "reason": "Inicial dentro do avatar grande da equipe no Site da cliente; tamanho acompanha o círculo (DESIGN.md, Painel → Scale)."
       },
       {
         "rule": "design-system-font-size",
@@ -236,7 +237,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.231Z"
+        "createdAt": "2026-10-28T14:24:34.231Z",
+        "reason": "Inicial dentro do avatar da ficha da profissional; tamanho acompanha o círculo (DESIGN.md, Painel → Scale)."
       },
       {
         "rule": "design-system-font-size",
@@ -244,7 +246,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.294Z"
+        "createdAt": "2026-10-28T14:24:34.294Z",
+        "reason": "Seta em fonte mono do \"de → para\" ao remarcar: glifo, não texto corrido."
       },
       {
         "rule": "design-system-font-size",
@@ -252,15 +255,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.362Z"
-      },
-      {
-        "rule": "design-system-font-size",
-        "value": "9.5px",
-        "files": [
-          "web/src/painel/styles.css"
-        ],
-        "createdAt": "2026-10-28T14:24:34.438Z"
+        "createdAt": "2026-10-28T14:24:34.362Z",
+        "reason": "Iniciais dentro dos avatares de 20–24px da grade e da agenda; tamanho acompanha o círculo (DESIGN.md, Painel → Scale)."
       },
       {
         "rule": "design-system-font-size",
@@ -268,7 +264,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.517Z"
+        "createdAt": "2026-10-28T14:24:34.517Z",
+        "reason": "Iniciais dentro do avatar de 18px do calendário do mês (DESIGN.md, Painel → Scale)."
       },
       {
         "rule": "design-system-color",
@@ -276,7 +273,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.593Z"
+        "createdAt": "2026-10-28T14:24:34.593Z",
+        "reason": "Sombra discreta das bolhas de mensagem do WhatsApp; sombra, não cor de texto ou superfície."
       },
       {
         "rule": "design-system-color",
@@ -284,7 +282,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T14:24:34.661Z"
+        "createdAt": "2026-10-28T14:24:34.661Z",
+        "reason": "Sombra da bolinha da chave liga/desliga do Site da cliente."
       },
       {
         "rule": "design-system-color",
@@ -292,7 +291,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.044Z"
+        "createdAt": "2026-10-28T15:54:23.044Z",
+        "reason": "Eixo de estado do atendimento: fundo de \"em atendimento\" (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -300,7 +300,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.130Z"
+        "createdAt": "2026-10-28T15:54:23.130Z",
+        "reason": "Eixo de estado do atendimento: texto de \"em atendimento\" (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -308,7 +309,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.197Z"
+        "createdAt": "2026-10-28T15:54:23.197Z",
+        "reason": "Eixo de estado do atendimento: fundo de \"concluído\" (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -316,7 +318,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.263Z"
+        "createdAt": "2026-10-28T15:54:23.263Z",
+        "reason": "Eixo de estado do atendimento: texto de \"concluído\" e dos selos verdes (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -324,7 +327,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.346Z"
+        "createdAt": "2026-10-28T15:54:23.346Z",
+        "reason": "Eixo de estado do atendimento: fundo de \"faltou\" (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -332,7 +336,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.421Z"
+        "createdAt": "2026-10-28T15:54:23.421Z",
+        "reason": "Eixo de estado do atendimento: texto de \"faltou\" (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -340,7 +345,8 @@
         "files": [
           "web/src/painel/styles.css"
         ],
-        "createdAt": "2026-10-28T15:54:23.488Z"
+        "createdAt": "2026-10-28T15:54:23.488Z",
+        "reason": "Eixo de estado do atendimento: fundo de \"cancelado\" (DESIGN.md, Colors)."
       },
       {
         "rule": "design-system-color",
@@ -348,7 +354,8 @@
         "files": [
           "web/src/painel/App.jsx"
         ],
-        "createdAt": "2026-10-29T15:36:50.319Z"
+        "createdAt": "2026-10-29T15:36:50.319Z",
+        "reason": "Eixo de estado do atendimento: texto de \"faltou\" (DESIGN.md, Colors)."
       }
     ]
   }

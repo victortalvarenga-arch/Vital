@@ -11,7 +11,8 @@ export const Numero = ({ rotulo, valor, dica, extra }) => (
 );
 
 /**
- * O "!" no canto de um cartão: uma frase dizendo o que o número quer dizer.
+ * O "?" no canto de um cartão: uma frase dizendo o que o número quer dizer.
+ * Era "!", que se lê como alerta — e o cartão não está errado, só explica.
  *
  * Abre no toque, não no hover — o painel roda no celular, e dica que só existe
  * com o mouse em cima não existe. Fecha tocando fora ou com Esc. O texto se
@@ -37,7 +38,7 @@ export function Dica({ texto }) {
   return (
     <span ref={raiz} className="rs-dica">
       <button type="button" className="rs-info" aria-label="O que significa?"
-              aria-expanded={aberta} onClick={() => setAberta(v => !v)}>!</button>
+              aria-expanded={aberta} onClick={() => setAberta(v => !v)}>?</button>
       {aberta && <span role="tooltip" className="rs-dica-texto">{texto}</span>}
     </span>
   );

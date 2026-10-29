@@ -204,9 +204,10 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
       )}
 
       <div style={{ marginTop: 12 }}>
-        <div className="eyebrow" style={{ marginBottom: 14 }}>
+        {/* Frase, não rótulo: em caixa alta e espaçada ela se lia pior. */}
+        <h3 className="rs-secao-t">
           {poderes.verDeTodos ? 'Como está o dia, por profissional' : 'Como está o meu dia'}
-        </div>
+        </h3>
         <GradeDoDia colunas={colunas} agendamentos={doDia}
                        clientes={clientes} servicos={servicos} staff={staff}
                        data={hoje} bloqueios={(dados.bloqueios || []).filter(b => b.data === hoje)}
