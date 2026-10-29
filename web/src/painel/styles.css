@@ -66,6 +66,9 @@ a.btn{text-decoration:none}
   height:56px; padding:0 12px; background:var(--paper); border-bottom:1px solid var(--line);
 }
 .p-menu-btn{ display:grid; place-items:center; width:40px; height:40px; border-radius:10px; }
+/* O menu abre pelo "Mais" da barra de baixo; dois botões para a mesma coisa
+   confundiam qual era o certo. */
+@media (max-width:899px){ .p-menu-btn{ display:none; } .ag-novo{ display:none; } }
 .p-menu-btn:hover{ background:var(--porcelain); }
 .p-titulo{ font-weight:700; font-size:15px; flex:1; }
 .p-ver-site{ display:grid; place-items:center; width:40px; height:40px; border-radius:10px; color:var(--muted); }
@@ -226,10 +229,11 @@ a.btn{text-decoration:none}
 .appt b{font-size:12px; display:block; font-weight:700; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
 .appt .t{font-family:'IBM Plex Mono',monospace; opacity:.75}
+.appt b .t{font-weight:500; margin-right:2px}
 .appt-quem{display:block; font-size:10.5px; font-weight:700; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
 .appt-pago{color:var(--ok); font-weight:700; font-size:10.5px}
-.appt.done{opacity:.5; cursor:default}
+.appt.done{opacity:.72; cursor:default}
 .appt.puxando{opacity:.75; cursor:grabbing; box-shadow:0 8px 22px rgba(36,26,40,.22);
   transform:scale(1.03); z-index:5}
 

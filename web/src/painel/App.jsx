@@ -633,7 +633,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     onClick={() => irPara('bloqueios', { novo: true, data: diaParaAcao })}>
               <Ban size={16} /> Bloquear horário
             </button>
-            <button className="btn btn-p btn-s" onClick={() => setNovo(true)}>
+            {/* No celular o "+" da barra de baixo já é este botão. */}
+            <button className="btn btn-p btn-s ag-novo" onClick={() => setNovo(true)}>
               <Plus size={16} /> Novo agendamento
             </button>
           </div>
@@ -781,8 +782,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                              background: (p?.cor || '#999') + '1f',
                              borderLeftColor: p?.cor || '#999',
                            }}>
-                        <b>{c?.nome.split(' ')[0]}</b>
-                        <span className="t">{naSemana.arrasto.hora}</span> · {s?.nome}
+                        <b><span className="t">{naSemana.arrasto.hora}</span> {c?.nome.split(' ')[0]}</b>
+                        {s?.nome}
                         <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
                       </div>
                     );
@@ -806,8 +807,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                           borderLeftColor: p?.cor || '#999',
                         }}
                         onPointerDown={e => naSemana.aoPegar(e, a)}>
-                        <b>{c?.nome.split(' ')[0]}</b>
-                        <span className="t">{a.hora}</span> · {s?.nome}
+                        <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
+                        {s?.nome}
                         {/* Quem atende é dito aqui, já que a coluna virou o dia. */}
                         <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
                         {a.pagamento.status === 'pago' && <span className="appt-pago">✓ pago</span>}

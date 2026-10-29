@@ -125,8 +125,8 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                            background: (dono?.cor || '#999') + '1f',
                            borderLeftColor: dono?.cor || '#999',
                          }}>
-                      <b>{c?.nome.split(' ')[0]}</b>
-                      <span className="t">{arrasto.hora}</span> · {s?.nome}
+                      <b><span className="t">{arrasto.hora}</span> {c?.nome.split(' ')[0]}</b>
+                      {s?.nome}
                     </div>
                   );
                 })()}
@@ -151,8 +151,10 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                            background: (p.cor || '#999') + '1f',
                            borderLeftColor: p.cor || '#999',
                          }}>
-                      <b>{c?.nome.split(' ')[0]}</b>
-                      <span className="t">{a.hora}</span> · {s?.nome}
+                      {/* Hora e nome na mesma linha: o bloco de 30 min só tem
+                          altura para uma, e ela precisa dizer quando e quem. */}
+                      <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
+                      {s?.nome}
                     </Bloco>
                   );
                 })}
