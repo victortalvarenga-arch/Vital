@@ -516,8 +516,8 @@ function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes,
   if (naFila) {
     lista.push({
       k: 'fila', icone: <Send size={15} />, ir: ir('crm'),
-      titulo: `${naFila} ${naFila === 1 ? 'mensagem' : 'mensagens'} na fila`,
-      detalhe: 'Lembretes esperando para sair.',
+      titulo: `${naFila} ${naFila === 1 ? 'lembrete pronto' : 'lembretes prontos'} para enviar`,
+      detalhe: 'Toque para enviar pelo WhatsApp.',
     });
   }
 
@@ -553,7 +553,9 @@ function AcoesRapidas({ irPara, poderes, naFila }) {
     // sim, se faz toda semana.
     { k: 'bloqueios', oQue: { novo: true }, icone: <Ban size={16} />, nome: 'Bloquear horário' },
     ...(poderes.cadastros ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Nova cliente' }] : []),
-    { k: 'crm', icone: <Send size={16} />, nome: 'Enviar lembretes', badge: naFila },
+    // A fila tem o próprio aviso acima, com o número; aqui seria o mesmo
+    // número pela terceira vez.
+    ...(naFila ? [] : [{ k: 'crm', icone: <Send size={16} />, nome: 'Enviar lembretes' }]),
   ];
   return (
     <div className="rs-acoes">

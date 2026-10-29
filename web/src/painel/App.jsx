@@ -202,7 +202,7 @@ function Painel({ sessao, aoSair }) {
       { k: 'agenda', nome: 'Agenda', icon: Calendar },
       ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
       ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
-      { k: 'crm', nome: 'WhatsApp', icon: MessageCircle, badge: fila.itens.length },
+      { k: 'crm', nome: 'WhatsApp', icon: MessageCircle },
     ] },
     { titulo: 'Cadastros', itens: [
       ...(p.cadastros ? [{ k: 'servicos', nome: 'Serviços', icon: Sparkles }] : []),

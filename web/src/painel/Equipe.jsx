@@ -90,7 +90,7 @@ export default function Equipe({ dados, acao, aviso }) {
         <Numero rotulo="Em atendimento" valor={emAtendimento.size}
                 sub={emAtendimento.size === 1 ? 'pessoa com cliente agora' : 'pessoas com cliente agora'} />
         <Numero rotulo="Comissões do período" valor={comissoesDoMes == null ? '—' : brl(comissoesDoMes)}
-                sub="este mês, atendimentos concluídos" />
+                sub="este mês, sobre o que já foi pago" />
       </div>
 
       <div className="card pf-filtros">

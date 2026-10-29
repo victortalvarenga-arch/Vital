@@ -85,6 +85,12 @@ export default function ConfigSite({ dados, acao, aviso }) {
 
       {retorno && <p className={'cx-retorno' + (retorno.ok ? '' : ' cx-retorno-falha')} role="status">{retorno.texto}</p>}
 
+      {/* A tela tem treze seções e passa de 4000px no celular: o índice leva
+          direto a uma, em vez de rolar procurando. */}
+      <nav className="cs-indice" aria-label="Seções desta tela">
+        {SECOES.map(s => <a key={s} href={`#${ancora(s)}`}>{s}</a>)}
+      </nav>
+
       <Secao titulo="Identidade" ajuda="Nome e descrição que aparecem no topo do site.">
         <Texto rotulo="Nome do negócio" valor={cfg.nome} aoMudar={v => mudar('nome', v)} />
         <Texto rotulo="Slogan" valor={cfg.slogan} aoMudar={v => mudar('slogan', v)}
@@ -235,6 +241,12 @@ export default function ConfigSite({ dados, acao, aviso }) {
 
 /* ── peças ── */
 
+/** As seções na ordem da tela, para o índice. Título novo entra aqui também. */
+const SECOES = ['Identidade', 'Marca', 'Textos', 'Contato', 'Sobre', 'Equipe', 'Antes e depois',
+  'Avaliações do Google', 'Instagram', 'Perguntas frequentes', 'Mapa', 'O que mostrar', 'Agenda'];
+const ancora = titulo => 'cs-' + titulo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
 /**
  * Um bloco da tela. Com `noSite`, ganha a chave ao lado do título: a seção sai
  * do site e volta quando ela quiser, sem perder o que foi preenchido — ligada
@@ -248,7 +260,7 @@ export default function ConfigSite({ dados, acao, aviso }) {
 const Secao = ({ titulo, ajuda, noSite, children }) => {
   const fechada = noSite && !noSite.ligado;
   return (
-    <section className={'cs-sec' + (fechada ? ' cs-sec-fora' : '')}>
+    <section id={ancora(titulo)} className={'cs-sec' + (fechada ? ' cs-sec-fora' : '')}>
       <div className="cs-sec-cab">
         <div className="cs-sec-titulo">
           <h2>{titulo}</h2>

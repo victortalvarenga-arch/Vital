@@ -90,8 +90,6 @@ export default function Servicos({ dados, acao, aviso }) {
       <div className="stats sv-stats">
         <Numero rotulo="Serviços ativos" valor={servicos.filter(s => s.ativo).length}
                 sub={`de ${servicos.length} cadastrados`} />
-        <Numero rotulo="Categorias" valor={categorias.length}
-                sub={categorias.length === 1 ? 'categoria' : 'categorias'} />
         <Numero rotulo="Mais agendado" valor={topo ? topo.nome : '—'} texto
                 sub={topo ? `${topoQtd} ${topoQtd === 1 ? 'agendamento' : 'agendamentos'} em 30 dias` : 'nada nos últimos 30 dias'} />
         <Numero rotulo="Ticket médio" valor={ticket == null ? '—' : brl(ticket)}

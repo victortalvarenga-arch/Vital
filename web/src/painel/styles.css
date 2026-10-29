@@ -349,7 +349,14 @@ a.btn{text-decoration:none}
 .cs-topo p { color: var(--muted); font-size: 14px; margin: 5px 0 0; max-width: 46ch; }
 .cs-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
 
-.cs-sec { border-top: 1px solid var(--line); padding: 24px 0; }
+.cs-sec { border-top: 1px solid var(--line); padding: 24px 0; scroll-margin-top: 72px; }
+/* Índice das seções: uma faixa que rola de lado, sem quebrar em várias linhas. */
+.cs-indice { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 18px; padding-bottom: 2px; }
+.cs-indice::-webkit-scrollbar { display: none; }
+.cs-indice a { flex: none; padding: 7px 12px; min-height: 36px; display: inline-flex; align-items: center;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper);
+  font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: none; }
+.cs-indice a:hover { border-color: var(--ink); }
 .cs-sec:first-of-type { border-top: 0; padding-top: 0; }
 .cs-sec-cab { margin-bottom: 16px; }
 .cs-sec-cab h2 { font-size: 17px; }
