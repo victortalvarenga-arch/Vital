@@ -115,6 +115,9 @@ a.btn{text-decoration:none}
   padding:2px 7px; border-radius:999px; flex:none;
 }
 .p-nav.on .p-badge{ background:rgba(255,255,255,.25); }
+/* `.p-nav span{flex:1}` vence `.p-badge` sozinho, e o número virava uma
+   barra até a borda do menu. */
+.p-nav .p-badge{ flex:none; }
 
 .p-conteudo{ padding:18px 16px 40px; }
 
@@ -1075,7 +1078,7 @@ a.btn{text-decoration:none}
 .rs-col[aria-pressed="true"] .rs-barra{background:var(--lacquer-d)}
 .rs-col-mes{margin-top:6px; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .rs-col[aria-pressed="true"] .rs-col-mes{color:var(--ink); font-weight:700}
-.rs-col-ano{height:12px; font-size:9.5px; color:var(--muted); opacity:.8}
+.rs-col-ano{height:13px; font-size:10.5px; color:var(--muted)}
 .rs-grafico .rs-dica-texto{left:auto; right:9px; width:min(300px, calc(100% - 18px))}
 /* Doze nomes de mês não cabem lado a lado no celular: ali vira a inicial. O mês
    inteiro continua na leitura do topo e no rótulo de acessibilidade. */
@@ -1232,7 +1235,7 @@ a.btn{text-decoration:none}
 .rs-hoje{padding:18px; margin-bottom:12px}
 .rs-hoje-topo{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
 .rs-hoje-conta{margin:6px 0 0; font-family:'Fraunces',serif; font-size:21px; font-weight:400; line-height:1.25}
-.rs-pendencias{flex:none; font-size:11.5px; font-weight:700; color:var(--warn);
+.rs-pendencias{flex:none; font-size:11.5px; font-weight:700; color:var(--warn-texto);
   background:#FBF0DF; border-radius:999px; padding:5px 11px}
 /* `rs-prog`, e não `rs-barra`: esse nome já é das colunas do gráfico, e as duas
    regras se atropelaram — a barra do dia virou um toco de 24px e as colunas do
@@ -1264,7 +1267,7 @@ a.btn{text-decoration:none}
 /* Confirmado ou pendente, na lista dos próximos. */
 .rs-selo{flex:none; font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px;
   background:var(--lacquer-tag); color:var(--lacquer-d)}
-.rs-selo.ok{background:#E4F0EA; color:var(--ok)}
+.rs-selo.ok{background:#E4F0EA; color:#20573F}
 
 /* A próxima cliente: o maior objeto da tela, porque é a pergunta do balcão. */
 .rs-proxima{padding:18px; margin-bottom:12px}

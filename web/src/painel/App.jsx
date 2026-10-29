@@ -40,6 +40,9 @@ import {
   ClipboardList, CalendarOff, Repeat, LayoutDashboard, LifeBuoy, Download, Bot,
 } from 'lucide-react';
 
+/** "hoje", "ontem", "há 5 dias" — "há 0d" lia como código. */
+const haQuanto = dias => (dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`);
+
 /** Como cada forma de pagamento aparece escrita. A chave vem do banco. */
 const NOME_FORMA = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
 
@@ -1549,14 +1552,14 @@ function Clientes({ dados, acao, aviso }) {
       <div className="card list">
         {filtrados.map(c => (
           <div key={c.id} className="li">
-            <div className="avatar" style={{ background: c.diasSem > 60 ? '#B08' : 'var(--ink2)' }}>{iniciais(c.nome)}</div>
+            <div className="avatar" style={{ background: c.diasSem > 60 ? 'var(--lacquer)' : 'var(--ink2)' }}>{iniciais(c.nome)}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="nm">{c.nome}</div>
               <div className="mt">
                 <span className="mono">{fmtFone(c.fone)}</span>
-                <span>{c.visitas} visitas</span>
+                <span>{c.visitas} {c.visitas === 1 ? 'visita' : 'visitas'}</span>
                 <span>{brl(c.gasto)}</span>
-                {c.ultima && <span style={{ color: c.diasSem > 60 ? '#A32A4E' : 'inherit' }}>há {c.diasSem}d</span>}
+                {c.ultima && <span style={{ color: c.diasSem > 60 ? 'var(--lacquer)' : 'inherit' }}>{haQuanto(c.diasSem)}</span>}
               </div>
             </div>
             <button className="btn btn-g btn-s" onClick={() => setSel(c)}>Ficha</button>
