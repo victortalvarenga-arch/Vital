@@ -332,7 +332,7 @@ function Painel({ sessao, aoSair }) {
         {secao === 'exportar' && p.exportar && <Exportar aviso={setFalha} />}
         {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} falha={setFalha} />}
-        {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
+        {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} poderes={p} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} poderes={p} />}
         {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'atendente' && p.site && dados.recursos?.atendente && <Atendente aviso={setFalha} />}
@@ -1830,7 +1830,7 @@ function EditarCliente({ c, acao, fechar }) {
 
 
 /* ── CRM / WhatsApp ── */
-function CRM({ dados, acao, aviso, fila, recarregarFila }) {
+function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
   const [sub, setSub] = useState('fila');
   const [edit, setEdit] = useState(null);
   const { templates, clientes } = dados;
@@ -1852,8 +1852,12 @@ function CRM({ dados, acao, aviso, fila, recarregarFila }) {
         <div><h2>WhatsApp</h2><div className="sub">Mensagens automáticas e campanhas para a base de clientes</div></div>
         <div className="chips">
           <button className={'chip' + (sub === 'fila' ? ' on' : '')} onClick={() => setSub('fila')}>Fila de hoje ({pendentes.length})</button>
-          <button className={'chip' + (sub === 'auto' ? ' on' : '')} onClick={() => setSub('auto')}>Automações</button>
-          <button className={'chip' + (sub === 'camp' ? ' on' : '')} onClick={() => setSub('camp')}>Campanhas</button>
+          {/* Automações e campanhas valem para a empresa inteira: a profissional
+              fica só com a fila, recortada nas clientes dela (a rota recusa o resto). */}
+          {poderes.clientes && <>
+            <button className={'chip' + (sub === 'auto' ? ' on' : '')} onClick={() => setSub('auto')}>Automações</button>
+            <button className={'chip' + (sub === 'camp' ? ' on' : '')} onClick={() => setSub('camp')}>Campanhas</button>
+          </>}
         </div>
       </div>
 

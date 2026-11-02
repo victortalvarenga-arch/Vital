@@ -964,6 +964,8 @@ ver o caixa nem a comissão de ninguém.
 | Taxa de comissão | de todos | **nenhuma** | a própria |
 | Ficha de saúde (anamnese) | sim | **não** | das próprias clientes |
 | Registro | de todos | o próprio | o próprio |
+| Fila de mensagens do WhatsApp | toda | toda | **só das próprias clientes** |
+| Campanhas e texto das automações | sim | sim | não |
 | Exportar dados (CSV) | sim | não | não |
 
 **Sócia é dona.** Não há papel de "sócia": quem divide o negócio recebe o
@@ -983,6 +985,17 @@ poder `fichas` — quem pergunta e lê a anamnese é quem atende. O que ela vê 
 dinheiro é o preço de cada atendimento, porque recebe no balcão. Coberto em
 `test/recepcao.test.js`, que testa cada porta; o que ela pode e não pode foi
 escolhido como padrão razoável, e mexer é trocar uma linha de `PODERES`.
+
+**A fila de mensagens é recortada como a agenda** (2026-11-02). Cada lembrete
+traz nome, telefone e texto com horário e serviço, e `GET /api/mensagens/fila`
+devolvia todos para qualquer pessoa logada: a profissional via, e podia marcar
+como enviado, o lembrete da cliente da colega. Agora quem tem escopo recebe só
+as mensagens de atendimentos dela (`JOIN appointments` pelo `staff_id`);
+mensagem sem atendimento (campanha) é da empresa e fica para quem vê todas.
+Enviar e pular passam pelo mesmo recorte e respondem 404 para a mensagem de
+outra — 403 diria que aquela cliente tem horário. Campanha e texto das
+automações valem para a empresa inteira e exigem `clientes`; despachar a fila
+exige `verDeTodos`. Coberto em `test/recepcao.test.js`.
 
 `clientes` virou poder próprio pelo mesmo motivo: a tela de Clientes era
 `cadastros`, que também abre serviços, unidades e formulários.
@@ -1107,8 +1120,8 @@ Confirmação e pagamento já seguiam o filtro; aniversário e lembrete na fila
 continuavam da empresa toda. A aniversariante "dela" é cliente com atendimento
 dela; o lembrete "dela" é o de um atendimento dela, e campanha sem atendimento
 sai do recorte. O aviso filtrado abre Clientes só nas aniversariantes dela,
-para a contagem e a lista baterem. O recorte é da tela — a fila em si não é
-recortada por papel na rota (está em "Achados").
+para a contagem e a lista baterem. O filtro de profissional é da tela; o
+recorte por papel é da rota (ver "Papéis": a fila de mensagens).
 
 **A recepção abre o Resumo sem dinheiro**: sem `financeiro`, a tela nem pede os
 relatórios (que respondem 403 para ela), some o recebido/previsto do cartão

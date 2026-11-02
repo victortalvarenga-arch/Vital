@@ -104,6 +104,51 @@ describe('trocar quem atende', () => {
   });
 });
 
+describe('fila de mensagens por papel', () => {
+  const msg = (id, agendamento) => db.db.run(
+    `INSERT INTO messages (id,client_id,appointment_id,template_chave,fone,texto,status,agendado_para,dedupe_key,criado_em)
+     VALUES (?,?,?,?,?,?,'pendente',?,?,?)`,
+    id, 'c1', agendamento, 'lembrete_dia', '47900000001', `texto ${id}`, `${DIA} 08:00`, `teste:${id}`, '2026-01-01'
+  );
+
+  before(async () => {
+    await db.db.comEmpresa('default', async () => {
+      await msg('m-ana', `a-${DIA}-10:00-p1`);
+      await msg('m-bia', `a-${DIA}-14:00-p2`);
+      await msg('m-campanha', null);
+    });
+  });
+
+  test('a profissional vê só os lembretes dos atendimentos dela', async () => {
+    const ids = (await ana('GET', '/api/mensagens/fila')).corpo.itens.map(m => m.id).sort();
+    assert.deepEqual(ids, ['m-ana']);
+  });
+
+  test('dona e recepção veem a fila inteira, campanha incluída', async () => {
+    for (const quem of [dona, recepcao]) {
+      const ids = (await quem('GET', '/api/mensagens/fila')).corpo.itens.map(m => m.id);
+      assert.ok(['m-ana', 'm-bia', 'm-campanha'].every(id => ids.includes(id)));
+    }
+  });
+
+  test('a profissional não envia nem pula o lembrete da colega', async () => {
+    assert.equal((await ana('POST', '/api/mensagens/fila/m-bia/pular')).status, 404);
+    assert.equal((await ana('POST', '/api/mensagens/fila/m-bia/enviar')).status, 404);
+    assert.equal((await ana('POST', '/api/mensagens/fila/m-campanha/pular')).status, 404);
+    const status = await db.db.comEmpresa('default', () =>
+      db.db.get(`SELECT status FROM messages WHERE id = 'm-bia'`));
+    assert.equal(status.status, 'pendente');
+  });
+
+  test('campanha e texto das automações são de quem cuida das clientes', async () => {
+    assert.equal((await ana('POST', '/api/mensagens/campanhas/qualquer', {})).status, 403);
+    assert.equal((await ana('PUT', '/api/mensagens/templates/qualquer', { texto: 'x' })).status, 403);
+    assert.equal((await ana('POST', '/api/mensagens/fila/despachar')).status, 403);
+    assert.equal((await recepcao('POST', '/api/mensagens/campanhas/nao-existe', {})).status, 404,
+      'a recepção passa da guarda (e a campanha inexistente dá 404)');
+  });
+});
+
 describe('convite por link', () => {
   /** O link sai na resposta e no e-mail; o teste confere que são o mesmo. */
   const tokenDe = link => link?.match(/#convite=([\w-]+)/)?.[1];

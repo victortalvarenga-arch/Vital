@@ -963,13 +963,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       "Comissões da equipe", com uma nota de que despesas não entram, e o
       cartão de Lucro mostra quanto de comissão foi descontado. A tabela de
       despesas continua faltando.
-- [ ] **A fila de mensagens não é recortada por papel.** `GET /api/mensagens/fila`
-      devolve os lembretes de todas as clientes, com nome, telefone e texto, para
-      qualquer pessoa logada — a profissional vê (e pode marcar como enviado) o
-      lembrete da cliente da colega, coisa que a agenda dela não mostra. Pede
-      `escopoDe` pelo `appointment_id` da mensagem; campanha sem atendimento
-      ficaria só para quem vê todas. Notado em 2026-11-02, ao filtrar os avisos
-      do Resumo por profissional (o filtro de lá é na tela, não na rota).
 - [ ] **A Vital não consegue cobrar.** `plano` é texto livre, sem preço nem
       ciclo, e não há cobrança nenhuma. O produto funciona inteiro e não fatura.
 - [ ] **Pagamento online da cliente não existe** (item antigo, no fim do

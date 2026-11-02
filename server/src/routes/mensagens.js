@@ -5,6 +5,7 @@ import { render, variaveis, VARIAVEIS } from '../lib/templates.js';
 import { gerarFila, despachar } from '../jobs/mensagens.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
 import { rota } from '../lib/rota.js';
+import { escopoDe, exige } from '../lib/auth.js';
 
 export const mensagens = Router();
 
@@ -14,7 +15,7 @@ mensagens.get('/templates', rota(async (req, res) => {
   res.json({ variaveis: VARIAVEIS, templates: rows.map(templateOut) });
 }));
 
-mensagens.put('/templates/:id', rota(async (req, res) => {
+mensagens.put('/templates/:id', exige('clientes'), rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM templates WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'template não encontrado' });
   const b = { ...templateOut(atual), ...req.body };
@@ -25,20 +26,43 @@ mensagens.put('/templates/:id', rota(async (req, res) => {
   res.json(templateOut(await db.get('SELECT * FROM templates WHERE id=?', req.params.id)));
 }));
 
-/* ── Fila ── */
+/* ── Fila ── *
+ *
+ * **A fila é recortada por papel, como a agenda** (2026-11-02). Cada lembrete
+ * traz nome, telefone e o texto com horário e serviço, e saía inteiro para
+ * qualquer pessoa logada: a profissional via — e marcava como enviado — o
+ * lembrete da cliente da colega, que a agenda dela não mostra. Quem tem escopo
+ * fica só com as mensagens de atendimentos dela; mensagem sem atendimento
+ * (campanha) é da empresa, e só quem vê todas a recebe.
+ *
+ * Campanhas e o texto das automações valem para a empresa inteira: ficam com
+ * quem cuida das clientes (`clientes`: dona e recepção).
+ */
+
+/** A mensagem, se esta pessoa pode mexer nela; `null` se não existe ou não é dela. */
+async function mensagemDe(usuario, id) {
+  const so = escopoDe(usuario);
+  return so
+    ? db.get(
+        `SELECT m.* FROM messages m JOIN appointments a ON a.id = m.appointment_id
+          WHERE m.id = ? AND a.staff_id = ?`, id, so)
+    : db.get('SELECT * FROM messages WHERE id=?', id);
+}
 
 /** Recalcula a fila sob demanda (o cron já faz isso a cada 10 min). */
 mensagens.post('/fila/gerar', rota(async (req, res) => res.json({ novas: await gerarFila() })));
 
 mensagens.get('/fila', rota(async (req, res) => {
   const status = req.query.status || 'pendente';
+  const so = escopoDe(req.usuario);
   const rows = await db.all(
     `SELECT m.*, c.nome AS cliente_nome, t.titulo AS template_titulo
        FROM messages m
        LEFT JOIN clients c   ON c.id = m.client_id
        LEFT JOIN templates t ON t.chave = m.template_chave
+       ${so ? 'JOIN appointments a ON a.id = m.appointment_id AND a.staff_id = ?' : ''}
       WHERE m.status = ? ORDER BY m.agendado_para LIMIT 300`,
-    status
+    ...(so ? [so] : []), status
   );
 
   res.json({
@@ -55,7 +79,9 @@ mensagens.get('/fila', rota(async (req, res) => {
 
 /** Marca como enviada. No modo manual é o atendente que confirma; com a API, o job. */
 mensagens.post('/fila/:id/enviar', rota(async (req, res) => {
-  const m = await db.get('SELECT * FROM messages WHERE id=?', req.params.id);
+  // 404 e não 403 para a mensagem de outra: id circula, e "existe mas não é
+  // sua" já diria que aquela cliente tem horário marcado.
+  const m = await mensagemDe(req.usuario, req.params.id);
   if (!m) return res.status(404).json({ erro: 'mensagem não encontrada' });
 
   if (modoManual()) {
@@ -80,17 +106,19 @@ mensagens.post('/fila/:id/enviar', rota(async (req, res) => {
 }));
 
 mensagens.post('/fila/:id/pular', rota(async (req, res) => {
-  await db.run(`UPDATE messages SET status='pulado' WHERE id=?`, req.params.id);
+  const m = await mensagemDe(req.usuario, req.params.id);
+  if (!m) return res.status(404).json({ erro: 'mensagem não encontrada' });
+  await db.run(`UPDATE messages SET status='pulado' WHERE id=?`, m.id);
   res.json({ ok: true });
 }));
 
-mensagens.post('/fila/despachar', rota(async (req, res) => res.json(await despachar())));
+mensagens.post('/fila/despachar', exige('verDeTodos'), rota(async (req, res) => res.json(await despachar())));
 
 /**
  * Campanhas: disparo manual para uma lista de clientes.
  * Respeita optin. Um envio por cliente por campanha por dia (dedupe).
  */
-mensagens.post('/campanhas/:chave', rota(async (req, res) => {
+mensagens.post('/campanhas/:chave', exige('clientes'), rota(async (req, res) => {
   const t = await db.get('SELECT * FROM templates WHERE chave=?', req.params.chave);
   if (!t) return res.status(404).json({ erro: 'campanha não encontrada' });
 
@@ -120,7 +148,7 @@ mensagens.post('/campanhas/:chave', rota(async (req, res) => {
 }));
 
 /** Prévia de uma campanha para uma cliente específica, sem enfileirar nada. */
-mensagens.post('/campanhas/:chave/previa', rota(async (req, res) => {
+mensagens.post('/campanhas/:chave/previa', exige('clientes'), rota(async (req, res) => {
   const t = await db.get('SELECT * FROM templates WHERE chave=?', req.params.chave);
   if (!t) return res.status(404).json({ erro: 'campanha não encontrada' });
   const c = await db.get('SELECT * FROM clients WHERE id=?', req.body?.clienteId);
