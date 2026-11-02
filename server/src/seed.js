@@ -805,6 +805,8 @@ async function contasDeDesenvolvimento() {
   const contas = [
     { email: 'dono@vital.com', nome: 'Laura Faust', papel: 'dono', prof: 's1' },
     { email: 'funcionaria@vital.com', nome: 'Karen Souza', papel: 'funcionario', prof: 's3' },
+    // A recepção não atende: sem vínculo na equipe, vê a agenda de todas.
+    { email: 'recepcao@vital.com', nome: 'Júlia Prado', papel: 'recepcao', prof: null },
   ];
   for (const c of contas) {
     await db.run(
@@ -815,7 +817,7 @@ async function contasDeDesenvolvimento() {
   }
 
   console.log('');
-  console.log(`  Contas de desenvolvimento (senha ${SENHA_DEV} nas duas):`);
+  console.log(`  Contas de desenvolvimento (senha ${SENHA_DEV} em todas):`);
   for (const c of contas) console.log(`    ${c.email.padEnd(24)} ${c.papel}`);
   console.log('    Só em localhost. Em produção ninguém nasce por seed.');
   console.log('');

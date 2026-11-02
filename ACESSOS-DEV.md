@@ -142,13 +142,16 @@ telas cheias — e a bancada de ensaio da primeira cliente real da Vital
 |---|---|---|
 | `dono@vital.com` | dono | o negócio inteiro |
 | `funcionaria@vital.com` | funcionário | só a agenda e a produção da Karen Souza |
+| `recepcao@vital.com` | recepção | a agenda de todas e as clientes, sem dinheiro do negócio |
 
-Entre as duas está a diferença de papel: a funcionária não vê o financeiro da
+Entre as contas está a diferença de papel: a funcionária não vê o financeiro da
 empresa, não vê a agenda das colegas e não consegue alterá-la nem sabendo o id.
 No Financeiro ela vê "Sua receita" e "Sua comissão", sem o cartão de Lucro; no
 Resumo, o ranking do mês aparece com a equipe inteira, mas só com a contagem de
-atendimentos. Entrar com as duas contas lado a lado é o jeito rápido de conferir
-que um recorte novo não vazou.
+atendimentos. A recepção vê a agenda de todas e recebe no balcão, mas não tem
+Financeiro, os números do mês no Resumo, as taxas de comissão nem as fichas de
+saúde. Entrar com as contas lado a lado é o jeito rápido de conferir que um
+recorte novo não vazou.
 
 ---
 

@@ -1,4 +1,5 @@
 import { api } from '../shared/painel-api.js';
+import { toMin } from '../shared/tempo.js';
 
 /**
  * O caminho de um atendimento, do dia marcado até o fim.
@@ -19,6 +20,27 @@ export const FLUXO = {
   falta:          { rotulo: 'Faltou',         tom: 'falta' },
   cancelado:      { rotulo: 'Cancelado',      tom: 'ruim' },
 };
+
+/**
+ * A próxima de cada profissional, hoje: a primeira marcada (a confirmar ou
+ * confirmada) que ainda não terminou. É a mesma regra do cartão "Próxima
+ * cliente" do Resumo, aplicada por pessoa — na grade do dia cada coluna tem a
+ * sua próxima, e é ela que ganha o destaque.
+ */
+export function proximasDoDia(agendamentos, hoje, minAgora) {
+  const ids = new Set();
+  const vistas = new Set();
+  const doDia = agendamentos
+    .filter(a => a.data === hoje && (a.status === 'agendado' || a.status === 'confirmado')
+      && toMin(a.hora) + (a.duracao || 0) > minAgora)
+    .sort((a, b) => a.hora.localeCompare(b.hora));
+  for (const a of doDia) {
+    if (vistas.has(a.prof)) continue;
+    vistas.add(a.prof);
+    ids.add(a.id);
+  }
+  return ids;
+}
 
 /**
  * Muda a situação de um atendimento, com o aviso que diz de quem e para onde

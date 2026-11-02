@@ -122,7 +122,9 @@ export const Modal = ({ children, onClose, wide }) => {
     <div className="ovl" onClick={onClose}>
       <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true"
            className={'modal' + (wide ? ' wide' : '')} onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} aria-label="Fechar"
+        {/* `type="button"`: o modal pode abrir dentro de um formulário (o link
+            de acesso sai da ficha da profissional), e fechar não pode salvar. */}
+        <button type="button" onClick={onClose} aria-label="Fechar"
                 style={{ position: 'absolute', top: 16, right: 16, color: 'var(--muted)' }}>
           <X size={20} />
         </button>

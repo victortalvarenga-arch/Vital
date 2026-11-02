@@ -3,7 +3,7 @@ import { db, uid, clientOut, apptOut } from '../db.js';
 import { hoje, soDigitos, diasEntre } from '../lib/dates.js';
 import { rota } from '../lib/rota.js';
 import { mudancas } from '../lib/registro.js';
-import { escopoDe } from '../lib/auth.js';
+import { escopoDe, exige } from '../lib/auth.js';
 import { fichasDaCliente } from '../lib/formularios.js';
 
 export const clientes = Router();
@@ -72,7 +72,7 @@ clientes.get('/:id', rota(async (req, res) => {
  * O recorte por papel é o mesmo da ficha do atendimento: funcionário vê as
  * dos atendimentos que ele atendeu. Quem filtra é a consulta, não a tela.
  */
-clientes.get('/:id/fichas', rota(async (req, res) => {
+clientes.get('/:id/fichas', exige('fichas'), rota(async (req, res) => {
   const c = await db.get('SELECT id, nome FROM clients WHERE id=?', req.params.id);
   if (!c) return res.status(404).json({ erro: 'cliente não encontrada' });
 

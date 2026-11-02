@@ -27,6 +27,44 @@ const LIMITES = {
 const sha256 = t => crypto.createHash('sha256').update(t).digest('hex');
 
 /**
+ * Um link para a pessoa escolher a senha: o "esqueci" (uma hora) e o convite
+ * de quem acabou de ganhar acesso (sete dias, porque ela pode só abrir o
+ * WhatsApp no dia seguinte). Os dois são a mesma linha em `redefinicoes_senha`
+ * e passam pela mesma `POST /redefinir` — o convite não é uma porta a mais.
+ * Um link valendo por vez: gerar outro invalida o anterior.
+ */
+async function linkDeSenha(userId, prazo) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  await db.run('DELETE FROM redefinicoes_senha WHERE user_id = ? AND usada_em IS NULL', userId);
+  await db.run(
+    `INSERT INTO redefinicoes_senha (token_hash, user_id, expira_em) VALUES (?, ?, now() + ?::interval)`,
+    sha256(token), userId, prazo
+  );
+  return token;
+}
+
+const PRAZO_CONVITE = '7 days';
+
+async function convidar(req, u) {
+  const token = await linkDeSenha(u.id, PRAZO_CONVITE);
+  const link = `${req.protocol}://${req.get('host')}/painel.html#convite=${token}`;
+  const cfg = await getConfig();
+  // Sem esperar, como no "esqueci": o link também volta na resposta, para a
+  // dona mandar pelo WhatsApp, e e-mail lento não pode segurar a tela.
+  enviarEmail({
+    para: u.email,
+    assunto: `Seu acesso ao painel — ${cfg.nome}`,
+    texto: `Oi, ${u.nome.split(' ')[0]}.\n\nVocê ganhou acesso ao painel de ${cfg.nome}. `
+      + `Para criar a sua senha, abra o link abaixo (vale por sete dias, uma vez só):\n\n${link}\n\n`
+      + `Depois, entre com este e-mail (${u.email}) e a senha que você escolher.`,
+  });
+  return link;
+}
+
+/** Funcionária precisa dizer quem é na agenda; dona e recepção podem, se também atendem. */
+const precisaVinculo = papel => papel === 'funcionario';
+
+/**
  * Login.
  *
  * A resposta é a mesma para e-mail inexistente e senha errada, e a senha é
@@ -74,13 +112,7 @@ auth.post('/esqueci', LIMITES.esqueci, rota(async (req, res) => {
 
   const u = await db.get('SELECT id, nome, email FROM users WHERE email = ? AND ativo = 1', email);
   if (u) {
-    const token = crypto.randomBytes(32).toString('base64url');
-    // Um link valendo por vez: pedir de novo invalida o anterior.
-    await db.run('DELETE FROM redefinicoes_senha WHERE user_id = ? AND usada_em IS NULL', u.id);
-    await db.run(
-      `INSERT INTO redefinicoes_senha (token_hash, user_id, expira_em) VALUES (?, ?, now() + interval '1 hour')`,
-      sha256(token), u.id
-    );
+    const token = await linkDeSenha(u.id, '1 hour');
     const cfg = await getConfig();
     const link = `${req.protocol}://${req.get('host')}/painel.html#redefinir=${token}`;
     enviarEmail({
@@ -184,16 +216,25 @@ auth.get('/usuarios', exige('equipe'), rota(async (req, res) => {
   res.json(rows.map(userOut));
 }));
 
+/**
+ * Dá acesso a alguém. Dois jeitos: a dona digita uma senha e passa adiante, ou
+ * manda `convite: true` sem senha e recebe um link para a pessoa criar a dela.
+ * O convite é o caminho bom — a senha nunca passa pela mão de outra pessoa —,
+ * e a senha digitada continua para quem está do lado e quer resolver agora.
+ *
+ * Convidada nasce com uma senha sorteada que ninguém conhece: a coluna é
+ * obrigatória, e um valor vazio ali seria uma conta que entra sem senha.
+ */
 auth.post('/usuarios', exige('equipe'), rota(async (req, res) => {
-  const { nome, email, senha, papel, profissionalId } = req.body || {};
-  if (!nome || !email || String(senha || '').length < 8) {
+  const { nome, email, senha, papel, profissionalId, convite } = req.body || {};
+  if (!nome || !email || (!convite && String(senha || '').length < 8)) {
     return res.status(400).json({ erro: 'informe nome, e-mail e senha de ao menos 8 caracteres' });
   }
   if (!PODERES[papel]) return res.status(400).json({ erro: 'papel inválido' });
   // Funcionário enxerga "o que é meu" — a própria agenda, a própria produção.
   // Sem dizer quem ele é na equipe, "o meu" não tem resposta e ele entra num
   // painel vazio sem entender por quê.
-  if (papel === 'funcionario' && !profissionalId) {
+  if (precisaVinculo(papel) && !profissionalId) {
     return res.status(400).json({ erro: 'escolha qual profissional da equipe é esta pessoa' });
   }
 
@@ -201,18 +242,43 @@ auth.post('/usuarios', exige('equipe'), rota(async (req, res) => {
   if (existe) return res.status(409).json({ erro: 'já existe alguém com esse e-mail' });
 
   const id = uid();
+  const senhaInicial = convite ? crypto.randomBytes(24).toString('base64url') : senha;
   await db.run(
     `INSERT INTO users (id, nome, email, senha_hash, papel, staff_id, ativo, criado_em)
      VALUES (?,?,?,?,?,?,1,?)`,
-    id, nome, String(email).toLowerCase().trim(), await hashDaSenha(senha),
+    id, nome, String(email).toLowerCase().trim(), await hashDaSenha(senhaInicial),
     papel, profissionalId || null, new Date().toISOString().slice(0, 10)
   );
+  const criado = await db.get('SELECT * FROM users WHERE id = ?', id);
+  const link = convite ? await convidar(req, criado) : null;
   await req.registrar('acesso.criado', {
     alvoId: id, alvoTipo: 'acesso',
-    resumo: `deu acesso de ${papel} a ${nome}`,
+    resumo: `deu acesso de ${papel} a ${nome}${convite ? ' por convite' : ''}`,
     detalhe: { email: String(email).toLowerCase().trim(), papel },
   });
-  res.status(201).json(userOut(await db.get('SELECT * FROM users WHERE id = ?', id)));
+  res.status(201).json({ ...userOut(criado), ...(link ? { convite: link } : {}) });
+}));
+
+/**
+ * Um link novo para quem ainda não criou a senha — ou esqueceu e está do lado
+ * da dona. Invalida o anterior. Derruba as sessões abertas, como trocar a
+ * senha: quem pede um link para outra pessoa pode estar tirando alguém da
+ * conta dela.
+ */
+auth.post('/usuarios/:id/convite', exige('equipe'), rota(async (req, res) => {
+  const alvo = await db.get('SELECT * FROM users WHERE id = ?', req.params.id);
+  if (!alvo) return res.status(404).json({ erro: 'usuário não encontrado' });
+  if (!alvo.ativo) return res.status(400).json({ erro: 'reative o acesso antes de mandar o link' });
+  if (alvo.id === req.usuario.id) {
+    return res.status(400).json({ erro: 'para a sua própria senha, use "Esqueci minha senha"' });
+  }
+  const link = await convidar(req, alvo);
+  await req.registrar('acesso.convite', {
+    alvoId: alvo.id, alvoTipo: 'acesso',
+    resumo: `gerou um link de senha para ${alvo.nome}`,
+    detalhe: { email: alvo.email },
+  });
+  res.json({ convite: link });
 }));
 
 /**
@@ -273,7 +339,7 @@ auth.put('/usuarios/:id', exige('equipe'), rota(async (req, res) => {
     if (n <= 1) return res.status(400).json({ erro: 'esta é a única conta de dono ativa' });
   }
 
-  if (papelFinal === 'funcionario' && !vinculoFinal) {
+  if (precisaVinculo(papelFinal) && !vinculoFinal) {
     return res.status(400).json({ erro: 'escolha qual profissional da equipe é esta pessoa' });
   }
 

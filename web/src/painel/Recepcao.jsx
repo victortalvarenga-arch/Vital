@@ -1,6 +1,7 @@
 import { Clock } from 'lucide-react';
 import { brl } from '../shared/formato.js';
-import { iniciais, toHora, toMin } from '../shared/tempo.js';
+import { hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
+import { proximasDoDia } from './fluxo.js';
 
 /**
  * O dia inteiro em uma coluna, por horário — a tela de quem atende o balcão.
@@ -22,6 +23,10 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
 
   const agora = new Date();
   const minAgora = agora.getHours() * 60 + agora.getMinutes();
+  // Na cadeira em azul, a próxima de cada profissional no vinho: as duas linhas
+  // que o balcão procura, com cor de fundo e não só com o selo pequeno. O selo
+  // continua o mais urgente ("a confirmar" ganha de "próxima").
+  const proximas = proximasDoDia(lista, hojeISO(), minAgora);
 
   return (
     <div className="card rc">
@@ -44,7 +49,8 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
             )}
             {/* Atendida e ainda não paga é a única linha passada que pede ação:
                 não desbota com as outras, e diz "a pagar". */}
-            <button type="button" className={'rc-linha' + (passou && !(a.status === 'concluido' && a.pagamento?.status !== 'pago') ? ' passou' : '')}
+            <button type="button" className={'rc-linha' + (passou && !(a.status === 'concluido' && a.pagamento?.status !== 'pago') ? ' passou' : '')
+                      + (a.status === 'em_atendimento' ? ' atual' : proximas.has(a.id) ? ' proxima' : '')}
                     onClick={() => aoTocar(a)}>
               <span className="rc-hora mono">
                 {a.hora}
@@ -65,6 +71,7 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
                 {a.status === 'falta' ? <i className="rc-falta">faltou</i>
                   : a.status === 'em_atendimento' ? <i className="rc-cadeira">na cadeira</i>
                   : a.status === 'agendado' ? <i className="rc-confirmar">a confirmar</i>
+                  : proximas.has(a.id) ? <i className="rc-proxima">próxima</i>
                   : a.pagamento?.status === 'pago' ? <i className="rc-pago">pago</i>
                   : a.pagamento?.status === 'parcial' ? <i className="rc-pendente">entrada</i>
                   : a.status === 'concluido' ? <i className="rc-apagar">a pagar</i> : null}

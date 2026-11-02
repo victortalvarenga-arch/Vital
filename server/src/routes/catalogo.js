@@ -625,9 +625,19 @@ catalogo.get('/combos/desempenho', rota(async (req, res) => {
     usos: Number(l.usos) || 0, receita: Number(l.receita) || 0, desconto: Number(l.desconto) || 0,
   }]));
   const soma = k => Math.round(linhas.reduce((n, l) => n + (Number(l[k]) || 0) * 100, 0)) / 100;
+  const usos = linhas.reduce((n, l) => n + (Number(l.usos) || 0), 0);
+  // A recepção vê a agenda de todos (escopo nulo) sem ter financeiro: fica com
+  // as contagens, e o dinheiro das promoções sai da resposta.
+  if (!pode(req.usuario.papel, 'financeiro')) {
+    return res.json({
+      de, ate, somenteMeu: false, semDinheiro: true,
+      porCombo: Object.fromEntries(Object.entries(porCombo).map(([id, v]) => [id, { usos: v.usos }])),
+      total: { usos, receita: null, desconto: null },
+    });
+  }
   res.json({
     de, ate, somenteMeu: Boolean(so), porCombo,
-    total: { usos: linhas.reduce((n, l) => n + (Number(l.usos) || 0), 0), receita: soma('receita'), desconto: soma('desconto') },
+    total: { usos, receita: soma('receita'), desconto: soma('desconto') },
   });
 }));
 
@@ -732,9 +742,11 @@ function confere(b) {
 catalogo.get('/logs', rota(async (req, res) => {
   const cond = [], args = [];
 
-  // Funcionário vê o próprio rastro; dono vê o de todos. Mesma regra da agenda
-  // e do financeiro — e imposta aqui, não aceita do filtro que o front mandou.
-  if (!pode(req.usuario.papel, 'verDeTodos')) {
+  // Funcionário e recepção veem o próprio rastro; dono vê o de todos. É `equipe`
+  // e não `verDeTodos`: o registro diz quanto cada uma recebeu e de quem, e a
+  // recepção vê a agenda de todos sem ver o caixa. Imposto aqui, não aceito do
+  // filtro que o front mandou.
+  if (!pode(req.usuario.papel, 'equipe')) {
     cond.push('l.user_id = ?');
     args.push(req.usuario.id);
   }

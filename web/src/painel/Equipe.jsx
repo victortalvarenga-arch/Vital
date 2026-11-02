@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { MoreVertical, Pencil, Plus, Search } from 'lucide-react';
+import { KeyRound, Link2, MoreVertical, Pencil, Plus, Search } from 'lucide-react';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { hojeISO, iniciais } from '../shared/tempo.js';
 import { Campo, Gaveta, Switch } from './Base.jsx';
 import { PALETA } from './paleta.js';
+import { LinkDeConvite, PAPEIS } from './Usuarios.jsx';
 
 /**
  * Profissionais: a equipe, o que cada um faz, quanto ganha e quando trabalha.
@@ -28,7 +29,7 @@ const DIAS_SEMANA = [
 // que passar disso encosta na borda em vez de sumir.
 const REGUA = [6 * 60, 22 * 60];
 
-export default function Equipe({ dados, acao, aviso }) {
+export default function Equipe({ dados, acao, aviso, falha }) {
   const { staff, agendamentos = [], servicos } = dados;
   const [aberta, setAberta] = useState(null);
   const [menu, setMenu] = useState(null);
@@ -151,8 +152,8 @@ export default function Equipe({ dados, acao, aviso }) {
 
       {aberta && (
         <Ficha p={aberta} servicos={servicos.filter(s => s.ativo || s.profs.includes(aberta.id))}
-               unidades={dados.unidades || []} doMes={mes?.[aberta.id]}
-               acao={acao} aviso={aviso} fechar={() => setAberta(null)} />
+               unidades={dados.unidades || []} doMes={mes?.[aberta.id]} empresa={dados.config?.nome}
+               acao={acao} aviso={aviso} falha={falha || aviso} fechar={() => setAberta(null)} />
       )}
     </>
   );
@@ -174,7 +175,7 @@ const novaPessoa = n => ({
 });
 
 /** A ficha de uma pessoa, em cinco partes. Serve também para cadastrar. */
-function Ficha({ p, servicos, unidades, doMes, acao, aviso, fechar }) {
+function Ficha({ p, servicos, unidades, doMes, empresa, acao, aviso, falha, fechar }) {
   const [f, setF] = useState({ ...p, jornada: { ...p.jornada } });
   const [editandoHorario, setEditandoHorario] = useState(!p.id);
   const [salvando, setSalvando] = useState(false);
@@ -277,6 +278,14 @@ function Ficha({ p, servicos, unidades, doMes, acao, aviso, fechar }) {
             <Switch on={!!f.ativo} onChange={() => muda({ ativo: !f.ativo })} />
             <span>Profissional ativo <small>— inativa, some da agenda e do site, e o histórico fica</small></span>
           </div>
+        </section>
+
+        {/* ── Acesso ao painel ── */}
+        <section className="pf-parte">
+          <h3 className="pf-parte-t">Acesso ao painel</h3>
+          {p.id
+            ? <AcessoDaProfissional p={p} empresa={empresa} aviso={aviso} falha={falha} />
+            : <p className="add-ajuda">Depois de salvar, volte aqui para mandar a ela o link de acesso.</p>}
         </section>
 
         {/* ── Serviços habilitados ── */}
@@ -427,6 +436,104 @@ function Ficha({ p, servicos, unidades, doMes, acao, aviso, fechar }) {
         </div>
       </form>
     </Gaveta>
+  );
+}
+
+/**
+ * O login desta profissional, dentro da ficha dela (pedido da dona, 2026-11-02).
+ *
+ * Profissional (quem atende) e acesso (o login) são duas coisas, e a ordem
+ * confundia: o acesso pedia para escolher a profissional numa lista, e quem
+ * ainda não a tinha cadastrado não a achava. Aqui a pessoa já está escolhida, e
+ * falta só o e-mail: o link sai na hora, com o papel "Profissional". Mudar o
+ * papel ou tirar o acesso continua em Acesso ao painel — é lá que se vê todo
+ * mundo que entra.
+ */
+function AcessoDaProfissional({ p, empresa, aviso, falha }) {
+  const [acesso, setAcesso] = useState(undefined);   // undefined = carregando, null = não tem
+  const [email, setEmail] = useState('');
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [convite, setConvite] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    api.usuarios()
+      .then(l => { if (vivo) setAcesso(l.find(u => u.profissionalId === p.id) || null); })
+      .catch(() => { if (vivo) setAcesso(null); });
+    return () => { vivo = false; };
+  }, [p.id]);
+
+  const criar = async () => {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setErro('Escreva o e-mail dela — é com ele que ela vai entrar.');
+      document.getElementById(`pf-acesso-${p.id}`)?.focus();
+      return;
+    }
+    setOcupado(true);
+    try {
+      const u = await api.salvarUsuario({
+        nome: p.nome, email: email.trim(), papel: 'funcionario', profissionalId: p.id, convite: true,
+      });
+      setAcesso(u);
+      setConvite({ nome: u.nome, link: u.convite });
+    } catch (e) { setErro(e.message); }
+    setOcupado(false);
+  };
+
+  const novoLink = async () => {
+    setOcupado(true);
+    try { setConvite({ nome: acesso.nome, link: (await api.conviteDoUsuario(acesso.id)).convite }); }
+    catch (e) { falha?.(e.message); }
+    setOcupado(false);
+  };
+
+  if (acesso === undefined) return <p className="add-ajuda">Conferindo…</p>;
+
+  return (
+    <>
+      {acesso ? (
+        <div className="pf-acesso">
+          <KeyRound size={16} aria-hidden="true" />
+          <div className="pf-acesso-txt">
+            <b>{acesso.email}</b>
+            <small>
+              Entra como {(PAPEIS[acesso.papel]?.nome || acesso.papel).toLowerCase()}
+              {!acesso.ativo && ' · acesso desativado'}
+            </small>
+          </div>
+          {acesso.ativo && (
+            <button type="button" className="btn btn-g btn-s" disabled={ocupado} onClick={novoLink}>
+              <Link2 size={14} aria-hidden="true" /> Novo link de senha
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <p className="add-ajuda">
+            Para ela entrar no painel e ver a própria agenda e comissão — sem o caixa
+            da empresa nem a agenda das colegas. Ela recebe um link e cria a senha dela.
+          </p>
+          <Campo label="E-mail dela">
+            <input id={`pf-acesso-${p.id}`} type="email" inputMode="email" autoComplete="off" value={email}
+                   aria-invalid={!!erro} aria-describedby={erro ? `pf-acesso-erro-${p.id}` : undefined}
+                   onChange={e => { setEmail(e.target.value); setErro(''); }}
+                   // Enter aqui salvaria a ficha inteira: o campo é do acesso, não dela.
+                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); criar(); } }} />
+          </Campo>
+          {erro && <p id={`pf-acesso-erro-${p.id}`} className="mf-erro">{erro}</p>}
+          <button type="button" className="btn btn-p btn-s" disabled={ocupado} onClick={criar}>
+            <Link2 size={14} aria-hidden="true" /> {ocupado ? 'Gerando…' : 'Dar acesso e gerar o link'}
+          </button>
+        </>
+      )}
+      <p className="add-ajuda pf-acesso-nota">
+        Mudar o papel ou tirar o acesso fica em Ajustes → Acesso ao painel.
+      </p>
+      {convite && (
+        <LinkDeConvite {...convite} empresa={empresa} aviso={aviso} fechar={() => setConvite(null)} />
+      )}
+    </>
   );
 }
 

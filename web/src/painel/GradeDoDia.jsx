@@ -1,10 +1,57 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { emFaixas, faixaDeHoras, iniciais, toMin } from '../shared/tempo.js';
-import { fechadoNoDia } from '../shared/jornada.js';
+import { emFaixas, faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
+import { fechadoDaEmpresa, fechadoNoDia, semAs } from '../shared/jornada.js';
+import { proximasDoDia } from './fluxo.js';
 
 const PX_H = 34, TOPO = 8;
 const MIN_POR_PX = 60 / PX_H;
+
+/**
+ * Os minutos do dia agora, atualizados a cada minuto. É o que move a linha do
+ * "agora" e o destaque da próxima sem precisar recarregar nada: sem isso, a
+ * próxima das 10h continuava destacada às 11h até alguém mexer na agenda.
+ */
+export function useMinutoAgora() {
+  const ler = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const [agora, setAgora] = useState(ler);
+  useEffect(() => {
+    const id = setInterval(() => setAgora(ler()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return agora;
+}
+
+/**
+ * As faixas em que não se marca, em vermelho listrado (pedido da dona,
+ * 2026-11-02 — o cinza ralo de antes passava por horário livre).
+ *
+ * Dois tons: `empresa` (ninguém atende — mais forte) e a jornada da pessoa
+ * (ela não atende, outra pode). O corte com a parte aberta ganha uma linha
+ * cheia, que é o que se lê de longe: "daqui para cima não dá". Sem eventos de
+ * ponteiro, para o arrasto continuar passando por cima e quem recusa ser a
+ * regra (`shared/remarcar.js`), não o desenho.
+ */
+export function FaixasFechadas({ faixas, empresa = false, deMin, ateMin, topo, minPorPx }) {
+  return faixas.map(f => {
+    const corte = f.ini > deMin && f.fim >= ateMin ? ' corte-cima'
+      : f.ini <= deMin && f.fim < ateMin ? ' corte-baixo' : '';
+    const altura = (f.fim - f.ini) / minPorPx;
+    return (
+      <div key={(empresa ? 'e' : 'p') + f.ini} aria-hidden="true" title={f.motivo}
+           className={'fechado' + (empresa ? ' empresa' : '') + corte}
+           style={{ top: topo + (f.ini - deMin) / minPorPx, height: altura }}>
+        {altura >= 30 && <span className="fechado-rotulo">{f.motivo}</span>}
+      </div>
+    );
+  });
+}
+
+/** A linha vermelha do horário de agora, só no dia de hoje e só dentro da grade. */
+export function LinhaDoAgora({ minAgora, deMin, ateMin, topo, minPorPx }) {
+  if (minAgora < deMin || minAgora > ateMin) return null;
+  return <div className="agora-linha" aria-hidden="true" style={{ top: topo + (minAgora - deMin) / minPorPx }} />;
+}
 
 /**
  * Grade de um dia, uma coluna por profissional.
@@ -22,18 +69,31 @@ const MIN_POR_PX = 60 / PX_H;
  * `em_atendimento` é o que a grade cheia tem de distinguir sem leitura — quem
  * está na cadeira agora contra quem já foi embora.
  */
-export const classeDoBloco = status =>
+export const classeDoBloco = (status, proxima = false) =>
   'appt'
   // "A confirmar" e "confirmado" eram o mesmo bloco: na grade cheia não dava
   // para ver de quem ainda falta a resposta.
   + (status === 'agendado' ? ' pendente' : '')
   + (status === 'concluido' ? ' done' : '')
   + (status === 'falta' ? ' falta' : '')
-  + (status === 'em_atendimento' ? ' agora' : '');
+  + (status === 'em_atendimento' ? ' agora' : '')
+  + (proxima ? ' proxima' : '');
+
+/**
+ * O selo dentro do bloco: "Agora" na cadeira, "Próxima" na seguinte. Texto e
+ * não só cor, porque a cor do bloco já é de quem atende.
+ */
+export const SeloDoBloco = ({ status, proxima }) => (
+  status === 'em_atendimento' ? <span className="appt-selo agora">Agora</span>
+    : proxima ? <span className="appt-selo proxima">Próxima</span> : null
+);
 
 export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, staff = [], aoTocar,
-                                     data, bloqueios = [], mostrarFechado = false,
+                                     data, bloqueios = [],
                                      arrasto = null, arrastado = null, aoPegar = null }) {
+  const minAgora = useMinutoAgora();
+  const ehHoje = data === hojeISO();
+  const proximas = ehHoje ? proximasDoDia(agendamentos, data, minAgora) : new Set();
   // No celular cabem duas colunas, e quem está atendendo agora podia ficar
   // fora da tela — justo a coluna que se abre a grade para ver. Ao abrir o
   // dia, a faixa rola até ela; rola só a faixa, nunca a página.
@@ -56,6 +116,10 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
   // continuavam contando o atendimento invisível.
   const [H_INI, H_FIM] = faixaDeHoras(agendamentos);
   const altura = (H_FIM - H_INI) * PX_H + TOPO * 2;
+  const janela = { deMin: H_INI * 60, ateMin: H_FIM * 60, topo: TOPO, minPorPx: MIN_POR_PX };
+  // A empresa fechada é da equipe ativa inteira, não só das colunas à vista:
+  // filtrar numa pessoa não pode fazer a empresa "abrir" mais tarde.
+  const daEmpresa = fechadoDaEmpresa({ equipe: staff, data, deMin: janela.deMin, ateMin: janela.ateMin });
 
   return (
     <div className="eq-timeline" ref={moldura}>
@@ -107,16 +171,16 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
 
                 {/* Fora da jornada, e o bloqueio por cima: os dois dizem "não
                     dá para marcar aqui", que é o que se pergunta olhando um
-                    buraco na grade. O bloqueio ainda diz por quê. */}
-                {mostrarFechado && fechadoNoDia({
-                  profissional: p, data, deMin: H_INI * 60, ateMin: H_FIM * 60,
-                }).map(f => (
-                  <div key={f.ini} className="fechado" title={f.motivo} aria-hidden="true"
-                       style={{ top: TOPO + (f.ini - H_INI * 60) / MIN_POR_PX,
-                                height: (f.fim - f.ini) / MIN_POR_PX }} />
-                ))}
+                    buraco na grade. O bloqueio ainda diz por quê. Sempre, e
+                    não só com uma pessoa escolhida: aqui cada coluna é uma
+                    pessoa, então a jornada de cada uma é dela e de mais
+                    ninguém. */}
+                <FaixasFechadas faixas={daEmpresa} empresa {...janela} />
+                <FaixasFechadas {...janela}
+                  faixas={semAs(fechadoNoDia({ profissional: p, data, deMin: janela.deMin, ateMin: janela.ateMin }), daEmpresa)} />
+                {ehHoje && <LinhaDoAgora minAgora={minAgora} {...janela} />}
                 {bloqueios.filter(b => !b.profissionalId || b.profissionalId === p.id).map(b => (
-                  <div key={b.id} className="bloqueio" style={{
+                  <div key={b.id} className={'bloqueio' + (b.profissionalId ? '' : ' empresa')} style={{
                          top: TOPO + (toMin(b.horaIni) - H_INI * 60) / MIN_POR_PX,
                          height: Math.max((toMin(b.horaFim) - toMin(b.horaIni)) / MIN_POR_PX, 16),
                        }}>
@@ -157,7 +221,7 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                     <Bloco key={a.id}
                          {...(aoPegar ? { type: 'button', onPointerDown: e => aoPegar(e, a) }
                            : aoTocar ? { type: 'button', onClick: () => aoTocar(a) } : {})}
-                         className={classeDoBloco(a.status) + (puxando ? ' puxando' : '')}
+                         className={classeDoBloco(a.status, proximas.has(a.id)) + (puxando ? ' puxando' : '')}
                          style={{
                            top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
                            height: Math.max((fim - ini) / MIN_POR_PX - 2, 22),
@@ -169,6 +233,7 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                          }}>
                       {/* Hora e nome na mesma linha: o bloco de 30 min só tem
                           altura para uma, e ela precisa dizer quando e quem. */}
+                      <SeloDoBloco status={a.status} proxima={proximas.has(a.id)} />
                       <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
                       {s?.nome}
                       {a.status === 'agendado' && <span className="so-leitor"> · a confirmar</span>}

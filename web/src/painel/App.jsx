@@ -3,16 +3,16 @@ import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { DIAS, MESES, emFaixas, faixaDeHoras, fmtData, hojeISO, iniciais, toHora, toMin } from '../shared/tempo.js';
 import Combos from './Combos.jsx';
-import { FLUXO, mudarSituacao } from './fluxo.js';
+import { FLUXO, mudarSituacao, proximasDoDia } from './fluxo.js';
 import Unidades from './Unidades.jsx';
 import Registro from './Registro.jsx';
 import Agendamentos from './Agendamentos.jsx';
 import Bloqueios from './Bloqueios.jsx';
 import SeletorPessoas from './SeletorPessoas.jsx';
-import GradeDoDia, { classeDoBloco } from './GradeDoDia.jsx';
+import GradeDoDia, { FaixasFechadas, LinhaDoAgora, SeloDoBloco, classeDoBloco, useMinutoAgora } from './GradeDoDia.jsx';
 import Remarcar from './Remarcar.jsx';
 import { useArrastar } from './useArrastar.js';
-import { fechadoNoDia } from '../shared/jornada.js';
+import { fechadoDaEmpresa, fechadoNoDia, semAs } from '../shared/jornada.js';
 import GradeDoMes from './GradeDoMes.jsx';
 import Recepcao from './Recepcao.jsx';
 import SeletorCliente from './SeletorCliente.jsx';
@@ -25,7 +25,7 @@ import Ficha from './Ficha.jsx';
 import Comecar from './Comecar.jsx';
 import ConfigSite from './ConfigSite.jsx';
 import Entrar from './Entrar.jsx';
-import Usuarios from './Usuarios.jsx';
+import Usuarios, { PAPEIS } from './Usuarios.jsx';
 import Resumo, { emSeteDias } from './Resumo.jsx';
 import Financeiro from './Financeiro.jsx';
 import Equipe from './Equipe.jsx';
@@ -200,7 +200,7 @@ function Painel({ sessao, aoSair }) {
       // Calendário e Agendamentos eram duas telas para a mesma pergunta — uma
       // desenhava a agenda, a outra listava a mesma agenda. Hoje são abas.
       { k: 'agenda', nome: 'Agenda', icon: Calendar },
-      ...(p.cadastros ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
+      ...(p.clientes ? [{ k: 'clientes', nome: 'Clientes', icon: Users }] : []),
       ...(p.financeiro ? [{ k: 'financeiro', nome: 'Financeiro', icon: Wallet }] : []),
       { k: 'crm', nome: 'WhatsApp', icon: MessageCircle },
     ] },
@@ -231,7 +231,7 @@ function Painel({ sessao, aoSair }) {
     { k: 'resumo', nome: 'Resumo', icon: LayoutDashboard },
     { k: 'agenda', nome: 'Agenda', icon: Calendar },
     { k: 'novo', nome: 'Agendar', icon: Plus, ir: () => irPara('agenda', 'novo') },
-    p.cadastros
+    p.clientes
       ? { k: 'clientes', nome: 'Clientes', icon: Users }
       : { k: 'bloqueios', nome: 'Fechar horário', icon: CalendarOff },
   ];
@@ -284,7 +284,7 @@ function Painel({ sessao, aoSair }) {
         <a className="p-nav p-nav-fim" href="/"><ExternalLink size={18} /><span>Ver o site</span></a>
         <div className="p-eu">
           <div className="p-eu-nome">{sessao.usuario.nome}</div>
-          <div className="p-eu-papel">{sessao.usuario.papel}</div>
+          <div className="p-eu-papel">{PAPEIS[sessao.usuario.papel]?.curto || sessao.usuario.papel}</div>
         </div>
         <button className="p-nav" onClick={async () => { await api.sair(); aoSair(); }}>
           <LogOut size={18} /><span>Sair</span>
@@ -318,7 +318,7 @@ function Painel({ sessao, aoSair }) {
                   aviso={setToast} poderes={p} pedido={pedido} irPara={irPara}
                   aoConsumirPedido={() => setPedido(null)} />
         )}
-        {secao === 'clientes' && <Clientes dados={dados} acao={acao} aviso={setToast}
+        {secao === 'clientes' && p.clientes && <Clientes dados={dados} acao={acao} aviso={setToast} poderes={p}
                                             pedido={pedido} aoConsumirPedido={() => setPedido(null)} irPara={irPara} />}
         {secao === 'servicos' && <Servicos dados={dados} acao={acao} aviso={setToast} />}
         {secao === 'combos' && <Combos dados={dados} acao={acao} aviso={setFalha} />}
@@ -331,13 +331,13 @@ function Painel({ sessao, aoSair }) {
         {secao === 'suporte' && <Suporte aviso={setFalha} />}
         {secao === 'exportar' && p.exportar && <Exportar aviso={setFalha} />}
         {secao === 'formularios' && p.cadastros && <Formularios dados={dados} acao={acao} aviso={setFalha} />}
-        {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} />}
+        {secao === 'equipe' && <Equipe dados={dados} acao={acao} aviso={setToast} falha={setFalha} />}
         {secao === 'crm' && <CRM dados={dados} acao={acao} aviso={setToast} fila={fila} recarregarFila={carregarFila} />}
         {secao === 'financeiro' && p.financeiro && <Financeiro dados={dados} poderes={p} />}
         {secao === 'site' && p.site && <ConfigSite dados={dados} acao={acao} aviso={setFalha} />}
         {secao === 'atendente' && p.site && dados.recursos?.atendente && <Atendente aviso={setFalha} />}
         {secao === 'usuarios' && p.equipe && (
-          <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} />
+          <Usuarios dados={dados} eu={sessao.usuario} aviso={setFalha} irPara={irPara} />
         )}
         </ErroDeTela>
       </main>
@@ -462,7 +462,11 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   const [adiantado, setAdiantado] = useState(false);
   // Filtro com que a Lista abre ('' ou 'receber', vindo do aviso do Resumo).
   const [filtroLista, setFiltroLista] = useState('');
-  const abrirAtendimento = a => { setEntrada(''); setTrocandoStatus(false); setAdiantado(false); setSel(a); };
+  // A colega que cobre a outra: trocar quem atende sem mexer no horário.
+  const [trocandoProf, setTrocandoProf] = useState(false);
+  const abrirAtendimento = a => {
+    setEntrada(''); setTrocandoStatus(false); setTrocandoProf(false); setAdiantado(false); setSel(a);
+  };
   // O pedido também chega com a Agenda já aberta: o "+" da barra do celular
   // é tocado de dentro dela. Por isso reage a cada pedido novo, e não só ao
   // montar — antes, o "+" na própria Agenda não fazia nada. Consumido, some.
@@ -522,6 +526,10 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // A pessoa escolhida, quando é uma só — é o que destrava pintar a agenda
   // fechada. Com duas ou mais, não há "a jornada" da grade.
   const umaPessoa = pessoas.length === 1 ? staff.find(p => p.id === pessoas[0]) : null;
+  // Na semana, a próxima de cada profissional hoje ganha o mesmo selo da grade
+  // do dia (`proximasDoDia`), e a linha vermelha marca a hora de agora.
+  const minAgora = useMinutoAgora();
+  const proximas = proximasDoDia(doPeriodo, hoje, minAgora);
 
   // As colunas do dia: quem está escolhido, ou a equipe ativa inteira.
   const colunasDoDia = poderes.verDeTodos
@@ -599,6 +607,26 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   const cancelar = async id => {
     await acao(() => api.atualizarAgendamento(id, { status: 'cancelado' }), 'Atendimento cancelado');
     setSel(null);
+  };
+  /**
+   * Quem atende muda, o horário não: a profissional faltou ou não pôde, e a
+   * colega atendeu por ela (pedido da dona, 2026-11-02). Vale também depois de
+   * concluído — é aí que se descobre quem atendeu de verdade —, e a comissão
+   * vai junto: o gatilho `congelar_comissao` regrava a regra da nova pessoa
+   * quando um concluído troca de mão (migration 025). Grava no toque, com
+   * Desfazer, como o resto da gaveta.
+   */
+  const trocarProfissional = async (at, para) => {
+    const de = staff.find(x => x.id === at.prof);
+    const nome = clientes.find(c => c.id === at.cliente)?.nome.split(' ')[0] || 'Cliente';
+    setTrocandoProf(false);
+    await acao(() => api.atualizarAgendamento(at.id, { profissionalId: para.id }), {
+      texto: `${nome}: agora com ${para.nome.split(' ')[0]}`,
+      desfazer: de && (() => acao(
+        () => api.atualizarAgendamento(at.id, { profissionalId: de.id }),
+        `${nome}: voltou para ${de.nome.split(' ')[0]}`
+      )),
+    });
   };
 
   /**
@@ -695,7 +723,6 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
         <GradeDoDia colunas={colunasDoDia} agendamentos={doPeriodo}
                     clientes={clientes} servicos={servicos} staff={staff}
                     data={ancora} bloqueios={fechados.filter(b => b.data === ancora)}
-                    mostrarFechado={umaPessoa}
                     arrasto={noDia.arrasto} aoPegar={noDia.aoPegar}
                     arrastado={agendamentos.find(x => x.id === noDia.arrasto?.id) || null} />
       )}
@@ -754,17 +781,26 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                          style={{ top: TOPO + i * PX_H / 2 }} />
                   ))}
 
-                  {/* Fora da jornada de quem está escolhida. Só com UMA
+                  {/* A empresa fechada aparece sempre, no vermelho forte. A
+                      jornada de quem está escolhida, por cima, só com UMA
                       pessoa: com a equipe inteira na mesma coluna, a faixa
                       seria a interseção de jornadas diferentes — pintaria de
                       fechado o horário em que alguém atende. */}
-                  {umaPessoa && fechadoNoDia({
-                    profissional: umaPessoa, data: dia, deMin: H_INI * 60, ateMin: H_FIM * 60,
-                  }).map(f => (
-                    <div key={f.ini} className="fechado" title={f.motivo} aria-hidden="true"
-                         style={{ top: TOPO + (f.ini - H_INI * 60) / MIN_POR_PX,
-                                  height: (f.fim - f.ini) / MIN_POR_PX }} />
-                  ))}
+                  {(() => {
+                    const janela = { deMin: H_INI * 60, ateMin: H_FIM * 60, topo: TOPO, minPorPx: MIN_POR_PX };
+                    const daEmpresa = fechadoDaEmpresa({ equipe: staff, data: dia, deMin: janela.deMin, ateMin: janela.ateMin });
+                    return (
+                      <>
+                        <FaixasFechadas faixas={daEmpresa} empresa {...janela} />
+                        {umaPessoa && (
+                          <FaixasFechadas {...janela} faixas={semAs(fechadoNoDia({
+                            profissional: umaPessoa, data: dia, deMin: janela.deMin, ateMin: janela.ateMin,
+                          }), daEmpresa)} />
+                        )}
+                        {dia === hoje && <LinhaDoAgora minAgora={minAgora} {...janela} />}
+                      </>
+                    );
+                  })()}
 
                   {/* Bloqueio entra ATRÁS do agendamento: quando os dois se
                       cruzam, o que importa ver é a cliente que já está marcada. */}
@@ -774,7 +810,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     const h = Math.max((toMin(b.horaFim) - toMin(b.horaIni)) / MIN_POR_PX, 16);
                     const meu = Boolean(b.profissionalId);
                     return (
-                      <button key={b.id} className="bloqueio" style={{ top, height: h }}
+                      <button key={b.id} className={'bloqueio' + (meu ? '' : ' empresa')} style={{ top, height: h }}
                               title={meu ? `Liberar (${p?.nome || '—'})` : 'Fecha a empresa toda'}
                               disabled={!meu && !poderes.verDeTodos}
                               onClick={() => {
@@ -825,7 +861,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     const larg = 100 / faixas;
                     return (
                       <button key={a.id}
-                        className={classeDoBloco(a.status) + (puxando ? ' puxando' : '')}
+                        className={classeDoBloco(a.status, proximas.has(a.id)) + (puxando ? ' puxando' : '')}
                         style={{
                           top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
                           height: Math.max((fim - ini) / MIN_POR_PX - 2, 26),
@@ -835,6 +871,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                           borderLeftColor: p?.cor || '#999',
                         }}
                         onPointerDown={e => naSemana.aoPegar(e, a)}>
+                        <SeloDoBloco status={a.status} proxima={proximas.has(a.id)} />
                         <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
                         {s?.nome}
                         {a.status === 'agendado' && <span className="so-leitor"> · a confirmar</span>}
@@ -1013,9 +1050,46 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
               {/* A duração do atendimento soma o intervalo do serviço: o
                   serviço diz 60 e aqui dizia 65 sem explicar. */}
               <div><span>Duração</span><b>{at.duracao} min{s?.intervalo > 0 && <i className="encaixe-pausa"> · com intervalo</i>}</b></div>
-              <div><span>Profissional</span><b>{p?.nome}</b></div>
+              <div>
+                <span>Profissional</span>
+                <b className="at-prof">
+                  {p?.nome}
+                  {/* Só quem vê a agenda de todas: a profissional não passa a
+                      cliente para a colega (a rota também recusa). */}
+                  {poderes.verDeTodos && at.status !== 'cancelado' && (
+                    <button className="btn btn-g btn-s" aria-expanded={trocandoProf}
+                            onClick={() => setTrocandoProf(v => !v)}>
+                      {trocandoProf ? 'Fechar' : 'Trocar'}
+                    </button>
+                  )}
+                </b>
+              </div>
               <div><span>Valor</span><b className="mono">{brl(at.valor)}</b></div>
             </div>
+
+            {trocandoProf && (
+              <div className="at-troca">
+                <span className="eyebrow">Quem atende {at.status === 'concluido' ? '(atendeu)' : ''}</span>
+                <div className="chips">
+                  {staff.filter(x => x.ativo || x.id === at.prof).map(x => {
+                    const faz = !s?.profs || s.profs.includes(x.id);
+                    return (
+                      <button key={x.id} type="button" aria-pressed={x.id === at.prof}
+                              className={'chip at-troca-op' + (x.id === at.prof ? ' on' : '')}
+                              onClick={() => (x.id === at.prof ? setTrocandoProf(false) : trocarProfissional(at, x))}>
+                        <i className="at-troca-cor" style={{ background: x.cor }} aria-hidden="true" />
+                        {x.nome.split(' ')[0]}
+                        {!faz && <small> · não faz este serviço</small>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="at-dica">
+                  O horário continua o mesmo, e a comissão passa para quem você escolher.
+                  A cliente não é avisada.
+                </p>
+              </div>
+            )}
 
             {/* Antes de a cliente chegar, o passo dela vem primeiro e o pagamento
                 fica recolhido em "Receber adiantado": com Pix/Cartão/Dinheiro no
@@ -1040,7 +1114,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
             {/* `at.servico` e `at.cliente`, não `servicoId`/`clienteId`: o
                 painel traduz os nomes do servidor em `painel-api.js`, e aqui
                 dentro o agendamento já chega com os nomes curtos. */}
-            <FichaRespondida agendamentoId={at.id} clienteId={at.cliente} aviso={aviso} />
+            {poderes.fichas && <FichaRespondida agendamentoId={at.id} clienteId={at.cliente} aviso={aviso} />}
 
             {at.adicionais.length > 0 && (
               <div className="extras">
@@ -1591,11 +1665,13 @@ const formatarResposta = v =>
   v === true ? 'sim' : v === false ? 'não' : Array.isArray(v) ? v.join(', ') : String(v);
 
 /* ── Clientes ── */
-function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido, irPara }) {
+function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara }) {
   const { clientes, agendamentos, servicos } = dados;
   const [q, setQ] = useState('');
   // Vindo do aviso de aniversariantes do Resumo, a lista abre filtrada nelas.
-  const [soNiver, setSoNiver] = useState(pedido === 'aniversario');
+  const [soNiver, setSoNiver] = useState(pedido === 'aniversario' || Boolean(pedido?.aniversario));
+  // Vindo do aviso filtrado numa profissional: só as aniversariantes dela.
+  const [soEstas] = useState(() => pedido?.clientes || null);
   useEffect(() => { if (pedido) aoConsumirPedido?.(); }, [pedido, aoConsumirPedido]);
   const [sel, setSel] = useState(null);
   const [edit, setEdit] = useState(null);
@@ -1609,7 +1685,7 @@ function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido, irPara }) {
   }).sort((a, b) => a.nome.localeCompare(b.nome)), [clientes, agendamentos]);
 
   const filtrados = enriquecidos
-    .filter(c => !soNiver || (c.nasc && emSeteDias(c.nasc, hojeISO())))
+    .filter(c => !soNiver || (c.nasc && emSeteDias(c.nasc, hojeISO()) && (!soEstas || soEstas.includes(c.id))))
     .filter(c => c.nome.toLowerCase().includes(q.toLowerCase()) || soDigitos(c.fone).includes(soDigitos(q)));
 
   return (
@@ -1704,7 +1780,7 @@ function Clientes({ dados, acao, aviso, pedido, aoConsumirPedido, irPara }) {
               })}
               {hist.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Ainda sem atendimentos.</div>}
             </div>
-            <FichasDaCliente cliente={sel} aviso={aviso} />
+            {poderes?.fichas && <FichasDaCliente cliente={sel} aviso={aviso} />}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
               <a className="btn btn-wa" href={waLink(sel.fone, `Oi ${sel.nome.split(' ')[0]}! `)} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> WhatsApp</a>

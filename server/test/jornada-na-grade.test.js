@@ -9,10 +9,10 @@ import assert from 'node:assert/strict';
  * recusa é o servidor, depois de a cliente já ter escolhido.
  */
 
-let fechadoNoDia;
+let fechadoNoDia, fechadoDaEmpresa, semAs;
 
 before(async () => {
-  ({ fechadoNoDia } = await import('../../web/src/shared/jornada.js'));
+  ({ fechadoNoDia, fechadoDaEmpresa, semAs } = await import('../../web/src/shared/jornada.js'));
 });
 
 // 2027-03-01 é uma segunda-feira; 2027-03-07, um domingo.
@@ -57,5 +57,36 @@ describe('o que a grade pinta de fechado', () => {
   test('sem profissional não se inventa jornada', () => {
     const f = fechadoNoDia({ profissional: null, data: SEGUNDA, ...GRADE });
     assert.deepEqual(f, [{ ini: 480, fim: 1200, motivo: 'Não atende neste dia' }]);
+  });
+});
+
+describe('o que a grade pinta como empresa fechada', () => {
+  const bia = { jornada: { 1: ['10:00', '17:00'] } };
+
+  test('vai da primeira que abre à última que fecha', () => {
+    const f = fechadoDaEmpresa({ equipe: [karen, bia], data: SEGUNDA, ...GRADE });
+    assert.deepEqual(f, [
+      { ini: 480, fim: 600, motivo: 'Fechado' },
+      { ini: 1140, fim: 1200, motivo: 'Fechado' },
+    ]);
+  });
+
+  test('dia em que ninguém trabalha fecha inteiro', () => {
+    const f = fechadoDaEmpresa({ equipe: [karen, bia], data: DOMINGO, ...GRADE });
+    assert.deepEqual(f, [{ ini: 480, fim: 1200, motivo: 'Fechado neste dia' }]);
+  });
+
+  test('quem está inativa não abre a empresa', () => {
+    const inativa = { ativo: false, jornada: { 0: ['08:00', '20:00'] } };
+    const f = fechadoDaEmpresa({ equipe: [karen, inativa], data: DOMINGO, ...GRADE });
+    assert.equal(f.length, 1);
+  });
+
+  test('a jornada da pessoa não repinta o que a empresa já fechou', () => {
+    const empresa = fechadoDaEmpresa({ equipe: [karen, bia], data: SEGUNDA, ...GRADE });
+    const dela = semAs(fechadoNoDia({ profissional: karen, data: SEGUNDA, ...GRADE }), empresa);
+    // Karen começa às 13h; a empresa abre às 10h com a Bia. Sobra 10h–13h como
+    // "Karen não atende", e 19h–20h já é da empresa.
+    assert.deepEqual(dela, [{ ini: 600, fim: 780, motivo: 'Antes das 13:00' }]);
   });
 });

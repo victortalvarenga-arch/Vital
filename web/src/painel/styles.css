@@ -608,6 +608,35 @@ a.btn{text-decoration:none}
   display: grid; place-items: center; background: var(--porcelain); color: var(--muted);
 }
 .usr-marca.dono { background: var(--blush); color: var(--lacquer-d); }
+.usr-marca.recepcao { background: #E4EDF6; color: #1F5C96; }
+.usr-papel {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; background: var(--porcelain); color: var(--muted);
+}
+.usr-papel.dono { background: var(--blush); color: var(--lacquer-d); }
+.usr-papel.recepcao { background: #E4EDF6; color: #1F5C96; }
+/* O papel em cartões com a explicação ao lado: três chips de uma palavra não
+   diziam o que a recepção deixa de ver, e é isso que se decide aqui. */
+.usr-papeis { display: grid; gap: 8px; }
+.usr-opcao {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left; width: 100%;
+  padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--paper);
+  color: var(--ink); min-height: 44px;
+}
+.usr-opcao svg { flex: none; margin-top: 2px; color: var(--muted); }
+.usr-opcao b { display: block; font-size: 14.5px; }
+.usr-opcao i { display: block; font-style: normal; font-size: 12.5px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+.usr-opcao.on { border-color: var(--lacquer); background: color-mix(in srgb, var(--lacquer) 6%, var(--paper)); }
+.usr-opcao.on svg { color: var(--lacquer); }
+.usr-opcao:disabled { opacity: .6; cursor: default; }
+.usr-ordem {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0;
+  padding: 9px 11px; border-radius: 10px; background: var(--porcelain); font-size: 12.5px; line-height: 1.45;
+}
+.usr-link-ajuda { font-size: 14px; color: var(--muted); margin: 0 0 14px; line-height: 1.45; }
+.usr-link { width: 100%; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; margin-bottom: 14px; }
+.usr-link-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.usr-link-botoes .btn-p { flex: 1 1 200px; justify-content: center; }
 .usr-txt { flex: 1; min-width: 0; }
 .usr-nome { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .usr-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
@@ -1180,7 +1209,8 @@ a.btn{text-decoration:none}
 /* Custos: o mesmo vinho da receita, mais claro — duas partes de uma conta só. */
 .fin-custos{background:color-mix(in srgb, var(--lacquer) 50%, #fff); min-height:1px}
 .rs-col[aria-pressed="true"] .fin-lucro{background:var(--lacquer-d)}
-.fin-legenda{display:flex; gap:16px; margin:8px 0 2px 42px; font-size:12px; color:var(--muted)}
+.fin-legenda{display:flex; flex-wrap:wrap; gap:6px 16px; margin:8px 0 2px 42px; font-size:12px; color:var(--muted)}
+.fin-legenda-nota{flex-basis:100%; margin:0; font-size:12px; line-height:1.45}
 .fin-legenda i{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:-1px}
 
 /* Quadros do período: três em cima (serviços, comissão, faltas), dois embaixo
@@ -1324,8 +1354,16 @@ a.btn{text-decoration:none}
   background:var(--lacquer-tag); color:var(--lacquer-d)}
 .rs-selo.ok{background:#E4F0EA; color:#20573F}
 
-/* A próxima cliente: o maior objeto da tela, porque é a pergunta do balcão. */
+/* A próxima cliente: o maior objeto da tela, porque é a pergunta do balcão.
+   Com alguém marcado, o cartão ganha o vinho da marca em volta e no selo —
+   branco igual aos outros, "qual é a próxima" se lia procurando texto. */
 .rs-proxima{padding:18px; margin-bottom:12px}
+.rs-proxima.tem{border:2px solid var(--lacquer);
+  background:color-mix(in srgb, var(--lacquer) 7%, var(--paper))}
+.rs-proxima-topo{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.rs-proxima-selo{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  padding:4px 10px; border-radius:999px; background:var(--lacquer); color:#fff}
+.rs-proxima-quando{font-size:13px; font-weight:600; color:var(--lacquer-d)}
 .rs-proxima-corpo{display:flex; align-items:baseline; gap:14px; margin:8px 0 16px}
 .rs-proxima-hora{font-size:27px; font-weight:500; color:var(--lacquer); line-height:1; font-variant-numeric:tabular-nums}
 .rs-proxima-nome{font-family:'Fraunces',serif; font-size:21px; line-height:1.2;
@@ -1335,11 +1373,17 @@ a.btn{text-decoration:none}
 .rs-proxima-acoes{display:flex; gap:8px; flex-wrap:wrap}
 .rs-proxima-acoes .btn-p{flex:1 1 180px; justify-content:center}
 .rs-proxima-nada{margin:0; font-size:14px; color:var(--muted)}
-/* Quem está sendo atendida agora, acima da próxima: o passo dela é concluir. */
+/* Quem está sendo atendida agora, acima da próxima: o passo dela é concluir.
+   Faixa azul cheia, o mesmo azul de "em atendimento" na grade e na gaveta. */
 .rs-cadeira{display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--line); font-size:13.5px}
-.rs-cadeira-ponto{display:inline-block; width:8px; height:8px; border-radius:50%; background:#1F5C96;
-  margin-right:8px; vertical-align:1px}
+  padding:11px 12px; margin:-6px -6px 14px; border-radius:10px;
+  background:#1F5C96; color:#fff; font-size:13.5px}
+.rs-cadeira-txt{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; min-width:0}
+.rs-cadeira-txt b{font-size:15px}
+.rs-cadeira-selo{font-style:normal; font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  padding:3px 8px; border-radius:999px; background:#fff; color:#1F5C96}
+.rs-cadeira-mt{font-size:12.5px; opacity:.85}
+.rs-cadeira-btn{background:#fff; color:#1F5C96; border:none; font-weight:700; flex:none}
 
 /* O resto do dia, depois da próxima. */
 .rs-depois{padding:16px 18px; margin-bottom:12px}
@@ -1627,6 +1671,14 @@ a.btn{text-decoration:none}
   background:var(--paper)}
 .at-status .eyebrow{display:block; margin-bottom:6px}
 .at-todos{margin:-4px 0 14px}
+/* Trocar quem atende: o botão ao lado do nome, e a escolha logo abaixo. */
+.at-resumo > div:has(.at-prof){align-items:center}
+.at-prof{display:flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap}
+.at-troca{margin:-4px 0 16px; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--paper)}
+.at-troca .chips{margin-top:8px}
+.at-troca-op{display:inline-flex; align-items:center; gap:7px; min-height:40px}
+.at-troca-op small{font-size:11.5px; color:var(--muted)}
+.at-troca-cor{width:10px; height:10px; border-radius:50%; flex:none}
 /* A observação da cliente: o que quem atende precisa ler antes de começar. */
 .at-obs{display:flex; gap:9px; align-items:flex-start; padding:12px 14px; margin-bottom:16px;
   border-radius:12px; background:var(--warn-claro); color:var(--warn-texto); font-size:13.5px}
@@ -1681,16 +1733,54 @@ a.btn{text-decoration:none}
    não a borda esquerda porque aquela borda diz de quem é o atendimento — é
    dado, não enfeite, e trocá-la apagaria a profissional para destacar o
    estado. Mesmo azul da etiqueta `.at-tag.agora`. */
-.appt.agora{background:#E4EDF6!important; box-shadow:inset 0 0 0 1.5px #1F5C96}
+.appt.agora{background:#E4EDF6!important; box-shadow:inset 0 0 0 2.5px #1F5C96}
+/* A próxima de cada profissional: anel cheio no vinho da marca, por cima da
+   cor de quem atende. Anel e selo, e não fundo, porque o fundo é de quem
+   atende. Ganha do tracejado de "a confirmar" — o selo e o texto para leitor
+   de tela continuam dizendo que falta confirmar. */
+.appt.proxima{box-shadow:inset 0 0 0 2.5px var(--lacquer), 0 2px 8px rgba(163,42,78,.25); outline:none; z-index:2}
+.appt-selo{position:absolute; top:3px; right:4px; font-size:10.5px; font-weight:700; letter-spacing:.05em;
+  text-transform:uppercase; padding:1px 6px; border-radius:999px; color:#fff; line-height:1.5}
+.appt-selo.agora{background:#1F5C96}
+.appt-selo.proxima{background:var(--lacquer)}
+/* Bloco estreito: o selo cobriria o nome; o anel sozinho já diz. */
+@container (max-width: 90px){ .appt-selo{display:none} }
 
-/* Fora da jornada de quem está escolhida: cinza leve e listra rala, atrás de
-   tudo. Não é bloqueio (aquele é vermelho, tem motivo e alguém criou) nem
-   horário livre — é hora que não existe para essa pessoa. Sem cor de status,
-   porque não é estado de atendimento nenhum, e sem eventos de ponteiro: passar
-   por cima arrastando tem de continuar valendo o que a grade decide. */
-.fechado{position:absolute; left:0; right:0; z-index:0; pointer-events:none;
-  background:repeating-linear-gradient(45deg,
-    rgba(122,105,117,.085) 0 7px, rgba(122,105,117,.035) 7px 14px)}
+/* A hora de agora: linha vermelha atravessando a coluna, com uma bolinha na
+   ponta, como no calendário do telefone. Acima dos bloqueios, abaixo dos
+   atendimentos, e sem ponteiro para não atrapalhar o arrasto. */
+.agora-linha{position:absolute; left:0; right:0; height:0; border-top:2px solid var(--erro);
+  z-index:3; pointer-events:none}
+.agora-linha::before{content:''; position:absolute; left:-4px; top:-6px; width:10px; height:10px;
+  border-radius:50%; background:var(--erro)}
+
+/* Onde não se marca, em vermelho listrado (pedido da dona, 2026-11-02 — o
+   cinza ralo de antes passava por horário livre). Dois tons: a pessoa que não
+   atende ali (outra pode) e, mais forte, a empresa inteira fechada. A linha
+   cheia fica no corte com a parte aberta, que é o que se lê de longe. A
+   listra vai no sentido oposto à do bloqueio, que tem borda tracejada e motivo:
+   o bloqueio é alguém que fechou de propósito; isto é a jornada. Sem eventos
+   de ponteiro: passar por cima arrastando continua valendo o que a regra
+   decide. */
+.fechado{position:absolute; left:0; right:0; z-index:0; pointer-events:none; overflow:hidden;
+  background:repeating-linear-gradient(-45deg,
+    rgba(138,43,43,.15) 0 6px, rgba(138,43,43,.05) 6px 12px)}
+.fechado.empresa{background:repeating-linear-gradient(-45deg,
+    rgba(138,43,43,.32) 0 7px, rgba(138,43,43,.16) 7px 14px)}
+.fechado.corte-cima{border-top:2px solid var(--erro)}
+.fechado.corte-baixo{border-bottom:2px solid var(--erro)}
+.fechado-rotulo{display:block; padding:4px 6px; font-size:10.5px; font-weight:700; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--erro); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fechado.empresa .fechado-rotulo{display:inline-block; margin:4px; padding:1px 7px; border-radius:999px; background:var(--erro); color:#fff}
+/* Bloqueio da empresa toda (feriado): o mesmo peso da empresa fechada. */
+.bloqueio.empresa{background:repeating-linear-gradient(45deg,
+    rgba(138,43,43,.34) 0 6px, rgba(138,43,43,.16) 6px 12px);
+  border:1.5px solid var(--erro)}
+
+/* Recepção: a linha de quem está na cadeira e a da próxima, com fundo. */
+.rc-linha.atual{background:#E4EDF6; box-shadow:inset 4px 0 0 #1F5C96} /* impeccable-disable-line side-tab -- marca de estado na lista, mesmo azul da grade */
+.rc-linha.proxima{background:color-mix(in srgb, var(--lacquer) 8%, var(--paper)); box-shadow:inset 4px 0 0 var(--lacquer)} /* impeccable-disable-line side-tab -- idem */
+.rc-proxima{background:var(--lacquer); color:#fff}
 
 /* ── Serviços: números, filtros e a tabela que vira cartão no celular ── */
 .sv-stats{margin-bottom:16px}
@@ -1851,6 +1941,15 @@ a.btn{text-decoration:none}
 .pf-cor.on{border-color:var(--ink)}
 .pf-switch{display:flex; align-items:center; gap:10px; font-size:14px}
 .pf-switch small{color:var(--muted); font-size:13px}
+/* O login da profissional, dentro da ficha dela. */
+.pf-acesso{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px;
+  border:1px solid var(--line); border-radius:12px; background:var(--paper)}
+.pf-acesso > svg{color:var(--ok); flex:none}
+.pf-acesso-txt{flex:1 1 160px; min-width:0; display:flex; flex-direction:column}
+.pf-acesso-txt b{font-size:14px; overflow:hidden; text-overflow:ellipsis}
+.pf-acesso-txt small{font-size:12.5px; color:var(--muted)}
+.pf-parte .mf-erro{margin:-6px 0 10px}
+.pf-acesso-nota{margin-top:10px}
 
 /* Rolagem própria, com a borda dizendo que há mais: catálogo grande não pode
    empurrar comissão e horários para fora da ficha. */

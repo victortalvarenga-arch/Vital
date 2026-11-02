@@ -3,7 +3,7 @@ import { db, uid, apptOut, staffOut } from '../db.js';
 import { hoje, agora, toMin, toHora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico, foraDoPrazoDoSite } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
-import { escopoDe } from '../lib/auth.js';
+import { escopoDe, exige } from '../lib/auth.js';
 import { mudancas } from '../lib/registro.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
 import { comboCompleto, profissionaisDoCombo, ratearCombo, usosDe, valeNoDia } from '../lib/combos.js';
@@ -56,11 +56,12 @@ agendamentos.get('/:id/formularios', rota(async (req, res) => {
 }));
 
 /** As respostas de um agendamento. Quem atende precisa lê-las antes de começar. */
-agendamentos.get('/:id/respostas', rota(async (req, res) => {
+agendamentos.get('/:id/respostas', exige('fichas'), rota(async (req, res) => {
   const a = await db.get('SELECT staff_id FROM appointments WHERE id=?', req.params.id);
   if (!a) return res.status(404).json({ erro: 'agendamento não encontrado' });
   // Ficha de saúde é dado sensível: funcionário lê a de quem ele atende, e nada
-  // mais. Mesma regra da agenda, e imposta aqui.
+  // mais. Mesma regra da agenda, e imposta aqui. A recepção vê a agenda de
+  // todas mas não tem `fichas`: quem pergunta e lê a anamnese é quem atende.
   if (!podeMexer(req.usuario, a.staff_id)) {
     return res.status(403).json({ erro: 'esta ficha não é de um atendimento seu' });
   }
@@ -79,7 +80,7 @@ agendamentos.get('/:id/respostas', rota(async (req, res) => {
  * O rótulo gravado sai do banco, não do que o navegador mandou — `validarRespostas`
  * é a mesma função do balcão, para não haver duas versões da mesma conferência.
  */
-agendamentos.post('/:id/respostas', rota(async (req, res) => {
+agendamentos.post('/:id/respostas', exige('fichas'), rota(async (req, res) => {
   const a = await db.get('SELECT id, staff_id, service_id, client_id, combo_grupo FROM appointments WHERE id=?', req.params.id);
   if (!a) return res.status(404).json({ erro: 'agendamento não encontrado' });
   if (!podeMexer(req.usuario, a.staff_id)) {
@@ -491,7 +492,13 @@ agendamentos.put('/:id', rota(async (req, res) => {
   // separa "recebeu" de "desfez" sem ter de ler o estado anterior.
   const entrou = Number(depois.pagamento.recebido) - Number(atual.pag_recebido || 0);
   const falta = Number(depois.valor) - Number(depois.pagamento.recebido);
+  // Só a profissional mudou, no mesmo dia e hora: é a colega cobrindo a falta
+  // de outra. "Remarcou de 14h para 14h" não diria o que aconteceu, e quem
+  // procura "quem atendeu a Maria de verdade" procura por isto.
+  const soTrocouDeMao = staffId !== atual.staff_id && data === atual.data && hora === atual.hora;
+  const nomeDe = async id => (await db.get('SELECT nome FROM staff WHERE id=?', id))?.nome.split(' ')[0] || '—';
   const acao = depois.status === 'cancelado' ? 'agendamento.cancelado'
+    : soTrocouDeMao ? 'agendamento.trocou_profissional'
     : mudouHorario ? 'agendamento.remarcado'
     : entrou < 0 ? 'agendamento.pagamento_desfeito'
     : entrou > 0 && depois.pagamento.status === 'pago' ? 'agendamento.pago'
@@ -499,6 +506,8 @@ agendamentos.put('/:id', rota(async (req, res) => {
     : 'agendamento.alterado';
   const resumo = {
     'agendamento.cancelado': `cancelou o horário de ${quem} · ${atual.data} ${atual.hora}`,
+    'agendamento.trocou_profissional': soTrocouDeMao
+      && `passou ${quem} (${depois.data} ${depois.hora}) de ${await nomeDe(atual.staff_id)} para ${await nomeDe(staffId)}`,
     'agendamento.remarcado': `remarcou ${quem} de ${atual.data} ${atual.hora} para ${depois.data} ${depois.hora}`,
     'agendamento.pago': `recebeu ${brl(entrou)} de ${quem} em ${depois.pagamento.forma}`,
     'agendamento.entrada': `recebeu entrada de ${brl(entrou)} de ${quem} em ${depois.pagamento.forma} · falta ${brl(falta)}`,

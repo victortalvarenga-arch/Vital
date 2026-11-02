@@ -232,7 +232,8 @@ Detalhes em `ARQUITETURA.md`, seção "Autenticação e papéis".
 - [x] Login com argon2id e sessão em cookie `httpOnly`; o `ADMIN_TOKEN` saiu
 - [x] Sessão em tabela, não JWT — a Vital precisa conseguir derrubar acesso
 - [x] Dois papéis: dono vê o negócio inteiro; funcionário vê o que é dele —
-      a própria agenda e a própria produção, incluindo comissão
+      a própria agenda e a própria produção, incluindo comissão (o terceiro,
+      recepção, entrou em 2026-11-02 — ver Bloco 7)
 - [x] Cada regra vale na tela **e** na rota
 - [x] Primeiro acesso aberto, fechando sozinho quando surge o primeiro usuário
 - [x] Rotas para o dono convidar e editar a equipe do painel
@@ -545,6 +546,15 @@ Integrações, Logs, Configurar App/Website).
 - [x] Formulários: intake customizável por serviço, respondido no site e no
       balcão, com a resposta presa ao atendimento. Ver `ARQUITETURA.md`
 - [ ] Integrações: chaves de API / webhooks para ferramentas externas da empresa
+- [x] **Recepção, sócia e convite por link** (2026-11-02): terceiro papel
+      (recepção vê a agenda de todas sem o caixa), sócia é dona com vínculo
+      opcional na equipe, e a pessoa cria a própria senha por um link de sete
+      dias. Ver `ARQUITETURA.md`, "Papéis"
+- [x] **Trocar quem atende** pela gaveta, sem mexer no horário, com a comissão
+      indo junto. Ver `ARQUITETURA.md`, "A agenda do painel"
+- [x] **Próxima e atual com cor cheia** no Resumo, nas grades e na Recepção;
+      linha vermelha do agora; horário fechado em vermelho (empresa e pessoa).
+      Ver `ARQUITETURA.md`
 - [x] Registro: quem fez o quê no painel, com o nome congelado e sem poder
       ser reescrito. Ver `ARQUITETURA.md`
 
@@ -948,7 +958,18 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       tela é receita menos comissões, e nenhuma empresa fecha o mês por ele. O
       cartão já avisa no "!", mas avisar não resolve: falta uma tabela de
       despesas (fixas e do período) e a conta passando a descontá-las. Notado ao
-      montar o dashboard de faturamento (set/2026).
+      montar o dashboard de faturamento (set/2026). Em 2026-11-02 a dona
+      procurou "os custos" e não achou: a legenda do gráfico passou a dizer
+      "Comissões da equipe", com uma nota de que despesas não entram, e o
+      cartão de Lucro mostra quanto de comissão foi descontado. A tabela de
+      despesas continua faltando.
+- [ ] **A fila de mensagens não é recortada por papel.** `GET /api/mensagens/fila`
+      devolve os lembretes de todas as clientes, com nome, telefone e texto, para
+      qualquer pessoa logada — a profissional vê (e pode marcar como enviado) o
+      lembrete da cliente da colega, coisa que a agenda dela não mostra. Pede
+      `escopoDe` pelo `appointment_id` da mensagem; campanha sem atendimento
+      ficaria só para quem vê todas. Notado em 2026-11-02, ao filtrar os avisos
+      do Resumo por profissional (o filtro de lá é na tela, não na rota).
 - [ ] **A Vital não consegue cobrar.** `plano` é texto livre, sem preço nem
       ciclo, e não há cobrança nenhuma. O produto funciona inteiro e não fatura.
 - [ ] **Pagamento online da cliente não existe** (item antigo, no fim do

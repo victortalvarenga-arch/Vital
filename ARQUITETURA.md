@@ -69,6 +69,7 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `027_registro_com_prazo` | `logs` guarda dois anos; uma função do banco poda o resto |
 | `028_bloqueio_sem_fim` | `bloqueio_series`: a regra do "nunca termina", que um job estende |
 | `029_comissao_dos_extras` | Cada extra paga a própria comissão, congelada na conclusão |
+| `030_papel_recepcao` | Terceiro papel: recepção, que vê a agenda de todas sem ver o caixa |
 
 ## Visão geral
 
@@ -457,18 +458,35 @@ por profissional (`GradeDoDia`, a mesma do Resumo — lá sem clique, aqui com);
 seis blocos cada não cabem numa tela —, e tocar num dia leva para a visão diária,
 que é onde estão os nomes.
 
-**Com uma profissional escolhida, a grade pinta o que está fechado.** Fora da
-jornada dela vira uma faixa cinza listrada (`.fechado`, a partir de
-`shared/jornada.js`); o bloqueio continua vermelho, com o motivo, porque é outra
-coisa — alguém fechou aquele horário de propósito. Antes, quem atende das 13h às
-19h tinha cinco horas de grade branca que não eram horário vago: eram horário
-que não existe, e a diferença só aparecia ao tentar marcar, com o servidor
-recusando o que a tela tinha oferecido.
+**A grade pinta o que está fechado, em vermelho listrado, em dois tons**
+(`.fechado`, a partir de `shared/jornada.js`; vermelho desde 2026-11-02 — o
+cinza ralo de antes passava por horário livre, e a dona pediu "um corte forte
+vermelho"). O tom forte é a **empresa fechada** (`fechadoDaEmpresa`): antes da
+primeira pessoa abrir, depois da última fechar, ou o dia inteiro se ninguém
+trabalha — a mesma conta do horário que o site publica (`lib/horarios.js`). O
+tom mais leve é a **pessoa que não atende ali** (`fechadoNoDia`), sem repintar o
+que a empresa já fechou (`semAs`). Onde a faixa encontra a parte aberta há uma
+linha cheia, que é o que se lê de longe, e faixa alta o bastante diz o motivo
+por escrito. O bloqueio continua com borda tracejada e listra no outro
+sentido, porque é outra coisa — alguém fechou aquele horário de propósito; o
+da empresa toda (feriado) ganha o tom forte. Antes, quem atende das 13h às 19h
+tinha cinco horas de grade branca que não eram horário vago: eram horário que
+não existe, e a diferença só aparecia ao tentar marcar.
 
-**Só com uma.** Com a equipe inteira na mesma coluna, a faixa teria de ser a
-interseção de jornadas diferentes — pintaria de fechado o horário em que alguém
-atende, que é o oposto do que ela existe para dizer. Por isso a regra é
-`pessoas.length === 1`, e não "quando dá".
+Na visão **Dia** a jornada de cada coluna aparece sempre, porque ali cada
+coluna é uma pessoa. Na **Semana**, a empresa fechada aparece sempre, e a
+jornada só com **uma** pessoa escolhida: com a equipe inteira na mesma coluna,
+a faixa teria de ser a interseção de jornadas diferentes — pintaria de fechado
+o horário em que alguém atende, que é o oposto do que ela existe para dizer.
+
+**A próxima e a atual têm cor cheia** (2026-11-02). Na grade, a primeira
+marcada de cada profissional que ainda não terminou (`proximasDoDia`, em
+`painel/fluxo.js` — a mesma regra do cartão "Próxima cliente" do Resumo) ganha
+anel no vinho da marca e o selo "Próxima"; quem está na cadeira, anel azul e
+"Agora". Anel e selo, nunca o fundo nem a borda esquerda, que são de quem
+atende. Uma linha vermelha marca a hora de agora no dia de hoje, e as duas
+coisas andam sozinhas a cada minuto (`useMinutoAgora`). Na Recepção, as duas
+linhas ganham fundo.
 
 A faixa é desenho: não recusa nada, e não tem eventos de ponteiro, para o
 arrasto passar por cima dela sem tropeço. Quem recusa continua sendo
@@ -839,7 +857,7 @@ criados cedo para não exigir migração depois.
 
 | | Quem | Como entra | Existe hoje? |
 |---|---|---|---|
-| **Painel** | Equipe da empresa: dono e funcionário | E-mail e senha | Sim |
+| **Painel** | Equipe da empresa: dono, recepção e funcionário | E-mail e senha | Sim |
 | **Site** | A cliente que agenda | Não entra: informa o WhatsApp na hora de marcar | Não há login |
 
 A cliente **não cria conta** — mas o primeiro agendamento **pede três dados, uma
@@ -870,6 +888,37 @@ em diante é o dono que convida os outros, em Configurações → Acesso ao pain
 Um painel onde
 qualquer um cria conta é um painel aberto.
 
+**Cada pessoa tem o próprio e-mail e a própria senha, e o jeito padrão de dar
+acesso é o convite** (2026-11-02). A dona cadastra nome, e-mail e papel, marca
+"Ela cria, por um link", e recebe um link (`painel.html#convite=<token>`) para
+mandar pelo WhatsApp; a pessoa abre, escolhe a senha e entra. O convite é uma
+linha de `redefinicoes_senha` com prazo de **sete dias** — a mesma tabela, o
+mesmo hash e a mesma `POST /api/auth/redefinir` do "esqueci a senha", que vale
+uma hora. Não é uma porta nova: é o link de senha com outro prazo e outro texto
+na tela. A convidada nasce com uma senha sorteada que ninguém conhece, porque a
+coluna é obrigatória e vazio seria conta sem senha. O link volta na resposta da
+rota (para a dona mandar) e também sai por e-mail; gerar outro em Editar
+(`POST /api/auth/usuarios/:id/convite`) invalida o anterior. Digitar a senha
+pela pessoa continua existindo, para quem está lado a lado no balcão.
+
+**Profissional e acesso são duas coisas, e a profissional vem primeiro.**
+Profissional (`staff`) é quem atende: agenda, comissão, site. Acesso (`users`) é
+o login. A funcionária precisa das duas, ligadas por `staff_id`, e a ordem
+confundia: em Acesso ao painel a lista "Quem é na equipe" só tem quem já foi
+cadastrado em Profissionais, e a dona não achava a pessoa sem saber por quê.
+Por isso (2026-11-02) a **ficha da profissional tem a parte "Acesso ao painel"**:
+com a pessoa já escolhida, pede só o e-mail e gera o link com o papel
+"Profissional"; se ela já tem acesso, mostra o e-mail e oferece um link novo.
+Em Acesso ao painel, escolher "Profissional" mostra o aviso de cadastrar
+primeiro em Profissionais, com um atalho, e a lista marca quem já tem acesso.
+Mudar papel e tirar acesso continuam só em Acesso ao painel, onde se vê todo
+mundo que entra.
+
+O link não se cadastra sozinho de propósito: a ideia de um link aberto em que a
+profissional cria a própria conta foi considerada e ficou de fora — quem tem o
+link escolheria o próprio papel, e um link repassado vira conta de estranho.
+Aqui a dona decide papel e e-mail antes, e o link só serve para aquela conta.
+
 Login com senha (argon2id) e sessão em cookie `httpOnly`. Três decisões e o
 motivo de cada uma:
 
@@ -898,17 +947,45 @@ nenhum usuário, a tela oferece criar o dono; havendo um, a rota passa a recusar
 
 ### Papéis
 
-Dois, de propósito. Um "gerente" existiu como meio-termo e saiu: estúdio pequeno
-não tem essa pessoa, e cada papel a mais é uma regra a manter coerente entre
-tela e rota. Voltar a criar um é barato se o caso aparecer.
+Três. Um "gerente" existiu como meio-termo e saiu (migration 005): estúdio
+pequeno não tem essa pessoa, e cada papel a mais é uma regra a manter coerente
+entre tela e rota. A **recepção** entrou em 2026-11-02 (migration 030), a pedido
+da dona: a secretária que marca, confirma e recebe para todas, e que não deve
+ver o caixa nem a comissão de ninguém.
 
-| | dono | funcionário |
-|---|---|---|
-| Configurar o site | sim | não |
-| Cadastros, equipe e acesso | sim | não |
-| Agenda | de todos | **a própria** |
-| Financeiro | do negócio | **o próprio** |
-| Exportar dados (CSV) | sim | não |
+| | dono (dona ou sócia) | recepção | funcionário |
+|---|---|---|---|
+| Configurar o site | sim | não | não |
+| Serviços, unidades, formulários, equipe e acesso | sim | não | não |
+| Clientes (lista, ficha, cadastro) | sim | sim | não |
+| Agenda | de todos | **de todos** | **a própria** |
+| Trocar quem atende um atendimento | sim | sim | não |
+| Financeiro e números do mês | do negócio | **não** | **o próprio** |
+| Taxa de comissão | de todos | **nenhuma** | a própria |
+| Ficha de saúde (anamnese) | sim | **não** | das próprias clientes |
+| Registro | de todos | o próprio | o próprio |
+| Exportar dados (CSV) | sim | não | não |
+
+**Sócia é dona.** Não há papel de "sócia": quem divide o negócio recebe o
+papel de dono, com as mesmas permissões, e pode ter um vínculo opcional na
+equipe ("Também atende?") quando atende. O vínculo da dona não recorta nada —
+`escopoDe` devolve `null` para quem vê todos —, serve para a tela dizer quem ela
+é na agenda. Só o funcionário é obrigado a ter vínculo.
+
+**A recepção vê todos e não vê dinheiro, e as duas coisas são poderes
+diferentes.** Ela tem `verDeTodos` (agenda inteira, `escopoDe` nulo) e não tem
+`financeiro`. Como o escopo dela é o mesmo da dona, **nenhuma rota pode decidir
+"vê dinheiro?" pelo escopo**: `/api/relatorios` fecha pela guarda
+`exige('financeiro')`; `lib/taxas.js` tira toda taxa de comissão de quem não tem
+`financeiro`; `GET /combos/desempenho` devolve só as contagens; o registro
+filtra por `equipe`, porque diz quanto cada uma recebeu. A ficha de saúde é o
+poder `fichas` — quem pergunta e lê a anamnese é quem atende. O que ela vê de
+dinheiro é o preço de cada atendimento, porque recebe no balcão. Coberto em
+`test/recepcao.test.js`, que testa cada porta; o que ela pode e não pode foi
+escolhido como padrão razoável, e mexer é trocar uma linha de `PODERES`.
+
+`clientes` virou poder próprio pelo mesmo motivo: a tela de Clientes era
+`cadastros`, que também abre serviços, unidades e formulários.
 
 **Funcionário TEM financeiro — o dele.** A própria produção e a própria
 comissão, não o caixa da empresa. É informação que ele tem direito de
@@ -989,6 +1066,9 @@ gaveta. De cima para baixo:
    "Cliente chegou") e, acima, quem está na cadeira com "Concluir". É o mesmo
    passo da gaveta: as duas telas usam `FLUXO` e `mudarSituacao()`
    (`painel/fluxo.js`), com o aviso "Maria: faltou" e o botão **Desfazer**.
+   Desde 2026-11-02 o cartão tem cor cheia: borda e selo "Próxima" no vinho da
+   marca, com "em 25 min" / "15 min atrasada" ao lado, e quem está na cadeira
+   numa faixa azul com o selo "Agora" — era um cartão branco igual aos outros.
 2. **Hoje** (feitos, recebido, previsto), as **pendências**, os atalhos, o resto
    do dia e a grade por profissional.
 3. **O mês recolhido** — faturamento, lucro, ticket, gráfico, ranking e funil.
@@ -1021,6 +1101,19 @@ receber**, que olha todos os dias até hoje. A Lista ganhou a coluna de
 pagamento (Pago / Entrada / A pagar) e o botão **Receber**, que abre a gaveta —
 "Atendido" sozinho não dizia se pagou. O aviso de aniversariantes diz os nomes
 e abre Clientes filtrada nelas, com a data de cada uma.
+
+**Com uma profissional escolhida no Resumo, todo aviso é dela** (2026-11-02).
+Confirmação e pagamento já seguiam o filtro; aniversário e lembrete na fila
+continuavam da empresa toda. A aniversariante "dela" é cliente com atendimento
+dela; o lembrete "dela" é o de um atendimento dela, e campanha sem atendimento
+sai do recorte. O aviso filtrado abre Clientes só nas aniversariantes dela,
+para a contagem e a lista baterem. O recorte é da tela — a fila em si não é
+recortada por papel na rota (está em "Achados").
+
+**A recepção abre o Resumo sem dinheiro**: sem `financeiro`, a tela nem pede os
+relatórios (que respondem 403 para ela), some o recebido/previsto do cartão
+Hoje e o mês recolhido inteiro. Primeiros passos aparecem só para quem
+configura o site.
 
 Empresa sem nenhum atendimento vê **Primeiros passos** (conferir o site, copiar
 o link, marcar o primeiro horário) no lugar dos zeros; some sozinho quando o
@@ -1188,7 +1281,12 @@ quem tem dois serviços quanto para quem tem quarenta.
 
 *Lucro é receita menos as comissões da equipe, e só elas*: não há cadastro de
 despesa (aluguel, produto, luz), e o "!" do cartão diz isso — chamar de lucro
-contábil o que não é seria mentira numa tela de dinheiro. Para o funcionário o
+contábil o que não é seria mentira numa tela de dinheiro. Por isso o gráfico
+não diz "custos" (2026-11-02: a dona procurou os custos e não achou o que
+eram): a legenda é "Comissões da equipe", com uma nota embaixo dizendo que
+despesas não entram — e, num período sem comissão, que a receita inteira
+aparece como lucro, que era quando a faixa clara "sumia". O cartão de Lucro
+mostra quanto de comissão foi descontado. Para o funcionário o
 segundo cartão vira "Sua comissão" (`custos` recortado por `escopoDe` é
 justamente o que ele recebe, e `lucro` vem `null`), e o quadro "Comissão"
 some, para o mesmo número não aparecer duas vezes na tela.
@@ -1549,6 +1647,25 @@ A grade é de meia em meia hora e a legenda, de hora em hora, centrada na própr
 linha. A meia hora é o passo em que a agenda é vendida; sem a linha, não dá para
 ver a olho se um bloco começa às 10h ou às 10h30. A constante `TOPO` reserva a
 folga acima da primeira linha para a legenda das 08:00 não sair cortada.
+
+### Trocar quem atende
+
+A profissional falta ou não pode no horário, e a colega atende por ela. Na
+gaveta do atendimento, ao lado do nome da profissional, **Trocar** abre a
+equipe ativa; tocar numa grava na hora, com Desfazer (decisão de 2026-11-02).
+O horário não muda — é `PUT /api/agendamentos/:id` só com `profissionalId`, a
+mesma rota do arrasto entre colunas da visão Dia, que confere conflito na
+agenda de quem recebe. Quem aparece sem o serviço cadastrado vem com "não faz
+este serviço", sem bloquear: quem cobre a colega às vezes faz o que não está
+no cadastro, e recusar empurraria para uma planilha paralela.
+
+Vale **depois de concluído**, que é quando se descobre quem atendeu de verdade.
+A comissão vai junto: o gatilho `congelar_comissao` regrava a regra da nova
+pessoa quando um concluído troca de mão (migration 025). Só aparece para quem
+vê a agenda de todas (dona e recepção); a profissional não passa a própria
+cliente para a colega, e a rota recusa porque exige poder nas duas agendas. No
+registro vira `agendamento.trocou_profissional` — "passou Maria de Ana para
+Bia" —, e não "remarcou de 14h para 14h".
 
 ### Arrastar para remarcar
 

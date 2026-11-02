@@ -51,8 +51,12 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const [tentativa, setTentativa] = useState(0);
 
   const mes = hoje.slice(0, 7);
+  // A recepção não tem `financeiro`: as rotas de relatório respondem 403 para
+  // ela, e pedir assim mesmo pintaria "Não deu para carregar" toda manhã.
+  const veDinheiro = poderes.financeiro;
 
   useEffect(() => {
+    if (!veDinheiro) return;
     let vivo = true;
     setMensal(null);
     setDiario(null);
@@ -65,27 +69,29 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
     api.resumo({ mes, ...filtro }).then(x => { if (vivo) setMensal(x); }).catch(falha);
     api.resumo({ de: hoje, ate: hoje, ...filtro }).then(x => { if (vivo) setDiario(x); }).catch(falha);
     return () => { vivo = false; };
-  }, [mes, hoje, quem, tentativa]);
+  }, [mes, hoje, quem, tentativa, veDinheiro]);
 
   // Os 12 meses do gráfico. Acompanham o filtro de pessoa, como os cartões.
   useEffect(() => {
+    if (!veDinheiro) return;
     let vivo = true;
     setSerie(null);
     api.mensal({ profissionalId: quem || undefined })
       .then(x => { if (vivo) setSerie(x.meses); })
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [quem, tentativa]);
+  }, [quem, tentativa, veDinheiro]);
 
   // O ranking é da equipe toda, então não muda com o filtro de pessoa: o
   // ranking de uma pessoa só não seria ranking.
   useEffect(() => {
+    if (!veDinheiro) return;
     let vivo = true;
     api.ranking({ mes })
       .then(x => { if (vivo) setRanking(x.ranking); })
       .catch(() => { if (vivo) setFalhou(true); });
     return () => { vivo = false; };
-  }, [mes, tentativa]);
+  }, [mes, tentativa, veDinheiro]);
 
   const doMeuRecorte = a => !quem || a.prof === quem;
   const doDia = agendamentos
@@ -130,14 +136,14 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const dono = rotulo => (meu ? `Seu ${rotulo.toLowerCase()}`
     : doFiltro ? `${rotulo} · ${doFiltro.nome.split(' ')[0]}` : rotulo);
 
-  const alertas = pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes, irPara });
+  const alertas = pendencias({ agendamentos, clientes, hoje, doMeuRecorte, quem: doFiltro, fila, poderes, irPara });
   // Quem está na cadeira agora: o próximo passo dela é "Concluir".
   const naCadeira = doDia.filter(a => a.status === 'em_atendimento');
   const avancar = (id, status) => mudarSituacao({ acao, agendamentos, clientes, irPara }, id, status);
   // Empresa que ainda não atendeu ninguém: zeros ensinam nada. No lugar deles,
   // os três passos até o primeiro agendamento. Só para o dono — quem atende
   // não configura o negócio.
-  const comecando = poderes.verDeTodos && agendamentos.length === 0;
+  const comecando = poderes.site && agendamentos.length === 0;
 
   return (
     <>
@@ -168,7 +174,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
                           avancar={avancar} irPara={irPara} />}
 
       <Hoje total={doDia.length} concluidos={concluidosHoje}
-            diario={diario} pendencias={alertas.length} />
+            diario={diario} pendencias={alertas.length} veDinheiro={veDinheiro} />
 
       <Atencao alertas={alertas} />
 
@@ -218,7 +224,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
       {/* O mês é a pergunta de fim de dia, não a do balcão: fica recolhido,
           a um toque. Cada rótulo diz de quem é o número — para o dono é a
           empresa, para o funcionário é a produção dele. */}
-      <MesRecolhido>
+      {veDinheiro && <MesRecolhido>
         <div className="stats" style={{ marginBottom: 18 }}>
           <Numero rotulo={dono('Faturamento do mês')} valor={mensal && brl(mensal.recebido)}
                   dica={meu ? 'O que você atendeu neste mês e já foi pago.'
@@ -250,7 +256,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
         <Ranking staff={staff} ranking={ranking} falhou={falhou} />
 
         {poderes.site && <FunilDoSite />}
-      </MesRecolhido>
+      </MesRecolhido>}
 
       {/* O mesmo rótulo flutuante da Agenda: onde vai cair, e por que não dá. */}
       {arrastar.arrasto?.hora && (
@@ -271,13 +277,24 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
 
 const primeiroNome = n => (n || '').trim().split(/\s+/)[0] || '';
 
+/** "em 25 min", "em 1h10", "agora", "15 min atrasada" — relativo ao relógio do aparelho. */
+function quandoComeca(hora) {
+  const agora = new Date();
+  const falta = toMin(hora) - (agora.getHours() * 60 + agora.getMinutes());
+  if (falta < -1) return `${-falta} min atrasada`;
+  if (falta <= 1) return 'agora';
+  if (falta < 60) return `em ${falta} min`;
+  const h = Math.floor(falta / 60), m = falta % 60;
+  return `em ${h}h${m ? String(m).padStart(2, '0') : ''}`;
+}
+
 /**
  * O dia em uma linha: quanto já foi feito, quem é o próximo e quanto entrou.
  *
  * A barra é a única coisa da tela que responde sem ler número nenhum — é para
  * ela que se olha de passagem, entre um atendimento e outro.
  */
-function Hoje({ total, concluidos, diario, pendencias }) {
+function Hoje({ total, concluidos, diario, pendencias, veDinheiro }) {
   const feito = total ? Math.round(concluidos / total * 100) : 0;
 
   return (
@@ -304,16 +321,18 @@ function Hoje({ total, concluidos, diario, pendencias }) {
         </div>
       )}
 
-      <div className="rs-hoje-numeros">
-        <div>
-          <span className="eyebrow">Já recebido hoje</span>
-          <b className="mono">{diario ? brl(diario.recebido) : <span className="rs-esperando">—</span>}</b>
+      {veDinheiro && (
+        <div className="rs-hoje-numeros">
+          <div>
+            <span className="eyebrow">Já recebido hoje</span>
+            <b className="mono">{diario ? brl(diario.recebido) : <span className="rs-esperando">—</span>}</b>
+          </div>
+          <div>
+            <span className="eyebrow">Previsto para hoje</span>
+            <b className="mono">{diario ? brl(diario.previsto) : <span className="rs-esperando">—</span>}</b>
+          </div>
         </div>
-        <div>
-          <span className="eyebrow">Previsto para hoje</span>
-          <b className="mono">{diario ? brl(diario.previsto) : <span className="rs-esperando">—</span>}</b>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -328,24 +347,38 @@ function Hoje({ total, concluidos, diario, pendencias }) {
  */
 function ProximaCliente({ proxima, naCadeira, clientes, servicos, staff, mostrarQuem, avancar, irPara }) {
   const nome = a => clientes.find(c => c.id === a.cliente)?.nome || 'Cliente';
+  const quemAtende = a => staff.find(p => p.id === a.prof)?.nome.split(' ')[0];
+  // Cor cheia nas duas: quem está na cadeira em azul, a próxima no vinho da
+  // marca. Era um cartão branco igual aos outros, e "qual é a próxima" se lia
+  // procurando o texto pequeno (pedido da dona, 2026-11-02).
   return (
-    <div className="card rs-proxima">
+    <div className={'card rs-proxima' + (proxima ? ' tem' : '')}>
       {naCadeira.map(a => (
         <div key={a.id} className="rs-cadeira">
-          <span><i className="rs-cadeira-ponto" aria-hidden="true" />Na cadeira: <b>{primeiroNome(nome(a))}</b></span>
-          <button className="btn btn-g btn-s" onClick={() => avancar(a.id, 'concluido')}>Concluir</button>
+          <span className="rs-cadeira-txt">
+            <i className="rs-cadeira-selo">Agora</i>
+            <b>{primeiroNome(nome(a))}</b>
+            <span className="rs-cadeira-mt">
+              {servicos.find(s => s.id === a.servico)?.nome}
+              {mostrarQuem && <> · {quemAtende(a)}</>}
+            </span>
+          </span>
+          <button className="btn btn-s rs-cadeira-btn" onClick={() => avancar(a.id, 'concluido')}>Concluir</button>
         </div>
       ))}
       {proxima ? (
         <>
-          <div className="eyebrow">Próxima cliente</div>
+          <div className="rs-proxima-topo">
+            <span className="rs-proxima-selo">Próxima</span>
+            <span className="rs-proxima-quando">{quandoComeca(proxima.hora)}</span>
+          </div>
           <div className="rs-proxima-corpo">
             <span className="mono rs-proxima-hora">{proxima.hora}</span>
             <div style={{ minWidth: 0 }}>
               <div className="rs-proxima-nome">{nome(proxima)}</div>
               <div className="rs-proxima-mt">
                 {servicos.find(s => s.id === proxima.servico)?.nome}
-                {mostrarQuem && <> · {staff.find(p => p.id === proxima.prof)?.nome.split(' ')[0]}</>}
+                {mostrarQuem && <> · {quemAtende(proxima)}</>}
                 {' · '}<span className={'rs-selo' + (proxima.status === 'confirmado' ? ' ok' : '')}>
                   {FLUXO[proxima.status].rotulo}
                 </span>
@@ -470,8 +503,15 @@ function Atencao({ alertas }) {
  *
  * Tudo sai do estado que a tela já tem. `irPara` pode não existir (a tela roda
  * fora do App em teste), e aí o alerta vira só informação.
+ *
+ * **Com uma profissional escolhida, todo aviso é dela** (pedido da dona,
+ * 2026-11-02). Confirmação e pagamento já seguiam o filtro; aniversário e
+ * lembrete continuavam da empresa toda, e escolher a Ana mostrava a fila
+ * inteira. A aniversariante "dela" é cliente que já foi ou vai ser atendida por
+ * ela; o lembrete "dela" é o de um atendimento dela — mensagem sem atendimento
+ * (campanha) é da empresa, e sai do recorte.
  */
-function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes, irPara }) {
+function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, quem, fila, poderes, irPara }) {
   const ir = (k, oQue) => (irPara ? () => irPara(k, oQue) : undefined);
   const lista = [];
 
@@ -514,23 +554,31 @@ function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, fila, poderes,
   // Aniversário dos próximos sete dias, dia e mês — o ano não interessa.
   // O aviso diz quem são, e leva para a lista já filtrada nelas: "2
   // aniversariantes" e uma lista de todas as clientes não dizia de quem.
-  const aniversariantes = clientes.filter(c => c.nasc && emSeteDias(c.nasc, hoje));
-  if (aniversariantes.length && poderes.cadastros) {
+  const clientesDela = quem && new Set(agendamentos
+    .filter(a => a.prof === quem.id && a.status !== 'cancelado').map(a => a.cliente));
+  const aniversariantes = clientes.filter(c => c.nasc && emSeteDias(c.nasc, hoje)
+    && (!clientesDela || clientesDela.has(c.id)));
+  if (aniversariantes.length && poderes.clientes) {
     const nomes = aniversariantes.slice(0, 3).map(c => c.nome.split(' ')[0]).join(', ')
       + (aniversariantes.length > 3 ? ` e mais ${aniversariantes.length - 3}` : '');
     lista.push({
-      k: 'aniversario', icone: <Cake size={15} />, ir: ir('clientes', 'aniversario'),
+      k: 'aniversario', icone: <Cake size={15} />,
+      // Filtrada numa profissional, a lista de Clientes abre só nas dela: a
+      // contagem do aviso e a lista que ele abre têm de ser a mesma.
+      ir: ir('clientes', quem ? { aniversario: true, clientes: aniversariantes.map(c => c.id) } : 'aniversario'),
       titulo: `${aniversariantes.length} ${aniversariantes.length === 1 ? 'aniversariante' : 'aniversariantes'} na semana`,
       detalhe: `${nomes}. Boa hora para uma mensagem.`,
     });
   }
 
-  const naFila = fila?.itens.length || 0;
+  const dela = quem && new Set(agendamentos.filter(a => a.prof === quem.id).map(a => a.id));
+  const naFila = (fila?.itens || []).filter(m => !dela || dela.has(m.agendamentoId)).length;
   if (naFila) {
     lista.push({
       k: 'fila', icone: <Send size={15} />, ir: ir('crm'),
       titulo: `${naFila} ${naFila === 1 ? 'lembrete pronto' : 'lembretes prontos'} para enviar`,
-      detalhe: 'Toque para enviar pelo WhatsApp.',
+      detalhe: quem ? `Das clientes de ${quem.nome.split(' ')[0]}. Toque para enviar pelo WhatsApp.`
+        : 'Toque para enviar pelo WhatsApp.',
     });
   }
 
@@ -565,7 +613,7 @@ function AcoesRapidas({ irPara, poderes, naFila }) {
     // conserto, e conserto tem o caminho dele nas pendências. Fechar um horário,
     // sim, se faz toda semana.
     { k: 'bloqueios', oQue: { novo: true }, icone: <Ban size={16} />, nome: 'Bloquear horário' },
-    ...(poderes.cadastros ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Nova cliente' }] : []),
+    ...(poderes.clientes ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Nova cliente' }] : []),
     // A fila tem o próprio aviso acima, com o número; aqui seria o mesmo
     // número pela terceira vez.
     ...(naFila ? [] : [{ k: 'crm', icone: <Send size={16} />, nome: 'Enviar lembretes' }]),

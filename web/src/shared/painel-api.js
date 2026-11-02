@@ -211,6 +211,7 @@ export const api = {
     ? req(`/auth/usuarios/${u.id}`, { method: 'PUT', body: u })
     : req('/auth/usuarios', { method: 'POST', body: u }),
   removerUsuario: id => req(`/auth/usuarios/${id}`, { method: 'DELETE' }),
+  conviteDoUsuario: id => req(`/auth/usuarios/${id}/convite`, { method: 'POST' }),
 
   /* ── bloqueio de horário ── */
   bloqueios: (de, ate) => req(`/bloqueios?de=${de}&ate=${ate || de}`),

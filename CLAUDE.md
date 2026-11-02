@@ -218,10 +218,13 @@ escrito, não aconteceu.
 - **Mobile primeiro.** Quase todo agendamento sai do celular, e site e painel
   vão virar app (Capacitor) no futuro: nada que dependa de mouse — sem hover
   como única pista, sem botão direito, alvo de toque confortável.
-- **Pense em papel, não em "o usuário".** Cada empresa tem dono e funcionário,
-  com permissões diferentes — e o funcionário vê só o que é dele. Esconder
-  botão não é controle de acesso: a rota também precisa recusar, e rota que
-  devolve agenda ou dinheiro passa por `escopoDe`.
+- **Pense em papel, não em "o usuário".** Cada empresa tem dono, recepção e
+  funcionário, com permissões diferentes — e o funcionário vê só o que é dele.
+  Esconder botão não é controle de acesso: a rota também precisa recusar, e
+  rota que devolve agenda ou dinheiro passa por `escopoDe`. A recepção vê a
+  agenda de todas (`escopoDe` dá `null` para ela, como para o dono): rota nova
+  que devolve dinheiro, taxa de comissão ou ficha de saúde confere também o
+  poder (`financeiro`, `fichas`), não só o escopo.
 - **Botão de enviar não fica desligado esperando campo.** Desligado, ele não
   diz o que falta: a pessoa toca e nada acontece. Fica ligado, e o toque
   escreve o erro embaixo do campo (`aria-invalid` + `aria-describedby`) e põe

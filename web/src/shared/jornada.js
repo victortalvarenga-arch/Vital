@@ -24,6 +24,48 @@ export function fechadoNoDia({ profissional, data, deMin, ateMin }) {
   ].filter(f => f.fim > f.ini);
 }
 
+/**
+ * Onde a empresa inteira está fechada: antes da primeira pessoa abrir e depois
+ * da última fechar, ou o dia todo se ninguém trabalha nele.
+ *
+ * É a mesma conta do horário que o site publica (`server/src/lib/horarios.js`):
+ * a empresa está aberta quando há alguém atendendo, da abertura mais cedo ao
+ * fechamento mais tarde. Um buraco no meio do dia em que ninguém atende (todas
+ * almoçando na mesma hora) não é "empresa fechada" — cada coluna já mostra a
+ * jornada da própria pessoa.
+ */
+export function fechadoDaEmpresa({ equipe = [], data, deMin, ateMin }) {
+  const dia = diaDaSemana(data);
+  const faixas = equipe
+    .filter(p => p.ativo !== false)
+    .map(p => p.jornada?.[dia])
+    .filter(j => Array.isArray(j) && j.length === 2);
+  if (!faixas.length) return [{ ini: deMin, fim: ateMin, motivo: 'Fechado neste dia' }];
+
+  const abre = Math.min(...faixas.map(j => minutos(j[0])));
+  const fecha = Math.max(...faixas.map(j => minutos(j[1])));
+  return [
+    { ini: deMin, fim: Math.min(abre, ateMin), motivo: 'Fechado' },
+    { ini: Math.max(fecha, deMin), fim: ateMin, motivo: 'Fechado' },
+  ].filter(f => f.fim > f.ini);
+}
+
+/**
+ * As faixas de `faixas` sem o pedaço que `cortes` já cobre. Serve para a
+ * jornada de uma pessoa não ser pintada duas vezes por cima da empresa
+ * fechada — duas listras sobrepostas viram uma mancha que não se lê.
+ */
+export function semAs(faixas, cortes) {
+  let resto = faixas;
+  for (const c of cortes) {
+    resto = resto.flatMap(f => [
+      { ...f, fim: Math.min(f.fim, c.ini) },
+      { ...f, ini: Math.max(f.ini, c.fim) },
+    ].filter(x => x.fim > x.ini));
+  }
+  return resto;
+}
+
 /** Domingo é 0, como no `Date` e como na jornada gravada. */
 const diaDaSemana = data => new Date(data + 'T12:00:00').getDay();
 

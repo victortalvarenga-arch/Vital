@@ -147,6 +147,7 @@ export default function Financeiro({ dados, poderes }) {
             ? <Numero rotulo="Sua comissão" valor={r && brl(r.custos)}
                       dica="A sua parte sobre o que foi pago, pela sua porcentagem de comissão." />
             : <Numero rotulo={`Lucro${de1}`} valor={r && brl(r.lucro)}
+                      extra={r && <span className="rs-stat-sub">{brl(r.custos)} de comissões descontadas</span>}
                       dica="Receita menos as comissões da equipe: o que sobra para a empresa. Outras despesas (aluguel, produtos) ainda não são registradas no sistema." />}
           <Numero rotulo="A receber" valor={r && brl(r.aReceberNoPeriodo)}
                   dica="O que os atendimentos deste período ainda devem render: os que estão marcados e os que já foram atendidos sem pagar. Falta e cancelamento ficam de fora."
@@ -250,7 +251,7 @@ function GraficoFinanceiro({ pontos, por, comLucro }) {
               <b className="mono">{brl(escolhido.receita)}</b>
               {comLucro && (
                 <span className="fin-leitura-parte">
-                  custos {brl(escolhido.custos)} · lucro {brl(escolhido.lucro)}
+                  comissões {brl(escolhido.custos)} · lucro {brl(escolhido.lucro)}
                 </span>
               )}
             </>
@@ -310,10 +311,19 @@ function GraficoFinanceiro({ pontos, por, comLucro }) {
               </div>
             </div>
           </div>
+          {/* "Custos" sozinho fazia procurar aluguel e produto, que o sistema
+              não registra (pergunta da dona, 2026-11-02). O que sai da receita
+              aqui é só a comissão da equipe, e a legenda diz isso — inclusive
+              quando ela é zero, que era o caso em que a faixa clara "sumia". */}
           {comLucro && (
-            <div className="fin-legenda" aria-hidden="true">
-              <span><i className="fin-lucro" /> Lucro</span>
-              <span><i className="fin-custos" /> Custos</span>
+            <div className="fin-legenda">
+              <span aria-hidden="true"><i className="fin-lucro" /> Lucro</span>
+              <span aria-hidden="true"><i className="fin-custos" /> Comissões da equipe</span>
+              <p className="fin-legenda-nota">
+                {pontos.some(p => p.custos > 0)
+                  ? 'Lucro é a receita menos as comissões. Aluguel, produtos e outras despesas ainda não são registrados no sistema.'
+                  : 'Nenhuma comissão neste período, então a receita inteira aparece como lucro. Aluguel, produtos e outras despesas ainda não são registrados no sistema.'}
+              </p>
             </div>
           )}
         </>

@@ -18,11 +18,13 @@ import { api } from '../shared/painel-api.js';
  *
  * O link do e-mail de senha nova chega como `#redefinir=<token>`: no fragmento
  * e não na query, para o token não ir para log de servidor nem de proxy — o
- * navegador não envia o que vem depois do `#`.
+ * navegador não envia o que vem depois do `#`. O convite de quem acabou de
+ * ganhar acesso chega como `#convite=<token>`: o mesmo token e a mesma rota,
+ * com a tela dizendo "crie a sua senha" em vez de "esqueceu a senha".
  */
-const tokenDoLink = () => {
-  const m = /^#redefinir=([\w-]+)/.exec(window.location.hash);
-  return m ? m[1] : null;
+const linkDaBarra = () => {
+  const m = /^#(redefinir|convite)=([\w-]+)/.exec(window.location.hash);
+  return m ? { token: m[2], convite: m[1] === 'convite' } : { token: null, convite: false };
 };
 
 export default function Entrar({ aoEntrar }) {
@@ -33,7 +35,7 @@ export default function Entrar({ aoEntrar }) {
   const [erro, setErro] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [ocupado, setOcupado] = useState(false);
-  const [token] = useState(tokenDoLink);
+  const [{ token, convite }] = useState(linkDaBarra);
 
   useEffect(() => {
     api.precisaConfigurar()
@@ -61,7 +63,7 @@ export default function Entrar({ aoEntrar }) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
         setF(v => ({ ...v, senha: '' }));
         setModo('login');
-        setAviso('Senha nova criada. Entre com ela.');
+        setAviso(convite ? 'Senha criada. Agora entre com o seu e-mail e ela.' : 'Senha nova criada. Entre com ela.');
       } else {
         aoEntrar(modo === 'primeiro' ? await api.primeiroAcesso(f) : await api.login(f.email, f.senha));
         return;
@@ -78,7 +80,7 @@ export default function Entrar({ aoEntrar }) {
     login: 'Entrar no painel',
     primeiro: 'Criar o primeiro acesso',
     esqueci: 'Esqueci minha senha',
-    redefinir: 'Criar uma senha nova',
+    redefinir: convite ? 'Crie a sua senha' : 'Criar uma senha nova',
   };
   const SUBS = {
     login: vazia
@@ -86,13 +88,15 @@ export default function Entrar({ aoEntrar }) {
       : 'Use o e-mail e a senha cadastrados.',
     primeiro: 'Esta empresa ainda não tem ninguém cadastrado. Quem criar agora vira o dono.',
     esqueci: 'Informe o e-mail do seu acesso. Mandamos um link para criar uma senha nova.',
-    redefinir: 'Escolha a senha nova. Ao salvar, os outros aparelhos conectados saem da conta.',
+    redefinir: convite
+      ? 'Você ganhou acesso ao painel. Escolha uma senha só sua — depois é só entrar com o seu e-mail e ela.'
+      : 'Escolha a senha nova. Ao salvar, os outros aparelhos conectados saem da conta.',
   };
   const BOTOES = {
     login: [LogIn, 'Entrar', 'Entrando…'],
     primeiro: [LogIn, 'Criar e entrar', 'Criando…'],
     esqueci: [Mail, 'Enviar o link', 'Enviando…'],
-    redefinir: [KeyRound, 'Salvar senha nova', 'Salvando…'],
+    redefinir: [KeyRound, convite ? 'Criar senha' : 'Salvar senha nova', 'Salvando…'],
   };
   const [Icone, rotulo, rotuloOcupado] = BOTOES[modo];
   const pedeEmail = modo !== 'redefinir';

@@ -14,11 +14,12 @@ Três públicos, três interfaces, nenhuma se mistura com a outra:
   login. Informa o WhatsApp na hora de marcar e é reconhecida pelo número nas
   vezes seguintes. Quase sempre está no celular, muitas vezes decidindo em
   poucos minutos entre uma tarefa e outra.
-- **Quem opera o negócio** (painel, `web/src/painel/`) — dono ou funcionário
-  de uma empresa-cliente da Vital (salão, barbearia, clínica, oficina, petshop
-  — qualquer negócio que marca horário). Dono vê e configura tudo, inclusive
-  financeiro; funcionário vê a própria agenda e a própria produção. Abre o
-  painel tanto do balcão quanto do próprio telefone.
+- **Quem opera o negócio** (painel, `web/src/painel/`) — dono (ou sócia),
+  recepção ou funcionário de uma empresa-cliente da Vital (salão, barbearia,
+  clínica, oficina, petshop — qualquer negócio que marca horário). Dono vê e
+  configura tudo, inclusive financeiro; recepção marca, confirma e recebe para
+  todas, sem ver o caixa; funcionário vê a própria agenda e a própria
+  produção. Abre o painel tanto do balcão quanto do próprio telefone.
 - **A equipe da Vital** (`vital.html`) — administra a plataforma: vê a lista
   de empresas-cliente, números agregados, suspende/reativa. Não pertence a
   nenhuma empresa-cliente e nunca vê o dado de negócio de nenhuma, só

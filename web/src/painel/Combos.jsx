@@ -217,8 +217,10 @@ export default function Combos({ dados, acao, aviso }) {
         <div className="eyebrow pr-secao-t">Desempenho das promoções · {PERIODOS[periodo].rotulo.toLowerCase()}</div>
         <div className="stats">
           <Numero rotulo="Utilizações" valor={total ? total.usos : '—'} sub="vendas, sem as canceladas" />
-          <Numero rotulo="Receita gerada" valor={total ? brl(total.receita) : '—'} sub="pelas promoções, sem faltas" />
-          <Numero rotulo="Desconto concedido" valor={total ? brl(total.desconto) : '—'} sub="em descontos" />
+          {!desempenho?.semDinheiro && <>
+            <Numero rotulo="Receita gerada" valor={total ? brl(total.receita) : '—'} sub="pelas promoções, sem faltas" />
+            <Numero rotulo="Desconto concedido" valor={total ? brl(total.desconto) : '—'} sub="em descontos" />
+          </>}
         </div>
         {desempenho?.somenteMeu && <p className="add-ajuda pr-meu">Só os atendimentos que você fez.</p>}
       </section>
