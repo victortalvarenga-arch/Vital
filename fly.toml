@@ -8,7 +8,6 @@ primary_region = "gru"
 [env]
   PORT = "3333"
   TZ_EMPRESA = "America/Sao_Paulo"
-  WHATSAPP_PROVIDER = "manual"
   # Um proxy na frente: o do Fly. A Cloudflare fica só no DNS (nuvem cinza),
   # senão seriam dois e o limite de chamadas contaria o IP errado.
   TRUST_PROXY = "1"

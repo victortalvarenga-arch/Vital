@@ -66,7 +66,7 @@ mensagens.get('/fila', rota(async (req, res) => {
   );
 
   res.json({
-    modoManual: modoManual(),
+    modoManual: await modoManual(),
     itens: rows.map(r => ({
       ...messageOut(r),
       clienteNome: r.cliente_nome,
@@ -84,7 +84,7 @@ mensagens.post('/fila/:id/enviar', rota(async (req, res) => {
   const m = await mensagemDe(req.usuario, req.params.id);
   if (!m) return res.status(404).json({ erro: 'mensagem não encontrada' });
 
-  if (modoManual()) {
+  if (await modoManual()) {
     await db.run(
       `UPDATE messages SET status='enviado', enviado_em=?, provider='manual' WHERE id=?`,
       `${hoje()} ${agora()}`, m.id

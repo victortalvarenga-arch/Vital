@@ -929,6 +929,7 @@ a.btn{text-decoration:none}
 /* Presumido: nem pago nem devendo. Neutro de propósito — o âmbar diria
    "cobre", e o verde diria "entrou". */
 .ag-pag.presumido{background:var(--line); color:var(--muted)}
+.wz-campos{display:flex; flex-direction:column; gap:6px; width:100%}
 .ag-confirmar-todos{display:flex; flex-direction:column; gap:10px; margin-top:14px}
 .ag-confirmar-todos p{margin:0; font-size:13px; color:var(--muted)}
 .ag-confirmar-todos .btn{min-height:44px; justify-content:center}

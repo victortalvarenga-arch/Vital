@@ -3,10 +3,12 @@ import { empresaAtual } from '../lib/contexto.js';
 import { cifrar, decifrar, segredoConfigurado } from '../lib/segredo.js';
 import { google } from './google.js';
 import { instagram } from './instagram.js';
+import { whatsapp } from './whatsapp.js';
 
 /**
- * Contas externas que a empresa conecta: Google (avaliações) e Instagram
- * (publicações). Um formato só para as duas:
+ * Contas externas que a empresa conecta: Google (avaliações), Instagram
+ * (publicações) e WhatsApp (o número que envia). As duas primeiras seguem o
+ * mesmo caminho; o WhatsApp entra por formulário, ver `whatsapp.js`:
  *
  *   painel → "Conectar" → tela do provedor → retorno com código → token
  *   guardado em `conexoes` (cifrado) → sincronizar escreve na config → o site
@@ -16,7 +18,7 @@ import { instagram } from './instagram.js';
  * deixa a vitrine rápida e o limite de chamadas dos provedores longe — uma
  * busca por hora por empresa, não uma por visita.
  */
-export const PROVEDORES = { google, instagram };
+export const PROVEDORES = { google, instagram, whatsapp };
 
 export function provedor(nome) {
   return Object.hasOwn(PROVEDORES, nome) ? PROVEDORES[nome] : null;
@@ -67,7 +69,7 @@ export async function gravarConexao(nome, d, { usuarioId = '' } = {}) {
   );
 }
 
-async function marcarErro(nome, erro) {
+export async function marcarErro(nome, erro) {
   await db.run(
     `UPDATE conexoes SET situacao = 'erro', ultimo_erro = ? WHERE provedor = ?`,
     String(erro?.message || erro).slice(0, 300), nome

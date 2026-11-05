@@ -32,6 +32,7 @@ import Equipe from './Equipe.jsx';
 import Servicos from './Servicos.jsx';
 import ErroDeTela from './ErroDeTela.jsx';
 import Atendente from './Atendente.jsx';
+import NumeroWhatsapp from './NumeroWhatsapp.jsx';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
@@ -1867,8 +1868,13 @@ function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
             <button className={'chip' + (sub === 'auto' ? ' on' : '')} onClick={() => setSub('auto')}>Automações</button>
             <button className={'chip' + (sub === 'camp' ? ' on' : '')} onClick={() => setSub('camp')}>Campanhas</button>
           </>}
+          {poderes.site && (
+            <button className={'chip' + (sub === 'numero' ? ' on' : '')} onClick={() => setSub('numero')}>Número da empresa</button>
+          )}
         </div>
       </div>
+
+      {sub === 'numero' && <NumeroWhatsapp aviso={aviso} aoMudar={recarregarFila} />}
 
       {sub === 'fila' && (
         <>

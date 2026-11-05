@@ -247,6 +247,7 @@ export const api = {
   sincronizarConexao: provedor => req(`/conexoes/${provedor}/sincronizar`, { method: 'POST' }),
   escolherFichaGoogle: ficha => req('/conexoes/google/ficha', { method: 'PUT', body: { ficha } }),
   desconectar: provedor => req(`/conexoes/${provedor}`, { method: 'DELETE' }),
+  conectarWhatsapp: (phoneId, token) => req('/conexoes/whatsapp', { method: 'PUT', body: { phoneId, token } }),
 
   /** Sobe uma imagem já reduzida pelo navegador e devolve a URL pública. */
   enviarImagem: (dataUrl, uso) =>

@@ -6,8 +6,9 @@ import { assinarEstado, conferirEstado, segredoConfigurado } from '../lib/segred
 import {
   provedor, urlDeRetorno, gravarConexao, sincronizar, desconectar, situacoes, escolherFicha,
 } from '../conexoes/index.js';
+import { whatsapp } from '../conexoes/whatsapp.js';
 
-const NOMES = { google: 'Google', instagram: 'Instagram' };
+const NOMES = { google: 'Google', instagram: 'Instagram', whatsapp: 'WhatsApp' };
 
 /* ------------------------------------------------------------------ *
  * Painel: montado com login e `exige('site')` em app.js
@@ -23,7 +24,8 @@ conexoes.get('/', rota(async (req, res) => res.json(await situacoes())));
  */
 conexoes.post('/:provedor/iniciar', rota(async (req, res) => {
   const p = provedor(req.params.provedor);
-  if (!p) return res.status(404).json({ erro: 'conexão desconhecida' });
+  // O WhatsApp não tem tela de autorização: entra pelo `PUT /whatsapp`.
+  if (!p?.urlDeAutorizacao) return res.status(404).json({ erro: 'conexão desconhecida' });
   if (!p.configurado() || !segredoConfigurado()) {
     return res.status(503).json({ erro: `A conexão com o ${NOMES[p.nome]} ainda não foi ativada pela Vital.` });
   }
@@ -48,6 +50,41 @@ conexoes.post('/:provedor/sincronizar', rota(async (req, res) => {
   const r = await sincronizar(req.params.provedor);
   if (!r.ok) return res.status(502).json({ erro: r.erro });
   res.json(r);
+}));
+
+/**
+ * Conecta o número de WhatsApp da empresa com o id e o token que ela traz da
+ * Meta. A Meta confere antes de gravar: quem colou errado descobre aqui.
+ *
+ * O id do número vai numa URL da Meta, por isso só dígitos. O token nunca volta
+ * por rota nenhuma e não entra no registro.
+ */
+conexoes.put('/whatsapp', rota(async (req, res) => {
+  if (!segredoConfigurado()) {
+    return res.status(503).json({ erro: 'A conexão com o WhatsApp ainda não foi ativada pela Vital.' });
+  }
+  const phoneId = String(req.body?.phoneId || '').trim();
+  const token = String(req.body?.token || '').trim();
+  if (!/^\d{5,30}$/.test(phoneId)) {
+    return res.status(400).json({ erro: 'o id do número tem só dígitos', campo: 'phoneId' });
+  }
+  if (!token) return res.status(400).json({ erro: 'cole o token de acesso', campo: 'token' });
+
+  let obtido;
+  try {
+    obtido = await whatsapp.conectar({ phoneId, token });
+  } catch (erro) {
+    // Com `status`, a Meta respondeu e recusou; sem, nem chegou lá.
+    return erro.status
+      ? res.status(400).json({ erro: `A Meta recusou: ${erro.message}` })
+      : res.status(502).json({ erro: 'Não foi possível falar com a Meta agora. Tente de novo.' });
+  }
+
+  await gravarConexao('whatsapp', obtido, { usuarioId: req.usuario.id });
+  await req.registrar('conexao.criada', {
+    alvoTipo: 'conexao', alvoId: 'whatsapp', resumo: `conectou o WhatsApp${obtido.conta ? ` (${obtido.conta})` : ''}`,
+  });
+  res.json({ ok: true, conta: obtido.conta });
 }));
 
 conexoes.put('/google/ficha', rota(async (req, res) => {
