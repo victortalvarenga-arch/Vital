@@ -142,7 +142,13 @@ escrito, não aconteceu.
 - Medição não guarda gente. A tabela `funil` conta percurso por sessão
   sorteada, sem IP, sem user-agent e sem vínculo com cliente. Coluna nova ali
   é contagem ou passo, nunca identificação — ver `ARQUITETURA.md`.
-- Tabela que só registra (`logs`, `funil`, `funil_diario`) precisa de
+- Toda mudança em `appointments` vira linha em `appointment_events` por
+  gatilho, com o autor lido da transação. Código que mexe na agenda em nome
+  de outra pessoa (a cliente pelo site ou pelo WhatsApp, o relógio) envolve a
+  escrita em `db.comAutoria({ tipo, origem }, fn)`. Sem isso o evento sai com
+  o nome de quem está logado, ou como "sistema". Ver `ARQUITETURA.md`, "O
+  histórico do agendamento".
+- Tabela que só registra (`logs`, `funil`, `funil_diario`, `appointment_events`) precisa de
   `REVOKE UPDATE, DELETE` explícito na própria migration: o
   `ALTER DEFAULT PRIVILEGES` da 002 faz toda tabela nova em `public` nascer com
   os quatro verbos para a aplicação. Se essa tabela também precisar ser podada,
@@ -244,5 +250,5 @@ não pertencem a nenhum bloco e continuam abertos:
    Asaas ou Mercado Pago: gerar cobrança Pix/link no `POST /api/publico/agendar`,
    receber webhook e escrever em `appointments.pag_status` / `pag_ref`. Não
    confie no front para dizer que foi pago.
-O CRM por WhatsApp completo (número por empresa, webhook de resposta, caixa de
+O resto do CRM por WhatsApp (templates aprovados, webhook de resposta, caixa de
 conversas) já tem bloco próprio: Bloco 12 do `ROADMAP.md`.

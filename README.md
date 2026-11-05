@@ -71,6 +71,8 @@ O que o cenário traz, e por que cada peça está lá:
 | **Adicionais** na limpeza e no peeling | Um extra que também se vende sozinho (design de sobrancelha) e um que não (depilação de buço) |
 | **Anamnese facial**, 4 perguntas | A ficha que a profissional preenche no atendimento. **Não é perguntada pelo site** — é dado de saúde; ver `ARQUITETURA.md` |
 | **Perguntas frequentes** nas duas empresas | A seção do site e o `FAQPage` que o Google lê. Seis na Laura, duas na Barbearia — de propósito em dois ramos, porque o conteúdo é da empresa, não do produto |
+| **Três atendimentos sem marcação**, de ontem e anteontem, um com entrada paga | O aviso "sem marcação" do Resumo ("Sim, todos vieram" / "Alguém faltou") e a linha de estimado no caixa. Some do aviso quando confirmados; o `reset` traz de volta |
+| **Um horário com percurso inteiro** — a Débora marca pelo site, a recepção remarca, ela cancela pelo WhatsApp | O histórico do agendamento (`appointment_events`). Ainda não há tela que o mostre; a linha em `appointments` diz só "cancelado", e o caminho está na tabela |
 | **Quatro meses de visitas ao site**, nas duas | A aba Funil do back-office da Vital. Sorteadas a cada `reset`, com afunilamentos diferentes: a Laura converte, a Barbearia perde quase todo mundo logo na abertura do agendamento. Quatro meses, e não um, para a compactação ter o que fechar — o `reset` diz quantos dias compactou |
 
 Contas e endereços: `ACESSOS-DEV.md`.
@@ -180,7 +182,8 @@ zera tudo e a tela de primeiro acesso volta.
 **"Conectar Google" e "Conectar Instagram" aparecem desligados** — é o normal
 sem `CONEXOES_SEGREDO` e as credenciais de cada provedor no `server/.env`. O
 resto do sistema roda sem elas. O cadastro nos consoles do Google e da Meta
-está no `ROADMAP.md`, Bloco 6b.
+está no `ROADMAP.md`, Bloco 6b. "Número da empresa", na tela WhatsApp, diz "em
+breve" pelo mesmo motivo: só precisa do `CONEXOES_SEGREDO`.
 
 **O teste do Atendente IA responde "chave não configurada"** — falta
 `ANTHROPIC_API_KEY` no `server/.env`. Cada mensagem do teste custa uma chamada

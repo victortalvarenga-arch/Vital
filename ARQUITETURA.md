@@ -70,6 +70,11 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `028_bloqueio_sem_fim` | `bloqueio_series`: a regra do "nunca termina", que um job estende |
 | `029_comissao_dos_extras` | Cada extra paga a própria comissão, congelada na conclusão |
 | `030_papel_recepcao` | Terceiro papel: recepção, que vê a agenda de todas sem ver o caixa |
+| `031_historico_do_agendamento` | `appointment_events`: cada mudança do agendamento, com autor, por gatilho |
+| `032_ficha_e_mensagem_sobrevivem` | Apagar um horário não apaga a anamnese nem a mensagem enviada |
+| `033_status_valido` | CHECK em `appointments.status`: o banco recusa status que não existe |
+| `034_pendente_e_pagamento_presumido` | Passou da hora sem marcação vira `pendente`; pagamento presumido em coluna própria; o funil espera o pendente |
+| `035_whatsapp_por_empresa` | `conexoes` aceita o provedor `whatsapp`: cada empresa com o próprio número |
 
 ## Visão geral
 
@@ -201,6 +206,14 @@ não aceita essa versão (out/2026).
 **Datas são texto, não `Date`.** `'YYYY-MM-DD'` e `'HH:MM'` em todo lugar, banco
 incluso. O negócio opera num fuso só; usar `Date` com UTC só cria bug de agenda
 virando o dia. Helpers em `server/src/lib/dates.js`.
+
+**O banco conta o dia no mesmo fuso.** Toda conexão do pool abre com
+`TimeZone` igual a `TZ_EMPRESA` (opção de início de conexão, em `db.js`). Antes,
+o SQL que calcula "hoje" com `to_char(now(), …)` — o mês do back-office, a
+janela e o fechamento do funil — usava o fuso da sessão, UTC na Neon, e das 21h
+à meia-noite o "hoje" do banco já era amanhã. Instantes guardados em
+`TIMESTAMPTZ` não mudam: o fuso só decide como viram texto. O fuso continua
+sendo um para o servidor inteiro, não um por empresa — ver "Achados".
 
 **Jornada diz quando se atende; bloqueio diz quando, excepcionalmente, não.**
 São as duas perguntas que o motor faz antes de oferecer qualquer vaga. A
@@ -342,7 +355,8 @@ com 24h configuradas, às 23h amanhã só abre às 23h. Até 2026-10-14 ela só 
 para o dia de hoje, e às 23h o site oferecia amanhã às 8h. `GET
 /publico/horarios` devolve lista vazia para data fora do prazo. Até 2026-10-10
 só a tela escondia isso, e a rota aceitava: um agendamento de anteontem virava
-atendimento concluído e pago no fechamento automático. O painel continua livre
+atendimento concluído e pago no fechamento automático (hoje viraria "sem
+marcação"). O painel continua livre
 para registrar atendimento passado.
 
 Três colunas: em que passo está, o passo atual, e o resumo do que já escolheu
@@ -1040,8 +1054,8 @@ uma exceção ao desenhar apagava tudo — foi assim que o "Encaixe" passou sema
 
 **Desfazer um recebimento é um botão próprio**, presente sempre que entrou
 algum valor. Era "clique na forma marcada", e quem o fechamento automático
-quitou fica com a forma `'local'`, que não tem chip — o caso em que mais se
-quer desfazer não tinha como.
+quitou (até a migration 034) ficou com a forma `'local'`, que não tem chip. O
+caso em que mais se queria desfazer não tinha como.
 
 **Antes de a cliente chegar, o passo vem antes do pagamento** (2026-10-29): em
 atendimento agendado ou confirmado, a gaveta mostra primeiro "Confirmar" ou
@@ -1082,8 +1096,10 @@ gaveta. De cima para baixo:
    Desde 2026-11-02 o cartão tem cor cheia: borda e selo "Próxima" no vinho da
    marca, com "em 25 min" / "15 min atrasada" ao lado, e quem está na cadeira
    numa faixa azul com o selo "Agora" — era um cartão branco igual aos outros.
-2. **Hoje** (feitos, recebido, previsto), as **pendências**, os atalhos, o resto
-   do dia e a grade por profissional.
+   Quem vem depois dela aparece pequeno, no canto do mesmo cartão: desde
+   2026-11-05 não há mais o cartão "Depois, hoje", que repetia a grade do dia.
+2. **Hoje** (feitos, recebido, previsto), as **pendências**, os atalhos e a
+   grade por profissional.
 3. **O mês recolhido** — faturamento, lucro, ticket, gráfico, ranking e funil.
    Aberto por padrão na tela larga, a um toque no celular; a escolha fica no
    `localStorage` do aparelho, como conveniência.
@@ -1103,7 +1119,9 @@ sentido no estado — "Atendida" e "Faltou" depois da hora marcada, "Cancelar"
 antes de acontecer, "Receber" no atendido sem pagar —, com texto nos botões e o
 mesmo Desfazer da gaveta no lugar da caixa do navegador. Na ficha da cliente,
 visitas e última visita contam só o que foi atendido, o histórico diz o que foi
-cada linha e abre o atendimento, e há **Agendar para ela**.
+cada linha e abre o atendimento, e há **Agendar para ela**. O servidor
+(`GET /clientes`) e a exportação contavam faltas e horários futuros como visita
+até 2026-11-04; hoje fazem a mesma conta da tela.
 
 **Cada aviso do Resumo leva ao que ele conta** (correção de 2026-10-29). O de
 pagamento pendente conta qualquer dia até hoje, e levava à Agenda, que abre no
@@ -2053,24 +2071,55 @@ de alguém em silêncio seria pior que o conflito.
 
 ## Quem veio, quem faltou
 
-**Passou a hora do fim, o atendimento vira concluído e pago, sozinho.** Um cron
-a cada cinco minutos (`jobs/fechamento.js`) fecha o que ficou em `agendado`,
-`confirmado` ou `em_atendimento` depois do horário. A exceção — falta e
-cancelamento — é que se registra, na gaveta do atendimento ou na aba Lista da
-Agenda.
+**Passou a hora do fim sem ninguém marcar, o atendimento fica "sem marcação"**
+(status `pendente`, decisão de 2026-11-04, migration 034). Um cron a cada cinco
+minutos (`jobs/fechamento.js`), e o `GET /api/estado` ao abrir o painel, passam
+para `pendente` o que ficou em `agendado`, `confirmado` ou `em_atendimento`
+depois do horário. Quem diz se a cliente veio é a equipe.
 
-**Por que o padrão é "veio".** Quase toda cliente aparece. Exigir um clique por
-atendimento fazia registrar a *regra* muitas vezes ao dia para que a *exceção*
-ficasse implícita, que é o inverso do que sai barato num balcão cheio. E o custo
-de esquecer era invisível: `concluido` comanda o dinheiro, a mensagem de
-pós-atendimento, o `{{ultimo_atendimento}}` dos modelos e a reativação. Sem
-ninguém marcar, o CRM inteiro parava — sem erro, sem log, sem sintoma.
+**Por que deixou de ser "veio".** Até a 034 o relógio concluía e quitava
+sozinho: quase toda cliente aparece, e exigir um clique por atendimento era
+registrar a regra para a exceção ficar implícita. A aposta dependia da
+confirmação pelo WhatsApp, que ainda não existe, e sem ela virou dado inventado.
+A falta que ninguém marcava entrava como comparecimento, a cliente que não veio
+recebia "como foi seu atendimento?" e o caixa somava dinheiro que ninguém viu.
+O custo agora é um toque por dia, e não um por atendimento.
 
-**O pagamento entra junto, e isso é uma troca consciente.** Dinheiro passa a
-aparecer no caixa sem ninguém ter confirmado que entrou. Em troca, o caso comum
-não custa clique nenhum. A forma fica em `local` — o padrão da coluna, que quer
-dizer "pago no balcão" e é exatamente o que se sabe quando ninguém informou
-nada; chutar pix ou cartão seria inventar dado.
+**O aviso de pendências, no Resumo.** Junta os atendimentos sem marcação de
+todos os dias, não só de hoje (o bootstrap carrega 120 dias). Os dias anteriores
+aparecem sempre; os de hoje, quando o dia acabou, ou seja, quando não há ninguém
+por chegar nem na cadeira. No meio da tarde a pergunta interromperia o balcão.
+Duas saídas:
+
+- **"Sim, todos vieram"** chama `POST /api/agendamentos/confirmar-presenca` com
+  os ids que o aviso mostrou. Não é "todos os pendentes": o que passou da hora
+  depois de a tela carregar ninguém viu. A rota só conclui o que está
+  `pendente` e é do recorte de quem pede (`escopoDe`: a funcionária confirma os
+  dela). O aviso traz "Desfazer", que devolve um a um para `pendente`.
+- **"Alguém faltou"**, ou tocar em qualquer outro ponto do cartão, abre a Lista
+  da Agenda no filtro "Sem marcação", de qualquer dia, com "Atendida" e "Faltou"
+  em cada linha. No fim da lista, **"Confirmar todos"** faz a mesma confirmação
+  com o que está na tela (`confirmarTodos`, em `painel/fluxo.js`): primeiro se
+  marca quem faltou, depois se confirma o resto.
+
+**O pagamento fica presumido.** O fechamento marca `pag_presumido` e não mexe em
+`pag_recebido`, que é só o que alguém registrou. O caixa mostra duas linhas:
+**recebido confirmado** (`recebido`, como sempre) e **estimado (presumido)**
+(`presumido` em `/relatorios/resumo`, isto é, `valor - pag_recebido` das linhas
+presumidas que estão pendentes ou concluídas). As duas nunca são somadas num
+número só. Confirmar a presença não confirma o dinheiro: o atendimento
+continua presumido até alguém registrar o pagamento na gaveta. Qualquer
+`pagamento` no `PUT` tira a marca, e falta ou cancelamento também, porque quem
+não veio não pagou no balcão. Presumido não é dívida: fica fora do "a receber",
+do "em atraso" e do aviso de pagamento pendente.
+
+**O que espera a confirmação.** Pendente não é visita, não dispara
+pós-atendimento, não entra no recebido nem na comissão (todos leem
+`concluido`). Ocupa a cadeira (`STATUS_OCUPA`), não se arrasta, e segura o dia
+do funil sem compactar, porque o "compareceu" dele ainda vai mudar. O
+pós-atendimento olha os concluídos da última semana, e não só os de ontem: a
+presença confirmada na quinta pelo atendimento de segunda ainda recebe a
+mensagem, uma vez só (`dedupe`).
 
 **O caminho de volta desfaz tudo.** Marcar falta ou cancelado tira do
 `recebido`, tira da divisão por forma de pagamento, e faz a cliente deixar de
@@ -2084,25 +2133,33 @@ depois corrigido para falta continuava somando lá, e a divisão por forma passa
 a discordar do recebido logo acima. Hoje as duas consultas pedem
 `status='concluido'`.
 
-**O rastro é a contrapartida.** O fechamento automático grava uma linha em
-`logs` como `sistema`, com `user_id` nulo — sem isso o dono veria faturamento
-aparecer sem autor. E toda correção feita à mão passa pelo `PUT` de sempre, que
-registra quem fez, quando, e de qual estado para qual. É o que torna aceitável
-o sistema mexer no caixa por conta própria: nada acontece sem ficar escrito.
+**O rastro.** Cada passagem para `pendente` vira um evento em
+`appointment_events` assinado como `sistema`/`fechamento`, e uma linha em `logs`
+(`agendamento.pendente`, com o estimado). A confirmação vira evento por
+atendimento, com o nome de quem confirmou, e uma linha em `logs`
+(`agendamento.presenca_em_lote`, com os ids e os dias). A falta marcada uma a
+uma sai como `agendamento.falta`. Daqui em diante, todo `concluido` foi dito por
+alguém. Antes da 034 o relógio concluía, e esses casos se separam pelo evento
+de origem `fechamento` (desde a 031).
 
-### Seis estados, e um caminho só entre eles
+### Sete estados, e um caminho só entre eles
 
-O banco guarda `agendado`, `confirmado`, `em_atendimento`, `concluido`, `falta`
-e `cancelado` — a migration 017 documenta a lista, porque a coluna é TEXT livre
-desde a 001 e não há CHECK para consultar. Os quatro primeiros são um
-**percurso**, e a gaveta do atendimento mostra **só o passo seguinte**, nunca os
-seis de uma vez:
+O banco guarda `agendado`, `confirmado`, `em_atendimento`, `pendente`,
+`concluido`, `falta` e `cancelado`. A coluna foi TEXT livre até a migration 033,
+que pôs um CHECK: dois testes do funil gravavam `'faltou'` havia meses,
+passavam, e não exercitavam a falta de verdade. Status com erro de digitação
+some de todas as contas sem erro nenhum. `pendente` é o único que só o relógio
+dá (034), e na tela se chama **"Sem marcação"**. Na grade, a classe é
+`.sem-marca`, porque `.pendente` já era do "a confirmar". Os primeiros são um
+**percurso**, e a gaveta do atendimento mostra **só o passo seguinte**, nunca a
+lista inteira:
 
 | Estado | Cor | Ação que a gaveta oferece |
 |---|---|---|
 | Agendado | amarelo | Confirmar |
 | Confirmado | verde | Cliente chegou |
 | Em atendimento | azul | Concluir |
+| Sem marcação (`pendente`) | âmbar, contorno cheio | Cliente veio (e "marcar falta" ao lado) |
 | Concluído | verde escuro | — |
 | Faltou | roxo | — |
 | Cancelado | cinza | — |
@@ -2137,7 +2194,10 @@ simplesmente não aparece no caixa.
 **Cancelar não apaga.** O botão vermelho no fim da gaveta grava
 `status='cancelado'` e devolve o horário para a agenda; apagar de verdade é só o
 `DELETE`, que a tela não oferece mais. A diferença importa no registro: linha
-apagada não tem como ser explicada depois.
+apagada não tem como ser explicada depois. Quando o `DELETE` acontece, o
+histórico guarda a foto do que existia (evento `apagado`), e a anamnese e as
+mensagens já enviadas ficam — perdem só o vínculo com o atendimento (migration
+032). Os extras saem junto: não existem sem ele.
 
 **Na Lista, `confirmado` aparece como "Agendado".** Para quem opera é a mesma
 coisa — tem hora marcada e ainda não foi atendida —, e duas abas dizendo isso
@@ -2179,10 +2239,10 @@ pagou metade tira da empresa dinheiro que ainda não chegou — e receita, custo
 lucro lado a lado precisam contar a mesma coisa. "A receber" também deixou de
 cobrar o valor inteiro de quem já adiantou parte: cobra o que falta.
 
-**O fechamento automático quita a entrada esquecida.** Passada a hora, o
-atendimento vira concluído e `pag_recebido` vira o valor cheio, mantendo a forma
-da entrada — que diz mais do que o `local` genérico. É a mesma aposta do
-fechamento: no balcão, o caso comum é a cliente ter pagado.
+**O fechamento presume o resto da entrada, sem registrá-lo.** Passada a hora,
+quem tinha pago R$ 20 de R$ 45 continua com R$ 20 recebidos, e os R$ 25 viram
+estimado (`pag_presumido`). Até a 034 o fechamento quitava o resto como se
+tivesse entrado. Ver "Quem veio, quem faltou".
 
 **O histórico está no registro, não numa tabela de pagamentos.** Entrada,
 quitação e estorno viram três ações distintas em `logs`
@@ -2253,6 +2313,61 @@ DEFINER`, que só alcança o que passou do prazo e recusa prazo menor que um ano
 — um valor errado no ambiente não vira "apaga o registro de ontem". Roda toda
 madrugada (`jobs/registro.js`), para todas as empresas de uma vez, como a
 compactação do funil.
+
+## O histórico do agendamento
+
+`appointments` guarda o estado de agora e o reescreve a cada mudança: cancelar
+sobrescreve o status, remarcar sobrescreve data e hora, apagar some com tudo. O
+registro do painel conta parte do caminho, mas é frase para gente ler, só existe
+quando a rota lembra de gravar e é podado em dois anos. Antes da migration 031,
+ficavam de fora o agendamento feito pelo site, o fechamento automático (uma
+linha por lote, sem alvo) e os irmãos do combo cancelados junto. Não dava para
+perguntar "com quanta antecedência ela costuma cancelar?" nem "de onde este
+horário foi remarcado?".
+
+`appointment_events` (migration 031) responde isso: uma linha por **criação**,
+**mudança de status, data, hora, profissional ou serviço**, e **exclusão**, com
+antes e depois de cada um desses campos, autor e instante (`TIMESTAMPTZ`, para
+medir antecedência contra `data`/`hora`). Pagamento e observação não viram
+evento: são dinheiro e anotação, e já têm lugar em `logs`.
+
+**Por gatilho, e não na rota.** Um agendamento muda pelo painel, pelo site,
+pelo atendente do WhatsApp, pelo fechamento, pelo cancelamento do combo e pelo
+seed. É o mesmo argumento da comissão congelada (025): lembrar de gravar em cada
+caminho é a forma garantida de esquecer um — e foi o que aconteceu com `logs`.
+
+**Quem fez vem da transação.** O gatilho lê `app.autor_tipo`, `app.autor_id`,
+`app.autor_nome` e `app.origem`, que a aplicação marca com `db.comAutoria`:
+
+| Quem | Onde marca | `autor_tipo` / `origem` |
+|---|---|---|
+| Alguém logado no painel | `identificar`, em `app.js` | `equipe` / `painel`, com id e nome congelado |
+| A cliente pelo site | `POST /api/publico/agendar` | `cliente` / `site` |
+| A cliente pelo WhatsApp | ferramentas `agendar` e `cancelar_agendamento` | `cliente` / `whatsapp` |
+| O relógio | `jobs/fechamento.js` | `sistema` / `fechamento` |
+| Nada marcado (seed, script, migration) | — | `sistema` |
+
+Sem marca, o evento sai como `sistema`: atribuir a uma pessoa o que ela não fez
+é pior do que não saber. Com uma função, `comAutoria` vale só enquanto ela roda e
+devolve a marca anterior depois. Isso importa porque o fechamento roda dentro do
+`GET /api/estado` de quem abre o painel: sem devolver, o relógio assinaria como
+a dona, ou a correção seguinte da dona sairia como "sistema".
+
+**Sem chave estrangeira, de propósito.** O evento `apagado` é justamente o que
+mais precisa sobreviver ao agendamento. `tenant_id` é copiado da linha, e não lido
+da conexão como no resto do banco: uma migration futura que faça `UPDATE
+appointments` roda como dono, sem empresa marcada, e o default daria NULL.
+
+**Não se reescreve.** `REVOKE UPDATE, DELETE`, como `logs`, `funil` e
+`funil_diario`. Não há poda: o histórico é a matéria-prima de qualquer previsão
+de falta ou abandono, e é pequeno — algumas linhas por atendimento. Está em
+"Importante para produção" no `ROADMAP.md`, para ser revisto com volume real.
+
+**Começa na migration.** Agendamentos anteriores não ganharam evento `criado`
+inventado; o `criado_em` deles continua dizendo quando nasceram.
+
+Ainda não há tela que leia o histórico. Ele existe para não perder o dado agora;
+quem o mostra é trabalho de outro dia.
 
 ## Suporte
 
@@ -2839,14 +2954,39 @@ dos consoles do Google e da Meta.
 
 ## WhatsApp
 
-Dois modos, trocados por variável de ambiente:
+**O número é de cada empresa, e o modo também** (migration 035, decisão de
+2026-11-05). Antes o modo e as credenciais vinham do ambiente: um número para a
+plataforma inteira, que por isso nunca foi ligado. Dois modos, decididos por
+empresa em `modoManual()` (`whatsapp/index.js`):
 
-- **`manual`** (padrão) — monta a mensagem e gera um link `wa.me`; o atendente
-  clica e o WhatsApp abre com o texto pronto. Sem custo, sem conta aprovada.
-- **`meta`** — Cloud API oficial. Exige conta aprovada e cada template cadastrado
-  no WhatsApp Manager, com o nome em `templates.meta_template_name`. Fora da
-  janela de 24h desde a última mensagem da cliente, só sai template aprovado;
-  texto livre é rejeitado.
+- **manual** (sem número conectado) — monta a mensagem e gera um link `wa.me`; a
+  equipe toca e o WhatsApp abre com o texto pronto. Sem custo, sem conta aprovada.
+- **automático** (número conectado, `situacao = 'ok'`) — Cloud API oficial, com o
+  token e o id do número da própria empresa. Exige conta aprovada e cada template
+  cadastrado no WhatsApp Manager, com o nome em `templates.meta_template_name`.
+  Fora da janela de 24h desde a última mensagem da cliente, só sai template
+  aprovado; texto livre é rejeitado.
+
+As credenciais moram em `conexoes` (provedor `whatsapp`), com o token cifrado por
+`CONEXOES_SEGREDO`, o id do número em `extra` e o RLS separando as empresas: uma
+não tem como enviar pelo número da outra. O dono conecta em WhatsApp → **Número
+da empresa** (`PUT /api/conexoes/whatsapp`, `exige('site')`). A Meta confere o id
+e o token antes de gravar, porque token errado precisa falhar ali, e não no
+lembrete de amanhã. Sem `CONEXOES_SEGREDO` no servidor, a tela diz "em breve". O
+formulário é provisório: o cadastro incorporado da Meta (Bloco 12) entra no lugar
+dele e grava pelo mesmo `gravarConexao`.
+
+**Conexão caída volta ao manual sozinha.** Token morto (código 190 da Meta) no
+envio, ou no job de hora em hora que confere o número, vira `situacao = 'erro'`:
+a fila volta a ser de links, e o painel mostra o problema com o formulário para
+conectar de novo. Erro de uma mensagem só, como fora da janela de 24h, marca
+aquela mensagem e não derruba a conexão.
+
+**No modo automático, o "Enviar" da fila só chama o servidor.** Abrir o link
+`wa.me` junto mandaria a mesma mensagem duas vezes.
+
+O seed não conecta número de propósito: uma conexão de mentira faria os jobs
+tentarem falar com a Meta em toda máquina de desenvolvimento.
 
 Telefone é guardado só com dígitos, sem `+55`. A conversão para o formato da API
 acontece em `foneE164()`.

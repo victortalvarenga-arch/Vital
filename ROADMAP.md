@@ -623,24 +623,26 @@ aniversário e reativação com `optin`, os modelos editáveis no painel e as
 campanhas manuais com prévia. Falta o envio sair sozinho, por empresa, e o
 caminho de volta.
 
-- [ ] **Um número por empresa.** Hoje `whatsapp/index.js` lê `WHATSAPP_TOKEN`
-      e `WHATSAPP_PHONE_ID` do ambiente — um número para a plataforma inteira
-      (ver "Achados → Operação"). Token e id do número passam a morar por
-      empresa, fora da `config` (a vitrine lê essa coluna), e a conexão vem
-      pelo cadastro incorporado da Meta, com a Vital registrada como provedora
-      de tecnologia. Exige verificação da empresa Vital na Meta.
+- [x] **Um número por empresa.** Feito em 2026-11-05 (migration 035, ver
+      `ARQUITETURA.md`, "WhatsApp"): token e id do número moram em `conexoes`,
+      cifrados, e o modo manual ou automático é de cada empresa. Ainda não
+      foi testado contra a Meta de verdade, só contra um `fetch` falso.
+- [ ] **Conexão pelo cadastro incorporado da Meta**, no lugar do formulário
+      "Número da empresa", com a Vital registrada como provedora de
+      tecnologia. Exige verificação da empresa Vital na Meta. A dona de um
+      estúdio não vai achar sozinha o id do número e um token permanente: o
+      formulário serve para a primeira empresa, com a ajuda da Vital.
 - [ ] **Templates aprovados por empresa.** Fora da janela de 24h só sai
       template aprovado; cada número novo precisa dos seus. Decidir se a Vital
       submete um conjunto padrão em nome da empresa na conexão.
 - [ ] **Webhook de resposta.** "SIM" marca o agendamento como confirmado;
       "PARAR" desliga o `optin`. Depende do item acima, porque a resposta
-      chega ao número da empresa. Com ele, o fechamento automático pode passar
-      a concluir só quem confirmou (ver "Achados → Produto").
+      chega ao número da empresa. Com ele, o "SIM" pode substituir parte do
+      aviso de "sem marcação" do Resumo (migration 034), que hoje é a única
+      forma de confirmar presença.
 - [ ] **Caixa de conversas no painel**, para a equipe ler e responder dentro
       da janela de 24h. Nunca foi desenhada; decidir se entra neste bloco ou
       se a empresa continua respondendo pelo próprio aparelho.
-- [ ] Teste do caminho `meta` de `despachar()` com provider falso — está em
-      "Achados → Cobertura de teste".
 - [ ] Custo: a Meta cobra por mensagem de template, e marketing custa mais que
       utilidade. Decidir quem paga — a empresa direto à Meta, ou a Vital
       repassando no plano (o que amarra este bloco à cobrança da Vital).
@@ -777,7 +779,8 @@ cada passo só depende dos anteriores.
        `ANTHROPIC_API_KEY` (o atendente some do painel), `GOOGLE_*` e
        `INSTAGRAM_*` (o botão "Conectar" fica desligado, com "em breve", e as
        avaliações somem do site) e
-       as `WHATSAPP_*` (as mensagens seguem no modo manual).
+       a conexão do WhatsApp, que é por empresa (sem ela, as mensagens seguem
+       no modo manual).
 7. [ ] **Primeiro deploy:** `fly deploy --ha=false`. O `--ha=false` é
        obrigatório: por padrão o Fly sobe duas máquinas, e duas cópias
        rodariam as migrations juntas e disparariam os mesmos jobs (ver
@@ -847,6 +850,19 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       tabela de negócio e o errado para tabela que só cresce — `logs` precisou de
       um `REVOKE` explícito, e o teste é que pegou. Ao criar tabela de histórico,
       lembrar de revogar.
+- [ ] **As chaves estrangeiras apontam para `id`, não para `(tenant_id, id)`.**
+      A checagem de chave estrangeira do Postgres ignora o RLS, então o banco
+      aceita um agendamento apontando para a cliente de outra empresa. O `PUT`
+      de agendamento já confere cliente, serviço e profissional pela leitura
+      (2026-11-04, há teste), e o resto das rotas lê antes de gravar. Mas a
+      garantia é do código, não do banco. A correção estrutural seria FK
+      composta com `tenant_id`, o que exige `UNIQUE (tenant_id, id)` em cada
+      tabela referenciada.
+- [ ] **O fuso é um só para o servidor inteiro.** `TZ_EMPRESA` vale para todas
+      as empresas: uma de Manaus veria "hoje" e o fechamento automático no
+      horário de Brasília. Quando aparecer empresa fora do fuso, o fuso vira
+      campo da empresa, e `hoje()`, `agora()` e o `TimeZone` da conexão passam
+      a lê-lo.
 - [x] ~~`funil` cresce junto, e mais rápido que `logs`.~~ Resolvido na
       migration 016: o dia antigo vira uma linha em `funil_diario` e o cru sai,
       com a série histórica inteira preservada. O detalhe que o desenho
@@ -907,13 +923,35 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       que o seed falhou. Passa sozinho, mas custa um susto; `esquecerCacheDeEmpresas()`
       existe e só é chamado nos testes.
 
-- [ ] **O fechamento automático pode mandar mensagem para quem não veio.** Se
-      ninguém marcar a falta, o sistema conclui o atendimento e a cliente
-      recebe "como foi seu atendimento?" no dia seguinte às 11h. Hoje o que
-      segura isso é a atendente corrigir durante o dia, mais o fato de o
-      atendimento fantasma ficar parado no caixa. Quando o webhook de resposta
-      do WhatsApp existir, dá para fechar automaticamente só quem respondeu
-      "SIM" — aí o `confirmado` passa a significar algo.
+- [x] ~~A falta que ninguém marca vira comparecimento pago.~~ Resolvido em
+      2026-11-04 (migration 034, decisão do dono): passou da hora sem marcação,
+      fica `pendente`, com o pagamento presumido em linha separada no caixa, e
+      a equipe confirma pelo aviso do Resumo. Ver `ARQUITETURA.md`, "Quem veio,
+      quem faltou".
+- [ ] **"Sem marcação" depende de alguém abrir o Resumo.** Se ninguém confirma,
+      o atendimento fica pendente para sempre: não vira visita, não dispara
+      pós-atendimento e não entra no recebido, só no estimado. É o que a
+      decisão pediu, mas uma empresa que não usa o painel vê o CRM parar em
+      silêncio, que era o risco do desenho antigo, agora do outro lado. Vale
+      um lembrete (e-mail ou notificação) quando houver pendência de mais de
+      N dias. O aviso também só enxerga os 120 dias que o bootstrap carrega.
+- [ ] **"Desfazer" do "todos vieram" é um `PUT` por atendimento.** Com uma
+      semana acumulada são dezenas de chamadas. Se incomodar, a rota de lote
+      ganha o caminho de volta.
+- [ ] **Não se sabe como a cliente conheceu a empresa.** Não há campo de
+      origem de aquisição; `appointments.origem` diz por onde ela agendou
+      (site, painel, WhatsApp), não como chegou. Se entrar, é texto livre com
+      sugestões do que a empresa já usou (regra do `CLAUDE.md`: nada de lista
+      fixa), perguntado no primeiro agendamento e editável no painel.
+- [ ] **Cancelamento sem motivo, remarcação pelo WhatsApp sem vínculo.** O
+      histórico (031) diz quem cancelou e quando, mas não por quê, e a tela não
+      pergunta. Pelo WhatsApp, remarcar é agendar um novo e cancelar o antigo,
+      e nada liga os dois: no histórico aparecem como um cancelamento e uma
+      marcação soltos. As duas coisas valem para entender abandono.
+- [x] ~~O fechamento automático pode mandar mensagem para quem não veio.~~
+      Resolvido junto com o item acima (034): o relógio não conclui mais
+      ninguém, e o pós-atendimento só sai para quem a equipe confirmou. Ele
+      olha a última semana, para a confirmação tardia ainda receber.
 
 - [ ] **A Agenda ainda recorta em 8h–20h.** O Resumo passou a esticar a grade
       pelo que existe no dia (`faixaDeHoras`, em `shared/tempo.js`), mas
@@ -934,9 +972,6 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 - [ ] Catálogo, clientes, config e uploads não têm teste de rota. São as que
       sobraram; agenda, combos, cadastro, plataforma e isolamento têm.
-- [ ] `despachar()` só é testado no modo manual, que é o de hoje. O caminho da
-      Cloud API da Meta — sucesso, erro, marcação de enviado — não tem teste, e
-      precisará de um provider falso quando a conta sair.
 - [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
       que ela segura.
 - [ ] **Testes que agendam pelo site com data escrita à mão vão vencer.** Desde
@@ -1062,15 +1097,16 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       empresa dele — só leitura de avaliações, e só com a pessoa clicando em
       "Permitir". Fechar isso exige um cookie no domínio de retorno, colocado
       ao iniciar. Notado em 2026-10-10.
-- [ ] **O envio automático de WhatsApp é de um número só para a plataforma
-      inteira.** O provider `meta` lê `WHATSAPP_TOKEN` e `WHATSAPP_PHONE_ID`
-      do ambiente, não da empresa: ligado hoje, toda empresa mandaria
-      lembrete pelo mesmo número. Para cada empresa usar o próprio, o token e
-      o id do número precisam morar por empresa (fora da `config`, que a
-      vitrine lê) e a conexão passa pelo cadastro incorporado da Meta, com a
-      Vital como provedora de tecnologia. Enquanto isso, o modo `manual`
-      (links `wa.me`) é o único que serve a mais de uma empresa. Notado em
-      2026-10-09.
+- [x] ~~O envio automático de WhatsApp é de um número só para a plataforma
+      inteira.~~ Resolvido em 2026-11-05 (migration 035): cada empresa conecta
+      o próprio número, e as variáveis `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` e
+      `WHATSAPP_PROVIDER` saíram.
+- [ ] **Empresa conectada sem template aprovado só alcança quem escreveu nas
+      últimas 24h.** O envio manda texto livre quando `meta_template_name`
+      está vazio, a Meta recusa fora da janela, e a mensagem cai em `erro`.
+      Não há tela para preencher esse nome: entra com "Templates aprovados
+      por empresa", no Bloco 12. Conectar a primeira empresa antes disso faz
+      os lembretes falharem.
 - [ ] Não há como importar. Empresa que chega de outro sistema, de planilha ou
       de caderno precisa redigitar clientes e agendamentos futuros um a um —
       atrito justamente no "se configura sozinha" do cadastro self-service. A
@@ -1203,8 +1239,11 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       no ambiente de deploy, e rodar `npm run uploads:subir` para levar o que
       já está em disco (as fotos da Laura Faust) para lá antes de publicar.
 - [ ] **Fuso do servidor.** O código trata data e hora como texto justamente
-      para não depender disso, mas os jobs de mensagem usam `TZ_EMPRESA`.
-      Conferir se o provedor roda em UTC e se a variável está definida.
+      para não depender disso, mas os jobs de mensagem usam `TZ_EMPRESA`, e
+      desde 2026-11-04 toda conexão do banco também abre nesse fuso
+      (`opcoesDeConexao`, em `db.js`). Conferir se a variável está definida no
+      provedor, e que a URL de produção, se trouxer `options=` (a Neon usa para
+      o endpoint), continua funcionando com o `-c TimeZone=…` acrescentado.
 - [x] ~~Em função serverless (Vercel), os jobs não rodariam nunca.~~ Resolvido
       pela escolha do Fly.io com máquina sempre ligada (`auto_stop_machines =
       "off"` no `fly.toml`; ver "Decisões tomadas", no topo). Vale lembrar se
@@ -1228,6 +1267,21 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       (`optin`, transacional vs. marketing) passam a valer de fato — ver
       `ARQUITETURA.md`.
 - [ ] Definir por quanto tempo guardar histórico de quem não é mais cliente.
+- [ ] **O histórico do agendamento não se apaga de dentro.**
+      `appointment_events` (migration 031) não tem poda e a aplicação não tem
+      DELETE nele. Quando a cliente pede para ser apagada, a ficha some, mas os
+      eventos continuam com o `client_id` dela, um id que já não leva a nome
+      nenhum, mas que liga os atendimentos entre si. O pedido de exclusão da
+      LGPD precisa de uma função `SECURITY DEFINER`, como `podar_registro`, que
+      anonimize ou apague os eventos de uma cliente. Decidir junto com o prazo
+      de guarda acima, e rever o tamanho da tabela com volume real.
+- [ ] **O consentimento não tem data.** `clients.optin` é um 0/1 que nasce
+      ligado no site e no WhatsApp, sem quando, sem qual texto foi aceito e sem
+      por onde. Só a mudança feita pelo painel fica em `logs`. Para provar
+      consentimento de marketing, falta guardar o aceite (data, versão do texto,
+      origem). Para dado de saúde (`form_answers`), não existe registro de
+      consentimento nenhum — hoje a base é a ficha preenchida presencialmente,
+      e isso precisa da revisão jurídica do item acima.
 - [ ] Ter um caminho para apagar os dados de uma empresa que sair da
       plataforma. Exportar já existe (o dono baixa clientes e agendamentos em
       CSV); apagar ainda não tem caminho nenhum.
