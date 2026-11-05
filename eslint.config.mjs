@@ -34,7 +34,8 @@ export default [
   },
 
   {
-    files: ['server/**/*.js', 'eslint.config.mjs', 'web/vite.config.js'],
+    // `web/scripts/` roda no Node (as fotos da página de venda), não no navegador.
+    files: ['server/**/*.js', 'eslint.config.mjs', 'web/vite.config.js', 'web/scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
 

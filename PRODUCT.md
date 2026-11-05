@@ -99,12 +99,15 @@ Duas marcas distintas coexistem no mesmo produto, e nunca se misturam:
 - **A marca de cada empresa-cliente** vem do banco, aplicada em runtime nos
   bundles de site e painel — cor, logo, capa e nome são dela, configuráveis
   por ela mesma. Nenhuma paleta ou identidade é fixa no CSS para esse lado.
-- **A marca da Vital** é fixa e está documentada em `DESIGN.md`. É verde
-  (`#2D5E48`) sobre papel, desde 2026-10-28 também no back-office, que era roxo.
-  A página de apresentação e cadastro (`web/src/vital/inicio.css`) tem títulos
-  em Playfair Display e texto em DM Sans; o back-office
-  (`web/src/vital/styles.css`) usa IBM Plex. Aparece só em `vital.html` —
-  nunca no site ou painel de uma empresa-cliente.
+- **A marca da Vital** é fixa e está documentada em `DESIGN.md`. A página de
+  apresentação e cadastro (`web/src/vital/inicio.css`) veste, desde
+  2026-11-02, as cores do painel — vinho (`#A32A4E`) e berinjela sobre
+  porcelana —, com títulos em Playfair Display e texto em DM Sans: quem vai
+  assinar vê as cores do produto que vai usar. O back-office
+  (`web/src/vital/styles.css`, IBM Plex) e o logo continuam verdes
+  (`#2D5E48`); se eles acompanham a página é decisão em aberto no
+  `ROADMAP.md`. Aparece só em `vital.html` — nunca no site de uma
+  empresa-cliente.
 
 ## Evidence on Hand
 

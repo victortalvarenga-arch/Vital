@@ -170,6 +170,23 @@ outra, e é o banco que recusa, não o código da rota.
 
 ---
 
+## Studio Aurora — as fotos da página de venda
+
+Estética inventada, só para fotografar o produto na página da Vital. **Não vem
+do seed**: nasce pelo cadastro de verdade quando se roda
+`node web/scripts/vitrine/montar-cenario.mjs` (com o `npm run dev` de pé), e
+some no `npm run reset`. Tudo nela é ficção — nomes, telefones, endereço.
+
+| | |
+|---|---|
+| Site | <http://studio-aurora.localhost:5173> |
+| Painel | <http://studio-aurora.localhost:5173/painel.html> |
+| Login | `vitrine@vital.com` · dona |
+
+Detalhes e como refazer as fotos em `web/src/vital/telas/ORIGEM.md`.
+
+---
+
 ## O que já vem populado
 
 O `seed` reproduz o mesmo cenário em qualquer máquina. A única coisa que não

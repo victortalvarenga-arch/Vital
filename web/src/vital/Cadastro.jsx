@@ -54,7 +54,7 @@ export function FormCadastro({ aoCriar }) {
         <div className="v-campo">
           <label htmlFor="v-nome">Nome do negócio</label>
           <input id="v-nome" required value={f.nome}
-                 placeholder="Barbearia do João"
+                 placeholder="Studio da Ana"
                  onChange={e => muda({ nome: e.target.value })} />
           {endereco && (
             <span className={'v-endereco' + (endereco.livre ? '' : ' tomado')}>
@@ -67,7 +67,7 @@ export function FormCadastro({ aoCriar }) {
 
         <div className="v-campo">
           <label htmlFor="v-ramo">O que vocês fazem</label>
-          <input id="v-ramo" value={f.ramo} placeholder="Barbearia, clínica, petshop…"
+          <input id="v-ramo" value={f.ramo} placeholder="Estética, salão, barbearia…"
                  onChange={e => muda({ ramo: e.target.value })} />
           <span className="v-dica">Serve para o sistema usar as suas palavras. Dá para mudar depois.</span>
         </div>

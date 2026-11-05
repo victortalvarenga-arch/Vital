@@ -1000,6 +1000,21 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       despesas continua faltando.
 - [ ] **A Vital não consegue cobrar.** `plano` é texto livre, sem preço nem
       ciclo, e não há cobrança nenhuma. O produto funciona inteiro e não fatura.
+      Desde 2026-11-02 a página de venda mostra **R$ 89/mês, valor
+      provisório** escolhido pelo dono até decidir o preço (`PRECO` em
+      `web/src/vital/Inicio.jsx`). A página diz "sem cartão para começar",
+      que é verdade enquanto não há cobrança; quando a cobrança existir, o
+      texto da página, as dúvidas e esta constante mudam juntos.
+- [ ] **A marca da Vital está em duas cores.** Em 2026-11-02 a página de venda
+      passou às cores do painel (vinho e berinjela), a pedido do dono; o
+      back-office, o logo e o que mais for "da Vital" (favicon, e-mail)
+      continuam no verde de 2026-10-28, que foi escolhido justamente para haver
+      uma cor só. Decidir se o resto acompanha a página — e, se sim, trocar
+      `web/src/vital/styles.css` e o favicon de uma vez.
+- [ ] **As telas da página de venda envelhecem.** São capturas do Studio
+      Aurora (`web/src/vital/telas/`), e mudar a cara do painel ou do site não
+      as atualiza sozinho. Refazer com `web/scripts/vitrine/` depois de mudança
+      visível. Um teste que avise "esta tela mudou desde a captura" não existe.
 - [ ] **Pagamento online da cliente não existe** (item antigo, no fim do
       `CLAUDE.md`): `pag_status` e `pag_ref` esperam um gateway que nunca veio.
 - [ ] Acesso de suporte ao painel de uma empresa: a auditoria já existe, o

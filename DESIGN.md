@@ -32,19 +32,18 @@ colors:
   vital-warn: "#8A5A00"
   vital-error: "#8A2B2B"
   # Página de apresentação (inicio.css) — ver "Vital — The Showcase".
-  vitrine-paper: "#F7F5EF"
+  # Desde 2026-11-02 a página de venda veste a paleta do painel.
+  vitrine-paper: "#FBF6F4"
   vitrine-white: "#FFFFFF"
-  vitrine-ink: "#1D2A23"
-  vitrine-muted: "#5C6A62"
-  vitrine-line: "#E3DFD4"
-  vitrine-green: "#2D5E48"
-  vitrine-green-deep: "#183B2C"
-  vitrine-green-soft: "#E4EEE6"
-  vitrine-green-mid: "#CFE0D3"
-  vitrine-clay: "#F1E3D8"
-  vitrine-sage: "#6E8B63"
-  vitrine-arch: "#ECEAEE"
-  vitrine-copper: "#D4A08B"
+  vitrine-ink: "#241A28"
+  vitrine-muted: "#7A6975"
+  vitrine-line: "#E7D8D4"
+  vitrine-wine: "#A32A4E"
+  vitrine-wine-deep: "#7E1E3C"
+  vitrine-dark: "#241A28"
+  vitrine-soft: "#F3E8EC"
+  vitrine-blush: "#EEDBD6"
+  vitrine-rose: "#C2476C"
   site-tenant-accent: "#A32A4E"
   # Igual a site-tenant-accent, de propósito: paraTextoBranco() só escurece o
   # necessário para o próprio tom aguentar branco, e #A32A4E já aguenta
@@ -105,8 +104,22 @@ typography:
   vitrine-display:
     fontFamily: "Playfair Display, Georgia, serif"
     fontWeight: 400
-    fontSize: "32px–78px"
+    fontSize: "44px–70px"
+    letterSpacing: "-0.025em"
+  vitrine-secao:
+    fontFamily: "Playfair Display, Georgia, serif"
+    fontWeight: 400
+    fontSize: "32px–52px"
     letterSpacing: "-0.015em"
+  vitrine-titulo:
+    fontFamily: "Playfair Display, Georgia, serif"
+    fontSize: "21px"
+  vitrine-lead:
+    fontFamily: "DM Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+    fontSize: "17px"
+  vitrine-meta:
+    fontFamily: "DM Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+    fontSize: "12.5px"
   vitrine-body:
     fontFamily: "DM Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
     fontSize: "14.5px"
@@ -288,7 +301,7 @@ Three independent palettes. None is a variant of another — treat a color reque
 - **Muted** (`#7A6975`, corrected from `#806E7B`): secondary text — labels, timestamps, helper copy. The original value read 4.42:1 against `--porcelain`, just under WCAG AA's 4.5:1 for normal text when muted copy sits directly on the page background rather than on a `--paper` card; this value clears 4.77:1 there.
 - **Ok** (`#3E7D63`) / **Warn** (`#B4762A`) / **Erro** (`#8A2B2B`): status-only. Paid/positive, pending/attention, and failed/destructive — never decorative. `--erro` completes the trio; it existed as a bare literal in eleven places (the delete button on six screens, the failure toast, the no-show tag, a falling variation) before it had a name, and the Vital bundle had already named the same value `--v-erro`. Same value as before, only christened — and `.btn-erro` now carries it, so a destructive button is a class, not an inline style repeated per screen.
 - **Appointment status is the one multi-hue axis**, and it is deliberate: waiting `#FBF0DF`/`#8A6410` (amber), confirmed `#E4F0EA`/`--ok` (green), in progress `#E4EDF6`/`#1F5C96` (blue), done `#DCEAE1`/`#20573F` (deep green), no-show `#EEE8F6`/`#5B3E93` (violet), cancelled `#F3E6E6`/`--erro`. Six steps of one tone would be unreadable in a full week grid, where the distinction between "she is in the chair right now" and "she already left" has to survive peripheral vision. The tags live in `.at-tag.*`; the grid tints the block (`.appt.agora`) with an inset ring and **never** the left border, which carries who the appointment belongs to. The grid and the tags use the **same** pair for each state: until 2026-10-28 the grid painted a no-show red (`#F3E6E6` with a `#B4483F` left border, overwriting whose appointment it was) while the tag said violet; the owner chose the tag. A no-show block is violet and struck through, and its left border still says who it belonged to. Adding a hue outside this list means inventing a seventh state — check the state machine first (`ARQUITETURA.md`, "Seis estados").
-- **Unavailable time is grey, not a hue.** The Agenda's closed band (`.fechado`) is a 45° hatch of `rgba(122,105,117,.085)` over `rgba(122,105,117,.035)` — the muted grey, not a status colour, because "outside this person's working hours" is not a state an appointment can be in. It sits behind everything at `z-index: 0` and takes no pointer events. The red hatch above it (`.bloqueio`) is louder on purpose: someone closed that hour deliberately and there is a reason to read.
+- **Unavailable time is red hatch, in two strengths** (owner's request, 2026-11-02 — the grey hatch it replaced read as free time). `.fechado` is a −45° hatch of `--erro` at 15%/5% for "this person doesn't work here", and `.fechado.empresa` at 32%/16% for "nobody works here", with a solid 2px `--erro` rule on the edge that meets open time and the reason written inside when the band is tall enough. It is not a status colour (no appointment is in that state), sits behind everything at `z-index: 0` and takes no pointer events. `.bloqueio` (someone closed the hour on purpose) keeps a dashed border and the opposite hatch direction so the two never read as one thing; the company-wide block gets the strong tone. Next and current appointments carry a ring and a pill ("Próxima" in lacquer, "Agora" in the in-progress blue), never the left border, which stays whose appointment it is; a red line marks the current time.
 - **People and categories are told apart by tone, not by hue** (`PALETA`, in `App.jsx`). Six tones of the panel's own wine (`#A32A4E`, `#59182B`, `#C2476C`, `#711E37`, `#B03B5E`, `#892443`), every one above 4.5:1 against the white initials. It used to be six unrelated hues (wine, violet, green, ochre, pink, blue) and the Summary, the agenda and the charts read as a rainbow. The order is by contrast between neighbours (middle, darkest, lightest, …) so the first three people already come out clearly different. The bar chart on the Summary uses the wine alone; the current month is the darker step. New colours for a person or category come from this list — a seventh hue is not added.
 
 **The Light-Twin Rule.** Each status or accent color that carries text on a pale fill has that fill named next to it: `--erro-claro`, `--lacquer-claro` (a selected option or chip), `--lacquer-tag` (the "pending" tag), `--uv-claro` (the recurrence tag), `--warn-claro` with `--warn-texto` (a warning notice; the same amber pair as the "waiting" status). They were literals in five screens, each a half-step off the others (`#F7EFEF` beside `#F8E7E7`, `#FBF1E3`/`#6B4A18` beside `#FBF0DF`/`#8A6410`) until the 2026-10-28 review. A new pale fill picks one of these, not a fresh hex.
@@ -300,7 +313,7 @@ Three independent palettes. None is a variant of another — treat a color reque
 **The Unused-Token Rule.** `--gold` (`#A98243`) is declared in `:root` and used nowhere. Don't treat its presence as license to start using an unreviewed color; either give it a real job or leave it retired.
 
 ### Vital — The Plain Ledger
-**One brand, green** (owner's decision, 2026-10-28). The back-office was purple (`#4B2E83`) while the showcase page was green; logo, favicon and e-mail needed a single color, and the one people outside see won. The back-office now takes the showcase's paper, ink and green; its layout and type (IBM Plex) are unchanged.
+**One brand, green** (owner's decision, 2026-10-28). The back-office was purple (`#4B2E83`) while the showcase page was green; logo, favicon and e-mail needed a single color, and the one people outside see won. The back-office now takes the showcase's paper, ink and green; its layout and type (IBM Plex) are unchanged. On 2026-11-02 the showcase itself moved to the painel's wine and aubergine (see below), so the back-office and the logo are green again on their own — whether they follow is an open decision in `ROADMAP.md`.
 
 - **Ink** (`#1D2A23`): primary text, the showcase's green-black.
 - **Paper** (`#FFFFFF`) / **Ground** (`#F7F5EF`): surface and page background, the showcase's paper.
@@ -312,19 +325,28 @@ Three independent palettes. None is a variant of another — treat a color reque
 
 ### Vital — The Showcase (página de apresentação)
 
-The front door of `vital.html` (`Inicio.jsx`, `inicio.css`, prefix `lp-`) is the one place Vital *sells*, and it does not wear the Plain Ledger. It was drawn from a reference the user brought (Oct/2026): paper ground, deep green, one clay accent, serif headlines. The two never share a stylesheet, but since 2026-10-28 they share the palette: the back-office took this page's green, paper and ink (see "Vital — The Plain Ledger").
+The front door of `vital.html` (`Inicio.jsx`, `inicio.css`, prefix `lp-`) is the one place Vital *sells*, and it does not wear the Plain Ledger. Its layout and type (Playfair Display + DM Sans, near-square buttons) come from a reference the user brought (Oct/2026). **Its colors are the painel's since 2026-11-02** (owner's request: "integrate with the colors of the panel and of the examples"): the page now looks like the product the visitor is about to use, and the screenshots on it stop clashing with the page around them. It was green and paper until then, and that green is still the back-office's and the logo's — the split is open in `ROADMAP.md` ("Achados").
 
-- **Paper** (`#F7F5EF`) / **White** (`#FFFFFF`): page ground and card surface.
-- **Ink** (`#1D2A23`, a green-black) / **Muted** (`#5C6A62`, 5.2:1 on paper, 4.8:1 on the light green band): text.
-- **Line** (`#E3DFD4`): borders.
-- **Green** (`#2D5E48`): labels, icons, check marks, the form's accent. **Green, Deep** (`#183B2C`): primary buttons and the two dark bands (the availability section and the closing call). **Green, Soft / Mid** (`#E4EEE6` / `#CFE0D3`): the light band, chips, icon rings.
-- **Clay** (`#F1E3D8`): the warm counterweight — the promotion card and the "in progress" appointment. Never a button.
+- **Porcelain** (`#FBF6F4`) / **White** (`#FFFFFF`): page ground and card surface — the painel's own pair.
+- **Aubergine Ink** (`#241A28`) / **Muted** (`#7A6975`): text, the painel's values. Aubergine is also the dark block: the calculator, the phone bezel, the closing call.
+- **Line** (`#E7D8D4`): borders.
+- **Lacquer** (`#A32A4E`, hover `#7E1E3C`): primary buttons, the fixed mobile bar, the selected model tab, check marks, icons, the italic word of the hero headline and the step numbers.
+- **Lacquer tag / Blush** (`#F3E8EC` / `#EEDBD6`): the WhatsApp band, check rings, icon circles, the warm wash behind the site section, the calculator result. **Rose** (`#C2476C`, one of the painel's `PALETA` tones): slider fills and the secondary link's underline. Never a button.
+- Anything off-palette is `color-mix()` of these tokens (body text is ink 82% into porcelain; the frame shadow is tinted from ink), never a fresh hex.
 
-Lightness is the brief: almost no borders (cards sit on paper by contrast alone), one soft long shadow on the drawn windows, no side-stripe accents — an appointment's state is its fill color.
+**The product is the image** (redesign of 2026-11-02, the owner asked for "real images of the project"). Every picture on the page is a real screenshot of the painel or the tenant site, of an invented esthetics studio ("Studio Aurora", dev database only — `web/src/vital/telas/ORIGEM.md`), set in two frames: `.lp-navegador` (a browser bar with the address) and `.lp-celular` (an aubergine bezel, 28px radius). In the site section each model is shot with its own color and photo (Essencial in lacquer with the light cream portrait, Galeria in aubergine with the full-bleed mask photo, Serena in rose with its two rounded photos), so switching tabs reads as a real change; the browser and the phone switch together. On phones the order is heading, tabs (three side by side, name only), the phone preview, then the list — the preview sits right under the tabs, so a tap shows the change without scrolling; the model's one-line description moves under the phone. The phone overlaps the browser in the hero, the site section and the painel section; that overlap is the page's one composition move, so no section is just a row of cards. The hero says under the screenshots that the business is an example. The drawn HTML mock-ups, the floating stat cards and the "molecule" ornaments of the previous page are gone, and so are the small uppercase labels over every heading — the heading carries itself.
 
-**The Drawn-Not-Shot Rule.** Every picture of the *product* on this page is HTML and CSS (a panel window, a site, a phone, message bubbles), never a screenshot. Screenshots go stale silently. The one photo is the hero (`cuidado.jpg`): a generic, brand-free stock photo of a woman applying skin cream, matching the reference the user brought, set inside a pale arch. Photos of a real client are off-limits. The businesses in the drawings are invented and from different trades on purpose.
+Lightness is still the brief: few borders, one soft long shadow (`--lp-sombra`) on frames and the signup box, no side-stripe accents. Sections alternate porcelain, white, washed blush and the lacquer-tag band; aubergine appears in blocks (calculator, closing call), never as a band touching another dark band.
 
-**The Few-Words Rule.** The user asked for less text (Oct/2026): each section is a short label, one serif headline and a visual. Benefits are one-line checks, not sentences; explanation belongs in the panel. A new section that needs a paragraph to make sense needs a better drawing instead.
+**Type ramp** (tokens in `.lp`): meta 12.5px, body 14.5px, lead 17px, card title 21px (Playfair), section `clamp(32px…52px)`, display `clamp(44px…70px)`. The price uses the display step.
+
+**One motion:** the hero phone rises 36px into place on load (exponential ease-out, from an already-visible state); the site-model phone gets a short settle when the tab changes. Nothing else animates. Both are off under `prefers-reduced-motion`.
+
+**Interactions that sell:** the empty-slot calculator (two sliders, the visitor's own numbers, never a statistic of ours), the site-model tabs (arrow keys move between them), and a fixed "Criar minha agenda" bar on phones that hides while the hero or the signup form is on screen. The price lives in one constant (`PRECO` in `Inicio.jsx`) and is provisional.
+
+**The Shot-From-Fiction Rule** (replaced "Drawn-Not-Shot" on 2026-11-02). Every picture of the product is a real screenshot, and every screenshot is of the invented Studio Aurora — never of the Laura Faust tenant (a real person) nor of the Barbearia (it would make Vital read as a barbershop tool). Screenshots go stale silently, so they are regenerated by `web/scripts/vitrine/`, not edited by hand; the message bubbles stay HTML because the WhatsApp screen they stand for doesn't exist in the product.
+
+**The Few-Words Rule.** The user asked for less text (Oct/2026), and it still holds in spirit: one serif headline, at most one short paragraph, then the screenshot or a list of one-line checks. The small uppercase label that used to sit over each headline is gone (2026-11-02). Explanation belongs in the panel; a section that needs two paragraphs to make sense needs a better screenshot instead.
 
 **The No-Fabricated-Proof Rule** (PRODUCT.md, "Evidence on Hand") reaches the drawings too: the mock site shows "Avaliações do Google" without a rating or a quote.
 
@@ -418,7 +440,7 @@ Three type systems, matched to what each audience is doing.
 
 **The One-Plex Rule.** Vital's body and mono are both IBM Plex. Don't introduce a third, unrelated family for a new role — extend within Plex Sans's weight range first.
 
-**The Showcase exception.** The presentation page (`inicio.css`) has its own pair, both taken from the hero reference the user brought (Oct/2026): Playfair Display (400–500, with its italic) for headlines and DM Sans for body. The hero headline sets its last word in Playfair italic, in sage. Buttons are near-square (4px), chips and badges stay round. The back-office keeps IBM Plex.
+**The Showcase exception.** The presentation page (`inicio.css`) has its own pair, both taken from the hero reference the user brought (Oct/2026): Playfair Display (400–500, with its italic) for headlines and DM Sans for body. The hero headline sets its last word in Playfair italic, in sage; the step numbers of "como funciona" are Playfair italic in sage too. Buttons are near-square (4px), chips and badges stay round. The back-office keeps IBM Plex.
 
 **What the hero reference had and the page does not.** "2.000 businesses use it", a 4.9 rating with avatars, a strip of client logos and "7 days free". None is true yet (no client is live, and there is no plan or billing), so each slot holds a fact of the same shape instead: a badge saying who it is for, two checks ("no credit card", "ready the same day"), a strip of trades, and "one minute to go live" in the top bar.
 

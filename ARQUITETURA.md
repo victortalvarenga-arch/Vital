@@ -185,6 +185,7 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    Base.jsx (Modal, Gaveta, Campo e `useJanela`),
                    fluxo.js (as situações do atendimento e o passo seguinte)
   src/vital/       Inicio.jsx + inicio.css (página de apresentação),
+                   telas/ (as capturas reais que ela mostra),
                    Cadastro.jsx (formulário de empresa nova, dentro dela),
                    Equipe.jsx (back-office), api.js (cookie próprio),
                    styles.css (a marca da Vital no back-office)
@@ -2589,15 +2590,46 @@ o site e o painel aplicam a marca do negócio em runtime porque são dele; esta
 página é nossa.
 
 A porta de entrada é uma página de apresentação (`Inicio.jsx`), e o formulário
-de cadastro mora no fim dela, em `#criar`. Pouco texto de propósito: cada seção
-é um título curto e uma imagem. A única foto é a da abertura, de banco de
-imagem (origem no comentário de `Inicio.jsx`); tudo o que ela mostra do
-produto é desenho em HTML e CSS, não print: print envelhece a cada mudança de
-tela sem ninguém perceber, e foto de cliente real não pode aparecer (ver
-`CLAUDE.md`). Os negócios dos exemplos são inventados e de ramos diferentes, e
-o texto só promete o que existe — mensagem de WhatsApp é "pronta para enviar",
-pagamento online não aparece. O visual (verde, títulos em serifa) é dela, em
-`inicio.css`, e não vaza para o back-office; ver `DESIGN.md`.
+de cadastro mora no fim dela, em `#criar`. O texto só promete o que existe —
+mensagem de WhatsApp é "pronta para enviar", pagamento online não aparece, e
+nada de depoimento, nota ou número de uso (`PRODUCT.md`). O visual (verde,
+títulos em serifa) é dela, em `inicio.css`, e não vaza para o back-office; ver
+`DESIGN.md`.
+
+**As imagens são telas de verdade, de um negócio inventado** (decisão do dono,
+2026-11-02). Eram desenhos em HTML do produto, com o argumento de que print
+envelhece; o dono pediu imagens reais, e o custo de envelhecer ficou pago por
+dois scripts que refazem tudo (`web/scripts/vitrine/`): `montar-cenario.mjs`
+cria pelo cadastro de verdade o "Studio Aurora", uma estética inteiramente
+fictícia, e o preenche pela API do painel; `capturar.mjs` abre o Chrome sem
+janela pelo protocolo de depuração (sem Puppeteer) e grava as telas em
+`web/src/vital/telas/`, em WebP. Nem a Laura Faust (pessoa real) nem a
+Barbearia do João (faria a Vital parecer coisa de barbearia) servem para
+material público. A abertura diz, embaixo das telas, que o negócio é de
+exemplo. Quando uma tela muda de cara, as fotos se refazem — o passo a passo
+está em `telas/ORIGEM.md`. Cada modelo de site é fotografado com cor e foto
+próprias (a captura troca a config do Studio Aurora pela API e devolve no
+fim): com a mesma cor e a mesma foto, os três pareciam um só.
+
+Desde 2026-11-02 a página veste **as cores do painel** (vinho e berinjela
+sobre porcelana), a pedido do dono: quem vai assinar vê as cores do produto, e
+as telas param de brigar com a página em volta. O back-office e o logo seguem
+verdes — ver "Achados" no `ROADMAP.md`. No celular, a seção de modelos põe a
+prévia logo abaixo das abas: trocar de modelo mostra a troca sem rolar.
+
+A **Galeria** é o único modelo cuja barra do topo nasce transparente sobre a
+foto (`temCapa` em `site/App.jsx`). Ali o menu ficava no cinza da barra firme
+e sumia em capa clara; agora é branco como o nome e os botões enquanto a barra
+não firma.
+
+**A página tem três coisas que vendem além do texto.** Uma conta do horário
+vazio, com os números que a pessoa digita (horários vazios por semana × valor
+médio) e quantos desses horários pagam o plano — aritmética, nunca estatística
+nossa, porque a Vital não tem dado de uso para prometer redução de falta. As
+abas dos modelos de site, que trocam a tela do celular. E, no celular, um
+botão fixo de cadastro que some enquanto a abertura ou o formulário estão à
+vista. O preço aparece num plano só, e o valor é uma constante (`PRECO`)
+provisória: a Vital ainda não cobra (ver `ROADMAP.md`).
 
 **O primeiro da nossa equipe entra com chave, em produção.** Com
 `plataforma.usuarios` vazia, `POST /api/plataforma/primeiro-acesso` cria um

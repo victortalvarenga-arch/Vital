@@ -1035,6 +1035,10 @@ img { max-width: 100%; display: block; }
   transition: color .25s ease;
 }
 .barra.firme .barra-nome { color: var(--texto); }
+/* Sobre a foto, o menu é branco como o nome e os botões. Ficava no cinza da
+   barra firme e sumia em capa clara — no topo da Galeria parecia defeito. */
+.barra:not(.firme) .barra-nav a { color: #fff; }
+.barra:not(.firme) .barra-nav a:hover { color: #fff; opacity: .8; }
 
 .barra-acoes { display: flex; align-items: center; gap: var(--e-2); flex: none; }
 .barra-link {
