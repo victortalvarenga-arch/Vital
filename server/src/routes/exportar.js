@@ -29,6 +29,7 @@ export const exportar = Router();
 
 const STATUS = {
   agendado: 'Agendado', confirmado: 'Confirmado', em_atendimento: 'Em atendimento',
+  pendente: 'Pendente (passou da hora sem marcação)',
   concluido: 'Concluído', falta: 'Faltou', cancelado: 'Cancelado',
 };
 const PAGAMENTO = { aberto: 'Em aberto', parcial: 'Parcial', pago: 'Pago', estornado: 'Estornado' };
@@ -58,9 +59,10 @@ exportar.get('/clientes.csv', rota(async (req, res) => {
   // clientes seriam duas mil consultas na mesma conexão.
   const linhas = await db.all(
     `SELECT c.*,
-            COUNT(a.id) visitas,
+            -- Visita é atendimento concluído, como em GET /clientes.
+            SUM(CASE WHEN a.status = 'concluido' THEN 1 ELSE 0 END) visitas,
             SUM(CASE WHEN a.status = 'falta' THEN 1 ELSE 0 END) faltas,
-            MAX(CASE WHEN a.data <= ? THEN a.data END) ultima,
+            MAX(CASE WHEN a.status = 'concluido' AND a.data <= ? THEN a.data END) ultima,
             SUM(a.pag_recebido) gasto
        FROM clients c
        LEFT JOIN appointments a ON a.client_id = c.id AND a.status <> 'cancelado'
@@ -132,6 +134,9 @@ exportar.get('/agendamentos.csv', rota(async (req, res) => {
     ['Desconto (R$)', a => reais(a.desconto || 0)],
     ['Recebido (R$)', a => reais(a.pag_recebido || 0)],
     ['Pagamento', a => PAGAMENTO[a.pag_status] || a.pag_status],
+    // Coluna própria, como no caixa: "Em aberto" sozinho faria o presumido
+    // parecer dívida, e somar no Recebido faria parecer dinheiro registrado.
+    ['Pagamento presumido', a => (a.pag_presumido ? 'Sim' : 'Não')],
     ['Forma de pagamento', a => FORMA[a.pag_forma] || a.pag_forma],
     ['Origem', a => ORIGEM[a.origem] || a.origem],
     ['Observações', a => a.obs],

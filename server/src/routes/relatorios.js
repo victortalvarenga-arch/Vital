@@ -126,6 +126,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
         SUM(CASE WHEN status='concluido' AND pag_recebido > 0 THEN 1 ELSE 0 END) pagos,
         SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas,
         SUM(CASE WHEN status='cancelado' THEN 1 ELSE 0 END) cancelados,
+        -- Passou da hora e ninguém marcou (034): nem feito nem falta ainda.
+        SUM(CASE WHEN status='pendente' THEN 1 ELSE 0 END) pendentes,
+        -- O estimado: o que o fechamento supôs ter sido pago no balcão e
+        -- ninguém registrou. Fica FORA do recebido — é a outra linha do caixa.
+        -- Pendente ou já confirmado: confirmar a presença não confirma o dinheiro.
+        SUM(CASE WHEN pag_presumido = 1 AND status IN ('pendente','concluido')
+                 THEN valor - pag_recebido ELSE 0 END) presumido,
         -- Do período, não de hoje: previstoHoje responde "quanto ainda entra
         -- hoje" e não serve a quem está olhando a semana passada. Cancelado
         -- fica de fora dos dois: não é dinheiro que se espera nem
@@ -140,9 +147,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
   // ainda não pagou (decisão de 2026-10-29). Antes contava o agendado de hoje
   // que nem tinha chegado, e deixava de fora quem estava na cadeira: o
   // Financeiro dizia R$ 375 em atraso ao lado de um aviso de R$ 45 no Resumo.
+  //
+  // O presumido fica de fora: o sistema supôs que entrou, e cobrar a cliente
+  // por isso seria tratar como dívida o que é só falta de registro.
   const aReceber = (await db.get(
     `SELECT SUM(valor - pag_recebido) v FROM appointments
-      WHERE pag_status <> 'pago' AND data <= ? AND status IN ('em_atendimento','concluido') ${meu}`,
+      WHERE pag_status <> 'pago' AND pag_presumido = 0 AND data <= ?
+        AND status IN ('em_atendimento','concluido') ${meu}`,
     h, ...arg
   )).v || 0;
 
@@ -157,7 +168,7 @@ relatorios.get('/resumo', rota(async (req, res) => {
   // `previsto - recebido`: ali a falta entra, e a tela prometeria o que não vem.
   const aReceberNoPeriodo = (await db.get(
     `SELECT SUM(valor - pag_recebido) v FROM appointments
-      WHERE data >= ? AND data <= ? AND pag_status <> 'pago'
+      WHERE data >= ? AND data <= ? AND pag_status <> 'pago' AND pag_presumido = 0
         AND status IN ('agendado','confirmado','em_atendimento','concluido') ${meu}`,
     de, ate, ...arg
   )).v || 0;
@@ -284,9 +295,13 @@ relatorios.get('/resumo', rota(async (req, res) => {
     aReceber,
     aReceberNoPeriodo,
     previstoHoje,
+    // O caixa em duas linhas (034): `recebido` é o confirmado, `presumido` o
+    // estimado. Nunca somados aqui — quem quiser o total soma na tela, sabendo.
+    presumido: g.presumido || 0,
     atendimentos: g.atendimentos || 0,
     faltas: g.faltas || 0,
     cancelados: g.cancelados || 0,
+    pendentes: g.pendentes || 0,
     previsto: g.previsto || 0,
     agendados: g.agendados || 0,
     ticketMedio: g.pagos ? recebido / g.pagos : 0,

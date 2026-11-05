@@ -145,6 +145,22 @@ describe('pós-atendimento', () => {
       assert.equal(pos.length, 1, 'quem faltou não recebe "como foi?"');
     });
   });
+
+  test('sem marcação não recebe; confirmada dias depois, recebe', async () => {
+    // Desde a 034 o relógio não conclui ninguém: deixa pendente. Mandar "como
+    // foi?" a quem talvez nem veio era o erro que a decisão quis acabar.
+    await na(async () => {
+      await agendar(db, { data: dia(-3), hora: '10:00', status: 'pendente' });
+      await fila.gerarFila();
+      assert.ok(!(await chaves()).includes('pos_atendimento'), 'pendente não é atendimento feito');
+
+      // A equipe confirma na quinta o atendimento de segunda: o "ontem" de
+      // antes nunca mais o alcançaria.
+      await db.db.run(`UPDATE appointments SET status = 'concluido' WHERE data = ?`, dia(-3));
+      await fila.gerarFila();
+      assert.ok((await chaves()).includes('pos_atendimento'));
+    });
+  });
 });
 
 describe('marketing depende de consentimento', () => {

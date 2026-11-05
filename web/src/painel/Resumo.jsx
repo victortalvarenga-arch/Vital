@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
-  Ban, Cake, CalendarPlus, Check, ChevronDown, Copy, Globe, Plus, Send, TriangleAlert, Trophy, User, Wallet,
+  Ban, Cake, CalendarPlus, Check, ChevronDown, ChevronRight, Copy, Globe, Plus, Send, TriangleAlert, Trophy, User,
+  UserCheck, UserX, Wallet,
 } from 'lucide-react';
-import { FLUXO, mudarSituacao } from './fluxo.js';
+import { FLUXO, confirmarTodos, mudarSituacao } from './fluxo.js';
 import { api } from '../shared/painel-api.js';
 import SeletorPessoas from './SeletorPessoas.jsx';
 import { brl } from '../shared/formato.js';
-import { Dica, Numero } from './Cartoes.jsx';
+import { DICA_ESTIMADO, Dica, Numero } from './Cartoes.jsx';
 import { compacto, rotuloDeValor, tetoDoEixo } from '../shared/graficos.js';
 import { faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
 import GradeDoDia from './GradeDoDia.jsx';
@@ -106,7 +107,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
     .filter(a => (a.status === 'agendado' || a.status === 'confirmado')
       && toMin(a.hora) + a.duracao > minAgora)
     .sort((a, b) => a.hora.localeCompare(b.hora))
-    .slice(0, 6);
+    .slice(0, 2);
 
   // Funcionário vê só a própria coluna — mesmo recorte que o servidor já
   // aplica em `escopoDe`. Dono vê todo mundo, lado a lado.
@@ -139,6 +140,15 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const alertas = pendencias({ agendamentos, clientes, hoje, doMeuRecorte, quem: doFiltro, fila, poderes, irPara });
   // Quem está na cadeira agora: o próximo passo dela é "Concluir".
   const naCadeira = doDia.filter(a => a.status === 'em_atendimento');
+  // O que passou da hora sem marcação (migration 034). Os dias anteriores
+  // aparecem sempre — é a pendência acumulada. Os de hoje, só quando o dia
+  // acabou: ninguém mais por chegar nem na cadeira. No meio da tarde, pedir
+  // "todos vieram?" interromperia o balcão para uma pergunta que ainda não
+  // terminou de acontecer.
+  const diaAcabou = proximos.length === 0 && naCadeira.length === 0;
+  const semMarcacao = agendamentos
+    .filter(a => a.status === 'pendente' && doMeuRecorte(a) && (a.data < hoje || diaAcabou))
+    .sort((a, b) => a.data.localeCompare(b.data) || a.hora.localeCompare(b.hora));
   const avancar = (id, status) => mudarSituacao({ acao, agendamentos, clientes, irPara }, id, status);
   // Empresa que ainda não atendeu ninguém: zeros ensinam nada. No lugar deles,
   // os três passos até o primeiro agendamento. Só para o dono — quem atende
@@ -169,45 +179,18 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
           próxima, e o botão do passo dela ali mesmo — o mesmo da gaveta. */}
       {comecando
         ? <PrimeirosPassos irPara={irPara} aviso={aviso} />
-        : <ProximaCliente proxima={proximos[0]} naCadeira={naCadeira} clientes={clientes}
+        : <ProximaCliente proxima={proximos[0]} depois={proximos[1]} naCadeira={naCadeira} clientes={clientes}
                           servicos={servicos} staff={staff} mostrarQuem={poderes.verDeTodos}
                           avancar={avancar} irPara={irPara} />}
 
       <Hoje total={doDia.length} concluidos={concluidosHoje}
-            diario={diario} pendencias={alertas.length} veDinheiro={veDinheiro} />
+            diario={diario} pendencias={alertas.length + (semMarcacao.length ? 1 : 0)} veDinheiro={veDinheiro} />
+
+      <SemMarcacao lista={semMarcacao} acao={acao} irPara={irPara} />
 
       <Atencao alertas={alertas} />
 
       <AcoesRapidas irPara={irPara} poderes={poderes} naFila={fila?.itens.length || 0} />
-
-      {proximos.length > 1 && (
-        <div className="card rs-depois">
-          <div className="eyebrow" style={{ marginBottom: 10 }}>Depois, hoje</div>
-          <div className="list">
-            {proximos.slice(1).map(a => {
-              const c = clientes.find(x => x.id === a.cliente);
-              const s = servicos.find(x => x.id === a.servico);
-              const p = staff.find(x => x.id === a.prof);
-              return (
-                <div key={a.id} className="li">
-                  <span className="mono rs-depois-hora">{a.hora}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="nm">{c?.nome}</div>
-                    <div className="mt">
-                      <span>{s?.nome}</span>
-                      {poderes.verDeTodos && <span>{p?.nome.split(' ')[0]}</span>}
-                    </div>
-                  </div>
-                  {/* Confirmado ou não é o que decide se vale mandar mensagem. */}
-                  <span className={'rs-selo' + (a.status === 'confirmado' ? ' ok' : '')}>
-                    {a.status === 'confirmado' ? 'Confirmado' : 'A confirmar'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <div style={{ marginTop: 12 }}>
         {/* Frase, não rótulo: em caixa alta e espaçada ela se lia pior. */}
@@ -227,8 +210,11 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
       {veDinheiro && <MesRecolhido>
         <div className="stats" style={{ marginBottom: 18 }}>
           <Numero rotulo={dono('Faturamento do mês')} valor={mensal && brl(mensal.recebido)}
-                  dica={meu ? 'O que você atendeu neste mês e já foi pago.'
-                            : 'Tudo o que foi atendido e pago neste mês.'} />
+                  extra={mensal?.presumido > 0 && (
+                    <span className="rs-stat-sub">+ {brl(mensal.presumido)} estimado (presumido)</span>
+                  )}
+                  dica={meu ? 'O que você atendeu neste mês e teve o pagamento registrado. O estimado é o que passou da hora sem registro e se supõe pago no balcão.'
+                            : 'Tudo o que foi atendido neste mês e teve o pagamento registrado. O estimado é o que passou da hora sem registro e se supõe pago no balcão.'} />
           {/* Lucro é do dono: o servidor manda `null` para o funcionário. */}
           {poderes.verDeTodos && (
             <Numero rotulo={doFiltro ? `Lucro do mês · ${doFiltro.nome.split(' ')[0]}` : 'Lucro do mês'}
@@ -324,9 +310,18 @@ function Hoje({ total, concluidos, diario, pendencias, veDinheiro }) {
       {veDinheiro && (
         <div className="rs-hoje-numeros">
           <div>
-            <span className="eyebrow">Já recebido hoje</span>
+            <span className="eyebrow">Recebido confirmado hoje</span>
             <b className="mono">{diario ? brl(diario.recebido) : <span className="rs-esperando">—</span>}</b>
           </div>
+          {/* Linha própria, nunca somada ao recebido: é o que o fechamento supôs
+              ter entrado no balcão e ninguém registrou (migration 034). */}
+          {diario?.presumido > 0 && (
+            <div className="rs-hoje-estimado">
+              <span className="eyebrow">Estimado (presumido)</span>
+              <b className="mono rs-presumido">{brl(diario.presumido)}</b>
+              <Dica texto={DICA_ESTIMADO} />
+            </div>
+          )}
           <div>
             <span className="eyebrow">Previsto para hoje</span>
             <b className="mono">{diario ? brl(diario.previsto) : <span className="rs-esperando">—</span>}</b>
@@ -344,8 +339,12 @@ function Hoje({ total, concluidos, diario, pendencias, veDinheiro }) {
  * uma célula pequena ("14:00 · Maria") sem ação: confirmar ou dizer que ela
  * chegou pedia Menu → Agenda → tocar no bloco → gaveta. O botão é o mesmo da
  * gaveta (`FLUXO`), com o mesmo "Desfazer".
+ *
+ * Quem vem depois dela fica aqui mesmo, pequeno, no canto (pedido de
+ * 2026-11-05): era um cartão "Depois, hoje" lá embaixo, que repetia o que a
+ * grade do dia já mostra.
  */
-function ProximaCliente({ proxima, naCadeira, clientes, servicos, staff, mostrarQuem, avancar, irPara }) {
+function ProximaCliente({ proxima, depois, naCadeira, clientes, servicos, staff, mostrarQuem, avancar, irPara }) {
   const nome = a => clientes.find(c => c.id === a.cliente)?.nome || 'Cliente';
   const quemAtende = a => staff.find(p => p.id === a.prof)?.nome.split(' ')[0];
   // Cor cheia nas duas: quem está na cadeira em azul, a próxima no vinho da
@@ -369,8 +368,16 @@ function ProximaCliente({ proxima, naCadeira, clientes, servicos, staff, mostrar
       {proxima ? (
         <>
           <div className="rs-proxima-topo">
-            <span className="rs-proxima-selo">Próxima</span>
-            <span className="rs-proxima-quando">{quandoComeca(proxima.hora)}</span>
+            <span className="rs-proxima-agora">
+              <span className="rs-proxima-selo">Próxima</span>
+              <span className="rs-proxima-quando">{quandoComeca(proxima.hora)}</span>
+            </span>
+            {depois && (
+              <span className="rs-proxima-depois">
+                <i>Depois</i>
+                <span><b className="mono">{depois.hora}</b> {primeiroNome(nome(depois))}</span>
+              </span>
+            )}
           </div>
           <div className="rs-proxima-corpo">
             <span className="mono rs-proxima-hora">{proxima.hora}</span>
@@ -468,6 +475,65 @@ function MesRecolhido({ children }) {
 }
 
 /**
+ * Quem passou da hora sem ninguém marcar, de todos os dias que ainda devem.
+ *
+ * Substitui a confirmação que o WhatsApp ainda não faz (decisão de
+ * 2026-11-04): o relógio deixa o atendimento "sem marcação" (`pendente`), e é
+ * aqui que a equipe diz o que aconteceu. Quase sempre todo mundo veio, então a
+ * resposta comum é um toque só; quem faltou se marca na Lista, uma a uma.
+ *
+ * O cartão inteiro leva à Lista, no filtro "Sem marcação". Por isso o clique
+ * mora na `section`, e o "Alguém faltou" e o topo só deixam o clique subir; o
+ * topo é um `button` para o teclado chegar lá. Só "todos vieram" tem outro
+ * destino, e segura o clique: confirmar não pode também mudar de tela.
+ *
+ * "Todos vieram" manda os ids desta lista, e não "todos os pendentes": o que
+ * passar da hora depois de a tela carregar não foi visto por ninguém.
+ */
+function SemMarcacao({ lista, acao, irPara }) {
+  if (lista.length === 0) return null;
+  const dias = [...new Set(lista.map(a => a.data))];
+  const dm = d => `${d.slice(8)}/${d.slice(5, 7)}`;
+  const quais = dias.length <= 4 ? dias.map(dm).join(', ')
+    : `${dias.slice(0, 3).map(dm).join(', ')} e mais ${dias.length - 3}`;
+  const n = lista.length;
+  const todosVieram = e => {
+    e.stopPropagation();
+    confirmarTodos({ acao }, lista.map(a => a.id));
+  };
+
+  return (
+    <section className="card pp-aviso" aria-labelledby="pp-titulo"
+             onClick={irPara ? () => irPara('agenda', { semMarcacao: true }) : undefined}>
+      <button type="button" className="pp-topo">
+        <span className="rs-alerta-icone"><UserCheck size={15} aria-hidden="true" /></span>
+        <span className="rs-alerta-texto">
+          <b id="pp-titulo">
+            {n} {n === 1 ? 'atendimento sem marcação' : 'atendimentos sem marcação'}
+            {dias.length > 1 && ` em ${dias.length} dias`}
+          </b>
+          <i>
+            De {quais}. Passou da hora e ninguém marcou se a
+            cliente veio. O pagamento conta como estimado até ser registrado.
+          </i>
+        </span>
+        {irPara && <ChevronRight size={18} className="pp-seta" aria-hidden="true" />}
+      </button>
+      <div className="pp-acoes">
+        <button type="button" className="btn btn-p" onClick={todosVieram}>
+          <Check size={16} aria-hidden="true" /> Sim, todos vieram
+        </button>
+        {irPara && (
+          <button type="button" className="btn btn-g">
+            <UserX size={16} aria-hidden="true" /> Alguém faltou
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
  * O que está esperando alguém fazer alguma coisa.
  *
  * Cada alerta é um botão que leva para a tela onde se resolve — avisar sem
@@ -529,16 +595,16 @@ function pendencias({ agendamentos, clientes, hoje, doMeuRecorte, quem, fila, po
   // só `aberto`: um estornado não é pagamento esperando, é dinheiro devolvido —
   // cobrar de novo seria constrangedor.
   //
-  // Raro de propósito: o fechamento automático já marca como pago o que passou
-  // da hora (ver `jobs/fechamento.js`). Sobra o caso de alguém ter mexido no
-  // pagamento à mão, que é justamente quando vale avisar.
+  // O presumido fica de fora (migration 034): o fechamento supôs que ela pagou
+  // no balcão, e o aviso de "sem marcação" já diz que falta registrar. Cobrar
+  // aqui também seria tratar como dívida quem provavelmente pagou.
   //
   // Leva ao atendimento, não à Agenda: o aviso conta qualquer dia até hoje, e
   // a Agenda abre no dia de hoje — o pendente de ontem nem aparecia lá, e a
   // pessoa via outro atendimento, já pago, e achava que o aviso mentia.
   const cobrar = agendamentos.filter(a =>
     a.data <= hoje && a.status === 'concluido'
-    && a.pagamento?.status === 'aberto' && doMeuRecorte(a));
+    && a.pagamento?.status === 'aberto' && !a.pagamento?.presumido && doMeuRecorte(a));
   if (cobrar.length) {
     const nome = a => clientes.find(c => c.id === a.cliente)?.nome.split(' ')[0] || 'cliente';
     lista.push({
@@ -608,10 +674,9 @@ function AcoesRapidas({ irPara, poderes, naFila }) {
   if (!irPara) return null;
   const acoes = [
     { k: 'agenda', oQue: 'novo', icone: <Plus size={16} />, nome: 'Novo agendamento' },
-    // Nada de "registrar pagamento": o fechamento automático já marca como pago
-    // o que passou da hora (`jobs/fechamento.js`), então isso não é rotina — é
-    // conserto, e conserto tem o caminho dele nas pendências. Fechar um horário,
-    // sim, se faz toda semana.
+    // Nada de "registrar pagamento": registrar é na gaveta do atendimento, e o
+    // que passou da hora sem registro já tem o aviso de "sem marcação" acima.
+    // Fechar um horário, sim, se faz toda semana.
     { k: 'bloqueios', oQue: { novo: true }, icone: <Ban size={16} />, nome: 'Bloquear horário' },
     ...(poderes.clientes ? [{ k: 'clientes', icone: <User size={16} />, nome: 'Nova cliente' }] : []),
     // A fila tem o próprio aviso acima, com o número; aqui seria o mesmo
@@ -784,11 +849,12 @@ const ordenado = linhas => (linhas.some(l => l.producao != null)
   : linhas);
 
 /** "1 feito · 3 marcados · 1 faltou" — só as partes que existem. */
-function partesDoMes({ agendados = 0, atendimentos = 0, faltas = 0 }) {
-  const marcados = Math.max(agendados - atendimentos - faltas, 0);
+function partesDoMes({ agendados = 0, atendimentos = 0, faltas = 0, pendentes = 0 }) {
+  const marcados = Math.max(agendados - atendimentos - faltas - pendentes, 0);
   return [
     `${atendimentos} ${atendimentos === 1 ? 'feito' : 'feitos'}`,
     marcados > 0 && `${marcados} ${marcados === 1 ? 'marcado' : 'marcados'}`,
+    pendentes > 0 && `${pendentes} sem marcação`,
     faltas > 0 && `${faltas} ${faltas === 1 ? 'faltou' : 'faltaram'}`,
   ].filter(Boolean).join(' · ');
 }

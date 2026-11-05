@@ -379,8 +379,9 @@ describe('em atendimento', () => {
   });
 
   test('o fechamento automático não deixa ninguém preso nesse estado', async () => {
-    // Ontem, esquecido em atendimento: sem isto, o dinheiro nunca entraria no
-    // caixa e o pós-atendimento nunca sairia.
+    // Ontem, esquecido em atendimento: vira "sem marcação" e entra no aviso
+    // do Resumo, em vez de ficar na cadeira para sempre. Concluir é da equipe
+    // (migration 034).
     const { hoje, addDias } = await import('../src/lib/dates.js');
     const ontem = addDias(hoje(), -1);
     const r = await dona('POST', '/api/agendamentos', {
@@ -393,8 +394,8 @@ describe('em atendimento', () => {
 
     const depois = await dona('GET', `/api/agendamentos?de=${ontem}&ate=${ontem}`);
     const fechado = depois.corpo.find(a => a.id === r.corpo.id);
-    assert.equal(fechado.status, 'concluido', 'o dia virou e o atendimento conta');
-    assert.equal(fechado.pagamento.status, 'pago');
+    assert.equal(fechado.status, 'pendente', 'o dia virou e alguém precisa dizer como terminou');
+    assert.equal(fechado.pagamento.presumido, true);
   });
 });
 

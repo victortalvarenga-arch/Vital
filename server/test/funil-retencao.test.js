@@ -154,11 +154,20 @@ describe('o dia só fecha quando o comparecimento parou de mudar', () => {
   });
 
   test('quem faltou fecha com compareceu zero', async () => {
-    await visitaComAgendamento(diasAtras(5), 'faltou');
+    await visitaComAgendamento(diasAtras(5), 'falta');
     await compactar();
     const [linha] = await resumo();
     assert.equal(Number(linha.confirmou), 1);
     assert.equal(Number(linha.compareceu), 0);
+  });
+
+  test('sem marcação segura o dia, mesmo no passado', async () => {
+    // Pendente (034) ainda vai virar concluído ou falta quando a equipe
+    // confirmar. Fechar agora gravaria "compareceu: 0" de quem provavelmente veio.
+    await visitaComAgendamento(diasAtras(5), 'pendente');
+    const r = await compactar();
+    assert.equal(r.dias, 0);
+    assert.equal((await cru()).n, 2);
   });
 });
 

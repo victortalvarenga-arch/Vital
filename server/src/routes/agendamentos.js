@@ -19,7 +19,8 @@ const nomeDaCliente = async id => {
   return c ? c.nome.split(' ')[0] : 'alguém';
 };
 
-const STATUS = ['agendado', 'confirmado', 'em_atendimento', 'concluido', 'falta', 'cancelado'];
+// `pendente` é do relógio: passou da hora e ninguém marcou (migration 034).
+const STATUS = ['agendado', 'confirmado', 'em_atendimento', 'pendente', 'concluido', 'falta', 'cancelado'];
 const FORMAS = ['pix', 'cartao', 'dinheiro', 'local'];
 
 /** Reais para o texto do registro — quem lê "recebeu 20" quer ver R$ 20,00. */
@@ -421,6 +422,46 @@ agendamentos.post('/', rota(async (req, res) => {
   res.status(201).json(r.agendamento);
 }));
 
+/**
+ * "Sim, todos vieram": confirma a presença dos pendentes em lote.
+ *
+ * Pendente é o que passou da hora sem ninguém marcar (migration 034). O aviso
+ * do Resumo junta os de todos os dias, e este é o botão dele.
+ *
+ * **Recebe os ids, e não "todos os pendentes".** O aviso mostra uma lista; se
+ * outro atendimento passar da hora entre a tela carregar e o toque, ele não foi
+ * visto por ninguém e não pode ser confirmado junto. Só vira concluído o que
+ * está pendente agora e é da agenda de quem pede (`escopoDe`): o funcionário
+ * confirma os dele, a recepção e o dono os de todas.
+ *
+ * O pagamento continua presumido: presença não é dinheiro. Cada atendimento
+ * ganha o próprio evento no histórico, com o nome de quem confirmou.
+ */
+agendamentos.post('/confirmar-presenca', rota(async (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String).filter(Boolean) : [];
+  if (!ids.length) return res.status(400).json({ erro: 'informe quais atendimentos confirmar' });
+
+  const so = escopoDe(req.usuario);
+  const alvos = await db.all(
+    `SELECT id, data FROM appointments
+      WHERE id = ANY(?) AND status = 'pendente' ${so ? 'AND staff_id = ?' : ''}`,
+    ids, ...(so ? [so] : [])
+  );
+  if (!alvos.length) return res.json({ confirmados: 0, ids: [] });
+
+  const confirmados = alvos.map(a => a.id);
+  await db.run(`UPDATE appointments SET status = 'concluido' WHERE id = ANY(?)`, confirmados);
+
+  const dias = [...new Set(alvos.map(a => a.data))].sort();
+  await req.registrar('agendamento.presenca_em_lote', {
+    alvoTipo: 'agendamento',
+    resumo: `confirmou que vieram ${confirmados.length} atendimento${confirmados.length === 1 ? '' : 's'} `
+      + `de ${dias.length} dia${dias.length === 1 ? '' : 's'}`,
+    detalhe: { ids: confirmados, dias },
+  });
+  res.json({ confirmados: confirmados.length, ids: confirmados });
+}));
+
 agendamentos.put('/:id', rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM appointments WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'agendamento não encontrado' });
@@ -442,6 +483,21 @@ agendamentos.put('/:id', rota(async (req, res) => {
     return res.status(400).json({ erro: 'valor recebido inválido' });
   }
 
+  // Cliente, serviço e profissional trocados chegam pelo corpo, e a chave
+  // estrangeira não basta para conferi-los: a checagem dela ignora o RLS, então
+  // um id de outra empresa seria aceito pelo banco. A leitura passa pelo RLS e
+  // só acha o que é desta.
+  const trocas = [
+    [b.clienteId, atual.client_id, 'clients', 'cliente não encontrada'],
+    [b.servicoId, atual.service_id, 'services', 'serviço não encontrado'],
+    [b.profissionalId, atual.staff_id, 'staff', 'profissional não encontrada'],
+  ];
+  for (const [novo, antigo, tabela, erro] of trocas) {
+    if (novo && novo !== antigo && !await db.get(`SELECT 1 FROM ${tabela} WHERE id=?`, novo)) {
+      return res.status(404).json({ erro });
+    }
+  }
+
   const data = b.data || atual.data;
   const hora = b.hora || atual.hora;
   const staffId = b.profissionalId || atual.staff_id;
@@ -450,6 +506,11 @@ agendamentos.put('/:id', rota(async (req, res) => {
 
   const valor = b.valor != null ? +b.valor : atual.valor;
   const pag = pagamentoDe(atual, b.pagamento, valor);
+  // O presumido (034) some quando alguém diz algo sobre o dinheiro — registrou,
+  // trocou a forma, desfez — ou quando não houve atendimento a pagar. Confirmar
+  // a presença NÃO o tira: "ela veio" não é "ela pagou".
+  const novoStatus = b.status || atual.status;
+  const presumido = b.pagamento || ['falta', 'cancelado'].includes(novoStatus) ? 0 : atual.pag_presumido;
 
   const resultado = await db.transacao(async tx => {
     if (mudouHorario && await conflita({ staffId, data, hora, duracao, ignorarId: atual.id }, tx)) {
@@ -457,15 +518,16 @@ agendamentos.put('/:id', rota(async (req, res) => {
     }
     await tx.run(
       `UPDATE appointments SET client_id=?, service_id=?, staff_id=?, data=?, hora=?, duracao=?,
-              valor=?, status=?, pag_status=?, pag_recebido=?, pag_forma=?, pag_ref=?, obs=?
+              valor=?, status=?, pag_status=?, pag_recebido=?, pag_forma=?, pag_ref=?, pag_presumido=?, obs=?
          WHERE id=?`,
       b.clienteId || atual.client_id,
       b.servicoId || atual.service_id,
       staffId, data, hora, duracao,
       valor,
-      b.status || atual.status,
+      novoStatus,
       pag.status, pag.recebido, pag.forma,
       b.pagamento?.ref ?? atual.pag_ref,
+      presumido,
       b.obs ?? atual.obs,
       req.params.id
     );
@@ -497,7 +559,12 @@ agendamentos.put('/:id', rota(async (req, res) => {
   // procura "quem atendeu a Maria de verdade" procura por isto.
   const soTrocouDeMao = staffId !== atual.staff_id && data === atual.data && hora === atual.hora;
   const nomeDe = async id => (await db.get('SELECT nome FROM staff WHERE id=?', id))?.nome.split(' ')[0] || '—';
+  // Falta e presença confirmada têm frase própria: são o que se procura depois
+  // de um dia de pendências (migration 034), e "alterou o horário" não diria.
+  const virou = depois.status !== atual.status && depois.status;
   const acao = depois.status === 'cancelado' ? 'agendamento.cancelado'
+    : virou === 'falta' ? 'agendamento.falta'
+    : virou === 'concluido' && atual.status === 'pendente' ? 'agendamento.presenca_confirmada'
     : soTrocouDeMao ? 'agendamento.trocou_profissional'
     : mudouHorario ? 'agendamento.remarcado'
     : entrou < 0 ? 'agendamento.pagamento_desfeito'
@@ -506,6 +573,8 @@ agendamentos.put('/:id', rota(async (req, res) => {
     : 'agendamento.alterado';
   const resumo = {
     'agendamento.cancelado': `cancelou o horário de ${quem} · ${atual.data} ${atual.hora}`,
+    'agendamento.falta': `marcou falta de ${quem} · ${atual.data} ${atual.hora}`,
+    'agendamento.presenca_confirmada': `confirmou que ${quem} veio · ${atual.data} ${atual.hora}`,
     'agendamento.trocou_profissional': soTrocouDeMao
       && `passou ${quem} (${depois.data} ${depois.hora}) de ${await nomeDe(atual.staff_id)} para ${await nomeDe(staffId)}`,
     'agendamento.remarcado': `remarcou ${quem} de ${atual.data} ${atual.hora} para ${depois.data} ${depois.hora}`,

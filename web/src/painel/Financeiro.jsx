@@ -9,7 +9,7 @@ import {
 import { compacto, rotuloDeValor, tetoDoEixo } from '../shared/graficos.js';
 import SeletorProfissional from './Seletor.jsx';
 import IntervaloDatas from './IntervaloDatas.jsx';
-import { Numero } from './Cartoes.jsx';
+import { DICA_ESTIMADO, Numero } from './Cartoes.jsx';
 
 /**
  * Financeiro: quanto entrou, quanto saiu e quanto sobrou, no período que a
@@ -139,10 +139,16 @@ export default function Financeiro({ dados, poderes }) {
         {/* Quatro números, na ordem em que a pergunta se faz: o que entrou, o que
             sobrou, o que ainda vem, e quanto rende cada atendimento. */}
         <div className="fin-cards">
-          <Numero rotulo={meu ? 'Sua receita' : `Receita${de1}`} valor={r && brl(r.recebido)}
-                  dica={meu ? 'O que você atendeu neste período e já foi pago.'
-                            : 'Tudo o que foi atendido e já foi pago neste período.'}
+          {/* O caixa em duas linhas (decisão de 2026-11-04): o que alguém
+              registrou, e o que o fechamento supôs ter entrado no balcão. Nunca
+              somados num número só — a dona precisa saber quanto foi visto. */}
+          <Numero rotulo={meu ? 'Sua receita confirmada' : `Recebido confirmado${de1}`} valor={r && brl(r.recebido)}
+                  dica={meu ? 'O que você atendeu neste período e teve o pagamento registrado.'
+                            : 'Tudo o que foi atendido neste período e teve o pagamento registrado.'}
                   extra={r && <Variacao de={r.anterior.recebido} para={r.recebido} parcial={r.anterior.parcial} />} />
+          {r?.presumido > 0 && (
+            <Numero rotulo="Estimado (presumido)" valor={brl(r.presumido)} dica={DICA_ESTIMADO} />
+          )}
           {meu
             ? <Numero rotulo="Sua comissão" valor={r && brl(r.custos)}
                       dica="A sua parte sobre o que foi pago, pela sua porcentagem de comissão." />

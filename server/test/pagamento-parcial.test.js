@@ -166,7 +166,7 @@ describe('a entrada nas contas do dono', () => {
     assert.equal(Number(r.custos), 0, 'comissão de dinheiro que voltou não se paga');
   });
 
-  test('o fechamento automático quita a entrada que ficou pelo caminho', async () => {
+  test('o fechamento automático presume o resto da entrada, sem registrá-lo', async () => {
     const { hoje, addDias } = await import('../src/lib/dates.js');
     const ontem = addDias(hoje(), -1);
     const r = await dona('POST', '/api/agendamentos', {
@@ -179,8 +179,12 @@ describe('a entrada nas contas do dono', () => {
 
     const depois = await dona('GET', `/api/agendamentos?de=${ontem}&ate=${ontem}`);
     const fechado = depois.corpo.find(a => a.id === r.corpo.id);
-    assert.equal(fechado.pagamento.status, 'pago');
-    assert.equal(Number(fechado.pagamento.recebido), 100, 'o resto entrou no balcão');
-    assert.equal(fechado.pagamento.forma, 'pix', 'a forma da entrada diz mais que "local"');
+    // Até a 034 o fechamento quitava o resto como se tivesse entrado. Agora o
+    // recebido é só o que alguém registrou, e o resto vira estimado.
+    assert.equal(fechado.status, 'pendente');
+    assert.equal(fechado.pagamento.status, 'parcial');
+    assert.equal(Number(fechado.pagamento.recebido), 20, 'só a entrada foi vista entrando');
+    assert.equal(fechado.pagamento.presumido, true, 'o resto é suposição, em linha separada');
+    assert.equal(fechado.pagamento.forma, 'pix');
   });
 });

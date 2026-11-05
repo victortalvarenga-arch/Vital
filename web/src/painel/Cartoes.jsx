@@ -10,6 +10,11 @@ export const Numero = ({ rotulo, valor, dica, extra }) => (
   </div>
 );
 
+/** O mesmo texto no Resumo e no Financeiro: "estimado" não pode mudar de sentido entre as telas. */
+export const DICA_ESTIMADO = 'Atendimentos que passaram da hora sem pagamento registrado. '
+  + 'O sistema supõe que foram pagos no balcão, mas ninguém confirmou. Esse valor não entra no '
+  + 'recebido: passa para o confirmado quando alguém registra o pagamento no atendimento.';
+
 /**
  * O "?" no canto de um cartão: uma frase dizendo o que o número quer dizer.
  * Era "!", que se lê como alerta — e o cartão não está errado, só explica.

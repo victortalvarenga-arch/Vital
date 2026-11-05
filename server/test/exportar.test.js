@@ -97,7 +97,8 @@ describe('clientes.csv', () => {
     const c = t.find(l => l[0] === 'Conceição Araújo');
     assert.equal(c[col('WhatsApp')], '(47) 90000-0001');
     assert.equal(c[col('Aceita mensagens de marketing')], 'Não');
-    assert.equal(c[col('Visitas')], '2', 'o cancelado não conta como visita');
+    assert.equal(c[col('Visitas')], '1',
+      'visita é atendimento concluído: nem o cancelado nem o horário ainda por vir');
     assert.equal(c[col('Total pago (R$)')], '140,00', 'vírgula decimal, que o Excel daqui soma');
   });
 

@@ -90,9 +90,15 @@ export async function gerarFila() {
     }) ? 1 : 0;
   }
 
-  // Pós-atendimento: um dia depois de quem foi atendido.
+  // Pós-atendimento: depois de quem foi atendido. Desde a 034, o atendimento
+  // só vira concluído quando alguém confirma que a cliente veio — e isso pode
+  // acontecer dias depois, pelo aviso de pendências. Olhar só "ontem" deixaria
+  // sem mensagem quem foi confirmada na quinta pelo atendimento de segunda.
+  // Uma semana é o limite em que "como foi?" ainda faz sentido; o `dedupe`
+  // garante uma mensagem por atendimento.
   const ontem = await db.all(
-    `SELECT * FROM appointments WHERE data = ? AND status = 'concluido'`, addDias(h, -1)
+    `SELECT * FROM appointments WHERE data >= ? AND data <= ? AND status = 'concluido'`,
+    addDias(h, -7), addDias(h, -1)
   );
   for (const a of ontem) {
     n += await enfileirar({
@@ -145,7 +151,7 @@ export async function gerarFila() {
 
 /** Entrega o que já venceu. No modo manual não envia nada: só deixa na fila. */
 export async function despachar({ limite = 30 } = {}) {
-  if (modoManual()) return { enviadas: 0, modo: 'manual' };
+  if (await modoManual()) return { enviadas: 0, modo: 'manual' };
 
   const vencidas = await db.all(
     `SELECT * FROM messages WHERE status = 'pendente' AND agendado_para <= ?
@@ -283,6 +289,6 @@ function agendar() {
   paraCadaEmpresa('fechamento inicial', fecharAtendimentos)
     .catch(e => console.error('[fechamento inicial]', e.message));
   paraCadaEmpresa('fila inicial', gerarFila).catch(e => console.error('[fila inicial]', e.message));
-  console.log(`[jobs] ativos neste processo · fuso ${tz} · provider ${process.env.WHATSAPP_PROVIDER || 'manual'}`);
+  console.log(`[jobs] ativos neste processo · fuso ${tz}`);
   return tarefas;
 }

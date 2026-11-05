@@ -59,7 +59,7 @@ export function useArrastar({
 
   const aoPegar = (e, a) => {
     // Atendimento que já aconteceu não se remarca; mudar isso é pelo detalhe.
-    if (a.status === 'concluido' || a.status === 'falta') { aoTocar?.(a); return; }
+    if (['concluido', 'falta', 'pendente'].includes(a.status)) { aoTocar?.(a); return; }
 
     // Duas coisas para o arrasto sobreviver à virada de página, que desmonta o
     // bloco arrastado (ele fica no dia que passou):

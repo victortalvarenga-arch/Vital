@@ -3,55 +3,51 @@ import { hoje, agora } from '../lib/dates.js';
 import { registrarDoSistema } from '../lib/registro.js';
 
 /**
- * Fechamento automático: passou a hora, o atendimento conta.
+ * Fechamento automático: passou a hora sem ninguém marcar, fica pendente.
  *
  * ---------------------------------------------------------------------------
- * Por que o padrão é "veio", e não "não veio"
+ * Pendente, e não concluído (decisão de 2026-11-04)
  * ---------------------------------------------------------------------------
- * Quase toda cliente aparece. Exigir um clique por atendimento fazia registrar
- * a REGRA muitas vezes ao dia para que a EXCEÇÃO ficasse implícita — o
- * contrário do que sai barato num balcão cheio.
+ * Até a migration 034 o padrão era "veio": passada a hora, o atendimento virava
+ * concluído e pago sozinho, contando que o WhatsApp confirmaria quem veio. Ele
+ * ainda não confirma, e o padrão virou dado inventado — a falta que ninguém
+ * marcava entrava como comparecimento, a cliente recebia o pós-atendimento e o
+ * caixa somava dinheiro que ninguém viu.
  *
- * E o custo de não marcar era invisível: `concluido` comanda o dinheiro, a
- * mensagem de pós-atendimento, o "último atendimento" dos modelos e a
- * reativação. Sem ninguém marcar, o CRM inteiro parava — sem erro, sem log,
- * sem sintoma. Alguém só descobriria meses depois, perguntando por que
- * nenhuma cliente recebeu mensagem.
- *
- * Agora a exceção é que se registra: a atendente marca falta ou cancelado a
- * qualquer momento, e o atendimento sai do caixa e do CRM.
+ * Agora o relógio só diz o que sabe: o horário passou e ninguém marcou nada.
+ * Quem diz se veio é a equipe — "todos vieram" em lote, pelo aviso do Resumo
+ * (`POST /api/agendamentos/confirmar-presenca`), ou falta uma a uma, na Lista.
+ * Até lá, o atendimento não é visita, não dispara pós-atendimento e não entra
+ * no recebido.
  *
  * ---------------------------------------------------------------------------
- * O pagamento entra junto
+ * O pagamento fica presumido
  * ---------------------------------------------------------------------------
- * Decisão de produto, tomada sabendo do risco: dinheiro passa a aparecer no
- * caixa sem ninguém ter confirmado que entrou. Em troca, o caso comum — veio e
- * pagou — não custa clique nenhum, e o que não bate se conserta pela tela de
- * Atendimentos.
- *
- * **A forma fica no padrão da coluna, 'local'** — "pago no balcão", que é
- * justamente o que se sabe quando ninguém informou nada. Não se chuta pix nem
- * cartão: essas duas alguém precisa ter digitado.
+ * O caso comum continua sendo "pagou no balcão", e o dono quer ver esse
+ * dinheiro — mas separado do que alguém registrou. O fechamento marca
+ * `pag_presumido` e NÃO mexe em `pag_recebido`: o caixa mostra o recebido
+ * confirmado e, em outra linha, o estimado (`valor - pag_recebido` do que é
+ * presumido). Quem já pagou tudo antes da hora não tem o que presumir.
  *
  * ---------------------------------------------------------------------------
  * Rastro
  * ---------------------------------------------------------------------------
- * Cron não tem `req.registrar`. Cada passagem grava uma linha em `logs` como
- * "sistema", com quantos fechou — sem isso o dono veria faturamento aparecer
- * sem autor nenhum.
+ * Cada atendimento ganha o próprio evento em `appointment_events`, assinado
+ * como sistema/fechamento (migration 031). Em `logs`, uma linha por passagem,
+ * para o dono ler na lista do registro.
  */
 export async function fecharAtendimentos() {
   const h = hoje();
   const hm = agora();                     // 'HH:MM' no fuso da empresa
 
-  // "Passou a hora" é o FIM do atendimento, não o início: fechar às 14:00 um
-  // corte que vai até as 15:00 contaria dinheiro de quem ainda está na cadeira.
+  // "Passou a hora" é o FIM do atendimento, não o início: marcar às 14:00 um
+  // corte que vai até as 15:00 pediria confirmação de quem ainda está na cadeira.
   //
   // Dias anteriores entram inteiros; o de hoje, só o que já terminou. Comparar
   // hora como texto funciona porque o formato é 'HH:MM' com zero à esquerda —
   // é o mesmo motivo de data e hora serem texto no projeto inteiro.
-  const pendentes = await db.all(
-    `SELECT id, client_id, data, hora, duracao, valor
+  const passaram = await db.all(
+    `SELECT id, valor, pag_recebido
        FROM appointments
       WHERE status IN ('agendado', 'confirmado', 'em_atendimento')
         AND (data < ?
@@ -60,28 +56,26 @@ export async function fecharAtendimentos() {
       ORDER BY data, hora`,
     h, h, hm
   );
-  if (pendentes.length === 0) return 0;
+  if (passaram.length === 0) return 0;
 
-  const ids = pendentes.map(a => a.id);
-  await db.run(
+  const ids = passaram.map(a => a.id);
+  // Assinado como fechamento, e não como quem abriu o painel (este job também
+  // roda dentro do GET /api/estado).
+  await db.comAutoria({ tipo: 'sistema', origem: 'fechamento' }, () => db.run(
     `UPDATE appointments
-        SET status = 'concluido',
-            -- Quem tinha entrada é quitado junto: o atendimento aconteceu e
-            -- ninguém voltou para dizer o contrário. Fica a forma do primeiro
-            -- recebimento, que é mais informação do que o 'local' genérico.
-            pag_recebido = valor,
-            pag_status = 'pago'
+        SET status = 'pendente',
+            pag_presumido = CASE WHEN pag_recebido < valor THEN 1 ELSE 0 END
       WHERE id IN (${ids.map(() => '?').join(',')})`,
     ...ids
-  );
+  ));
 
-  const total = pendentes.reduce((s, a) => s + Number(a.valor || 0), 0);
-  await registrarDoSistema('agendamento.fechado_automaticamente', {
+  const estimado = passaram.reduce((s, a) => s + Math.max(0, Number(a.valor || 0) - Number(a.pag_recebido || 0)), 0);
+  await registrarDoSistema('agendamento.pendente', {
     alvoTipo: 'agendamento',
-    resumo: `fechou ${pendentes.length} atendimento${pendentes.length === 1 ? '' : 's'} `
-      + `cujo horário já passou (R$ ${total.toFixed(2).replace('.', ',')})`,
-    detalhe: { ids, total },
+    resumo: `${passaram.length} atendimento${passaram.length === 1 ? '' : 's'} passou${passaram.length === 1 ? '' : 'aram'} `
+      + `da hora sem marcação · R$ ${estimado.toFixed(2).replace('.', ',')} presumido`,
+    detalhe: { ids, estimado },
   });
 
-  return pendentes.length;
+  return passaram.length;
 }

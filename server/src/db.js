@@ -3,6 +3,7 @@ import { migrar } from './lib/migrate.js';
 import { contexto, conexaoAtual, empresaAtual } from './lib/contexto.js';
 import { comPadroes } from './lib/tenant.js';
 import { sslPara } from './lib/ambiente.js';
+import { fuso } from './lib/dates.js';
 
 const { Pool, types } = pg;
 
@@ -16,10 +17,31 @@ types.setTypeParser(1700, v => (v === null ? null : parseFloat(v)));
 // COUNT() devolve BIGINT, que também vira string. Mesma história.
 types.setTypeParser(20, v => (v === null ? null : parseInt(v, 10)));
 
+/**
+ * Toda conexão nasce no fuso da agenda.
+ *
+ * As datas da agenda são texto no fuso da empresa (`lib/dates.js`), mas o SQL
+ * que calcula "hoje" com `to_char(now(), ...)` — o mês do back-office (008), a
+ * janela e o fechamento do funil (015, 016) — usava o fuso da sessão do banco,
+ * que na Neon é UTC. Das 21h à meia-noite, o "hoje" do banco já era amanhã.
+ * Instantes (TIMESTAMPTZ) não mudam com isto: o fuso só decide como viram texto.
+ *
+ * Vai como opção de início de conexão, e não num `SET` ao conectar: o evento
+ * `connect` do pool não espera a consulta, e ela correria junto da primeira da
+ * requisição. As opções que já vierem na URL (a Neon usa `options` para o
+ * endpoint) são mantidas.
+ */
+function opcoesDeConexao(url) {
+  let daUrl = '';
+  try { daUrl = new URL(url).searchParams.get('options') || ''; } catch { /* sem URL: iniciarBanco avisa */ }
+  return `${daUrl} -c TimeZone=${fuso()}`.trim();
+}
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // Postgres gerenciado (Neon, Supabase) exige TLS; o local não tem certificado.
   ssl: sslPara(process.env.DATABASE_URL),
+  options: opcoesDeConexao(process.env.DATABASE_URL),
 });
 
 pool.on('error', erro => {
@@ -143,6 +165,45 @@ export const db = {
   },
 
   /**
+   * Diz ao banco quem está mexendo na agenda, para o histórico do agendamento.
+   *
+   * O gatilho da migration 031 grava cada mudança de `appointments` e lê a
+   * autoria destas marcas da conexão. Sem marca, o evento sai como "sistema".
+   *
+   * Com `fn`, a marca vale só durante ela e volta ao que era depois: o
+   * fechamento automático roda dentro do GET de quem abre o painel, e sem
+   * devolver a marca o relógio levaria o nome da dona — ou o contrário.
+   *
+   * @param {{ tipo: 'equipe'|'cliente'|'sistema', id?: string, nome?: string, origem?: string }} autoria
+   */
+  async comAutoria(autoria, fn) {
+    const cliente = conexaoAtual();
+    if (!cliente) return fn?.();
+    // Na requisição, a marca é da transação e morre com ela; no cron e no seed
+    // (`comEmpresa`), não há transação aberta e ela vale para a sessão.
+    const local = !!contexto.getStore()?.emTransacao;
+    const marcar = v => cliente.query(
+      `SELECT set_config('app.autor_tipo', $1, $5), set_config('app.autor_id', $2, $5),
+              set_config('app.autor_nome', $3, $5), set_config('app.origem', $4, $5)`,
+      [v.tipo || '', v.id || '', v.nome || '', v.origem || '', local]
+    );
+    if (!fn) return marcar(autoria);
+
+    const { rows: [antes] } = await cliente.query(
+      `SELECT current_setting('app.autor_tipo', true) AS tipo, current_setting('app.autor_id', true) AS id,
+              current_setting('app.autor_nome', true) AS nome, current_setting('app.origem', true) AS origem`
+    );
+    await marcar(autoria);
+    try {
+      return await fn();
+    } finally {
+      // Transação já envenenada não aceita nem isto — e ela vai ser desfeita
+      // inteira, marca junto. Engolir aqui é não esconder o erro de verdade.
+      try { await marcar(antes || {}); } catch { /* transação abortada */ }
+    }
+  },
+
+  /**
    * Uma requisição HTTP inteira numa transação, com a empresa marcada nela.
    *
    * **Por que transação, e não a conexão marcada.** Antes, a empresa era
@@ -249,6 +310,12 @@ export const db = {
       // Sem isto, a conexão volta ao pool marcada com esta empresa e a próxima
       // requisição herdaria o acesso.
       try { await cliente.query('RESET app.tenant_id'); } catch { /* conexão já morta */ }
+      // A autoria do histórico (031) também é de sessão aqui: um job que marcou
+      // "fechamento" não pode emprestar a marca para quem pegar a conexão depois.
+      try {
+        await cliente.query(`SELECT set_config('app.autor_tipo', '', false), set_config('app.autor_id', '', false),
+                                    set_config('app.autor_nome', '', false), set_config('app.origem', '', false)`);
+      } catch { /* conexão já morta */ }
       cliente.release();
     }
   },
@@ -384,7 +451,10 @@ export const apptOut = r => r && ({
   id: r.id, clienteId: r.client_id, servicoId: r.service_id, profissionalId: r.staff_id,
   data: r.data, hora: r.hora, duracao: r.duracao, valor: r.valor, status: r.status,
   pagamento: { status: r.pag_status, forma: r.pag_forma, ref: r.pag_ref,
-    recebido: Number(r.pag_recebido || 0) },
+    recebido: Number(r.pag_recebido || 0),
+    // O fechamento supôs que o resto foi pago no balcão; ninguém registrou
+    // ainda (migration 034). Não é dinheiro recebido nem dívida.
+    presumido: !!r.pag_presumido },
   origem: r.origem, obs: r.obs, criadoEm: r.criado_em,
   unidadeId: r.unit_id || null,
   // `comboGrupo` amarra os irmãos da mesma venda; cancelar um cancela o grupo.

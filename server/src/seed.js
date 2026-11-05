@@ -343,9 +343,9 @@ async function primeiraClienteReal() {
     await mk('c2', 'v6', 's2', 0, '10:30', 'confirmado', 'pago', 'pix');
     // A cliente das 11h está na cadeira, não só confirmada: é o que a Recepção
     // mostra como "na cadeira" e o que a gaveta abre já oferecendo "Concluir".
-    // O estado é passageiro de propósito — passada a hora o fechamento fecha
-    // este atendimento como fecha qualquer outro, e numa máquina reiniciada à
-    // tarde ele aparece como concluído. É o comportamento real do sistema.
+    // O estado é passageiro de propósito — passada a hora o fechamento o deixa
+    // "sem marcação" como qualquer outro, e numa máquina reiniciada à tarde ele
+    // aparece no aviso do Resumo. É o comportamento real do sistema.
     await mk('c3', 'v4', 's1', 0, '11:00', 'em_atendimento', 'aberto', 'local');
     // Limpeza de pele de hoje: fica com a ficha PENDENTE de propósito. É o
     // estado normal de quem agendou pelo site, e é o que a profissional vai
@@ -360,6 +360,27 @@ async function primeiraClienteReal() {
     await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
     await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
     await mk('c5', 'v9', 's2', 2, '11:00', 'agendado', 'aberto', 'local');
+    // O histórico do agendamento (migration 031) com um percurso inteiro: a
+    // Débora marca pelo site, a recepção a remarca e ela cancela pelo WhatsApp.
+    // A linha de `appointments` termina só "cancelado"; de onde saiu, quem
+    // mexeu e quando está em `appointment_events`.
+    const remarcada = await db.comAutoria({ tipo: 'cliente', origem: 'site' },
+      () => mk('c6', 'v1', 's1', 3, '09:00', 'agendado', 'aberto', 'local'));
+    await db.comAutoria({ tipo: 'equipe', nome: 'Recepção', origem: 'painel' },
+      () => db.run(`UPDATE appointments SET data=?, hora='15:00' WHERE id=?`, addDias(h, 4), remarcada));
+    await db.comAutoria({ tipo: 'cliente', origem: 'whatsapp' },
+      () => db.run(`UPDATE appointments SET status='cancelado' WHERE id=?`, remarcada));
+    // Dois dias que ninguém marcou (migration 034): é o que dá o aviso "sem
+    // marcação" do Resumo, com "Sim, todos vieram" e "Alguém faltou", e a linha
+    // de estimado no caixa. Um deles com entrada paga, para o estimado mostrar
+    // só o resto. Gravados como o fechamento grava: pendente, presumido.
+    await db.comAutoria({ tipo: 'sistema', origem: 'fechamento' }, async () => {
+      for (const id of [
+        await mk('c4', 'v1', 's1', -2, '15:00', 'pendente', 'aberto', 'local'),
+        await mk('c2', 'v8', 's2', -1, '10:00', 'pendente', 'parcial', 'pix', 20),
+        await mk('c5', 'v2', 's1', -1, '16:30', 'pendente', 'aberto', 'local'),
+      ]) await db.run('UPDATE appointments SET pag_presumido = 1 WHERE id = ?', id);
+    });
     await mk('c1', 'v1', 's1', -21, '09:00', 'concluido', 'pago', 'pix');
     await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
     await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');

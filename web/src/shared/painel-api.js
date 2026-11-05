@@ -143,6 +143,8 @@ export const api = {
     return req('/agendamentos' + (q.toString() ? `?${q}` : '')).then(l => l.map(agParaTela));
   },
   atualizarAgendamento: (id, patch) => req(`/agendamentos/${id}`, { method: 'PUT', body: patch }),
+  // "Sim, todos vieram": só os ids que o aviso mostrou viram concluídos.
+  confirmarPresenca: ids => req('/agendamentos/confirmar-presenca', { method: 'POST', body: { ids } }),
   removerAgendamento: id => req(`/agendamentos/${id}`, { method: 'DELETE' }),
 
   /* ── formulários ── */

@@ -390,15 +390,19 @@ publico.post('/agendar', LIMITES.agendar, rota(async (req, res) => {
 
   // Combo vira vários agendamentos em sequência, não um só. O resto da resposta
   // é igual, para o site não ter dois caminhos de confirmação.
-  const r = b.comboId
-    ? await criarCombo({ ...dados, comboId: b.comboId }, { origem: 'site' })
-    : await criarAgendamento(
+  //
+  // Quem marca é a cliente, mesmo que o navegador tenha um login do painel
+  // aberto: o histórico (migration 031) precisa separar o que ela escolheu do
+  // que a equipe encaixou.
+  const r = await db.comAutoria({ tipo: 'cliente', origem: 'site' }, () => b.comboId
+    ? criarCombo({ ...dados, comboId: b.comboId }, { origem: 'site' })
+    : criarAgendamento(
         // Sem `respostas`: a anamnese não é perguntada aqui, e mandar o campo
         // adiante deixaria a porta entreaberta para o site voltar a coletá-la.
         // `criarAgendamento` também ignora, pela origem — são duas guardas.
         { ...dados, servicoId: b.servicoId, adicionaisIds: b.adicionaisIds },
         { origem: 'site' }
-      );
+      ));
   if (r.erro) return res.status(r.codigo).json({ erro: r.erro });
 
   // O quarto passo do funil é gravado AQUI, e não pelo navegador: é o único

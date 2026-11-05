@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, UserX, Wallet, X } from 'lucide-react';
-import { mudarSituacao } from './fluxo.js';
+import { confirmarTodos, mudarSituacao } from './fluxo.js';
 import { api } from '../shared/painel-api.js';
 import { brl } from '../shared/formato.js';
 import { hojeISO, toMin } from '../shared/tempo.js';
@@ -9,10 +9,11 @@ import { hojeISO, toMin } from '../shared/tempo.js';
 /**
  * Agendamentos: quem veio, quem faltou, quem cancelou.
  *
- * Existe por causa do fechamento automático. Passado o horário, o atendimento
- * vira concluído e pago sozinho (ver `jobs/fechamento.js`) — o que resolve o
- * caso comum sem clique nenhum, mas exige um lugar onde a exceção se conserte.
- * Esta é a tela: uma lista do período, com o estado de cada um e três botões.
+ * Existe por causa do fechamento automático. Passado o horário sem ninguém
+ * marcar, o atendimento fica "sem marcação" (`pendente`, ver
+ * `jobs/fechamento.js`) até alguém dizer se a cliente veio. Quem faltou se
+ * marca aqui, uma a uma; o resto se confirma em lote, pelo botão no fim da lista
+ * ou pelo "todos vieram" do Resumo.
  *
  * **Marcar falta ou cancelado tira do caixa e do CRM.** O atendimento sai do
  * recebido, some da divisão por forma de pagamento, deixa de contar como
@@ -44,6 +45,10 @@ const ESTADOS = {
   agendado: { rotulo: 'A confirmar', tom: 'aguarda', busca: 'agendado' },
   confirmado: { rotulo: 'Confirmado', tom: 'confirmado', busca: 'confirmado' },
   em_atendimento: { rotulo: 'Em atendimento', tom: 'agora', busca: 'em_atendimento' },
+  // Passou da hora e ninguém marcou (migration 034). Todos os dias até hoje,
+  // como "A receber": é a lista que o "Alguém faltou" do Resumo abre, e o
+  // aviso de lá junta pendências de qualquer dia.
+  pendente: { rotulo: 'Sem marcação', tom: 'aguarda', busca: 'pendente', todosOsDias: true },
   concluido: { rotulo: 'Atendido', tom: 'feito', busca: 'concluido' },
   falta: { rotulo: 'Faltou', tom: 'falta', busca: 'falta' },
   cancelado: { rotulo: 'Cancelado', tom: 'ruim', busca: 'cancelado' },
@@ -98,7 +103,9 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
 
   const visiveis = (lista || [])
     .filter(a => pessoas.length === 0 || pessoas.includes(a.prof))
-    .filter(a => estado !== 'receber' || a.pagamento?.status !== 'pago');
+    // Presumido não é "a receber": o sistema supôs que entrou, só não foi
+    // registrado. Tem linha própria no caixa, e não cobra ninguém.
+    .filter(a => estado !== 'receber' || (a.pagamento?.status !== 'pago' && !a.pagamento?.presumido));
 
   return (
     <>
@@ -107,6 +114,7 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
           {/* Um total só por tela: o dinheiro do período já está no topo da
               Agenda, e um segundo valor aqui, com outra base, parecia outro número. */}
           {!lista ? 'Carregando…'
+            : todos && estado === 'pendente' ? `${visiveis.length} sem marcação, de qualquer dia até hoje`
             : todos ? `${visiveis.length} a receber, de qualquer dia até hoje`
             : `${visiveis.length} no período`}
         </span>
@@ -161,7 +169,12 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
                     <td><span className={'ag-estado ' + e.tom}>{e.rotulo}</span></td>
                     {/* O dinheiro tem coluna própria: "Atendido" sozinho não dizia
                         se pagou, e a Recepção dizia — pareciam se contradizer. */}
-                    <td>{a.status === 'concluido'
+                    <td>{a.pagamento?.presumido && ['pendente', 'concluido'].includes(a.status)
+                      ? <span className="ag-pag presumido">Presumido</span>
+                      // Pago aparece antes de concluir: "—" num atendimento já
+                      // quitado parecia falta de informação. Falta e cancelado
+                      // ficam de fora porque esse dinheiro não conta no caixa.
+                      : a.status === 'concluido' || (a.pagamento?.status === 'pago' && !['falta', 'cancelado'].includes(a.status))
                       ? <span className={'ag-pag ' + (a.pagamento?.status || 'aberto')}>{PAGAMENTO[a.pagamento?.status] || 'A pagar'}</span>
                       : '—'}</td>
                     {/* Só o que faz sentido naquele estado: antes, "atendida"
@@ -174,12 +187,13 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
                           <Wallet size={14} aria-hidden="true" /> Receber
                         </button>
                       )}
-                      {(a.status === 'em_atendimento' || (['agendado', 'confirmado'].includes(a.status) && jaComecou(a))) && (
+                      {(a.status === 'em_atendimento' || a.status === 'pendente'
+                        || (['agendado', 'confirmado'].includes(a.status) && jaComecou(a))) && (
                         <button className="btn btn-g btn-s" onClick={() => mudar(a, 'concluido')}>
                           <Check size={14} aria-hidden="true" /> Atendida
                         </button>
                       )}
-                      {['agendado', 'confirmado'].includes(a.status) && jaComecou(a) && (
+                      {(a.status === 'pendente' || (['agendado', 'confirmado'].includes(a.status) && jaComecou(a))) && (
                         <button className="btn btn-g btn-s" onClick={() => mudar(a, 'falta')}>
                           <UserX size={14} aria-hidden="true" /> Faltou
                         </button>
@@ -196,6 +210,19 @@ export default function Agendamentos({ dados, acao, poderes, de, ate, pessoas = 
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Embaixo de propósito: primeiro se marca quem faltou, linha a linha, e
+          o que sobra na lista se confirma de uma vez. Só o que está na tela:
+          com pessoas filtradas, confirma as delas. */}
+      {estado === 'pendente' && visiveis.length > 0 && (
+        <div className="ag-confirmar-todos">
+          <p>Marque antes quem faltou. Os que ficarem aqui viram atendidos, e o pagamento continua estimado até ser registrado.</p>
+          <button type="button" className="btn btn-p"
+                  onClick={() => confirmarTodos({ acao: acaoDaLista }, visiveis.map(a => a.id))}>
+            <Check size={16} aria-hidden="true" /> Confirmar todos ({visiveis.length})
+          </button>
         </div>
       )}
     </>

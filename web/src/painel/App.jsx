@@ -476,6 +476,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
     if (pedido.novo && pedido.cliente) { setNovoCliente(pedido.cliente); setNovo(true); }
     if (pedido === 'lista') setAba('lista');
     if (pedido.receber) { setAba('lista'); setFiltroLista('receber'); }
+    // "Alguém faltou", do aviso de pendências: a Lista já nas sem marcação.
+    if (pedido.semMarcacao) { setAba('lista'); setFiltroLista('pendente'); }
     if (pedido.abrir) {
       const alvo = agendamentos.find(a => a.id === pedido.abrir);
       if (alvo) { setAba('calendario'); setEscala('dia'); setAncora(alvo.data); abrirAtendimento(alvo); }
@@ -928,6 +930,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
         const pago = Number(at.pagamento.recebido || 0);
         const falta = Math.max(0, Number((total - pago).toFixed(2)));
         const quitado = falta === 0;
+        // O fechamento supôs que o resto foi pago no balcão (migration 034).
+        // Some quando alguém registra — é o que a dica abaixo pede.
+        const presumido = !quitado && at.pagamento.presumido;
         const pedido = entrada.trim() ? Number(entrada.replace(',', '.')) : falta;
         // O que o clique na forma vai receber: o campo, quando tem número
         // válido que cabe no que falta; o resto, quando está vazio.
@@ -945,8 +950,8 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
               <div className="at-pagamento">
                 <div className="at-pag-topo">
                   <span className="eyebrow">Pagamento</span>
-                  <i className={'at-tag ' + (quitado ? 'ok' : pago > 0 ? 'agora' : 'espera')}>
-                    {quitado ? 'Pago' : pago > 0 ? 'Entrada' : 'A pagar'}
+                  <i className={'at-tag ' + (quitado ? 'ok' : presumido ? 'presumido' : pago > 0 ? 'agora' : 'espera')}>
+                    {quitado ? 'Pago' : presumido ? 'Presumido' : pago > 0 ? 'Entrada' : 'A pagar'}
                   </i>
                 </div>
                 <div><span>Valor total</span><b className="mono">{brl(total)}</b></div>
@@ -972,7 +977,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                   ))}
                 </div>
                 <p className="at-dica">
-                  {quitado && at.pagamento.forma === 'local'
+                  {presumido && vaiReceber > 0
+                    ? `Passou da hora sem registro, e o caixa conta ${brl(falta)} como estimado. Escolha a forma para confirmar o que entrou.`
+                    : quitado && at.pagamento.forma === 'local'
                     ? 'Dado como pago pelo fechamento automático. Se a cliente não pagou, desfaça abaixo.'
                     : quitado ? 'Toque em outra forma para trocar.'
                     : vaiReceber > 0 ? `Escolha a forma para registrar ${brl(vaiReceber)}.`
@@ -1837,8 +1844,10 @@ function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
   const pendentes = fila.itens;
 
   const enviar = async (m) => {
-    window.open(m.link, '_blank', 'noopener');
-    try { await api.marcarEnviada(m.id); } catch { /* ignora */ }
+    // Só no modo manual: com o número conectado quem envia é o servidor, e
+    // abrir o link junto mandaria a mesma mensagem duas vezes.
+    if (fila.modoManual) window.open(m.link, '_blank', 'noopener');
+    try { await api.marcarEnviada(m.id); } catch (erro) { aviso(erro.message); }
     recarregarFila();
   };
   const pular = async (id) => {

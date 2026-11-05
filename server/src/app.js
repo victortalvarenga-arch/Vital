@@ -78,7 +78,13 @@ const identificar = rota(async (req, res, next) => {
   const s = await sessaoDe(req.cookies?.[NOME_COOKIE]);
   // Sessão de outra empresa não vale nesta: no dia do subdomínio, o cookie de
   // um cliente não pode abrir o painel de outro.
-  if (s && s.tenantId === req.tenantId) req.usuario = s.usuario;
+  if (s && s.tenantId === req.tenantId) {
+    req.usuario = s.usuario;
+    // O histórico do agendamento (migration 031) é gravado por gatilho, e é
+    // daqui que ele sabe quem foi. Rota que fala por outra pessoa — o site, o
+    // atendente, o fechamento — troca a marca só enquanto age.
+    await db.comAutoria({ tipo: 'equipe', id: s.usuario.id, nome: s.usuario.nome, origem: 'painel' });
+  }
   next();
 });
 

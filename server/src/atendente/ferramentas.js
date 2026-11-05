@@ -184,7 +184,11 @@ const EXECUTORES = {
       data: texto(e.data), hora: texto(e.hora), obs: 'agendado pelo WhatsApp',
       pagamento: { status: 'aberto', forma: 'local' },
     };
-    const r = await criarAgendamento(dados, { origem: 'whatsapp', simular: ctx.simular });
+    // Quem pede é a cliente; a IA só executa. O teste pelo painel roda dentro
+    // da sessão de quem testa, e sem a troca o histórico (031) daria o
+    // agendamento a essa pessoa.
+    const r = await db.comAutoria({ tipo: 'cliente', origem: 'whatsapp' },
+      () => criarAgendamento(dados, { origem: 'whatsapp', simular: ctx.simular }));
     if (r.erro) return { erro: r.erro };
     if (r.simulado) return { agendado: true, simulacao: true, ...r.simulado, dia: diaPorExtenso(r.simulado.data) };
 
@@ -222,7 +226,8 @@ const EXECUTORES = {
   async cancelar_agendamento(e, ctx) {
     const cliente = await clienteDoNumero(ctx.fone);
     if (!cliente) return { erro: 'este número não tem agendamentos' };
-    const r = await cancelarPelaCliente(texto(e.agendamento_id), cliente.id, { simular: ctx.simular });
+    const r = await db.comAutoria({ tipo: 'cliente', origem: 'whatsapp' },
+      () => cancelarPelaCliente(texto(e.agendamento_id), cliente.id, { simular: ctx.simular }));
     if (r.erro) return { erro: r.erro };
     if (!r.simulado) {
       await registrarDoSistema('agendamento.cancelado', {

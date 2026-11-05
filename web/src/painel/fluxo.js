@@ -16,6 +16,10 @@ export const FLUXO = {
   agendado:       { rotulo: 'A confirmar',    tom: 'espera',  proximo: 'confirmado',     acao: 'Confirmar' },
   confirmado:     { rotulo: 'Confirmado',     tom: 'ok',      proximo: 'em_atendimento', acao: 'Cliente chegou' },
   em_atendimento: { rotulo: 'Em atendimento', tom: 'agora',   proximo: 'concluido',      acao: 'Concluir' },
+  // Do relógio, não de ninguém: passou da hora e nada foi marcado (migration
+  // 034). O passo seguinte é alguém dizer que ela veio; a falta fica ao lado,
+  // como em qualquer horário que já começou.
+  pendente:       { rotulo: 'Sem marcação',   tom: 'espera',  proximo: 'concluido',      acao: 'Cliente veio' },
   concluido:      { rotulo: 'Concluído',      tom: 'feito' },
   falta:          { rotulo: 'Faltou',         tom: 'falta' },
   cancelado:      { rotulo: 'Cancelado',      tom: 'ruim' },
@@ -43,6 +47,22 @@ export function proximasDoDia(agendamentos, hoje, minAgora) {
 }
 
 /**
+ * "Todos vieram": confirma a presença dos atendimentos sem marcação que a tela
+ * está mostrando. O aviso do Resumo e a Lista da Agenda usam esta mesma função,
+ * com o mesmo "Desfazer" — que devolve um a um para "sem marcação", o estado de
+ * antes. O pagamento continua presumido: presença não é dinheiro.
+ */
+export function confirmarTodos({ acao }, ids) {
+  const n = ids.length;
+  return acao(() => api.confirmarPresenca(ids), {
+    texto: n === 1 ? 'Presença confirmada' : `${n} presenças confirmadas`,
+    desfazer: () => acao(async () => {
+      for (const id of ids) await api.atualizarAgendamento(id, { status: 'pendente' });
+    }, n === 1 ? 'Voltou para sem marcação' : `${n} voltaram para sem marcação`),
+  });
+}
+
+/**
  * Muda a situação de um atendimento, com o aviso que diz de quem e para onde
  * ("Maria: faltou") e traz "Desfazer". Um toque errado entre uma cliente e
  * outra registrava falta sem volta na hora — a correção existia, mas atrás do
@@ -56,7 +76,9 @@ export function mudarSituacao({ acao, agendamentos, clientes, irPara }, id, stat
   // Concluir sem ter recebido deixava a cliente sair "a receber" sem ninguém
   // ver: o aviso diz quanto falta e leva à gaveta, onde se recebe.
   const falta = antes ? Number(antes.valor || 0) - Number(antes.pagamento?.recebido || 0) : 0;
-  const cobrar = status === 'concluido' && falta > 0 && irPara;
+  // Presumido não é dívida: o sistema supôs que ela pagou no balcão, e cobrar
+  // a cada confirmação de presença seria cobrar de quem provavelmente pagou.
+  const cobrar = status === 'concluido' && falta > 0 && !antes?.pagamento?.presumido && irPara;
   return acao(() => api.atualizarAgendamento(id, { status }), {
     texto: de + FLUXO[status].rotulo.toLowerCase() + (cobrar ? ' · falta receber' : ''),
     desfazer: volta && (() => acao(

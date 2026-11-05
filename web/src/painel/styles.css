@@ -241,6 +241,10 @@ a.btn{text-decoration:none}
 /* A confirmar: contorno tracejado no âmbar de "aguardando". O contorno, e não
    a borda esquerda — ela é de quem é o horário. */
 .appt.pendente{outline:1.5px dashed var(--warn); outline-offset:-2px}
+/* Sem marcação (status `pendente`, migration 034): já passou, e ninguém disse
+   se ela veio. Esmaecido como o que já foi, com o mesmo âmbar de "aguardando"
+   em contorno cheio — tracejado é o "a confirmar" de quem ainda vai chegar. */
+.appt.sem-marca{opacity:.82; outline:1.5px solid var(--warn); outline-offset:-2px}
 .appt.puxando{opacity:.75; cursor:grabbing; box-shadow:0 8px 22px rgba(36,26,40,.22);
   transform:scale(1.03); z-index:5}
 
@@ -922,6 +926,12 @@ a.btn{text-decoration:none}
 .ag-pag.pago{background:#E4F0EA; color:#20573F}
 .ag-pag.parcial{background:#E4EDF6; color:#1F5C96}
 .ag-pag.aberto, .ag-pag.estornado{background:var(--warn-claro); color:var(--warn-texto)}
+/* Presumido: nem pago nem devendo. Neutro de propósito — o âmbar diria
+   "cobre", e o verde diria "entrou". */
+.ag-pag.presumido{background:var(--line); color:var(--muted)}
+.ag-confirmar-todos{display:flex; flex-direction:column; gap:10px; margin-top:14px}
+.ag-confirmar-todos p{margin:0; font-size:13px; color:var(--muted)}
+.ag-confirmar-todos .btn{min-height:44px; justify-content:center}
 /* Clientes filtrada nas aniversariantes, vinda do aviso do Resumo. */
 .cl-filtro{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
   padding:10px 12px 10px 16px; margin-bottom:12px; border-radius:12px; background:var(--blush); font-size:13.5px; font-weight:600}
@@ -1334,6 +1344,11 @@ a.btn{text-decoration:none}
 .rs-hoje-numeros > div{display:flex; flex-direction:column; gap:4px;
   padding:12px 14px; border:1px solid var(--line); border-radius:12px}
 .rs-hoje-numeros b{font-size:16px; font-weight:600}
+/* A dica do estimado cresce para a esquerda: o quadro é estreito demais para
+   o texto, e está sempre depois do recebido, com espaço desse lado. */
+.rs-hoje-estimado{position:relative}
+.rs-hoje-estimado .eyebrow{padding-right:18px}
+.rs-hoje-estimado .rs-dica-texto{left:auto; right:9px; width:min(280px, calc(100vw - 72px))}
 
 /* Cada pendência é um botão que leva para onde ela se resolve. */
 .rs-alertas{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:18px}
@@ -1345,11 +1360,22 @@ a.btn{text-decoration:none}
 .rs-alerta-texto{display:flex; flex-direction:column; gap:2px; min-width:0}
 .rs-alerta-texto b{font-size:13.5px; font-weight:600}
 .rs-alerta-texto i{font-style:normal; font-size:12.5px; color:var(--muted)}
+/* Sem marcação: o cartão inteiro leva à Lista, e o "todos vieram", caso comum,
+   resolve ali mesmo. A seta é a pista do toque: hover não existe no celular. */
+.pp-aviso{display:flex; flex-direction:column; gap:12px; padding:14px 16px; margin-bottom:12px;
+  border-color:var(--warn); cursor:pointer; transition:border-color .14s}
+.pp-aviso:hover{border-color:var(--ink)}
+.pp-topo{display:flex; align-items:flex-start; gap:11px; width:100%; padding:0; border:0;
+  background:none; color:inherit; font:inherit; text-align:left; cursor:pointer}
+.pp-seta{flex:none; margin-left:auto; color:var(--muted)}
+.pp-acoes{display:flex; flex-wrap:wrap; gap:8px}
+.pp-acoes .btn{min-height:44px; flex:1 1 160px; justify-content:center}
+.rs-presumido{color:var(--muted)}
 .rs-tudo-certo{display:flex; align-items:center; gap:9px; padding:13px 16px;
   margin-bottom:18px; font-size:13.5px; color:var(--muted)}
 .rs-tudo-certo svg{color:var(--ok)}
 
-/* Confirmado ou pendente, na lista dos próximos. */
+/* Confirmado ou a confirmar, no cartão da próxima. */
 .rs-selo{flex:none; font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px;
   background:var(--lacquer-tag); color:var(--lacquer-d)}
 .rs-selo.ok{background:#E4F0EA; color:#20573F}
@@ -1360,7 +1386,14 @@ a.btn{text-decoration:none}
 .rs-proxima{padding:18px; margin-bottom:12px}
 .rs-proxima.tem{border:2px solid var(--lacquer);
   background:color-mix(in srgb, var(--lacquer) 7%, var(--paper))}
-.rs-proxima-topo{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.rs-proxima-topo{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+.rs-proxima-agora{display:flex; align-items:center; gap:6px 10px; flex-wrap:wrap; min-width:0}
+/* Quem vem depois: pequeno, no canto, sem competir com a próxima. */
+.rs-proxima-depois{flex:none; max-width:45%; display:flex; flex-direction:column; align-items:flex-end;
+  font-size:12.5px; line-height:1.3; color:var(--muted)}
+.rs-proxima-depois i{font-style:normal; font-size:11px}
+.rs-proxima-depois span{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rs-proxima-depois b{font-weight:600; color:var(--lacquer-d)}
 .rs-proxima-selo{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
   padding:4px 10px; border-radius:999px; background:var(--lacquer); color:#fff}
 .rs-proxima-quando{font-size:13px; font-weight:600; color:var(--lacquer-d)}
@@ -1384,10 +1417,6 @@ a.btn{text-decoration:none}
   padding:3px 8px; border-radius:999px; background:#fff; color:#1F5C96}
 .rs-cadeira-mt{font-size:12.5px; opacity:.85}
 .rs-cadeira-btn{background:#fff; color:#1F5C96; border:none; font-weight:700; flex:none}
-
-/* O resto do dia, depois da próxima. */
-.rs-depois{padding:16px 18px; margin-bottom:12px}
-.rs-depois-hora{width:46px; flex:none; font-size:13.5px; color:var(--muted); font-variant-numeric:tabular-nums}
 
 /* Primeiros passos: só para a empresa que ainda não atendeu ninguém. */
 .rs-passos{padding:20px; margin-bottom:12px}
@@ -1553,6 +1582,7 @@ a.btn{text-decoration:none}
 .rc-pago{background:#E4F0EA; color:#20573F}
 .rc-pendente{background:#E4EDF6; color:#1F5C96}
 .rc-confirmar{background:var(--warn-claro); color:var(--warn-texto)}
+.rc-sem-marca{background:var(--warn-claro); color:var(--warn-texto)}
 .rc-falta{background:#EEE8F6; color:#5B3E93}
 .rc-apagar{background:var(--warn-claro); color:var(--warn-texto)}
 /* A marca de "agora": o que está acima já passou. */
@@ -1692,6 +1722,7 @@ a.btn{text-decoration:none}
 .at-tag.agora{background:#E4EDF6; color:#1F5C96}
 .at-tag.feito{background:#DCEAE1; color:#20573F}
 .at-tag.falta{background:#EEE8F6; color:#5B3E93}
+.at-tag.presumido{background:var(--line); color:var(--muted)}
 .at-tag.ruim{background:#F3E6E6; color:var(--erro)}
 
 .at-pagamento{border:1px solid var(--line); border-radius:12px; background:var(--paper);

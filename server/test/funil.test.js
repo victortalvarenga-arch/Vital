@@ -167,10 +167,12 @@ describe('o quinto passo é o comparecimento', () => {
       });
       marcados.push(r.corpo.agendamento.id);
     }
-    // Uma concluída, uma faltou, uma segue agendada.
+    // Uma concluída, uma faltou, uma segue agendada. O status é 'falta' — até a
+    // migration 033 o banco aceitava 'faltou', e o teste passava sem usar o
+    // status de verdade.
     await db.db.comEmpresa('default', async () => {
       await db.db.run(`UPDATE appointments SET status = 'concluido' WHERE id = ?`, marcados[0]);
-      await db.db.run(`UPDATE appointments SET status = 'faltou' WHERE id = ?`, marcados[1]);
+      await db.db.run(`UPDATE appointments SET status = 'falta' WHERE id = ?`, marcados[1]);
     });
 
     const linha = await daPlataforma(365);

@@ -49,7 +49,7 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
             )}
             {/* Atendida e ainda não paga é a única linha passada que pede ação:
                 não desbota com as outras, e diz "a pagar". */}
-            <button type="button" className={'rc-linha' + (passou && !(a.status === 'concluido' && a.pagamento?.status !== 'pago') ? ' passou' : '')
+            <button type="button" className={'rc-linha' + (passou && !(a.status === 'concluido' && a.pagamento?.status !== 'pago') && a.status !== 'pendente' ? ' passou' : '')
                       + (a.status === 'em_atendimento' ? ' atual' : proximas.has(a.id) ? ' proxima' : '')}
                     onClick={() => aoTocar(a)}>
               <span className="rc-hora mono">
@@ -69,6 +69,7 @@ export default function Recepcao({ agendamentos, clientes, servicos, staff, aoTo
               <span className="rc-fim">
                 <b className="mono">{brl(a.valor)}</b>
                 {a.status === 'falta' ? <i className="rc-falta">faltou</i>
+                  : a.status === 'pendente' ? <i className="rc-sem-marca">sem marcação</i>
                   : a.status === 'em_atendimento' ? <i className="rc-cadeira">na cadeira</i>
                   : a.status === 'agendado' ? <i className="rc-confirmar">a confirmar</i>
                   : proximas.has(a.id) ? <i className="rc-proxima">próxima</i>

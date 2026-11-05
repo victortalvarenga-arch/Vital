@@ -27,7 +27,9 @@ export function podeRemarcar({
 
   // Atendimento que já aconteceu não se arrasta: mexer nele é pelo detalhe,
   // onde há registro de quem mudou o quê.
-  if (agendamento.status === 'concluido' || agendamento.status === 'falta') {
+  // Sem marcação (`pendente`) também: o horário já passou, e o que falta é
+  // dizer se ela veio, não mudar quando.
+  if (['concluido', 'falta', 'pendente'].includes(agendamento.status)) {
     return { ok: false, motivo: 'já aconteceu' };
   }
 

@@ -76,6 +76,8 @@ export const classeDoBloco = (status, proxima = false) =>
   + (status === 'agendado' ? ' pendente' : '')
   + (status === 'concluido' ? ' done' : '')
   + (status === 'falta' ? ' falta' : '')
+  // Não é `.pendente`: essa classe já é do "a confirmar", logo acima.
+  + (status === 'pendente' ? ' sem-marca' : '')
   + (status === 'em_atendimento' ? ' agora' : '')
   + (proxima ? ' proxima' : '');
 

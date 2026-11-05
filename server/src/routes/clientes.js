@@ -10,10 +10,14 @@ export const clientes = Router();
 
 /** Acrescenta o que o painel sempre quer junto: visitas, gasto e há quanto tempo sumiu. */
 async function comMetricas(c) {
+  // Visita é atendimento concluído — a mesma conta da lista do painel. Contar
+  // tudo o que não foi cancelado somava as faltas e os horários de amanhã, e a
+  // "última visita" podia ser um dia em que ela não veio, o que adiava a
+  // reativação de quem já sumiu.
   const m = await db.get(
-    `SELECT COUNT(*) visitas,
+    `SELECT SUM(CASE WHEN status='concluido' THEN 1 ELSE 0 END) visitas,
             SUM(pag_recebido) gasto,
-            MAX(CASE WHEN data <= ? THEN data END) ultima,
+            MAX(CASE WHEN status='concluido' AND data <= ? THEN data END) ultima,
             SUM(CASE WHEN status='falta' THEN 1 ELSE 0 END) faltas
        FROM appointments WHERE client_id=? AND status <> 'cancelado'`,
     hoje(), c.id
@@ -135,12 +139,14 @@ clientes.put('/:id', rota(async (req, res) => {
 clientes.delete('/:id', rota(async (req, res) => {
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE client_id=?', req.params.id);
   if (usos > 0) return res.status(409).json({ erro: `cliente tem ${usos} agendamentos; remova o histórico primeiro` });
-  const alvo = await db.get('SELECT nome, fone FROM clients WHERE id=?', req.params.id);
+  const alvo = await db.get('SELECT nome FROM clients WHERE id=?', req.params.id);
   await db.run('DELETE FROM clients WHERE id=?', req.params.id);
+  // Só o primeiro nome, e sem o telefone: o registro não se apaga e dura dois
+  // anos (027), e copiar o contato de quem pediu para sair para lá seria
+  // guardar o dado justamente de quem a empresa acabou de apagar.
   await req.registrar('cliente.apagado', {
     alvoId: req.params.id,
-    resumo: `apagou a ficha de ${alvo?.nome || 'alguém'}`,
-    detalhe: { nome: alvo?.nome, fone: alvo?.fone },
+    resumo: `apagou a ficha de ${alvo?.nome.split(' ')[0] || 'alguém'}`,
   });
   res.json({ ok: true });
 }));
