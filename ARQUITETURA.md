@@ -252,7 +252,8 @@ passado precisa do nome.
 **A fila de mensagens é uma tabela, não um efeito colateral.** `gerarFila()`
 decide quem recebe o quê e grava em `messages` com `dedupe_key`. `despachar()`
 entrega. Separado de propósito: dá para revisar antes de disparar, e nada se
-perde se a API da Meta cair no meio.
+perde se a API da Meta cair no meio. Toda mensagem nasce com prazo (`expira_em`):
+ver "WhatsApp".
 
 **O front recarrega o estado inteiro depois de cada mutação.** `GET /api/estado`
 devolve tudo numa chamada. Simples e sempre correto. Se um dia ficar lento, o
@@ -2551,7 +2552,6 @@ e não deixa rastro na empresa. `/agendar` são 10; `/evento`, 120, porque uma
 visita gera três chamadas e escritório, salão e shopping saem todos pelo mesmo
 IP.
 
-A janela é fixa, não deslizante: deixa passar até o dobro na virada, e os
 **A leitura também tem teto, e alto: 300 por minuto.** Vitrine, horários e
 dias livres não escrevem nada, mas cada pedido faz várias consultas; um script
 pedindo em laço ocupa o banco e a única máquina, e o site sai do ar para todas
@@ -2561,6 +2561,7 @@ escrever o `<head>`, tem o próprio (`pagina`, em `app.js`). Uma visita de
 verdade faz dezenas de leituras, nunca centenas por minuto. Rota nova de
 leitura em `/api/publico` entra no balde `leitura`.
 
+A janela é fixa, não deslizante: deixa passar até o dobro na virada, e os
 limites já são escolhidos com folga sabendo disso. O preço é um Map por janela
 em vez de uma lista de horários por chave — numa rota pública, a diferença
 entre lembrar de quem chamou e lembrar de cada chamada. Trocar o Map inteiro na
@@ -2648,7 +2649,6 @@ produção a rota exige `VITAL_CHAVE_PRIMEIRO_ACESSO` (comparada em tempo
 constante) e, sem a variável, fica desligada; a tela pede a chave quando
 `precisa-configurar` diz `pedeChave`. Em desenvolvimento a chave é opcional.
 
-**A identidade da nossa equipe é outra coisa.** `plataforma.usuarios`,
 **O login da equipe tem teto mais apertado que o do painel**: 10 tentativas em
 15 minutos por IP (o painel aceita 20), e o primeiro acesso, 5 por hora — é o
 que impede chutar a chave de instalação. Pouca gente entra ali, cada uma com
@@ -2657,6 +2657,7 @@ servia também para ocupar a CPU da única máquina. O limite barra antes de
 conferir a senha, então quem chuta não descobre a certa pelo 200. Coberto em
 `limite.test.js`.
 
+**A identidade da nossa equipe é outra coisa.** `plataforma.usuarios`,
 `plataforma.sessoes` e o cookie `sessao_vital` — nenhuma referência cruzada com
 `public.users`. O que separa de verdade são as tabelas: um token de uma nunca é
 encontrado na outra, então cruzar as identidades é impossível, não só proibido.
@@ -2833,7 +2834,6 @@ como usuário `node`. O `fly.toml` deixa a máquina **sempre ligada**
 para — e confere a saúde em `/api/saude`. Segredo nenhum mora nos dois
 arquivos: vai por `fly secrets`.
 
-**Nenhuma tela consulta o banco por item.** O site e o painel fazem um número
 **Tudo sai comprimido** (`compression`, o primeiro middleware de `app.js`). O
 Fly cobra o GB que sai da máquina e não comprime no caminho; o JavaScript do
 painel cai a menos de um terço. É também o que mais encolhe a fatura numa
@@ -2846,6 +2846,7 @@ esquema a quem provoca erro numa rota pública. Pedido malformado (JSON
 quebrado, corpo grande demais) é 400/413, sem linha no log — o defeito é de
 quem mandou. A tela só lê o campo `erro`.
 
+**Nenhuma tela consulta o banco por item.** O site e o painel fazem um número
 fixo de consultas (16 e 21 com a Laura, contando início e fim da transação),
 seja qual for o tamanho do catálogo: adicionais (`adicionaisDeTodos`),
 promoções (`combosCompletos`) e a equipe de cada promoção
@@ -3045,6 +3046,82 @@ aquela mensagem e não derruba a conexão.
 
 **No modo automático, o "Enviar" da fila só chama o servidor.** Abrir o link
 `wa.me` junto mandaria a mesma mensagem duas vezes.
+
+**Toda mensagem tem prazo** (migration 036, 2026-11-05). A fila só sabia quando
+uma mensagem podia sair, nunca até quando fazia sentido: sem ninguém tocar em
+"Enviar", o lembrete ficava pendente para sempre, e numa empresa conectada uma
+queda do servidor faria o despacho entregar "seu horário é hoje" a quem já foi
+atendida. Agora quem cria a mensagem decide `expira_em`:
+
+| Mensagem | Vale até |
+|---|---|
+| Confirmação, remarcação, véspera, aviso no dia | o início do horário |
+| Pós-atendimento | 7 dias depois do último atendimento, como a janela que o gera |
+| Aniversário | o fim do dia do aniversário |
+| Campanha que fala de um horário (vaga) | o horário escolhido no disparo |
+| Demais campanhas | 7 dias |
+
+`expirarFila()` passa o que venceu para o status `expirado`, sem apagar: a
+`dedupe_key` da linha é o que impede `gerarFila` de recriá-la. Roda antes de toda
+leitura da fila e de todo despacho, e não só no cron, porque o cron pode levar
+dez minutos e nesse intervalo o lembrete sairia. Mensagem que nasceria vencida
+(lançamento retroativo) nem entra. `POST /fila/:id/enviar` recusa a expirada com
+409, para o painel aberto desde antes; e o painel relê a fila de cinco em cinco
+minutos, porque o balcão o deixa aberto o dia inteiro. `expira_em` nulo é "sem
+prazo": nenhum caminho do produto grava assim hoje.
+
+**Cada cartão da fila diz o que olhar** (2026-11-05). `GET /fila` traz a última
+visita da cliente (dia, serviço e quem atendeu) e o prazo, que a tela escreve em
+`prazo.js` e pinta de âmbar nas últimas três horas. A última visita respeita o
+recorte da agenda: a profissional vê a visita com ela, nunca a da colega. "Programada
+11:00" saiu: no modo manual quem envia é quem toca, e a hora não dizia nada. Só com
+número conectado, e antes da hora, o cartão diz quando a mensagem sai sozinha.
+
+**Uma mensagem de pós-atendimento por cliente por semana** (migration 037). Quem
+vinha duas vezes recebia um "como foi?" por atendimento, às vezes dois iguais no
+mesmo dia. Agora `gerarFila` agrupa por cliente: com mais de um atendimento na
+janela, sai uma só com a pergunta geral (`pos_cuidado`), que entra no lugar do que
+ainda estava pendente. Quem já recebeu nesta semana não recebe outra ao voltar.
+A mensagem fica presa ao último atendimento, e é por ele que a profissional a vê.
+
+**Remarcar avisa a cliente** (migration 037). Quando o dia ou a hora mudam, o
+`PUT` do agendamento apaga os pendentes, como antes, e enfileira `remarcacao` com
+o horário novo. Trocar só quem atende não avisa: nada muda na agenda dela. Os
+lembretes já enviados perdem a `dedupe_key`, senão a véspera do horário novo
+esbarraria na chave do antigo e não sairia. A remarcação feita pelo atendente por
+IA não passa por aqui: ela agenda o novo e cancela o antigo, e o agendamento novo
+gera a própria confirmação.
+
+**Campanha que fala de um horário pede o horário** (migration 037). É o texto que
+decide: com `{data}` ou `{hora}`, o disparo exige os dois (a tela pergunta e a rota
+recusa com 400) e a mensagem vale até aquele horário. Antes a vaga de última hora
+saía como "abriu uma vaga hoje às 🙌", e a prévia mostrava um `15:00` que não ia na
+mensagem.
+
+**Recuperação é uma lista, não uma fila** (2026-11-05, decisão do dono). A
+reativação era uma mensagem automática que entrava na fila, e lá parecia tarefa
+atrasada. Saiu dela: `gerarFila` não a cria mais e a aba Recuperação
+(`GET /api/mensagens/recuperacao`, poder `clientes`) mostra quem passou de
+`diasReativacao` sem voltar. Mandar é opcional, cliente por cliente, e nada sai
+sozinho, nem com número conectado. Por isso o modelo virou `tipo = 'recuperacao'`
+e saiu de Automações, onde a chave ligaria algo que não existe mais.
+
+O prazo muda na própria aba, de 7 a 730 dias, porque o ciclo é de cada ramo. A
+rota é própria (`PUT /recuperacao/prazo`, poder `clientes`) e não `PUT /config`,
+que é só da dona: a recepção cuida dessa lista, e mudar o recorte não envia nada.
+
+Quem entra: a última visita passou do prazo e não há horário `agendado`,
+`confirmado` ou `em_atendimento`. Atendimento `pendente` conta como visita
+(quase sempre ela veio) e falta não conta. A janela antiga de 120 dias, que
+protegia a cliente de spam, caiu: numa lista ninguém é incomodado, e quem saiu
+há menos tempo vem primeiro, até 500 linhas. Dinheiro fica de fora de propósito:
+a recepção tem `clientes`, mas não tem `financeiro`.
+
+O envio exige `optin`, mesmo com alguém apertando o botão, e cada toque grava uma
+linha `reativacao` já como `enviado`, com um dedupe por cliente por dia. É essa
+linha que faz a lista dizer "Chamada em". No modo manual, tocar de novo só reabre
+o link; no automático, o segundo envio do dia é recusado e a falha da Meta não
+grava nada, para dar para tentar de novo.
 
 O seed não conecta número de propósito: uma conexão de mentira faria os jobs
 tentarem falar com a Meta em toda máquina de desenvolvimento.

@@ -44,6 +44,8 @@ before(async () => {
     await limpar(db);
     await cenario(db);
     await db.db.run(`DELETE FROM conexoes`);
+    await db.db.run(
+      `INSERT INTO templates (id,chave,titulo,tipo,texto) VALUES ('t-volta','reativacao','Saudade','recuperacao','Oi {cliente}')`);
   });
   await criarEmpresa(db, { id: OUTRA, slug: OUTRA, nome: 'Outra' });
   await db.db.comEmpresa(OUTRA, () => cenario(db, { prefixo: 'wz-' }));
@@ -66,11 +68,11 @@ beforeEach(async () => {
   await db.db.comEmpresa(OUTRA, () => limparAgenda(db));
 });
 
-const naFila = (empresa, cliente) => db.db.comEmpresa(empresa, async () => {
+const naFila = (empresa, cliente, expira = null) => db.db.comEmpresa(empresa, async () => {
   const id = 'm' + Math.random().toString(36).slice(2, 10);
   await db.db.run(
-    `INSERT INTO messages (id, client_id, template_chave, fone, texto, agendado_para, criado_em)
-     VALUES (?, ?, 'confirmacao', '47900000001', 'oi', '2020-01-01 10:00', '2020-01-01')`, id, cliente);
+    `INSERT INTO messages (id, client_id, template_chave, fone, texto, agendado_para, expira_em, criado_em)
+     VALUES (?, ?, 'confirmacao', '47900000001', 'oi', '2020-01-01 10:00', ?, '2020-01-01')`, id, cliente, expira);
   return id;
 });
 
@@ -181,6 +183,43 @@ describe('cada empresa no próprio número', () => {
     assert.equal(r.corpo.manual, undefined, 'sem link: a tela não pode abrir o WhatsApp também');
     const m = await statusDa('default', id);
     assert.deepEqual([m.status, m.provider, m.provider_id], ['enviado', 'meta', 'wamid.1']);
+  });
+});
+
+describe('o envio automático', () => {
+  test('não entrega o que passou do prazo, mesmo que o cron tenha ficado fora', async () => {
+    // O pior caso da fila: o servidor volta depois de uma queda e despacha
+    // "seu horário é hoje às 14h" para quem já foi atendida.
+    await conectarDireto('default', NUMERO, TOKEN);
+    const vencida = await naFila('default', 'c1', '2020-01-01 11:00');
+    const noPrazo = await naFila('default', 'c1', '2999-01-01 11:00');
+
+    await db.db.comEmpresa('default', () => despachar());
+    assert.equal((await statusDa('default', vencida)).status, 'expirado');
+    assert.equal((await statusDa('default', noPrazo)).status, 'enviado');
+    assert.equal(chamadas.filter(c => c.url.pathname.endsWith('/messages')).length, 1);
+  });
+
+  test('a Recuperação envia pelo número da empresa, uma vez por dia', async () => {
+    await conectarDireto('default', NUMERO, TOKEN);
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE clients SET optin = 1 WHERE id = 'c1'`));
+
+    const envios = () => chamadas.filter(c => c.url.pathname.endsWith('/messages')).length;
+    assert.equal((await dona('POST', '/api/mensagens/recuperacao/c1/enviar')).status, 200);
+    assert.equal(envios(), 1);
+    assert.equal((await dona('POST', '/api/mensagens/recuperacao/c1/enviar')).status, 409);
+    assert.equal(envios(), 1, 'o segundo toque não vira outra mensagem');
+  });
+
+  test('falha da Meta na Recuperação não conta como enviada', async () => {
+    await conectarDireto('default', NUMERO, TOKEN);
+    await db.db.comEmpresa('default', () => db.db.run(`UPDATE clients SET optin = 1 WHERE id = 'c1'`));
+    respostaDoEnvio = () => json({ error: { message: 'fora da janela', code: 131047 } }, 400);
+
+    assert.equal((await dona('POST', '/api/mensagens/recuperacao/c1/enviar')).status, 502);
+    const salvas = await db.db.comEmpresa('default', () =>
+      db.db.all(`SELECT id FROM messages WHERE template_chave = 'reativacao'`));
+    assert.deepEqual(salvas, [], 'sem linha, dá para tentar de novo no mesmo dia');
   });
 });
 

@@ -317,6 +317,9 @@ async function primeiraClienteReal() {
       ['c4', 'Camila Fontes', '47994567890', '1991-06-11', 'Rua Iririú, 903 — Iririú', '', -400],
       ['c5', 'Renata Alves', '47995678901', '2001-01-27', 'Rua Dona Francisca, 2200 — Santo Antônio', '', -30],
       ['c6', 'Débora Nunes', '47996789012', '1985-08-30', 'Rua São Paulo, 77 — Bucarein', 'Sempre atrasa 10 min.', -520],
+      ['c7', 'Letícia Moraes', '47997890123', '1993-04-14', 'Rua Otto Boehm, 512 — América', '', -300],
+      ['c8', 'Fernanda Dias', '47998901234', '1987-10-22', 'Rua Max Colin, 88 — Centro', '', -260],
+      ['c9', 'Sônia Prado', '47999012345', '1979-02-08', 'Rua Inácio Bastos, 340 — Bucarein', '', -450],
     ];
     for (const [id, nome, fone, nasc, end, obs, d] of clientes) {
       await db.run(
@@ -356,7 +359,7 @@ async function primeiraClienteReal() {
     // caso que `pag_status` sozinho não sabia contar, e é o que a gaveta mostra
     // como "Pago R$ 20,00 · Falta receber R$ 25,00".
     await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'parcial', 'pix', 20);
-    await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
+    const remarcadaHoje = await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
     await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
     await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
     await mk('c5', 'v9', 's2', 2, '11:00', 'agendado', 'aberto', 'local');
@@ -385,6 +388,23 @@ async function primeiraClienteReal() {
     await mk('c4', 'v3', 's1', -28, '14:30', 'concluido', 'pago', 'cartao');
     await mk('c6', 'v8', 's2', -95, '16:00', 'concluido', 'pago', 'dinheiro');
     await mk('c2', 'v6', 's2', -40, '10:30', 'concluido', 'pago', 'pix');
+    // Duas visitas na mesma semana: a fila mostra uma mensagem só, com a pergunta
+    // geral, e não um "como foi?" para cada atendimento.
+    await mk('c6', 'v1', 's1', -4, '09:00', 'concluido', 'pago', 'pix');
+    await mk('c6', 'v8', 's2', -2, '11:00', 'concluido', 'pago', 'pix');
+    // A aba Recuperação: quem faz tempo que não volta. Uma que acabou de passar
+    // do prazo, uma que já foi chamada e uma sem opt-in, que aparece na lista
+    // mas não oferece o envio.
+    await mk('c7', 'v1', 's1', -72, '11:00', 'concluido', 'pago', 'pix');
+    await mk('c7', 'v8', 's2', -130, '09:30', 'concluido', 'pago', 'pix');
+    await mk('c8', 'v6', 's2', -105, '15:00', 'concluido', 'pago', 'cartao');
+    await mk('c9', 'v2', 's1', -210, '10:00', 'concluido', 'pago', 'dinheiro');
+    await db.run(`UPDATE clients SET optin = 0 WHERE id = 'c9'`);
+    await db.run(
+      `INSERT INTO messages (id,client_id,template_chave,fone,texto,status,agendado_para,enviado_em,provider,criado_em)
+       VALUES (?,'c8','reativacao','47998901234','Oi, quanto tempo!','enviado',?,?,'manual',?)`,
+      uid(), `${addDias(h, -3)} 10:00`, `${addDias(h, -3)} 10:00`, `${addDias(h, -3)} 10:00`
+    );
     // Duas limpezas antigas da mesma cliente, com a ficha respondida — é o que
     // dá o que mostrar em "Ver fichas de saúde", e mostra a resposta mudando
     // entre uma visita e outra, que é justamente o motivo de a ficha ficar
@@ -393,6 +413,14 @@ async function primeiraClienteReal() {
     const limpezaRecente = await mk('c5', 'v10', 's3', -14, '10:00', 'concluido', 'pago', 'pix');
 
     await oResto();
+    // Um aviso de remarcação na fila, como sai quando a equipe muda um horário.
+    await db.run(
+      `INSERT INTO messages (id,client_id,appointment_id,template_chave,fone,texto,agendado_para,expira_em,criado_em)
+       VALUES (?,'c1',?,'remarcacao','47991234567',?,?,?,?)`,
+      uid(), remarcadaHoje,
+      'Oi Amanda! Seu horário mudou. Se não puder nesse horário, é só chamar por aqui que a gente ajeita.',
+      `${h} 08:00`, `${addDias(h, 1)} 10:00`, `${h} 08:00`
+    );
     // Depois de `oResto()`, que é quem cria o formulário de anamnese: ficha
     // respondida precisa do formulário existindo.
     await fichasDeExemplo({ limpezaAntiga, limpezaRecente });

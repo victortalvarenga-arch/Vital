@@ -33,6 +33,8 @@ import Servicos from './Servicos.jsx';
 import ErroDeTela from './ErroDeTela.jsx';
 import Atendente from './Atendente.jsx';
 import NumeroWhatsapp from './NumeroWhatsapp.jsx';
+import Recuperacao from './Recuperacao.jsx';
+import { prazoDaMensagem } from './prazo.js';
 import {
   Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
@@ -147,7 +149,13 @@ function Painel({ sessao, aoSair }) {
   const carregarFila = useCallback(async () => {
     try { await api.gerarFila(); setFila(await api.fila()); } catch { /* servidor fora */ }
   }, []);
-  useEffect(() => { carregarFila(); }, [carregarFila]);
+  // De tempos em tempos, e não só ao abrir: o balcão deixa o painel aberto o dia
+  // inteiro, e sem isto o lembrete de quem já passou continuaria na tela.
+  useEffect(() => {
+    carregarFila();
+    const t = setInterval(carregarFila, 5 * 60_000);
+    return () => clearInterval(t);
+  }, [carregarFila]);
 
   // Aviso com "Desfazer" fica mais tempo: é a janela para corrigir o toque
   // errado, e ela precisa caber entre ver o aviso e alcançar o botão.
@@ -1844,6 +1852,20 @@ function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
   const { templates, clientes } = dados;
   const pendentes = fila.itens;
 
+  // Aqui e não na aba: o número da aba aparece antes de ela ser aberta.
+  const [recuperacao, setRecuperacao] = useState(null);
+  const verRecuperacao = poderes.clientes;
+  const carregarRecuperacao = useCallback(async () => {
+    try { setRecuperacao(await api.recuperacao()); } catch { /* servidor fora */ }
+  }, []);
+  useEffect(() => { if (verRecuperacao) carregarRecuperacao(); }, [verRecuperacao, carregarRecuperacao]);
+
+  // Quem acabou de remarcar e veio ver o aviso não espera a volta do relógio.
+  useEffect(() => { recarregarFila(); }, [recarregarFila]);
+  const minutoAgora = useMinutoAgora();
+  const hoje = hojeISO();
+  const agoraTexto = `${hoje} ${toHora(minutoAgora)}`;
+
   const enviar = async (m) => {
     // Só no modo manual: com o número conectado quem envia é o servidor, e
     // abrir o link junto mandaria a mesma mensagem duas vezes.
@@ -1865,6 +1887,9 @@ function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
           {/* Automações e campanhas valem para a empresa inteira: a profissional
               fica só com a fila, recortada nas clientes dela (a rota recusa o resto). */}
           {poderes.clientes && <>
+            <button className={'chip' + (sub === 'volta' ? ' on' : '')} onClick={() => setSub('volta')}>
+              Recuperação{recuperacao ? ` (${recuperacao.itens.length})` : ''}
+            </button>
             <button className={'chip' + (sub === 'auto' ? ' on' : '')} onClick={() => setSub('auto')}>Automações</button>
             <button className={'chip' + (sub === 'camp' ? ' on' : '')} onClick={() => setSub('camp')}>Campanhas</button>
           </>}
@@ -1875,6 +1900,11 @@ function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
       </div>
 
       {sub === 'numero' && <NumeroWhatsapp aviso={aviso} aoMudar={recarregarFila} />}
+
+      {sub === 'volta' && (
+        <Recuperacao dados={recuperacao} modoManual={fila.modoManual} recarregar={carregarRecuperacao} aviso={aviso}
+          editarTexto={() => setEdit(templates.find(t => t.tipo === 'recuperacao'))} />
+      )}
 
       {sub === 'fila' && (
         <>
@@ -1888,22 +1918,42 @@ function CRM({ dados, acao, aviso, fila, recarregarFila, poderes }) {
           )}
           {pendentes.length === 0
             ? <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Fila zerada. Nada para enviar hoje.</div>
-            : pendentes.map(f => (
-              <div key={f.id} className="card" style={{ padding: 16, marginBottom: 10 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-                  <div className="avatar" style={{ background: 'var(--uv)', width: 34, height: 34 }}><Bell size={16} /></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>{f.clienteNome}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>{f.titulo} · <span className="mono">{fmtFone(f.fone)}</span> · programada {f.agendadoPara.slice(11)}</div>
+            : pendentes.map(f => {
+              const prazo = prazoDaMensagem(f.expiraEm, hoje, minutoAgora);
+              const v = f.ultimaVisita;
+              return (
+                <div key={f.id} className="card flm-card">
+                  <div className="flm-topo">
+                    <div className="avatar flm-icone"><Bell size={16} /></div>
+                    <div className="flm-quem">
+                      <div className="flm-nome">{f.clienteNome}</div>
+                      <div className="flm-meta">{f.titulo} · <span className="mono">{fmtFone(f.fone)}</span></div>
+                      {v && (
+                        <div className="flm-meta">
+                          Última vez: {fmtData(v.data)} · {v.servico}{v.profissional && ` com ${v.profissional}`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flm-acoes">
+                      <button className="btn btn-wa btn-s" onClick={() => enviar(f)}>
+                        <Send size={14} /> Enviar
+                      </button>
+                      <button className="btn btn-g btn-s" onClick={() => pular(f.id)}>Pular</button>
+                    </div>
                   </div>
-                  <button className="btn btn-wa btn-s" onClick={() => enviar(f)}>
-                    <Send size={14} /> Enviar
-                  </button>
-                  <button className="btn btn-g btn-s" onClick={() => pular(f.id)}>Pular</button>
+                  <div className="bubble" style={{ background: '#F4F0F1' }}>{f.texto}</div>
+                  <div className="flm-rodape">
+                    {prazo && <span className={'flm-prazo' + (prazo.urgente ? ' urgente' : '')}><Clock size={12} /> {prazo.texto}</span>}
+                    {/* Com número conectado ela sai sozinha, e é isso que explica
+                        estar na fila mais cedo. No manual a hora não diz nada:
+                        quem envia é quem toca no botão. */}
+                    {!fila.modoManual && f.agendadoPara > agoraTexto && (
+                      <span className="flm-sai">Sai sozinha às {f.agendadoPara.slice(11)}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="bubble" style={{ background: '#F4F0F1' }}>{f.texto}</div>
-              </div>
-            ))}
+              );
+            })}
         </>
       )}
 
@@ -1974,13 +2024,31 @@ function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
   const { clientes, config, servicos } = dados;
   const [sel, setSel] = useState(clientes.map(c => c.id));
   const toggle = id => setSel(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id]);
+  // É o texto que pede: quem fala de um horário (a vaga de última hora) precisa
+  // dos dois, ou a mensagem sai com um buraco no lugar da hora.
+  const pedeHorario = /\{(data|hora)\}/.test(t.texto);
+  const [dia, setDia] = useState(hojeISO());
+  const [hora, setHora] = useState('');
+  const [erroHora, setErroHora] = useState('');
+  const campoHora = useRef(null);
   const texto = c => renderTemplate(t.texto, {
     cliente: c.nome.split(' ')[0], empresa: config.nome, estudio: config.nome, endereco: config.endereco,
-    data: fmtData(hojeISO()), hora: '15:00', servico: servicos[0].nome, valor: brl(servicos[0].preco), link: 'g.page/estudiolume', profissional: '', dias: '',
+    data: fmtData(dia), hora, servico: servicos[0].nome, valor: brl(servicos[0].preco), link: 'g.page/estudiolume', profissional: '', dias: '',
   });
   return (
     <Modal onClose={fechar} wide>
       <h2 style={{ fontSize: 24, marginBottom: 4 }}>{t.titulo}</h2>
+      {pedeHorario && (
+        <div className="flm-horario">
+          <Campo label="Dia"><CampoData valor={dia} min={hojeISO()} aoMudar={setDia} /></Campo>
+          <Campo label="Horário">
+            <input ref={campoHora} type="time" value={hora} aria-invalid={!!erroHora}
+              aria-describedby={erroHora ? 'disparo-hora-erro' : undefined}
+              onChange={e => { setHora(e.target.value); setErroHora(''); }} />
+          </Campo>
+          {erroHora && <p id="disparo-hora-erro" className="flm-erro">{erroHora}</p>}
+        </div>
+      )}
       <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Escolha quem recebe. {sel.length} de {clientes.length} selecionadas.</p>
       <div className="card list" style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
         {clientes.map(c => (
@@ -1989,15 +2057,22 @@ function Disparo({ t, dados, fechar, recarregarFila, aviso }) {
               {sel.includes(c.id) ? <Check size={15} /> : ''}
             </button>
             <span style={{ flex: 1, fontSize: 14 }}>{c.nome}</span>
-            <a className="btn btn-wa btn-s" href={waLink(c.fone, texto(c))} target="_blank" rel="noopener noreferrer"><Send size={14} /></a>
+            {(!pedeHorario || hora) && (
+              <a className="btn btn-wa btn-s" href={waLink(c.fone, texto(c))} target="_blank" rel="noopener noreferrer" aria-label={`Enviar para ${c.nome}`}><Send size={14} /></a>
+            )}
             {!c.optin && <span className="tag" style={{ background: '#EEE', color: '#777' }}>sem opt-in</span>}
           </div>
         ))}
       </div>
       <button className="btn btn-p" style={{ width: '100%', marginBottom: 12 }}
         onClick={async () => {
+          if (pedeHorario && !hora) {
+            setErroHora('Informe o horário da vaga');
+            campoHora.current?.focus();
+            return;
+          }
           try {
-            const r = await api.dispararCampanha(t.chave, sel);
+            const r = await api.dispararCampanha(t.chave, sel, pedeHorario ? { data: dia, hora } : undefined);
             aviso(`${r.enfileiradas} mensagens na fila${r.ignoradas ? ` · ${r.ignoradas} ignoradas` : ''}`);
             recarregarFila(); fechar();
           } catch (e) { aviso(e.message); }

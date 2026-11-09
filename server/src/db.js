@@ -469,7 +469,7 @@ export const templateOut = r => r && ({
 export const messageOut = r => r && ({
   id: r.id, clienteId: r.client_id, agendamentoId: r.appointment_id,
   templateChave: r.template_chave, fone: r.fone, texto: r.texto, status: r.status,
-  agendadoPara: r.agendado_para, enviadoEm: r.enviado_em, erro: r.erro,
+  agendadoPara: r.agendado_para, expiraEm: r.expira_em, enviadoEm: r.enviado_em, erro: r.erro,
 });
 
 export const unitOut = r => r && ({

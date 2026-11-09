@@ -618,10 +618,10 @@ Decidido em 2026-10-09: entra depois de terminar o front. Numerado depois do 11
 só porque nasceu depois; na ordem de fazer, vem antes dos apps.
 
 **O que já existe** (ver `ARQUITETURA.md`, "WhatsApp"): a fila automática
-(confirmação, véspera, aviso no dia, pós-atendimento), as campanhas de
-aniversário e reativação com `optin`, os modelos editáveis no painel e as
-campanhas manuais com prévia. Falta o envio sair sozinho, por empresa, e o
-caminho de volta.
+(confirmação, remarcação, véspera, aviso no dia, pós-atendimento), o aniversário com
+`optin`, a aba Recuperação, os modelos editáveis no painel e as campanhas
+manuais com prévia. Falta o envio sair sozinho, por empresa, e o caminho de
+volta.
 
 - [x] **Um número por empresa.** Feito em 2026-11-05 (migration 035, ver
       `ARQUITETURA.md`, "WhatsApp"): token e id do número moram em `conexoes`,

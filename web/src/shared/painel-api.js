@@ -267,6 +267,9 @@ export const api = {
   gerarFila: () => req('/mensagens/fila/gerar', { method: 'POST' }),
   marcarEnviada: id => req(`/mensagens/fila/${id}/enviar`, { method: 'POST' }),
   pularMensagem: id => req(`/mensagens/fila/${id}/pular`, { method: 'POST' }),
+  recuperacao: () => req('/mensagens/recuperacao'),
+  chamarDeVolta: clienteId => req(`/mensagens/recuperacao/${clienteId}/enviar`, { method: 'POST' }),
+  prazoRecuperacao: dias => req('/mensagens/recuperacao/prazo', { method: 'PUT', body: { dias } }),
   salvarTemplate: (id, patch) => req(`/mensagens/templates/${id}`, { method: 'PUT', body: patch }),
   dispararCampanha: (chave, clienteIds, variaveis) =>
     req(`/mensagens/campanhas/${chave}`, { method: 'POST', body: { clienteIds, variaveis } }),

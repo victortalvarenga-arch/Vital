@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { db, uid, getConfig } from '../db.js';
-import { hoje, agora, addDias, toMin, toHora, diasEntre } from '../lib/dates.js';
+import { hoje, agora, addDias, toMin, toHora } from '../lib/dates.js';
 import { render, variaveis } from '../lib/templates.js';
 import { enviar, modoManual } from '../whatsapp/index.js';
 import { fecharAtendimentos } from './fechamento.js';
@@ -21,14 +21,36 @@ import { tentarLideranca } from '../lib/lideranca.js';
  *
  * `dedupe_key` garante que rodar gerarFila() cem vezes no mesmo dia
  * não gere cem lembretes.
+ *
+ * Toda mensagem nasce com `expira_em`, decidido aqui por quem sabe o que ela
+ * promete; `expirarFila()` tira da fila o que venceu sem sair.
  */
 
 const tpl = chave => db.get('SELECT * FROM templates WHERE chave = ? AND ativo = 1', chave);
 const cliente = id => db.get('SELECT * FROM clients WHERE id = ?', id);
 
-async function enfileirar({ chave, cli, appt = null, quando, dedupe, exigeOptin = false }) {
+const agoraTexto = () => `${hoje()} ${agora()}`;
+const fimDoDia = data => `${data} 23:59`;
+/** Lembrete do horário só serve até o horário. */
+const aoComecar = a => `${a.data} ${a.hora}`;
+
+/** Até quando "como foi?" e campanha ainda fazem sentido. */
+const DIAS_DE_VALIDADE = 7;
+
+const POS_ATENDIMENTO = ['pos_atendimento', 'pos_cuidado'];
+
+/**
+ * Prazo de uma campanha colocada na fila hoje. Quem fala de um horário (a vaga
+ * de última hora) vale até ele; as outras, uma semana.
+ */
+export const expiraCampanha = (chave, horario = null) => horario
+  || fimDoDia(chave === 'vaga' ? hoje() : addDias(hoje(), DIAS_DE_VALIDADE));
+
+async function enfileirar({ chave, cli, appt = null, quando, expira, dedupe, exigeOptin = false }) {
   if (!cli || !cli.fone) return false;
   if (exigeOptin && !cli.optin) return false;          // LGPD: marketing só com consentimento
+  // Lançamento retroativo, ou serviço fora do ar: já nasceria vencida.
+  if (expira <= agoraTexto()) return false;
   const t = await tpl(chave);
   if (!t) return false;
 
@@ -38,13 +60,28 @@ async function enfileirar({ chave, cli, appt = null, quando, dedupe, exigeOptin 
   // fila" é o caso normal de rodar gerarFila() de novo, não uma falha.
   const gravou = await db.run(
     `INSERT INTO messages (id, client_id, appointment_id, template_chave, fone, texto,
-                           status, agendado_para, dedupe_key, criado_em)
-     VALUES (?,?,?,?,?,?, 'pendente', ?, ?, ?)
+                           status, agendado_para, expira_em, dedupe_key, criado_em)
+     VALUES (?,?,?,?,?,?, 'pendente', ?, ?, ?, ?)
      ON CONFLICT (dedupe_key) DO NOTHING`,
-    uid(), cli.id, appt?.id || null, chave, cli.fone, texto, quando, dedupe,
-    `${hoje()} ${agora()}`
+    uid(), cli.id, appt?.id || null, chave, cli.fone, texto, quando, expira, dedupe,
+    agoraTexto()
   );
   return gravou > 0;
+}
+
+/**
+ * Tira da fila o que passou do prazo sem sair. Não apaga: a `dedupe_key` da
+ * linha é o que impede `gerarFila` de criar a mesma mensagem de novo.
+ *
+ * Roda antes de toda leitura da fila e de todo despacho, e não só no cron: o
+ * cron demora até dez minutos, e nesse intervalo um lembrete de horário que já
+ * passou sairia para a cliente.
+ */
+export function expirarFila() {
+  return db.run(
+    `UPDATE messages SET status = 'expirado' WHERE status = 'pendente' AND expira_em <= ?`,
+    agoraTexto()
+  );
 }
 
 /** Enfileira a confirmação na hora do agendamento. Chamado pela rota de booking. */
@@ -52,12 +89,76 @@ export async function enfileirarConfirmacao(appt) {
   const cli = await cliente(appt.client_id);
   return enfileirar({
     chave: 'confirmacao', cli, appt,
-    quando: `${hoje()} ${agora()}`,
+    quando: agoraTexto(),
+    expira: aoComecar(appt),
     dedupe: `confirmacao:${appt.id}`,
   });
 }
 
+/**
+ * Avisa a cliente do novo horário. A rota já apagou o que estava pendente; o que
+ * já saiu perde a `dedupe_key`, senão véspera e aviso no dia do horário novo
+ * dariam com a chave do antigo e nunca sairiam.
+ *
+ * O minuto entra no dedupe porque voltar ao horário de antes é outra remarcação.
+ */
+export async function enfileirarRemarcacao(appt) {
+  await db.run(
+    `UPDATE messages SET dedupe_key = NULL
+      WHERE appointment_id = ? AND template_chave IN ('lembrete_vespera', 'lembrete_dia')`,
+    appt.id
+  );
+  if (!['agendado', 'confirmado'].includes(appt.status)) return false;
+  return enfileirar({
+    chave: 'remarcacao', cli: await cliente(appt.client_id), appt,
+    quando: agoraTexto(),
+    expira: aoComecar(appt),
+    dedupe: `remarcacao:${appt.id}:${appt.data}:${appt.hora}:${agoraTexto()}`,
+  });
+}
+
+/**
+ * Uma mensagem por cliente por semana, não uma por atendimento: quem veio duas
+ * vezes recebe uma pergunta geral, que entra no lugar do que ainda não saiu. Quem
+ * já recebeu nesta semana não recebe outra, mesmo voltando depois.
+ */
+async function enfileirarPosAtendimento(clienteId, atendimentos, quando) {
+  const marcadores = POS_ATENDIMENTO.map(() => '?').join(',');
+  const feitas = await db.all(
+    `SELECT status, template_chave FROM messages
+      WHERE client_id = ? AND template_chave IN (${marcadores})
+        AND status IN ('pendente', 'enviado') AND criado_em >= ?`,
+    clienteId, ...POS_ATENDIMENTO, addDias(hoje(), -DIAS_DE_VALIDADE)
+  );
+  if (feitas.some(m => m.status === 'enviado')) return false;
+
+  const ultimo = atendimentos.at(-1);
+  const base = {
+    cli: await cliente(clienteId), appt: ultimo, quando,
+    expira: fimDoDia(addDias(ultimo.data, DIAS_DE_VALIDADE)),
+  };
+  if (atendimentos.length === 1) {
+    // Sobra de quando eram dois: o mais antigo saiu da janela, e a pergunta
+    // geral que está na fila já cobre este.
+    if (feitas.some(m => m.template_chave === 'pos_cuidado')) return false;
+    return enfileirar({ ...base, chave: 'pos_atendimento', dedupe: `pos_atendimento:${ultimo.id}` });
+  }
+
+  const dedupe = `pos_cuidado:${ultimo.id}`;
+  const gravou = await enfileirar({ ...base, chave: 'pos_cuidado', dedupe });
+  if (gravou) {
+    await db.run(
+      `DELETE FROM messages
+        WHERE client_id = ? AND status = 'pendente' AND template_chave IN (${marcadores})
+          AND dedupe_key <> ?`,
+      clienteId, ...POS_ATENDIMENTO, dedupe
+    );
+  }
+  return gravou;
+}
+
 export async function gerarFila() {
+  await expirarFila();
   const h = hoje();
   const cfg = await getConfig();
   let n = 0;
@@ -71,6 +172,7 @@ export async function gerarFila() {
     n += await enfileirar({
       chave: 'lembrete_vespera', cli: await cliente(a.client_id), appt: a,
       quando: `${h} ${cfg.horaLembreteVespera || '18:00'}`,
+      expira: aoComecar(a),
       dedupe: `lembrete_vespera:${a.id}`,
     }) ? 1 : 0;
   }
@@ -86,6 +188,7 @@ export async function gerarFila() {
     n += await enfileirar({
       chave: 'lembrete_dia', cli: await cliente(a.client_id), appt: a,
       quando: `${h} ${toHora(quandoMin)}`,
+      expira: aoComecar(a),
       dedupe: `lembrete_dia:${a.id}`,
     }) ? 1 : 0;
   }
@@ -94,23 +197,25 @@ export async function gerarFila() {
   // só vira concluído quando alguém confirma que a cliente veio — e isso pode
   // acontecer dias depois, pelo aviso de pendências. Olhar só "ontem" deixaria
   // sem mensagem quem foi confirmada na quinta pelo atendimento de segunda.
-  // Uma semana é o limite em que "como foi?" ainda faz sentido; o `dedupe`
-  // garante uma mensagem por atendimento.
-  const ontem = await db.all(
-    `SELECT * FROM appointments WHERE data >= ? AND data <= ? AND status = 'concluido'`,
-    addDias(h, -7), addDias(h, -1)
+  // Uma semana é o limite em que "como foi?" ainda faz sentido.
+  const daSemana = await db.all(
+    `SELECT * FROM appointments WHERE data >= ? AND data <= ? AND status = 'concluido'
+      ORDER BY data, hora`,
+    addDias(h, -DIAS_DE_VALIDADE), addDias(h, -1)
   );
-  for (const a of ontem) {
-    n += await enfileirar({
-      chave: 'pos_atendimento', cli: await cliente(a.client_id), appt: a,
-      quando: `${h} ${cfg.horaPosAtendimento || '11:00'}`,
-      dedupe: `pos_atendimento:${a.id}`,
-    }) ? 1 : 0;
+  const porCliente = new Map();
+  for (const a of daSemana) {
+    porCliente.set(a.client_id, [...(porCliente.get(a.client_id) || []), a]);
+  }
+  for (const [clienteId, atendimentos] of porCliente) {
+    n += await enfileirarPosAtendimento(clienteId, atendimentos,
+      `${h} ${cfg.horaPosAtendimento || '11:00'}`) ? 1 : 0;
   }
 
   // Aniversário: dispara N dias antes (padrão 7).
   const antecedencia = cfg.diasAntesAniversario ?? 7;
-  const alvo = addDias(h, antecedencia).slice(5);       // 'MM-DD'
+  const dataDoAniversario = addDias(h, antecedencia);
+  const alvo = dataDoAniversario.slice(5);              // 'MM-DD'
   const aniversariantes = await db.all(
     `SELECT * FROM clients WHERE nascimento IS NOT NULL AND substr(nascimento,6) = ?`, alvo
   );
@@ -118,39 +223,20 @@ export async function gerarFila() {
     n += await enfileirar({
       chave: 'aniversario', cli: c,
       quando: `${h} ${cfg.horaCampanha || '10:00'}`,
+      expira: fimDoDia(dataDoAniversario),
       dedupe: `aniversario:${c.id}:${h.slice(0, 4)}`,     // uma vez por ano
       exigeOptin: true,
     }) ? 1 : 0;
   }
 
-  // Reativação: passou do prazo sem voltar.
-  const prazo = cfg.diasReativacao ?? 60;
-  const candidatas = await db.all(
-    `SELECT c.*, MAX(a.data) AS ultima
-       FROM clients c JOIN appointments a ON a.client_id = c.id
-      WHERE a.status = 'concluido'
-      GROUP BY c.id`
-  );
-  for (const c of candidatas) {
-    const d = diasEntre(c.ultima, h);
-    if (d < prazo || d > prazo + 60) continue;           // janela, pra não spammar quem sumiu de vez
-    const ult = await db.get(
-      `SELECT * FROM appointments WHERE client_id=? AND status='concluido' ORDER BY data DESC LIMIT 1`,
-      c.id
-    );
-    n += await enfileirar({
-      chave: 'reativacao', cli: c, appt: ult,
-      quando: `${h} ${cfg.horaCampanha || '10:00'}`,
-      dedupe: `reativacao:${c.id}:${c.ultima}`,
-      exigeOptin: true,
-    }) ? 1 : 0;
-  }
-
+  // Reativação não passa por aqui: quem faz tempo que não volta está na aba
+  // Recuperação, e mandar mensagem é escolha de quem olha (migration 036).
   return n;
 }
 
 /** Entrega o que já venceu. No modo manual não envia nada: só deixa na fila. */
 export async function despachar({ limite = 30 } = {}) {
+  await expirarFila();
   if (await modoManual()) return { enviadas: 0, modo: 'manual' };
 
   const vencidas = await db.all(

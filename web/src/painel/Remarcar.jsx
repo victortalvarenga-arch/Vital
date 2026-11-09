@@ -40,7 +40,7 @@ export default function Remarcar({ alvo, clientes, servicos, staff, acao, aoFech
           <i>{hora}{trocouDeMao && ` · ${primeiroNome(para)}`}</i>
         </div>
       </div>
-      <p className="rm-nota">A cliente não é avisada automaticamente — a mensagem sai pela fila.</p>
+      <p className="rm-nota">O aviso com o novo horário vai para a fila do WhatsApp.</p>
       <div className="rm-botoes">
         <button className="btn btn-g" onClick={aoFechar}>Cancelar</button>
         <button className="btn btn-p" onClick={async () => {

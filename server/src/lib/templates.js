@@ -76,17 +76,25 @@ export const TEMPLATES_PADRAO = [
     quando: '1 dia depois do atendimento',
     texto: 'Oi {cliente}, tudo bem? Como foi o seu {servico}?\n\nSe gostou, sua avaliação no Google ajuda demais a gente: {link}\n\nE se quiser já deixar o próximo horário reservado, é só responder aqui.' },
 
+  { chave: 'pos_cuidado', titulo: 'Pós-atendimento da semana', tipo: 'auto',
+    quando: 'No lugar do pós-atendimento, para quem veio mais de uma vez na semana',
+    texto: 'Oi {cliente}, tudo bem? Passando pra saber como você está depois dos seus atendimentos na {empresa} 😊\n\nFicou tudo como você queria? Se precisar de algum cuidado ou tiver alguma dúvida, é só me chamar.' },
+
+  { chave: 'remarcacao', titulo: 'Horário remarcado', tipo: 'auto',
+    quando: 'Assim que a equipe muda o dia ou a hora',
+    texto: 'Oi {cliente}! Seu horário mudou. O novo é:\n\n📅 {data} às {hora}\n✨ {servico} com {profissional}\n\nSe não puder nesse horário, é só chamar por aqui que a gente ajeita.' },
+
   { chave: 'aniversario', titulo: 'Semana do aniversário', tipo: 'auto',
     quando: '7 dias antes do aniversário',
     texto: 'Feliz aniversário, {cliente}! 🎉\n\nPra comemorar, você tem *20% OFF* em qualquer serviço na semana do seu aniversário ({data}).\n\nMe chama aqui que eu já separo o melhor horário.' },
 
-  { chave: 'reativacao', titulo: 'Saudade (60 dias sem voltar)', tipo: 'auto',
-    quando: '60 dias após o último atendimento',
+  { chave: 'reativacao', titulo: 'Saudade', tipo: 'recuperacao',
+    quando: 'Enviada por você, na aba Recuperação',
     texto: 'Oi {cliente}, quanto tempo! Faz {dias} dias desde o seu último {servico} na {empresa}.\n\nSeparei um desconto de retorno: 15% na próxima visita, válido pelos próximos 10 dias.\n\nQuer que eu veja um horário pra essa semana?' },
 
   { chave: 'vaga', titulo: 'Vaga de última hora', tipo: 'campanha',
     quando: 'Disparo manual quando alguém cancela',
-    texto: 'Oi {cliente}! Abriu uma vaga hoje às {hora} 🙌\n\nSe quiser aproveitar, me responde nos próximos minutos que eu seguro pra você.' },
+    texto: 'Oi {cliente}! Abriu uma vaga para {data} às {hora} 🙌\n\nSe quiser aproveitar, me responde nos próximos minutos que eu seguro pra você.' },
 
   { chave: 'promocao', titulo: 'Promoção do mês', tipo: 'campanha',
     quando: 'Disparo manual',

@@ -10,14 +10,16 @@ import { prepararBanco, limpar, limparAgenda, cenario, agendar, criarEmpresa, co
  * nosso. Um defeito aqui não aparece em tela nenhuma — aparece no celular de
  * alguém, e o que se manda não volta.
  *
- * Três coisas que estes testes seguram, e que são as que doem:
+ * Quatro coisas que estes testes seguram, e que são as que doem:
  *
  *  - **Não mandar duas vezes.** `gerarFila` roda a cada dez minutos; sem a
  *    deduplicação, seriam seis lembretes por hora para a mesma pessoa.
- *  - **Não mandar para quem não quer.** Aniversário e reativação são marketing
- *    e dependem de `optin`; lembrete e confirmação são transacionais e não.
- *    Trocar isso é infração de LGPD, não bug de tela.
+ *  - **Não mandar para quem não quer.** Aniversário é marketing e depende de
+ *    `optin`; lembrete e confirmação são transacionais e não. Trocar isso é
+ *    infração de LGPD, não bug de tela.
  *  - **Não mandar para quem não vem.** Cancelado não recebe lembrete.
+ *  - **Não mandar fora de hora.** Lembrete de horário que já passou sai da fila
+ *    sem ser enviado.
  */
 
 const EMPRESA_B = 'empresa-fila';
@@ -68,7 +70,7 @@ const dia = n => datas.addDias(hoje(), n);
 
 /** As mensagens pendentes, por chave de template. */
 const pendentes = () => db.db.all(
-  `SELECT template_chave, fone, texto, agendado_para, status
+  `SELECT template_chave, fone, texto, agendado_para, expira_em, status
      FROM messages ORDER BY template_chave`
 );
 const chaves = async () => (await pendentes()).map(m => m.template_chave);
@@ -116,10 +118,11 @@ describe('aviso no dia', () => {
   test('sai as horas configuradas antes do horário', async () => {
     await na(async () => {
       await db.setConfig({ horasAvisoNoDia: 3 });
-      await agendar(db, { data: hoje(), hora: '15:00' });
+      // Tarde da noite: horário que já passou nem entra na fila.
+      await agendar(db, { data: hoje(), hora: '23:58' });
       await fila.gerarFila();
       const m = (await pendentes()).find(x => x.template_chave === 'lembrete_dia');
-      assert.equal(m.agendado_para, `${hoje()} 12:00`);
+      assert.equal(m.agendado_para, `${hoje()} 20:58`);
     });
   });
 
@@ -163,6 +166,60 @@ describe('pós-atendimento', () => {
   });
 });
 
+describe('mais de um atendimento na semana', () => {
+  const dela = async () => (await pendentes())
+    .filter(m => ['pos_atendimento', 'pos_cuidado'].includes(m.template_chave));
+
+  test('vira uma mensagem só, com a pergunta geral', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(-4), hora: '10:00', status: 'concluido' });
+      await agendar(db, { data: dia(-2), hora: '10:00', status: 'concluido' });
+      await fila.gerarFila();
+      await fila.gerarFila();
+      const [m, ...resto] = await dela();
+      assert.deepEqual(resto, []);
+      assert.equal(m.template_chave, 'pos_cuidado');
+      assert.equal(m.expira_em, `${dia(5)} 23:59`, 'o prazo conta do último atendimento');
+    });
+  });
+
+  test('a segunda visita troca o "como foi?" que ainda não saiu', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(-4), hora: '10:00', status: 'concluido' });
+      await fila.gerarFila();
+      assert.equal((await dela())[0].template_chave, 'pos_atendimento');
+
+      await agendar(db, { data: dia(-2), hora: '10:00', status: 'concluido' });
+      await fila.gerarFila();
+      assert.deepEqual((await dela()).map(m => m.template_chave), ['pos_cuidado']);
+    });
+  });
+
+  test('quem já recebeu na semana não recebe outra ao voltar', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(-4), hora: '10:00', status: 'concluido' });
+      await fila.gerarFila();
+      await db.db.run(`UPDATE messages SET status = 'enviado', criado_em = ?`, `${dia(-1)} 10:00`);
+
+      await agendar(db, { data: dia(-2), hora: '10:00', status: 'concluido' });
+      await fila.gerarFila();
+      assert.deepEqual((await dela()).map(m => m.status), ['enviado']);
+    });
+  });
+
+  test('atendimentos de clientes diferentes continuam separados', async () => {
+    await na(async () => {
+      await db.db.run(`INSERT INTO clients (id,nome,fone,criado_em) VALUES ('c-pos','Bruna','47900000009','2026-01-01')`);
+      await agendar(db, { data: dia(-2), hora: '10:00', status: 'concluido' });
+      await agendar(db, { data: dia(-2), hora: '10:00', status: 'concluido', prof: 'p2', cliente: 'c-pos', servico: 's1' });
+      await fila.gerarFila();
+      assert.deepEqual((await dela()).map(m => m.template_chave), ['pos_atendimento', 'pos_atendimento']);
+      await limparAgenda(db);
+      await db.db.run(`DELETE FROM clients WHERE id = 'c-pos'`);
+    });
+  });
+});
+
 describe('marketing depende de consentimento', () => {
   const fazerAniversariar = () => na(() => db.db.run(
     `UPDATE clients SET nascimento = ? WHERE id = 'c1'`,
@@ -198,20 +255,77 @@ describe('marketing depende de consentimento', () => {
     });
   });
 
-  test('reativação respeita a janela, e o optin', async () => {
+  test('quem faz tempo que não volta não entra na fila', async () => {
+    // Desde a 036 isso é a aba Recuperação: nada sai sozinho.
     await na(async () => {
       await db.setConfig({ diasReativacao: 60 });
-
-      // Sumiu há 70 dias: dentro da janela de 60 a 120.
       await agendar(db, { data: dia(-70), hora: '10:00', status: 'concluido' });
       await fila.gerarFila();
-      assert.ok((await chaves()).includes('reativacao'));
+      assert.deepEqual(await chaves(), []);
+    });
+  });
+});
 
-      await limparAgenda(db);
-      // Sumiu há 200 dias: fora da janela. Não se persegue quem foi embora.
-      await agendar(db, { data: dia(-200), hora: '10:00', status: 'concluido' });
+describe('o prazo de cada mensagem', () => {
+  const vencer = () => db.db.run(`UPDATE messages SET expira_em = '2020-01-01 10:00'`);
+  const naFila = async chave => (await pendentes()).find(m => m.template_chave === chave);
+
+  test('lembrete vale até o horário; pós-atendimento, uma semana', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(1), hora: '10:00' });
+      await agendar(db, { data: dia(-1), hora: '10:00', status: 'concluido' });
       await fila.gerarFila();
-      assert.ok(!(await chaves()).includes('reativacao'));
+      assert.equal((await naFila('lembrete_vespera')).expira_em, `${dia(1)} 10:00`);
+      assert.equal((await naFila('pos_atendimento')).expira_em, `${dia(6)} 23:59`);
+    });
+  });
+
+  test('aniversário vale até o dia do aniversário', async () => {
+    await na(async () => {
+      await db.db.run(`UPDATE clients SET nascimento = ? WHERE id = 'c1'`, '1990-' + dia(7).slice(5));
+      await fila.gerarFila();
+      assert.equal((await naFila('aniversario')).expira_em, `${dia(7)} 23:59`);
+    });
+  });
+
+  test('vaga de última hora vale hoje; as outras campanhas, uma semana', () => {
+    assert.equal(fila.expiraCampanha('vaga'), `${hoje()} 23:59`);
+    assert.equal(fila.expiraCampanha('promocao'), `${dia(7)} 23:59`);
+    assert.equal(fila.expiraCampanha('vaga', `${dia(1)} 15:00`), `${dia(1)} 15:00`,
+      'com horário escolhido, vale até ele');
+  });
+
+  test('a vencida sai da fila sem ter sido enviada, e não volta', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(1), hora: '10:00' });
+      await fila.gerarFila();
+      await vencer();
+      await fila.expirarFila();
+      assert.equal((await naFila('lembrete_vespera')).status, 'expirado');
+
+      await fila.gerarFila();
+      assert.equal((await pendentes()).length, 1, 'a próxima passada não recria a mensagem');
+    });
+  });
+
+  test('a que ainda está no prazo e a sem prazo ficam', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(1), hora: '10:00' });
+      await fila.gerarFila();
+      await db.db.run(
+        `INSERT INTO messages (id,template_chave,fone,texto,agendado_para,criado_em)
+         VALUES ('sem-prazo','campanha','47900000001','oi','2020-01-01 10:00','2020-01-01')`);
+      await fila.expirarFila();
+      assert.ok((await pendentes()).every(m => m.status === 'pendente'));
+    });
+  });
+
+  test('horário lançado depois de passar nem entra na fila', async () => {
+    await na(async () => {
+      await agendar(db, { data: dia(-2), hora: '10:00' });
+      const a = await db.db.get(`SELECT * FROM appointments LIMIT 1`);
+      assert.equal(await fila.enfileirarConfirmacao(a), false);
+      assert.deepEqual(await chaves(), []);
     });
   });
 });

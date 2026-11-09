@@ -8,7 +8,7 @@ import { mudancas } from '../lib/registro.js';
 import { validarAdicionais, gravarAdicionais, comAdicionais } from '../lib/adicionais.js';
 import { comboCompleto, profissionaisDoCombo, ratearCombo, usosDe, valeNoDia } from '../lib/combos.js';
 import { formsDoServico, formsDoAgendamento, validarRespostas, gravarRespostas, respostasDoAgendamento } from '../lib/formularios.js';
-import { enfileirarConfirmacao } from '../jobs/mensagens.js';
+import { enfileirarConfirmacao, enfileirarRemarcacao } from '../jobs/mensagens.js';
 import { pagamentoDe } from '../lib/pagamento.js';
 
 export const agendamentos = Router();
@@ -542,6 +542,10 @@ agendamentos.put('/:id', rota(async (req, res) => {
   });
 
   if (resultado.erro) return res.status(409).json({ erro: resultado.erro });
+
+  // Só dia e hora: trocar quem atende no mesmo horário não muda nada para a
+  // agenda dela, e o lembrete já sai com o nome novo.
+  if (data !== atual.data || hora !== atual.hora) await enfileirarRemarcacao(resultado.atualizado);
 
   const depois = apptOut(resultado.atualizado);
   const quem = await nomeDaCliente(depois.clienteId);

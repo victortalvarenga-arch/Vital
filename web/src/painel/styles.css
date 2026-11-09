@@ -400,6 +400,35 @@ a.btn{text-decoration:none}
 /* Texto de ajuda numa linha de 120 letras cansa e se perde: a medida é a de leitura. */
 .cs-sec-cab p, .cs-modelo-desc { max-width: 70ch; }
 .crm-aviso { padding: 14px; margin-bottom: 16px; font-size: 13px; line-height: 1.55; background: var(--porcelain); }
+
+/* Fila de mensagens (aba do WhatsApp) */
+.flm-card{padding:16px; margin-bottom:10px}
+.flm-topo{display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-bottom:12px}
+.flm-icone{background:var(--uv); width:34px; height:34px; flex:none}
+.flm-quem{flex:1 1 200px; min-width:0}
+.flm-nome{font-weight:700; font-size:14.5px}
+.flm-meta{font-size:12px; color:var(--muted); line-height:1.5}
+.flm-acoes{display:flex; gap:8px}
+.flm-rodape{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px}
+.flm-rodape:empty{display:none}
+.flm-prazo{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--muted)}
+.flm-prazo.urgente{color:var(--warn-texto)}
+.flm-sai{font-size:12px; color:var(--muted)}
+.flm-horario{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px}
+.flm-erro{grid-column:1 / -1; flex-basis:100%; margin:0; font-size:12.5px; color:var(--warn-texto)}
+
+/* Recuperação (aba do WhatsApp) */
+.rcp-topo{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.rcp-topo > span{flex:1 1 220px}
+.rcp-prazo{display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex-basis:100%}
+.rcp-prazo label{font-weight:600}
+.rcp-prazo input{width:76px}
+.rcp-vazio{padding:40px; text-align:center; color:var(--muted)}
+.rcp-linha{flex-wrap:wrap}
+.rcp-foto{width:34px; height:34px; font-size:12px; flex:none; background:var(--uv)}
+.rcp-quem{flex:1; min-width:0}
+.rcp-chamada{font-size:12px; color:var(--muted); margin-top:2px}
+.rcp-sem{background:var(--line); color:var(--muted)}
 .cs-modelo-desc { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
 .cs-modelo-desc a { color: inherit; font-weight: 600; white-space: nowrap; }
 

@@ -148,6 +148,9 @@ escrito, não aconteceu.
   escrita em `db.comAutoria({ tipo, origem }, fn)`. Sem isso o evento sai com
   o nome de quem está logado, ou como "sistema". Ver `ARQUITETURA.md`, "O
   histórico do agendamento".
+- Mensagem nova na fila nasce com `expira_em`: o que ela promete deixa de valer
+  em algum momento, e sem prazo ela fica pendente para sempre, ou sai atrasada
+  no modo automático. Ver `ARQUITETURA.md`, "WhatsApp".
 - Tabela que só registra (`logs`, `funil`, `funil_diario`, `appointment_events`) precisa de
   `REVOKE UPDATE, DELETE` explícito na própria migration: o
   `ALTER DEFAULT PRIVILEGES` da 002 faz toda tabela nova em `public` nascer com
