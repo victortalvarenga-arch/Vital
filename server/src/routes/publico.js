@@ -27,6 +27,11 @@ const LIMITES = {
   // O mais apertado dos três: aqui a resposta diz se um telefone tem cadastro,
   // e sem limite isso vira varredura de quem é cliente de quem.
   identificar: limite({ nome: 'identificar', max: 30, janelaSeg: 600 }),
+  // Vitrine, horários e dias livres não escrevem, mas cada pedido faz várias
+  // consultas: em laço, ocupam o banco e a única máquina. Um balde para as
+  // três, senão alternar entre elas triplicava o teto. Uma visita de verdade
+  // faz dezenas de leituras, nunca centenas por minuto.
+  leitura: limite({ nome: 'leitura', max: 300, janelaSeg: 60 }),
 };
 
 /**
@@ -123,7 +128,7 @@ function avaliacoesParaVitrine(a) {
   };
 }
 
-publico.get('/vitrine', rota(async (req, res) => {
+publico.get('/vitrine', LIMITES.leitura, rota(async (req, res) => {
   const cfg = await getConfig();
   const equipe = await db.all('SELECT * FROM staff WHERE ativo=1 ORDER BY nome');
   const servicos = await listarServicos({ somenteAtivos: true });
@@ -205,7 +210,7 @@ publico.get('/vitrine', rota(async (req, res) => {
  * que está ocupado é o banco. Sem esta rota o site mostraria horário já
  * vendido e a cliente só descobriria ao tentar confirmar.
  */
-publico.get('/horarios', rota(async (req, res) => {
+publico.get('/horarios', LIMITES.leitura, rota(async (req, res) => {
   const { servicoId, profissionalId, data } = req.query;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) {
     return res.status(400).json({ erro: 'informe data=YYYY-MM-DD' });
@@ -276,7 +281,7 @@ const listaDeIds = v => String(v || '').split(',').map(x => x.trim()).filter(Boo
  * uma vez, e a lista de horas precisa de um dia só. Misturar os dois numa rota
  * faria o desenho do mês carregar horário que ninguém pediu.
  */
-publico.get('/dias-livres', rota(async (req, res) => {
+publico.get('/dias-livres', LIMITES.leitura, rota(async (req, res) => {
   const { servicoId, profissionalId, mes } = req.query;
   if (!/^\d{4}-\d{2}$/.test(mes || '')) {
     return res.status(400).json({ erro: 'informe mes=YYYY-MM' });

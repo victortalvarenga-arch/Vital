@@ -2552,6 +2552,15 @@ visita gera três chamadas e escritório, salão e shopping saem todos pelo mesm
 IP.
 
 A janela é fixa, não deslizante: deixa passar até o dobro na virada, e os
+**A leitura também tem teto, e alto: 300 por minuto.** Vitrine, horários e
+dias livres não escrevem nada, mas cada pedido faz várias consultas; um script
+pedindo em laço ocupa o banco e a única máquina, e o site sai do ar para todas
+as empresas. As três dividem um balde (`leitura`) — balde por rota deixaria
+quem alterna entre elas com o triplo. A página inicial, que lê o banco para
+escrever o `<head>`, tem o próprio (`pagina`, em `app.js`). Uma visita de
+verdade faz dezenas de leituras, nunca centenas por minuto. Rota nova de
+leitura em `/api/publico` entra no balde `leitura`.
+
 limites já são escolhidos com folga sabendo disso. O preço é um Map por janela
 em vez de uma lista de horários por chave — numa rota pública, a diferença
 entre lembrar de quem chamou e lembrar de cada chamada. Trocar o Map inteiro na
@@ -2640,6 +2649,14 @@ constante) e, sem a variável, fica desligada; a tela pede a chave quando
 `precisa-configurar` diz `pedeChave`. Em desenvolvimento a chave é opcional.
 
 **A identidade da nossa equipe é outra coisa.** `plataforma.usuarios`,
+**O login da equipe tem teto mais apertado que o do painel**: 10 tentativas em
+15 minutos por IP (o painel aceita 20), e o primeiro acesso, 5 por hora — é o
+que impede chutar a chave de instalação. Pouca gente entra ali, cada uma com
+acesso a todas as empresas, e cada tentativa roda um argon2: sem teto, o login
+servia também para ocupar a CPU da única máquina. O limite barra antes de
+conferir a senha, então quem chuta não descobre a certa pelo 200. Coberto em
+`limite.test.js`.
+
 `plataforma.sessoes` e o cookie `sessao_vital` — nenhuma referência cruzada com
 `public.users`. O que separa de verdade são as tabelas: um token de uma nunca é
 encontrado na outra, então cruzar as identidades é impossível, não só proibido.
@@ -2817,6 +2834,18 @@ para — e confere a saúde em `/api/saude`. Segredo nenhum mora nos dois
 arquivos: vai por `fly secrets`.
 
 **Nenhuma tela consulta o banco por item.** O site e o painel fazem um número
+**Tudo sai comprimido** (`compression`, o primeiro middleware de `app.js`). O
+Fly cobra o GB que sai da máquina e não comprime no caminho; o JavaScript do
+painel cai a menos de um terço. É também o que mais encolhe a fatura numa
+enxurrada de pedidos. Foto já vem comprimida e a biblioteca a deixa passar.
+
+**O erro não sai com a mensagem de dentro** (`lib/erro.js`). Falha do servidor
+responde só `{ erro: 'erro interno' }` e o detalhe vai para o log: erro de
+banco traz nome de tabela, coluna e restrição, e devolvê-lo é dar o mapa do
+esquema a quem provoca erro numa rota pública. Pedido malformado (JSON
+quebrado, corpo grande demais) é 400/413, sem linha no log — o defeito é de
+quem mandou. A tela só lê o campo `erro`.
+
 fixo de consultas (16 e 21 com a Laura, contando início e fim da transação),
 seja qual for o tamanho do catálogo: adicionais (`adicionaisDeTodos`),
 promoções (`combosCompletos`) e a equipe de cada promoção

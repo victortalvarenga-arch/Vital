@@ -157,7 +157,9 @@ escrito, não aconteceu.
 - Rota nova em `/api/publico` que escreve, ou que responde se um dado existe,
   entra com `limite()` (`lib/limite.js`). Sem login não há a quem cobrar o
   abuso, e `/identificar` já mostrou o caso pior: uma resposta de "sim/não"
-  vira varredura de quem é cliente de quem.
+  vira varredura de quem é cliente de quem. Rota nova de leitura ali entra
+  no balde `leitura` (`routes/publico.js`): sem teto, pedida em laço, ela
+  ocupa o banco e derruba o site de todas as empresas.
 - Campo novo na config não entra na vitrine sozinho — `/api/publico/vitrine`
   monta a resposta a dedo, para não publicar segredo por descuido.
   O serviço é a exceção: sai inteiro, e campo interno novo em `services`

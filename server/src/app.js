@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 
 import { db, getConfig, listarServicos, listarUnidades, staffOut, clientOut, apptOut, templateOut, blockOut } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
@@ -32,6 +33,8 @@ import { suporte } from './routes/suporte.js';
 import { atendente } from './routes/atendente.js';
 import { atendenteLigado } from './atendente/modelo.js';
 import { fecharAtendimentos } from './jobs/fechamento.js';
+import { tratarErro } from './lib/erro.js';
+import { limite } from './lib/limite.js';
 
 /**
  * Monta a aplicação Express, sem subir nada.
@@ -58,6 +61,17 @@ if (process.env.TRUST_PROXY) {
   const v = process.env.TRUST_PROXY;
   app.set('trust proxy', /^\d+$/.test(v) ? Number(v) : v);
 }
+
+/**
+ * Comprimir antes de tudo, para valer para API, telas e imagens enviadas.
+ *
+ * O Fly cobra o GB que sai da máquina e não comprime no caminho. O JavaScript
+ * do painel cai a menos de um terço, e numa enxurrada de pedidos é essa a
+ * linha que cresce na fatura. Foto já vem comprimida; a biblioteca reconhece
+ * pelo tipo e não gasta CPU com ela. Quem não manda `Accept-Encoding` recebe o
+ * arquivo puro.
+ */
+app.use(compression());
 
 app.use(cors({
   origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
@@ -247,7 +261,11 @@ const PASTA_WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 if (fs.existsSync(PASTA_WEB)) {
   const base = (process.env.BASE_DOMINIO || '').toLowerCase();
   let paginaDoSite = null;
-  app.get(['/', '/index.html'], async (req, res, next) => {
+  // A página consulta o banco para escrever o `<head>` da empresa; sem teto,
+  // pedi-la em laço ocupa o banco como pedir a vitrine. Balde próprio: quem
+  // recarregou muito não fica sem conseguir agendar.
+  const LIMITE_DA_PAGINA = limite({ nome: 'pagina', max: 300, janelaSeg: 60 });
+  app.get(['/', '/index.html'], LIMITE_DA_PAGINA, async (req, res, next) => {
     const host = req.hostname.toLowerCase();
     // No domínio da Vital sem subdomínio, a raiz é a página de cadastro — não o
     // site da empresa padrão, que ninguém de fora deveria ver.
@@ -280,13 +298,6 @@ if (fs.existsSync(PASTA_WEB)) {
   app.use(express.static(PASTA_WEB, { index: 'index.html', maxAge: 0 }));
 }
 
-// Os quatro argumentos são o que faz o Express tratar isto como handler de erro.
-app.use((err, req, res, _next) => {
-  console.error(err);
-  // A requisição é uma transação (`db.naRequisicao`): o que ela gravou antes
-  // de quebrar é desfeito, em vez de ficar pela metade.
-  res.locals.desfazer = true;
-  res.status(500).json({ erro: 'erro interno', detalhe: err.message });
-});
+app.use(tratarErro);
 
 export { app };

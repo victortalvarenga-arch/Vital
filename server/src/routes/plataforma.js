@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { Router } from 'express';
 import { db } from '../db.js';
 import { rota } from '../lib/rota.js';
+import { limite } from '../lib/limite.js';
 import { esquecerCacheDeEmpresas } from '../lib/tenant.js';
 import { comTaxas } from '../lib/funil.js';
 import {
@@ -43,6 +44,18 @@ plataforma.use(identificarVital);
 /* ── entrar ─────────────────────────────────────────────────────────────── */
 
 /**
+ * Mais apertado que o login do painel (20 em 15 min): aqui entra pouca gente,
+ * cada uma com acesso a todas as empresas, e não há salão inteiro saindo pelo
+ * mesmo IP. O primeiro acesso acontece uma vez na vida; o teto dele é o que
+ * impede chutar a chave de instalação. Balde próprio, para não travar o login
+ * das empresas.
+ */
+const LIMITES = {
+  login: limite({ nome: 'login-vital', max: 10, janelaSeg: 900 }),
+  primeiroAcesso: limite({ nome: 'primeiro-acesso-vital', max: 5, janelaSeg: 3600 }),
+};
+
+/**
  * A chave que destrava o primeiro acesso, ou `null` quando não é exigida.
  *
  * Banco de produção nasce sem ninguém da equipe, e o primeiro acesso cria um
@@ -69,7 +82,7 @@ plataforma.get('/precisa-configurar', rota(async (req, res) => {
   res.json({ precisa: n === 0, pedeChave: n === 0 && chaveExigida() !== null });
 }));
 
-plataforma.post('/primeiro-acesso', rota(async (req, res) => {
+plataforma.post('/primeiro-acesso', LIMITES.primeiroAcesso, rota(async (req, res) => {
   const { nome, email, senha } = req.body || {};
   const chave = chaveExigida();
   if (chave === false) {
@@ -90,7 +103,7 @@ plataforma.post('/primeiro-acesso', rota(async (req, res) => {
   res.status(201).json({ usuario: entrada.usuario, poderes: PODERES_VITAL.admin });
 }));
 
-plataforma.post('/login', rota(async (req, res) => {
+plataforma.post('/login', LIMITES.login, rota(async (req, res) => {
   const { email, senha } = req.body || {};
   const r = await entrarNaPlataforma({ email, senha, agente: req.headers['user-agent'] });
   if (r.erro) return res.status(401).json({ erro: r.erro });

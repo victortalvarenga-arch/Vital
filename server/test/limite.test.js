@@ -1,5 +1,6 @@
 import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import {
   prepararBanco, limpar, limparAgenda, cenario, subirApi, comoAdmin, criarEmpresa,
 } from './ambiente.js';
@@ -136,6 +137,82 @@ describe('o limite é por empresa', () => {
       await comoAdmin(`DELETE FROM funil WHERE tenant_id = 'vizinha-limite'`);
       await comoAdmin(`DELETE FROM plataforma.tenants WHERE id = 'vizinha-limite'`);
     }
+  });
+});
+
+describe('a leitura do site tem teto', () => {
+  // Vitrine, horários e dias livres não escrevem nada, mas cada pedido faz
+  // várias consultas. Um script pedindo em laço ocupa o banco e a única
+  // máquina, e o site sai do ar para todas as empresas. Teto alto: uma visita
+  // de verdade faz umas dezenas de leituras, nunca centenas por minuto.
+  const ler = [
+    () => api.anonimo()('GET', '/api/publico/vitrine'),
+    () => api.anonimo()('GET', '/api/publico/horarios?servicoId=s1&data=2027-06-10'),
+    () => api.anonimo()('GET', '/api/publico/dias-livres?servicoId=s1&mes=2027-06'),
+  ];
+
+  test('trezentas leituras por minuto passam, a seguinte não', async () => {
+    const status = await repetir(301, i => ler[i % 3]());
+    assert.equal(status.filter(s => s === 429).length, 1, `só a última é barrada: ${status.slice(-3)}`);
+    assert.equal(status[300], 429);
+  });
+
+  test('as três rotas contam juntas: alternar entre elas não escapa do teto', async () => {
+    await repetir(300, () => ler[0]());
+    assert.equal((await ler[1]()).status, 429);
+    assert.equal((await ler[2]()).status, 429);
+  });
+
+  // A página inicial também lê o banco (o `<head>` com o nome da empresa). Só
+  // existe com o front compilado em `web/dist`; sem ele a rota nem é montada.
+  const temBuild = existsSync(new URL('../../web/dist/index.html', import.meta.url));
+  test('a página inicial tem teto próprio', { skip: !temBuild && 'sem web/dist: rode npm run build na raiz' }, async () => {
+    const status = await repetir(301, () => api.anonimo()('GET', '/'));
+    assert.equal(status[299], 200);
+    assert.equal(status[300], 429);
+  });
+});
+
+describe('o login da equipe da Vital tem teto', () => {
+  // É o login com mais poder do sistema: entra no back-office de todas as
+  // empresas. E cada tentativa roda um argon2, então sem teto ele servia
+  // também para ocupar a CPU da única máquina.
+  const EMAIL = 'equipe@vital.com';
+  const SENHA_CERTA = 'senha-certa-da-equipe';
+  const entrar = senha => api.anonimo()('POST', '/api/plataforma/login', { email: EMAIL, senha });
+
+  beforeEach(async () => {
+    await comoAdmin('DELETE FROM plataforma.sessoes');
+    await comoAdmin('DELETE FROM plataforma.auditoria');
+    await comoAdmin('DELETE FROM plataforma.usuarios');
+    const r = await api.anonimo()('POST', '/api/plataforma/primeiro-acesso',
+      { nome: 'Equipe', email: EMAIL, senha: SENHA_CERTA });
+    assert.equal(r.status, 201, JSON.stringify(r.corpo));
+    zerarLimites(); // o primeiro acesso acima não conta para o teste
+  });
+
+  test('dez senhas erradas passam pela conferência, a décima primeira não', async () => {
+    const status = await repetir(11, i => entrar(`errada-${i}`));
+    assert.deepEqual(status.slice(0, 10), Array(10).fill(401));
+    assert.equal(status[10], 429);
+  });
+
+  test('estourado o teto, nem a senha certa entra', async () => {
+    // Prova que o limite barra antes de olhar a senha. Se só barrasse o erro,
+    // quem chuta continuaria descobrindo a senha certa pelo 200.
+    await repetir(10, i => entrar(`errada-${i}`));
+    const r = await entrar(SENHA_CERTA);
+    assert.equal(r.status, 429);
+    assert.match(r.corpo.erro, /tentativas/i);
+  });
+
+  test('o primeiro acesso também tem teto', async () => {
+    // Já existe gente, então cada chamada é 409. Sem teto, em produção, era
+    // chute à vontade da chave de instalação.
+    const status = await repetir(7, () => api.anonimo()('POST', '/api/plataforma/primeiro-acesso',
+      { nome: 'Outro', email: 'outro@vital.com', senha: SENHA_CERTA }));
+    assert.deepEqual(status.slice(0, 5), Array(5).fill(409));
+    assert.equal(status[5], 429);
   });
 });
 

@@ -1023,6 +1023,16 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Código
 
+- [x] ~~O erro 500 devolvia a mensagem interna ao navegador.~~ Resolvido em
+      2026-11-09 (`lib/erro.js`, ver `ARQUITETURA.md`, "Hospedagem").
+- [ ] **Duas dependências com falha moderada conhecida, sem correção
+      compatível.** `qs` (que o Express 4 traz fixo) e `uuid` (do
+      `node-cron` 3). As graves — `body-parser`, `proxy-addr` e
+      `compression` — foram atualizadas em 2026-11-09. O `npm audit fix`
+      não alcança estas duas: o `qs` espera o Express trazer versão nova (ou
+      um `overrides` no `package.json`), e o `uuid` pede `--force`, que troca
+      a versão maior do `node-cron`. Fazer como tarefa própria, com a suíte
+      inteira, e rodar `npm audit` em `server/` de novo.
 - [ ] **Os testes não rodam sozinhos.** Os 41 arquivos de `server/test/` só
       rodam quando alguém lembra de `npm test`; nada roda a cada push. Os
       testes precisam de banco de verdade, então a automação (GitHub Actions)
@@ -1197,6 +1207,10 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       valer a pena centralizar sem borda, o balde vira uma chave com TTL no
       Postgres — mas isso é uma escrita a mais por requisição, e a borda é mais
       barata.
+- [x] ~~O login da equipe da Vital não tinha limite de tentativas.~~
+      Resolvido em 2026-11-09: `/api/plataforma/login` (10 em 15 min) e
+      `/primeiro-acesso` (5 por hora). Ver `ARQUITETURA.md`, "O back-office
+      da Vital".
 
 ### Banco
 
@@ -1264,6 +1278,23 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       "off"` no `fly.toml`; ver "Decisões tomadas", no topo). Vale lembrar se
       um dia a hospedagem mudar, ou se alguém ligar o desligamento automático
       para economizar: o `node-cron` precisa de processo contínuo.
+- [ ] **Enxurrada de requisições: a conta não explode, mas o tráfego de saída
+      cobra.** Com uma máquina fixa (`shared-cpu-1x`, `min_machines_running =
+      1`, sem escalar sozinho), a enxurrada derruba o site, mas não multiplica
+      a máquina como uma função serverless multiplica invocação. O que cresce
+      com o número de pedidos é o GB de saída do Fly: o `/` tem poucos KB, mas
+      um robô pedindo em laço o `painel-*.js` (~300 KB) ou as fotos de modelo
+      em `/assets` (100–230 KB) põe terabytes na fatura. E a Cloudflare está
+      só no DNS (nuvem cinza), então não segura nem guarda nada em cache.
+      Desde 2026-11-09 tudo sai comprimido e a leitura do site tem teto por
+      IP (ver `ARQUITETURA.md`), o que corta o tráfego de JavaScript a um
+      terço e barra script de uma máquina só — não ataque distribuído.
+      Antes de publicar: (1) alerta de gasto no Fly e no Neon (e teto de
+      autoscaling no compute do Neon); (2) avaliar ligar o proxy da Cloudflare
+      (nuvem laranja), que guarda `/assets` na borda e corta enxurrada de
+      graça. Isso muda a conta do IP: `TRUST_PROXY` e `lib/limite.js` passam a
+      ler `CF-Connecting-IP`, ou o limite conta o IP da Cloudflare e trava todo
+      mundo junto. Notado em 2026-11-09.
 - [ ] **Empresa com domínio próprio** (`agenda.estudio.com.br`, que o código já
       resolve) precisa de `fly certs add` para cada uma — US$ 0,10/mês por
       domínio — e do CNAME do lado da empresa. Hoje é manual; vira tela do
