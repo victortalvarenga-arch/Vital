@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/regras-vital.mjs\" pre-edit",
+            "timeout": 10,
+            "statusMessage": "Conferindo regras do CLAUDE.md"
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/regras-vital.mjs\" pre-shell",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/regras-vital.mjs\" lint",
+            "timeout": 30,
+            "statusMessage": "ESLint no arquivo"
+          }
+        ]
+      }
+    ]
+  }
+}

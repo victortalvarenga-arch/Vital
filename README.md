@@ -130,7 +130,7 @@ localhost: o `seed` confere a `DATABASE_URL` antes de criar qualquer uma.
 | `cd server && npm run reset` | Apaga tudo e popula de novo (só em `localhost` ou com `VITAL_BANCO_DESCARTAVEL=sim`) |
 | `cd server && npm run senha-app` | Redefine a senha do usuário da aplicação |
 | `cd server && npm test` | Roda a suíte automatizada |
-| `npm run lint` | Confere `server/` e `web/` com o ESLint (variável que não existe, import que sobrou, hook fora de lugar) |
+| `npm run lint` | Confere `server/`, `web/` e `.claude/hooks/` com o ESLint (variável que não existe, import que sobrou, hook fora de lugar) |
 | `cd server && npm run seed -- --vazio` | Popula como uma empresa recém-cadastrada: só config e textos |
 
 As migrations rodam sozinhas quando a API sobe.

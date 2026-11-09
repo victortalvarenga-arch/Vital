@@ -67,6 +67,38 @@ Toda decisão de arquitetura tomada em conversa — não só mudança de código
 parágrafo em `ARQUITETURA.md` ou `ROADMAP.md`, com o motivo. Se não está
 escrito, não aconteceu.
 
+O agente `auditor-docs` faz essa revisão com olhos frescos: chame-o antes de
+encerrar uma tarefa, passando o que mudou e o que se decidiu em conversa.
+
+## O que a ferramenta confere sozinha
+
+Parte das convenções abaixo é conferida por hook (`.claude/settings.json` →
+`.claude/hooks/regras-vital.mjs`), que recusa a edição ou o comando e diz por
+quê: `tenant_id` e `Promise.all` em `server/src`, classe com cara de anúncio,
+import cruzado entre `site`, `painel` e `vital`, teste importando `src/` no
+topo, edição de migration que já está no Git, `VITAL_BANCO_DESCARTAVEL`
+definido por conta própria e PowerShell gravando JSON pela API. Depois de cada
+edição, roda o ESLint no arquivo.
+
+Ele olha só as linhas acrescentadas. Uso legítimo novo (consulta a
+`plataforma.*`, que não tem RLS; `Promise.all` sem banco) leva
+`// regra-vital: ok (motivo)` na mesma linha. Recusa de hook não se contorna
+mudando o hook: ou a regra está certa e o código muda, ou a regra está errada e
+quem decide é a pessoa. Regra nova entra com um caso que ela barra e um
+parecido que deixa passar, em `.claude/hooks/regras-vital.test.mjs` (`node
+.claude/hooks/regras-vital.test.mjs`).
+
+Também em `.claude/`, e no Git: o agente `revisor-isolamento` (revisa um diff
+procurando vazamento entre empresas, papéis ou para o público — use depois de
+mexer em rota, migration ou atendente) e as skills `/vital-migration` e
+`/vital-rota`. O `.mcp.json` traz o Playwright, para conferir tela no tamanho
+de celular.
+
+Sem Git Bash no Windows, o Claude Code trata qualquer saída do hook que não
+seja 0 ou 2 como recusa: um erro de sintaxe no script trava toda edição e todo
+comando da sessão. Para destravar, renomeie `.claude/settings.json`, conserte e
+devolva o nome.
+
 ## Convenções
 
 - Código e comentários em português. Nomes de tabela e coluna em inglês

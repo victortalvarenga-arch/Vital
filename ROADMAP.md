@@ -1058,7 +1058,7 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       4. `.github/workflows/` com Node 20+, `npm ci` na raiz e no `server/`,
          `npm run lint` e `cd server && npm test`. A suíte cria e apaga o
          próprio `neondb_teste` dentro do branch (`server/test/ambiente.js`).
-- [ ] **Sete avisos de `react-hooks/exhaustive-deps`** sobraram quando o ESLint
+- [ ] **Oito avisos de `react-hooks/exhaustive-deps`** (contados em 2026-11-09; dois em `App.jsx` e dois em `Combos.jsx`) sobraram quando o ESLint
       entrou (2026-10-28; eram nove — os dois do "pedido" da Agenda e de
       Horários fechados eram bug de verdade: o atalho não abria nada com a
       tela já aberta). Estão em `App.jsx`, `Bloqueios.jsx`, `Combos.jsx`,

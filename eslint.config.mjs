@@ -14,7 +14,8 @@ export default [
       // Material de referência trazido de fora, não é código nosso.
       'exemplo/**', 'img/**',
       // Ferramentas de assistente instaladas nesta máquina (ver .gitignore).
-      '.claude/**', '.agents/**', '.cursor/**', '.gemini/**', '.impeccable/**',
+      // Os hooks de `.claude/hooks/` são do projeto e passam pelo lint.
+      '.claude/**/*', '!.claude/hooks/**', '.agents/**', '.cursor/**', '.gemini/**', '.impeccable/**',
     ],
   },
 
@@ -35,7 +36,7 @@ export default [
 
   {
     // `web/scripts/` roda no Node (as fotos da página de venda), não no navegador.
-    files: ['server/**/*.js', 'eslint.config.mjs', 'web/vite.config.js', 'web/scripts/**/*.mjs'],
+    files: ['server/**/*.js', 'eslint.config.mjs', 'web/vite.config.js', 'web/scripts/**/*.mjs', '.claude/hooks/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
 

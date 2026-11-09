@@ -5,7 +5,15 @@ dist/
 *.db-shm
 *.db-wal
 .DS_Store
-.claude
+# .claude: o que é do projeto (hooks das regras do CLAUDE.md, agentes, skills
+# vital-*) comita; o resto é ferramenta pessoal desta máquina.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/agents/
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/vital-*/
 .cursor
 .gemini
 # skills de terceiros instaladas pelo `npx skills` (mattpocock/skills) —

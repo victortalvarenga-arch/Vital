@@ -191,7 +191,7 @@ web/               Vite + React, sem framework de UI. CSS à mão.
                    styles.css (a marca da Vital no back-office)
   src/shared/      publico.js (API sem token), painel-api.js (API com token),
                    imagem.js (reduz a foto antes de subir), formato.js (moeda)
-eslint.config.mjs  um linter para server/ e web/ (`npm run lint`, na raiz)
+eslint.config.mjs  um linter para server/, web/ e .claude/hooks/ (`npm run lint`, na raiz)
 ```
 
 **O linter procura erro, não estilo.** ESLint 10 com as regras recomendadas e
