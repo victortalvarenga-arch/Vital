@@ -130,6 +130,33 @@ describe('o banco recusa sozinho', () => {
     });
   });
 
+  test('a mesma dedupe_key em duas empresas são duas mensagens, não uma', async () => {
+    // Era a única restrição do sistema que atravessava a fronteira: UNIQUE
+    // global em `messages.dedupe_key` (001). Um `ON CONFLICT DO NOTHING` em
+    // cima dela engoliria em silêncio a mensagem da empresa que chegasse
+    // depois — nenhum erro, só a cliente sem o lembrete.
+    const inserir = (empresa, id) => db.db.run(
+      `INSERT INTO messages (id, client_id, template_chave, fone, texto, status,
+                             agendado_para, expira_em, dedupe_key, criado_em)
+       VALUES (?, ?, 'lembrete_dia', '47900000001', 'oi', 'pendente',
+               '2027-03-05 08:00', '2027-03-05 20:00', 'colisao:mesma-chave', '2026-01-01')`,
+      id, empresa + '-c1'
+    );
+
+    for (const empresa of [A, B]) await na(empresa, () => inserir(empresa, empresa + '-m-colisao'));
+
+    for (const empresa of [A, B]) {
+      await na(empresa, async () => {
+        const m = await db.db.get(`SELECT id FROM messages WHERE dedupe_key = 'colisao:mesma-chave'`);
+        assert.equal(m?.id, empresa + '-m-colisao', `${empresa} tem a própria mensagem`);
+      });
+    }
+
+    // Dentro da mesma empresa a trava continua travando. O banco pode falar
+    // inglês ou português, conforme o locale do servidor.
+    await na(A, () => assert.rejects(inserir(A, 'm-repetida'), /duplicate|unique|duplicar|unicidade/i));
+  });
+
   test('UPDATE não alcança a linha da outra empresa', async () => {
     await na(A, () => db.db.run(`UPDATE clients SET nome = 'Renomeada por A' WHERE id LIKE '%c1'`));
     await na(B, async () => {

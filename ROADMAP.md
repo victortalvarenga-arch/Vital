@@ -836,15 +836,14 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Banco
 
-- [ ] **O branch `dev` e o `production` da Neon não são distinguíveis pela URL
-      que o código enxerga**, só pelo `VITAL_BANCO_DESCARTAVEL`. Se alguém
-      copiar o `.env` de desenvolvimento para o servidor de produção, o `reset`
-      volta a poder apagar o banco de verdade. Vale um segundo fecho — por
-      exemplo, recusar a variável quando `NODE_ENV=production`.
-- [ ] **`messages.dedupe_key` é UNIQUE global, sem `tenant_id`.** Funciona hoje
-      porque os ids são aleatórios e não colidem entre empresas — mas é a única
-      restrição do sistema que atravessa a fronteira, e um `ON CONFLICT DO
-      NOTHING` em cima dela engoliria a mensagem de outra empresa em silêncio.
+- [x] ~~O branch `dev` e o `production` da Neon não são distinguíveis pela URL
+      que o código enxerga.~~ Resolvido em 2026-11-10: `NODE_ENV=production`
+      tranca `bancoDescartavel()` por cima de tudo, inclusive da variável
+      copiada por engano (`lib/ambiente.js`, `ambiente.test.js`).
+- [x] ~~`messages.dedupe_key` é UNIQUE global, sem `tenant_id`.~~ Resolvido em
+      2026-11-10 (migration 038): a trava virou `UNIQUE (tenant_id,
+      dedupe_key)` e o código grava com `ON CONFLICT ON CONSTRAINT`. O teste de
+      isolamento prova que a mesma chave em duas empresas são duas mensagens.
 - [ ] **Tabela nova em `public` nasce com UPDATE e DELETE para a aplicação**, por
       causa do `ALTER DEFAULT PRIVILEGES` da migration 002. É o padrão certo para
       tabela de negócio e o errado para tabela que só cresce — `logs` precisou de
@@ -970,15 +969,17 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Cobertura de teste
 
-- [ ] Catálogo, clientes, config e uploads não têm teste de rota. São as que
-      sobraram; agenda, combos, cadastro, plataforma e isolamento têm.
+- [ ] Catálogo, config e uploads não têm teste de rota. São as que sobraram;
+      agenda, combos, cadastro, plataforma, isolamento e clientes (criar,
+      consentimento e exclusão, desde 2026-11-10) têm.
 - [ ] Duas clientes disputando o mesmo horário: a transação existe e nada prova
       que ela segura.
 - [ ] **Testes que agendam pelo site com data escrita à mão vão vencer.** Desde
       2026-10-10 o site recusa data passada e além da janela; `DIA =
       '2027-03-05'` em `rotas-agendamento.test.js` (e as datas fixas de
-      `adicionais`, `combos`, `funil`) passam a falhar no dia em que virarem
-      passado. Trocar por datas relativas a `hoje()` antes disso.
+      `adicionais`, `combos`, `funil` e `consentimento`, que também agenda pelo
+      site) passam a falhar no dia em que virarem passado. Trocar por datas
+      relativas a `hoje()` antes disso.
 - [ ] **O site não tem teste de fluxo nenhum.** Um passo do meio do
       agendamento ficou sendo pulado (um `setPasso` no lugar de `avancar()`) e
       ninguém notou até refazer o fluxo à mão em 2026-09-19 — a suíte só cobre
@@ -1025,16 +1026,14 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 - [x] ~~O erro 500 devolvia a mensagem interna ao navegador.~~ Resolvido em
       2026-11-09 (`lib/erro.js`, ver `ARQUITETURA.md`, "Hospedagem").
-- [ ] **Duas dependências com falha moderada conhecida, sem correção
-      compatível.** `qs` (que o Express 4 traz fixo) e `uuid` (do
-      `node-cron` 3). As graves — `body-parser`, `proxy-addr` e
-      `compression` — foram atualizadas em 2026-11-09. O `npm audit fix`
-      não alcança estas duas: o `qs` espera o Express trazer versão nova (ou
-      um `overrides` no `package.json`), e o `uuid` pede `--force`, que troca
-      a versão maior do `node-cron`. Fazer como tarefa própria, com a suíte
-      inteira, e rodar `npm audit` em `server/` de novo.
-- [ ] **Os testes não rodam sozinhos.** Os 41 arquivos de `server/test/` só
-      rodam quando alguém lembra de `npm test`; nada roda a cada push. Os
+- [ ] **Uma dependência com falha moderada conhecida, sem correção
+      compatível:** `uuid` (do `node-cron` 3), que só sai com `--force`
+      trocando a versão maior do `node-cron` — tarefa própria, com a suíte
+      inteira e atenção aos jobs. O `qs` saiu em 2026-11-10 (`npm audit fix`
+      levou o Express a 4.22.3, com `qs` 6.16.2); as graves — `body-parser`,
+      `proxy-addr` e `compression` — já tinham saído em 2026-11-09.
+- [ ] **Os testes não rodam sozinhos.** A suíte de `server/test/` só roda
+      quando alguém lembra de `npm test`; nada roda a cada push. Os
       testes precisam de banco de verdade, então a automação (GitHub Actions)
       precisa de um branch da Neon só para ela, nunca o de produção — criar
       esse branch é com o dono da conta. O mesmo job rodaria `npm run lint`.
@@ -1138,11 +1137,10 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       exportação já existe (ver `ARQUITETURA.md`, "Exportar dados"); começar
       pela importação de clientes no mesmo formato, com prévia antes de gravar.
       Agendamento importado é mais delicado: conflita com horário e equipe.
-- [ ] `server/src/lib/auth.js` tem um caractere NUL literal no id impossível
-      de `escopoDe` (`'␀sem-vinculo'`). O Git trata o arquivo como binário e
-      esconde o diff dele em `git diff` e em revisão de PR — justamente no
-      arquivo dos papéis. Trocar pelo escape `'\0sem-vinculo'`, que dá o mesmo
-      valor em texto puro.
+- [x] ~~`server/src/lib/auth.js` tem um caractere NUL literal no id impossível
+      de `escopoDe`.~~ Já não tem: o arquivo usa o escape `'\u0000sem-vinculo'`
+      e foi conferido byte a byte em 2026-11-10 (zero bytes NUL). O item estava
+      desatualizado.
 - [ ] A exportação é só de clientes e agendamentos. Serviços, equipe, promoções
       e bloqueios ficam de fora — a empresa leva a base, não a configuração.
 - [ ] `npm run reset` recria o cenário inteiro de exemplo, mas empresas criadas
@@ -1313,21 +1311,22 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       (`optin`, transacional vs. marketing) passam a valer de fato — ver
       `ARQUITETURA.md`.
 - [ ] Definir por quanto tempo guardar histórico de quem não é mais cliente.
-- [ ] **O histórico do agendamento não se apaga de dentro.**
-      `appointment_events` (migration 031) não tem poda e a aplicação não tem
-      DELETE nele. Quando a cliente pede para ser apagada, a ficha some, mas os
-      eventos continuam com o `client_id` dela, um id que já não leva a nome
-      nenhum, mas que liga os atendimentos entre si. O pedido de exclusão da
-      LGPD precisa de uma função `SECURITY DEFINER`, como `podar_registro`, que
-      anonimize ou apague os eventos de uma cliente. Decidir junto com o prazo
-      de guarda acima, e rever o tamanho da tabela com volume real.
-- [ ] **O consentimento não tem data.** `clients.optin` é um 0/1 que nasce
-      ligado no site e no WhatsApp, sem quando, sem qual texto foi aceito e sem
-      por onde. Só a mudança feita pelo painel fica em `logs`. Para provar
-      consentimento de marketing, falta guardar o aceite (data, versão do texto,
-      origem). Para dado de saúde (`form_answers`), não existe registro de
-      consentimento nenhum — hoje a base é a ficha preenchida presencialmente,
-      e isso precisa da revisão jurídica do item acima.
+- [x] ~~O histórico do agendamento não se apaga de dentro.~~ Resolvido em
+      2026-11-10 (migration 040): apagar a cliente anonimiza os eventos dela
+      (`plataforma.apagar_rastro_da_cliente`, `SECURITY DEFINER`), apaga as
+      mensagens e as conversas do WhatsApp — e destravou o DELETE, que a FK de
+      `messages` derrubava em 500 para quem já tinha recebido lembrete. Ver
+      `ARQUITETURA.md`, "LGPD". O tamanho da tabela com volume real continua
+      por rever (item do histórico, em `ARQUITETURA.md`).
+- [ ] **O consentimento tem data e origem desde 2026-11-10** (migration 039:
+      `optin_em`, `optin_origem`, escritos por site, painel e WhatsApp, e
+      levados na exportação — ver `ARQUITETURA.md`, "LGPD"). O que ainda
+      falta: guardar a **versão do texto** aceito (hoje não há texto de
+      consentimento versionado para apontar) e o consentimento para dado de
+      saúde (`form_answers`), que não tem registro nenhum — a base é a ficha
+      preenchida presencialmente, e isso precisa da revisão jurídica do item
+      acima. O painel também ainda não mostra a data e a origem na ficha da
+      cliente: hoje a prova sai na exportação e na API.
 - [ ] Ter um caminho para apagar os dados de uma empresa que sair da
       plataforma. Exportar já existe (o dono baixa clientes e agendamentos em
       CSV); apagar ainda não tem caminho nenhum.
@@ -1367,7 +1366,7 @@ descrita em `ARQUITETURA.md`. O que falta cobrir, em ordem de risco:
       ler, criar, alterar e apagar
 - [ ] Duas clientes disputando o mesmo horário ao mesmo tempo (a transação já
       existe; falta o teste que prova que ela segura)
-- [ ] Catálogo, clientes e configuração — as rotas que ainda não têm teste
+- [ ] Catálogo e configuração — as rotas que ainda não têm teste
 - [ ] Isolamento entre empresas (é o item já listado no Bloco 9)
 
 ## Ideias guardadas

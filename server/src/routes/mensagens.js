@@ -236,7 +236,7 @@ mensagens.post('/recuperacao/:id/enviar', exige('clientes'), rota(async (req, re
     `INSERT INTO messages (id,client_id,template_chave,fone,texto,status,agendado_para,enviado_em,
                            provider,provider_id,dedupe_key,criado_em)
      VALUES (?,?,?,?,?,'enviado',?,?,?,?,?,?)
-     ON CONFLICT (dedupe_key) DO NOTHING`,
+     ON CONFLICT ON CONSTRAINT messages_dedupe_por_empresa DO NOTHING`,
     uid(), c.id, t.chave, c.fone, texto, `${h} ${agora()}`, `${h} ${agora()}`,
     provider, providerId, dedupe, `${h} ${agora()}`
   );
@@ -298,7 +298,7 @@ mensagens.post('/campanhas/:chave', exige('clientes'), rota(async (req, res) => 
     const gravou = await db.run(
       `INSERT INTO messages (id,client_id,template_chave,fone,texto,status,agendado_para,expira_em,dedupe_key,criado_em)
        VALUES (?,?,?,?,?,'pendente',?,?,?,?)
-       ON CONFLICT (dedupe_key) DO NOTHING`,
+       ON CONFLICT ON CONSTRAINT messages_dedupe_por_empresa DO NOTHING`,
       uid(), c.id, t.chave, c.fone, texto, `${hoje()} ${agora()}`, expiraCampanha(t.chave, horario),
       `${t.chave}:${c.id}:${hoje()}`, `${hoje()} ${agora()}`
     );

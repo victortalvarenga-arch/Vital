@@ -338,15 +338,16 @@ publico.post('/evento', LIMITES.evento, rota(async (req, res) => {
  * Identificação por WhatsApp. É o "primeiro acesso" do fluxo:
  * se o número já existe, a cliente não preenche nada de novo.
  *
- * Devolve só nome e primeiro acesso — nunca endereço ou histórico,
- * porque qualquer pessoa pode digitar um número aqui.
+ * Devolve só o primeiro nome — nunca id, endereço ou histórico, porque
+ * qualquer pessoa pode digitar um número aqui. O site não precisa do id:
+ * o `/agendar` resolve a cliente pelo próprio telefone.
  */
 publico.post('/identificar', LIMITES.identificar, rota(async (req, res) => {
   const fone = soDigitos(req.body?.fone);
   if (fone.length < 10) return res.status(400).json({ erro: 'informe o WhatsApp com DDD' });
-  const c = await db.get('SELECT * FROM clients WHERE fone=?', fone);
+  const c = await db.get('SELECT nome FROM clients WHERE fone=?', fone);
   if (!c) return res.json({ cadastrada: false });
-  res.json({ cadastrada: true, id: c.id, primeiroNome: c.nome.split(' ')[0] });
+  res.json({ cadastrada: true, primeiroNome: c.nome.split(' ')[0] });
 }));
 
 /**
@@ -374,10 +375,14 @@ publico.post('/agendar', LIMITES.agendar, rota(async (req, res) => {
       return res.status(400).json({ erro: 'data de nascimento no futuro' });
     }
     const id = uid();
+    // `optin_em`/`optin_origem`: o aceite (ou a recusa) de mensagens precisa de
+    // data e de por onde veio — é a prova que a LGPD pede, e a recusa também é
+    // fato com data.
     await db.run(
-      `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,?,?)`,
+      `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,optin_em,optin_origem,criado_em)
+       VALUES (?,?,?,?,?,?,?,?,'site',?)`,
       id, b.nome.trim(), fone, b.nascimento || null, b.endereco || '', '',
-      b.aceitaMensagens === false ? 0 : 1, hoje()
+      b.aceitaMensagens === false ? 0 : 1, hoje(), hoje()
     );
     cliente = await db.get('SELECT * FROM clients WHERE id=?', id);
   }

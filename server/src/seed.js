@@ -322,9 +322,12 @@ async function primeiraClienteReal() {
       ['c9', 'Sônia Prado', '47999012345', '1979-02-08', 'Rua Inácio Bastos, 340 — Bucarein', '', -450],
     ];
     for (const [id, nome, fone, nasc, end, obs, d] of clientes) {
+      // O aceite tem data e origem (migration 039): aqui, o dia em que a
+      // cliente chegou, pelo site — o caminho de quase todo cadastro real.
       await db.run(
-        `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,1,?)`,
-        id, nome, fone, nasc, end, obs, addDias(h, d)
+        `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,optin_em,optin_origem,criado_em)
+         VALUES (?,?,?,?,?,?,1,?,'site',?)`,
+        id, nome, fone, nasc, end, obs, addDias(h, d), addDias(h, d)
       );
     }
 
@@ -399,7 +402,12 @@ async function primeiraClienteReal() {
     await mk('c7', 'v8', 's2', -130, '09:30', 'concluido', 'pago', 'pix');
     await mk('c8', 'v6', 's2', -105, '15:00', 'concluido', 'pago', 'cartao');
     await mk('c9', 'v2', 's1', -210, '10:00', 'concluido', 'pago', 'dinheiro');
-    await db.run(`UPDATE clients SET optin = 0 WHERE id = 'c9'`);
+    // A Sônia pediu para não receber mais: a recusa também fica com data e
+    // origem — é o que a aba Recuperação mostra como "sem opt-in".
+    await db.run(
+      `UPDATE clients SET optin = 0, optin_em = ?, optin_origem = 'painel' WHERE id = 'c9'`,
+      addDias(h, -60)
+    );
     await db.run(
       `INSERT INTO messages (id,client_id,template_chave,fone,texto,status,agendado_para,enviado_em,provider,criado_em)
        VALUES (?,'c8','reativacao','47998901234','Oi, quanto tempo!','enviado',?,?,'manual',?)`,

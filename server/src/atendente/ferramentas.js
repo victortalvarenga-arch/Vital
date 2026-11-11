@@ -170,9 +170,11 @@ const EXECUTORES = {
         // Quem escreve no WhatsApp da clínica aceitou conversar por ali; a
         // promoção continua dependendo do `optin`, que nasce ligado como no
         // site e a cliente desliga respondendo "PARAR" (Bloco 12).
+        // `optin_em`/`optin_origem` deixam o aceite com data e por onde veio.
         await db.run(
-          `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,?,?)`,
-          id, nome, ctx.fone, nascimento, '', '', 1, hoje()
+          `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,optin_em,optin_origem,criado_em)
+           VALUES (?,?,?,?,?,?,?,?,'whatsapp',?)`,
+          id, nome, ctx.fone, nascimento, '', '', 1, hoje(), hoje()
         );
         cliente = await db.get('SELECT * FROM clients WHERE id = ?', id);
       }

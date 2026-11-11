@@ -62,7 +62,7 @@ async function enfileirar({ chave, cli, appt = null, quando, expira, dedupe, exi
     `INSERT INTO messages (id, client_id, appointment_id, template_chave, fone, texto,
                            status, agendado_para, expira_em, dedupe_key, criado_em)
      VALUES (?,?,?,?,?,?, 'pendente', ?, ?, ?, ?)
-     ON CONFLICT (dedupe_key) DO NOTHING`,
+     ON CONFLICT ON CONSTRAINT messages_dedupe_por_empresa DO NOTHING`,
     uid(), cli.id, appt?.id || null, chave, cli.fone, texto, quando, expira, dedupe,
     agoraTexto()
   );

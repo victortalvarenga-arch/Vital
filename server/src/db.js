@@ -444,6 +444,9 @@ export const serviceOut = (r, profs = [], comissoes = {}) => r && ({
 export const clientOut = r => r && ({
   id: r.id, nome: r.nome, fone: r.fone, nascimento: r.nascimento,
   endereco: r.endereco, obs: r.obs, optin: !!r.optin, criadoEm: r.criado_em,
+  // Desde quando e por onde veio o aceite (ou a recusa) de mensagens — a
+  // prova do consentimento, não só o estado.
+  optinEm: r.optin_em || null, optinOrigem: r.optin_origem || '',
   email: r.email || '', temGoogle: !!r.google_sub,
 });
 

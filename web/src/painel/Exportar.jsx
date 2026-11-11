@@ -17,7 +17,8 @@ const ARQUIVOS = [
   {
     k: 'clientes', icone: Users, titulo: 'Clientes',
     texto: 'Nome, WhatsApp, e-mail, nascimento, endereço, observações, se aceita '
-      + 'mensagens de marketing, visitas, faltas e quanto já pagou.',
+      + 'mensagens de marketing (com a data e a origem do aceite), visitas, '
+      + 'faltas e quanto já pagou.',
   },
   {
     k: 'agendamentos', icone: CalendarDays, titulo: 'Agendamentos',

@@ -79,8 +79,11 @@ exportar.get('/clientes.csv', rota(async (req, res) => {
     ['Endereço', c => c.endereco],
     ['Observações', c => c.obs],
     // É o consentimento de marketing: quem for levar a lista para outra
-    // ferramenta precisa saber quem disse não.
+    // ferramenta precisa saber quem disse não — e poder provar quando e por
+    // onde cada uma disse sim. Vazio = anterior ao registro (migration 039).
     ['Aceita mensagens de marketing', c => (c.optin ? 'Sim' : 'Não')],
+    ['Consentimento registrado em', c => c.optin_em || ''],
+    ['Consentimento por', c => c.optin_origem || ''],
     ['Cliente desde', c => c.criado_em],
     ['Visitas', c => c.visitas || 0],
     ['Faltas', c => c.faltas || 0],

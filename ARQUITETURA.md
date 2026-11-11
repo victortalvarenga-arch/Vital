@@ -75,6 +75,11 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `033_status_valido` | CHECK em `appointments.status`: o banco recusa status que não existe |
 | `034_pendente_e_pagamento_presumido` | Passou da hora sem marcação vira `pendente`; pagamento presumido em coluna própria; o funil espera o pendente |
 | `035_whatsapp_por_empresa` | `conexoes` aceita o provedor `whatsapp`: cada empresa com o próprio número |
+| `036_fila_com_prazo` | `expira_em` em `messages`: toda mensagem nasce com prazo; a vencida sai da fila |
+| `037_remarcacao_e_cuidado` | Dois textos novos (`remarcacao`, `pos_cuidado`); campanha de vaga exige dia e hora |
+| `038_dedupe_por_empresa` | `dedupe_key` vira `UNIQUE (tenant_id, dedupe_key)`: a trava deixa de atravessar empresas |
+| `039_consentimento_com_data` | `optin_em` e `optin_origem` em `clients`: o aceite (ou a recusa) com quando e por onde |
+| `040_apagar_o_rastro_da_cliente` | `plataforma.apagar_rastro_da_cliente()`: a exclusão da LGPD anonimiza o histórico |
 
 ## Visão geral
 
@@ -817,7 +822,10 @@ Três peças fazem funcionar:
    `VITAL_BANCO_DESCARTAVEL=sim` (`lib/ambiente.js`) — a trava existe para que
    ninguém apague um banco de verdade nem crie conta de senha conhecida nele, e
    por isso a variável só existe no branch de desenvolvimento, nunca no de
-   produção; (c) o TLS é ligado sempre que o host não é `localhost`.
+   produção. Desde 2026-11-10, `NODE_ENV=production` tranca por cima de tudo,
+   inclusive da variável: é o fecho contra o `.env` de desenvolvimento copiado
+   junto para o servidor de produção (`ambiente.test.js`);
+   (c) o TLS é ligado sempre que o host não é `localhost`.
 2. **A empresa vive na transação da requisição, não na consulta.** O middleware
    `comEmpresa()` chama `db.naRequisicao`: pega uma conexão, abre uma transação,
    marca `app.tenant_id` com `set_config(..., true)` — que morre no COMMIT — e
@@ -890,8 +898,12 @@ seria zero — a pessoa quer marcar unha, não virar usuária de um sistema.
 levaria a agendar no cadastro dela, e o lembrete iria para o WhatsApp dela. Por
 isso, ao reconhecer um cadastro, a tela mostra o primeiro nome e pede
 confirmação — "Encontramos um cadastro em Amanda. É você?" — em vez de seguir
-em silêncio. O nome exposto é o preço de conseguir conferir; a solução completa
-é código por WhatsApp, que custa por mensagem e está anotada no `ROADMAP.md`.
+em silêncio. A resposta é só isso — `cadastrada` e o primeiro nome, nunca o id
+interno nem o sobrenome: o `/agendar` resolve a cliente pelo próprio telefone,
+e um teste confere o formato inteiro da resposta, porque campo novo ali é
+vazamento novo (`rotas-agendamento.test.js`). O nome exposto é o preço de
+conseguir conferir; a solução completa é código por WhatsApp, que custa por
+mensagem e está anotada no `ROADMAP.md`.
 
 **O login com Google seria para a cliente, não para a equipe** — e não existe:
 saiu do roteiro em 2026-10-09 e está em "Ideias guardadas", no `ROADMAP.md`.
@@ -2364,6 +2376,9 @@ appointments` roda como dono, sem empresa marcada, e o default daria NULL.
 `funil_diario`. Não há poda: o histórico é a matéria-prima de qualquer previsão
 de falta ou abandono, e é pequeno — algumas linhas por atendimento. Está em
 "Importante para produção" no `ROADMAP.md`, para ser revisto com volume real.
+A única exceção é o pedido de exclusão da LGPD: apagar a cliente troca o
+`client_id` dos eventos dela por vazio, via `plataforma.apagar_rastro_da_cliente()`
+(migration 040) — ver "LGPD".
 
 **Começa na migration.** Agendamentos anteriores não ganharam evento `criado`
 inventado; o `criado_em` deles continua dizendo quando nasceram.
@@ -3061,7 +3076,12 @@ atendida. Agora quem cria a mensagem decide `expira_em`:
 | Campanha que fala de um horário (vaga) | o horário escolhido no disparo |
 | Demais campanhas | 7 dias |
 
-`expirarFila()` passa o que venceu para o status `expirado`, sem apagar: a
+A `dedupe_key` é única **por empresa** (migration 038; era UNIQUE global — a
+única restrição que atravessava a fronteira entre empresas, e os
+`ON CONFLICT DO NOTHING` em cima dela engoliriam calados a mensagem de quem
+colidisse; o código grava com `ON CONFLICT ON CONSTRAINT
+messages_dedupe_por_empresa`, porque escrever `tenant_id` em consulta é
+proibido). `expirarFila()` passa o que venceu para o status `expirado`, sem apagar: a
 `dedupe_key` da linha é o que impede `gerarFila` de recriá-la. Roda antes de toda
 leitura da fila e de todo despacho, e não só no cron, porque o cron pode levar
 dez minutos e nesse intervalo o lembrete sairia. Mensagem que nasceria vencida
@@ -3210,6 +3230,25 @@ O sistema guarda nome, telefone, endereço e data de nascimento — dado pessoal
 respeitado em `jobs/mensagens.js` e nas campanhas. Lembretes de agendamento são
 comunicação transacional e não dependem de opt-in. Ao adicionar qualquer disparo
 novo, decida em qual das duas categorias ele cai.
+
+**O aceite tem prova.** `optin_em` e `optin_origem` (migration 039) guardam
+quando e por onde a cliente ligou — ou desligou — as mensagens: `site`,
+`painel` ou `whatsapp`. Todo caminho que escreve `optin` escreve os dois junto,
+e a exportação de clientes leva as colunas. Quem existia antes da migration
+fica sem data de propósito: inventar prova seria pior do que não ter. O que
+ainda falta (versão do texto aceito, consentimento para dado de saúde) está em
+"Importante para produção".
+
+**Apagar a cliente apaga o rastro** (migration 040). O DELETE da ficha no
+painel é o pedido de exclusão: as mensagens dela (carregam nome e telefone no
+texto) e as conversas do WhatsApp (pelo número) saem junto, e os eventos de
+`appointment_events` — que a aplicação não pode editar nem apagar — ficam sem
+o `client_id`, por `plataforma.apagar_rastro_da_cliente()`, função
+`SECURITY DEFINER` que faz uma coisa só: trocar o id por vazio, na empresa da
+transação (nunca recebida por argumento). O percurso continua contável; o fio
+que ligava os atendimentos à pessoa some. A ficha de saúde (`form_answers`) já
+saía em cascata. Antes da 040, a FK de `messages` nem deixava apagar quem já
+tinha recebido um lembrete — o botão morria em 500.
 
 **Política de privacidade e termos.** O site de cada empresa tem a política de
 quem agenda em `#privacidade` (`site/Privacidade.jsx`), com o nome e o WhatsApp

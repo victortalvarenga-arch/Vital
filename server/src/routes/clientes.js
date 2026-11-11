@@ -105,9 +105,10 @@ clientes.post('/', rota(async (req, res) => {
 
   const id = uid();
   await db.run(
-    `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,criado_em) VALUES (?,?,?,?,?,?,?,?)`,
+    `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,optin_em,optin_origem,criado_em)
+     VALUES (?,?,?,?,?,?,?,?,'painel',?)`,
     id, b.nome.trim(), fone, b.nascimento || null, b.endereco || '', b.obs || '',
-    b.optin === false ? 0 : 1, hoje()
+    b.optin === false ? 0 : 1, hoje(), hoje()
   );
   await req.registrar('cliente.criado', { alvoId: id, resumo: `cadastrou ${b.nome.trim()}` });
   res.status(201).json(await comMetricas(clientOut(await db.get('SELECT * FROM clients WHERE id=?', id))));
@@ -122,6 +123,11 @@ clientes.put('/:id', rota(async (req, res) => {
     b.nome, soDigitos(b.fone), b.nascimento || null, b.endereco || '', b.obs || '',
     b.optin ? 1 : 0, req.params.id
   );
+  // Ligar ou desligar o consentimento é fato novo, com data e origem novas;
+  // editar o resto da ficha não reescreve a prova do aceite.
+  if ((b.optin ? 1 : 0) !== (atual.optin ? 1 : 0)) {
+    await db.run(`UPDATE clients SET optin_em=?, optin_origem='painel' WHERE id=?`, hoje(), req.params.id);
+  }
   const depois = clientOut(await db.get('SELECT * FROM clients WHERE id=?', req.params.id));
   // `optin` no meio: é consentimento de marketing, e quem o desligou ou ligou é
   // exatamente o que a LGPD pede para saber.
@@ -139,7 +145,16 @@ clientes.put('/:id', rota(async (req, res) => {
 clientes.delete('/:id', rota(async (req, res) => {
   const { n: usos } = await db.get('SELECT COUNT(*) n FROM appointments WHERE client_id=?', req.params.id);
   if (usos > 0) return res.status(409).json({ erro: `cliente tem ${usos} agendamentos; remova o histórico primeiro` });
-  const alvo = await db.get('SELECT nome FROM clients WHERE id=?', req.params.id);
+  const alvo = await db.get('SELECT nome, fone FROM clients WHERE id=?', req.params.id);
+
+  // Apagar a ficha é o pedido de exclusão da LGPD, então o rastro vai junto:
+  // as mensagens dela (carregam nome e telefone no texto — e a FK delas era o
+  // que derrubava este DELETE em 500), as conversas do WhatsApp pelo número,
+  // e o fio que ligava os atendimentos dela no histórico (a função é a única
+  // porta que atravessa o REVOKE da 031 — ver migration 040).
+  await db.run('DELETE FROM messages WHERE client_id=?', req.params.id);
+  if (alvo?.fone) await db.run('DELETE FROM conversas WHERE fone=?', alvo.fone);
+  await db.get('SELECT plataforma.apagar_rastro_da_cliente(?)', req.params.id);
   await db.run('DELETE FROM clients WHERE id=?', req.params.id);
   // Só o primeiro nome, e sem o telefone: o registro não se apaga e dura dois
   // anos (027), e copiar o contato de quem pediu para sair para lá seria
