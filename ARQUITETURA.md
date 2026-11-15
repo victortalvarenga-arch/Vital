@@ -3032,9 +3032,25 @@ navegador → DNS Cloudflare (*.dominio) → Fly.io gru: node server/src/index.j
                                           → Neon (Postgres)   → R2 (imagens)
 ```
 
-**A API serve o build do front** (`web/dist`) quando a pasta existe — só em
-produção; em desenvolvimento quem serve é o Vite, e nada muda. `npm run build`
-na raiz instala as dependências e gera o `dist`; `npm start` sobe a API.
+**A API serve o build do front** (`web/dist`) quando a pasta existe **e o
+processo não está marcado como desenvolvimento**. `npm run build` na raiz
+instala as dependências e gera o `dist`; `npm start` sobe a API.
+
+As duas condições, e não só a primeira, porque `web/dist` é apagado do Git mas
+não da máquina: quem rodou `npm run build` uma vez passava a ver, no `:3333`,
+o site congelado naquele build — sem erro, sem aviso, e com o Vite ao lado no
+`:5173` mostrando a versão certa. Um dia inteiro de "o site não atualiza".
+Hoje `npm run dev` entra por `server/src/dev.js`, que marca
+`NODE_ENV=development` antes de carregar o servidor, e nesse modo o Express
+não monta nem a raiz nem os estáticos.
+
+A marca mora no `dev.js` e não no `package.json` porque `NODE_ENV=x comando`
+é sintaxe de shell POSIX e o PowerShell a recusa — o projeto roda no Windows.
+E a trava é por **exclusão** (ignora o build em `development`), não por
+inclusão (serve só em `production`): assim `npm start` na máquina local
+continua servindo o build, que é como se confere o bundle de produção antes de
+publicar, e o `npm test` também — os testes de `seo` e `limite` que pedem a
+pasta seguem rodando.
 Site, painel e página da Vital continuam três bundles (`index.html`,
 `painel.html`, `vital.html`); o que muda é quem entrega o arquivo.
 

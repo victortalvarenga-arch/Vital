@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "node --watch src/dev.js",
     "start": "node src/index.js",
     "jobs": "node src/jobs/rodar.js",
     "seed": "node src/seed.js",

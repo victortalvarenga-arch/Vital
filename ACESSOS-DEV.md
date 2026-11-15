@@ -49,6 +49,15 @@ Se algum dia os subdomínios pararem de resolver, é o primeiro lugar a olhar.
 A API atende em <http://localhost:3333> e o front em `:5173`. No navegador você
 só usa o `:5173` — o Vite repassa o que for `/api` e `/uploads` para a API.
 
+**Abrir o `:3333` no navegador não mostra o site.** Ele responde `/api` e
+`/uploads`, e a raiz dá 404 de propósito: `npm run dev` entra por
+`server/src/dev.js`, que marca `NODE_ENV=development`, e aí o Express ignora
+`web/dist`. Antes de 2026-11-15 ele servia a pasta sempre que ela existisse —
+então quem tinha rodado `npm run build` alguma vez via no `:3333` o site de
+dias antes, sem erro nenhum para denunciar. Para conferir o bundle de produção
+de propósito: `npm run build` e depois `npm start` (sem o `dev`), e aí sim o
+`:3333` serve o build.
+
 ---
 
 ## Os quatro modelos de site

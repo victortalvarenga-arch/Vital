@@ -1329,15 +1329,25 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
 
 ### Cobertura de teste
 
-- [ ] **A suíte falhou uma vez e passou nas três seguintes, sem mexer em nada.**
-      Em 2026-11-14, no meio do Bloco 4c: 836 passaram e 1 falhou, e as rodadas
-      seguintes deram 837/0. Não ficou registrado qual caso era — a saída já
-      tinha rolado. Candidatos naturais são os que dependem de relógio
-      (`aniversario.test.js` mexe em `Date.now`, `google-login.test.js` tem
-      folga de prazo, `fila.test.js` compara datas) ou de porta/ordem entre
-      arquivos. Teste que falha de vez em quando é pior que teste vermelho:
-      ensina a ignorar vermelho. Quando reaparecer, rodar com
-      `--test-reporter=tap` e guardar a saída. Notado em 2026-11-14.
+- [ ] **Teste instável identificado: "o papel não conta nada a quem o tem na
+      mão" (`aniversario.test.js:104`) falha em ~18% das rodadas.** É o caso que
+      derrubava a suíte sem explicação (notado em 2026-11-14, achado então sem
+      culpado: 836/1 e depois 837/0). Reproduzido em 2026-11-15 — 2 falhas em 5
+      rodadas do caso isolado.
+
+      **Não é vazamento.** O papel está cifrado de verdade; o que está errado é
+      a agulha. O teste decodifica o papel como `latin1` e exige que o texto
+      não contenha `'{'`, `'c":'`, `'default'` ou `'em"'`. Mas `'{'` é **um
+      byte** (0x7B), e o papel cifrado é byte aleatório: em 48 bytes, a chance
+      de 0x7B aparecer por acaso é ~17%. A mensagem de falha denuncia o próprio
+      engano — ela imprime `±Âgáã÷¢ÔÅ ¯{SèçTBÅ{¦N!/W8ÖÄ8=ªoÈ`, que é
+      ilegível, e ainda assim diz "o papel está legível".
+
+      O conserto é trocar a asserção: em vez de procurar fragmento de um byte
+      em bytes aleatórios, conferir o que de fato importa — que o id da ficha e
+      o nome da empresa não aparecem, que o papel não decodifica como JSON, e
+      que mexer num byte invalida. Agulha de um byte não distingue cifra de
+      texto em claro.
 
 - [ ] Catálogo, config e uploads não têm teste de rota. São as que sobraram;
       agenda, combos, cadastro, plataforma, isolamento e clientes (criar,
@@ -1520,6 +1530,23 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       combos, adicionais e formulários ficaram de fora por blocos inteiros, e
       uma máquina nova via um sistema mais pobre do que o que existe — seed que
       não mostra a funcionalidade faz a pessoa achar que ela não existe.
+
+- [x] ~~`web/dist` deixado na pasta congela o site em desenvolvimento.~~
+      Resolvido em 2026-11-15: `npm run dev` entra por `src/dev.js`, que marca
+      `NODE_ENV=development`, e o `app.js` só serve `web/dist` fora disso. O
+      sintoma era cruel — o `:3333` entregando um build de dias antes, sem erro
+      nenhum, com o `:5173` ao lado mostrando a versão certa; e na raiz o
+      `paginaDoSite ??=` ainda guardava o `index.html` em memória até
+      reiniciar. `npm start` na máquina local continua servindo o build, que é
+      como se confere o bundle de produção antes de publicar, e o `npm test`
+      também — os testes de `seo` e `limite` que pedem a pasta seguem rodando.
+- [ ] **O botão "Entrar com Google" do agendamento não aparece em
+      desenvolvimento.** `GOOGLE_LOGIN_CLIENT_ID` não está no `server/.env`, a
+      vitrine devolve `googleClientId: ''` e `Agendar.jsx` não desenha nada —
+      de propósito, mas sem aviso em tela nem no console, então parece
+      funcionalidade que não foi feita. O `seed` não resolve: o id vem de um
+      cliente OAuth de verdade no Google Cloud, não do banco. Notado em
+      2026-11-15.
 
 ## Importante para produção
 

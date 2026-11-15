@@ -255,10 +255,16 @@ app.get('/api/estado', rota(async (req, res) => {
  * e o cookie de sessão passaria a ser de outro domínio. O processo contínuo
  * também é o que mantém os jobs de cron rodando.
  *
- * Em desenvolvimento a pasta não existe e quem serve as telas é o Vite.
+ * Em desenvolvimento quem serve as telas é o Vite, no `:5173`, e o Express
+ * ignora `web/dist` de propósito — `npm run dev` entra por `src/dev.js`, que
+ * marca `NODE_ENV=development`. Sem essa trava, a pasta deixada por um
+ * `npm run build` antigo fazia o `:3333` entregar aquele build para sempre,
+ * com a aparência de código que não atualiza e sem erro nenhum para
+ * denunciar (2026-11-15). `npm start` na máquina local continua servindo o
+ * build, que é como se confere o bundle de produção antes de publicar.
  */
 const PASTA_WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
-if (fs.existsSync(PASTA_WEB)) {
+if (process.env.NODE_ENV !== 'development' && fs.existsSync(PASTA_WEB)) {
   const base = (process.env.BASE_DOMINIO || '').toLowerCase();
   let paginaDoSite = null;
   // A página consulta o banco para escrever o `<head>` da empresa; sem teto,
