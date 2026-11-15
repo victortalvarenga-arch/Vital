@@ -12,8 +12,11 @@ body { --ink:#241A28; --ink2:#3B2B41; --porcelain:#FBF6F4; --paper:#FFFFFF;
   --erro:#8A2B2B;
   /* Fundos claros de cada cor, para quando a cor é texto sobre eles. Eram
      literais repetidos em cinco telas, cada um com uma variação de meio tom. */
-  --erro-claro:var(--erro-claro); --lacquer-claro:var(--lacquer-claro); --lacquer-tag:var(--lacquer-tag);
-  --uv-claro:var(--uv-claro); --warn-claro:#FBF0DF; --warn-texto:#8A6410;
+  /* Valor literal, e não `var()` do próprio nome: variável que se referencia
+     vira inválida e o `background` some sem erro nenhum no console (foi o que
+     aconteceu entre f4cf88f e 2026-11-14, em quinze regras). */
+  --erro-claro:#F8E7E7; --lacquer-claro:#FDF5F7; --lacquer-tag:#F3E8EC;
+  --uv-claro:#ECE8F8; --warn-claro:#FBF0DF; --warn-texto:#8A6410;
   font-family:'Karla',system-ui,sans-serif; color:var(--ink); background:var(--porcelain);
   min-height:100vh; -webkit-font-smoothing:antialiased; }
 *{box-sizing:border-box}
@@ -316,6 +319,12 @@ a.btn{text-decoration:none}
 .mfield{margin-bottom:14px}
 /* O que falta para salvar, escrito perto do campo — no lugar do botão desligado. */
 .mf-erro{margin:-6px 0 12px; font-size:13px; font-weight:600; color:var(--erro)}
+/* Explica um valor que parece errado e não é. */
+.mf-dica{margin:-6px 0 12px; font-size:13px; color:var(--muted)}
+/* Não impede de salvar: diz o que vai acontecer depois de salvar assim. */
+/* `--warn-texto`, não `--warn`: o tom cheio tem 3,5:1 sobre o fundo claro, e
+   aqui é texto de 13px que a recepção lê. */
+.mf-aviso{margin:-6px 0 12px; font-size:13px; font-weight:600; color:var(--warn-texto)}
 .gv .mf-erro{margin:12px 0 0}
 .mfield [aria-invalid="true"]{border-color:var(--erro)}
 /* A janela recebe o foco ao abrir para o leitor de tela anunciá-la; ela não é
@@ -967,6 +976,19 @@ a.btn{text-decoration:none}
   padding:10px 12px 10px 16px; margin-bottom:12px; border-radius:12px; background:var(--blush); font-size:13.5px; font-weight:600}
 .cl-filtro span{display:inline-flex; align-items:center; gap:8px}
 .cl-niver{color:var(--lacquer-d); font-weight:600}
+/* Pedido de vínculo com uma conta Google, na ficha. Pede decisão, então
+   chama atenção sem gritar: é escolha da profissional, não alarme. */
+.cl-vinculo{background:var(--lacquer-tag); border-radius:12px; padding:12px 14px; margin-bottom:16px}
+.cl-vinculo p{margin:0 0 6px; font-size:14px}
+.cl-vinculo-aviso{color:var(--muted); font-size:13px !important}
+.cl-vinculo-botoes{display:flex; gap:8px; margin-top:10px}
+
+/* Falta um dado que só se pergunta de perto — não é erro, é lembrete. */
+.cl-sem-niver{color:var(--muted); font-style:italic}
+/* Quem nunca veio. Discreto: é contexto para quem atende, não alarme. */
+.at-primeira{display:inline-block; margin:0 0 16px; padding:3px 10px; border-radius:999px;
+  background:var(--lacquer-tag); color:var(--lacquer-d); font-size:13px; font-weight:600}
+.rs-primeira{font-weight:600}
 
 @media (max-width: 720px){
   .ag-tabela th, .ag-tabela td{padding:10px 9px}

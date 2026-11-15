@@ -1428,6 +1428,24 @@ img { max-width: 100%; display: block; }
 
 /* formulário e confirmação dentro da janela */
 .jn-form { max-width: 380px; }
+/* "Entrar com Google": alternativa acima do campo, nunca porta. O botão em si
+   é desenhado pelo script do Google dentro da caixa. */
+.jn-google { display: grid; gap: var(--e-2); margin-bottom: var(--e-3); }
+/* Sem `text-transform`: ele escrevia "whatsapp", e o nome da marca tem caixa
+   própria — é o nome do canal por onde a cliente recebe tudo. */
+.jn-google-ou {
+  font-size: var(--t-auxiliar); color: var(--fraco); text-align: center; margin: 0;
+}
+.jn-google-ok {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-2);
+  background: var(--marca-clara); border-radius: 12px;
+  padding: var(--e-2) var(--e-3); margin-bottom: var(--e-3);
+}
+.jn-google-ok p { margin: 0; }
+
+/* O número que o aparelho lembra, com a saída logo embaixo. */
+.jn-lembrado { display: grid; gap: var(--e-2); }
+.jn-lembrado p { margin-bottom: var(--e-2); }
 .jn-form textarea {
   width: 100%; padding: var(--e-3) 14px; font-size: 16px; font-family: inherit; /* 16px evita o zoom do iOS */
   border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo);
@@ -1530,27 +1548,18 @@ img { max-width: 100%; display: block; }
   .revela, .js .revela { opacity: 1; transform: none; }
 }
 
-/* ── conferir de quem é o número ── */
-.jn-confere {
-  background: var(--marca-clara); border-radius: 12px;
-  padding: var(--e-3) var(--e-4); margin: 4px 0 var(--e-4);
-}
-.jn-confere p { font-size: var(--t-corpo-pq); margin-bottom: var(--e-3); }
-.jn-confere-btns { display: flex; gap: var(--e-2); flex-wrap: wrap; }
-.jn-porque { display: block; font-size: var(--t-legenda); color: var(--fraco); margin-top: 5px; }
+/* O aniversário perguntado na tela de confirmação: dia e mês, sem ano. */
+.jn-niver { border: 0; padding: 0; min-width: 0; margin: var(--e-4) 0 0; text-align: left; }
+.jn-niver legend { padding: 0; font-weight: 600; margin-bottom: 2px; }
+.jn-niver-ajuda { display: block; font-size: var(--t-auxiliar); color: var(--fraco); margin-bottom: var(--e-2); }
+.jn-niver-listas { display: grid; grid-template-columns: 1fr 1.6fr; gap: var(--e-2); }
+.jn-niver-acoes { display: flex; gap: var(--e-2); margin-top: var(--e-2); }
+.jn-niver-acoes .b { flex: 1; }
+.jn-niver-ok { font-size: var(--t-corpo-pq); color: var(--fraco); margin: var(--e-4) 0 0; }
 
 /* O erro mora embaixo do campo que falta, não num aviso que some. */
 .jn-erro { display: block; font-size: var(--t-auxiliar); font-weight: 600; color: #8A2B2B; margin-top: 6px; }
 .campo [aria-invalid="true"] { border-color: #8A2B2B; }
-
-/* Nascimento em dia, mês e ano: o mês, por extenso, leva mais espaço. */
-.jn-nasc { border: 0; padding: 0; min-width: 0; margin-left: 0; margin-right: 0; }
-.jn-nasc legend {
-  padding: 0; font-size: var(--t-legenda); font-weight: 600; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--cinza); margin-bottom: 6px;
-}
-.jn-nasc-listas { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: var(--e-2); }
-.jn-nasc-listas select { padding-left: 10px; padding-right: 6px; }
 
 /* Só para leitor de tela: o "Passo 2 de 3" que as bolinhas mostram. */
 .so-leitor {

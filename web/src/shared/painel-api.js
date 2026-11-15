@@ -75,6 +75,9 @@ const servicoParaApi = s => ({
 const clienteParaTela = c => ({
   id: c.id, nome: c.nome, fone: c.fone, nasc: c.nascimento || '',
   end: c.endereco || '', obs: c.obs || '', optin: c.optin, criado: c.criadoEm,
+  // Uma conta do Google pediu para ser ligada a esta ficha e ninguém decidiu
+  // ainda. `null` quando não há pedido — que é o normal.
+  vinculoPendente: c.vinculoPendente || null,
 });
 
 const clienteParaApi = c => ({
@@ -86,6 +89,9 @@ const agParaTela = a => ({
   id: a.id, cliente: a.clienteId, servico: a.servicoId, prof: a.profissionalId,
   data: a.data, hora: a.hora, duracao: a.duracao, valor: a.valor,
   status: a.status, pagamento: a.pagamento, origem: a.origem,
+  // Calculado pelo servidor na consulta da agenda (ver `SELECT_AGENDA`).
+  // Ausente nas respostas de criar e remarcar, que devolvem a linha crua.
+  primeiraVez: !!a.primeiraVez,
   // Nome e preço vêm prontos do servidor: são o que foi vendido naquele dia,
   // não o que a tabela de preços diz hoje.
   adicionais: a.adicionais || [],
@@ -189,6 +195,9 @@ export const api = {
   salvarCliente: c => c.id
     ? req(`/clientes/${c.id}`, { method: 'PUT', body: clienteParaApi(c) })
     : req('/clientes', { method: 'POST', body: clienteParaApi(c) }),
+  /** Confirmar entrega a ficha inteira à conta; recusar só apaga o pedido. */
+  decidirVinculo: (id, confirmar) =>
+    req(`/clientes/${id}/vinculo`, { method: 'POST', body: { confirmar } }),
 
   /* ── serviços ── */
   salvarServico: s => s.id

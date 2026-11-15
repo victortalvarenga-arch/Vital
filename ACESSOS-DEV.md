@@ -201,6 +201,11 @@ vem do Git são as fotos — ver "Onde as fotos moram", abaixo.
 | Só como adicional | Depilação de buço — não aparece sozinha na vitrine |
 | Formulário | Anamnese facial, 4 perguntas, na limpeza e no peeling. A cliente **não** a responde pelo site: abra o atendimento no painel e use `Preencher a ficha` |
 | Fichas respondidas | Duas, da Renata Alves (limpezas de 60 e de 14 dias atrás). Em **Clientes → Renata → Ver fichas de saúde**: a resposta muda de uma visita para a outra, que é o motivo de a ficha ficar presa ao atendimento. A limpeza de hoje fica **pendente** de propósito — é o estado de quem agendou pelo site |
+| Primeira vez | **Teresa Bianchi, hoje às 09:30** com a Karen. É a estreante do cenário: o selo "Primeira vez aqui" aparece na gaveta dela a qualquer hora, e no cartão da próxima, no Resumo, enquanto ela for a próxima do dia |
+| Aniversário só com dia e mês | A mesma Teresa (`0000-03-22`). O ano `0000` é o "ela não informou" — a ficha mostra `22/03`, e **Editar cadastro** explica o ano vazio. É o único lugar do sistema onde esse valor aparece |
+| Entrar com Google | **Não aparece** em nenhuma das duas empresas de exemplo: depende de `GOOGLE_LOGIN_CLIENT_ID` no `server/.env`, que é cadastro no Google Cloud. Sem ela o site é só o WhatsApp, e é assim que a máquina local roda hoje |
+| Pedido de vínculo Google | **Camila Fontes** — uma conta pediu para ser ligada à ficha dela, ontem. Em **Clientes → Camila → Ficha** aparecem Confirmar e Recusar; é o que a rota pública grava quando alguém entra com o Google e digita um telefone que já tem cadastro |
+| Sem aniversário | **Bruna Tavares** — chegou pelo site depois que a data saiu do formulário (uma visita, 11 dias atrás). É quem faz a marca "sem aniversário" aparecer na lista de Clientes |
 
 Para ver cada um funcionando: escolha "Limpeza de pele profunda" no site — ela
 puxa os adicionais no mesmo agendamento, e a ficha fica pendente para a profissional.

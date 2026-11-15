@@ -17,7 +17,7 @@ import GradeDoMes from './GradeDoMes.jsx';
 import Recepcao from './Recepcao.jsx';
 import SeletorCliente from './SeletorCliente.jsx';
 import CampoData from './CampoData.jsx';
-import { Campo, Confirmar, Gaveta, Modal, Switch } from './Base.jsx';
+import { Campo, Confirmar, fmtFone, Gaveta, Modal, Switch } from './Base.jsx';
 import Suporte from './Suporte.jsx';
 import Exportar from './Exportar.jsx';
 import Formularios from './Formularios.jsx';
@@ -61,7 +61,6 @@ const dow = iso => new Date(iso + 'T12:00:00').getDay();
 
 const fmtDataLonga = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const soDigitos = s => (s || '').replace(/\D/g, '');
-const fmtFone = s => { const d = soDigitos(s).slice(0, 11); if (d.length <= 2) return d; if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`; return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`; };
 const waLink = (fone, texto) => `https://wa.me/55${soDigitos(fone)}?text=${encodeURIComponent(texto)}`;
 const diasEntre = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
 
@@ -191,9 +190,11 @@ function Painel({ sessao, aoSair }) {
   /** Executa uma chamada de API, recarrega o estado e avisa em caso de erro. */
   // `mensagem` é o texto do aviso, ou `{ texto, desfazer }` quando a ação
   // tem volta — o aviso então ganha o botão "Desfazer".
-  const acao = async (fn, mensagem) => {
+  const acao = async (fn, mensagem, aoFalhar) => {
     try { await fn(); await recarregar(); if (mensagem) setToast(mensagem); return true; }
-    catch (e) { setFalha(e.message); return false; }
+    // `aoFalhar` leva a mensagem para junto do campo que a causou; sem ele,
+    // ela vai para o aviso geral da tela, como sempre foi.
+    catch (e) { (aoFalhar || setFalha)(e.message); return false; }
   };
 
   // Esconder o que o papel não pode é cortesia, não segurança: a rota também
@@ -1035,7 +1036,11 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
         return (
           <Gaveta onClose={() => { setSel(null); setEntrada(''); }} titulo="Atendimento">
             <div className="eyebrow">{fmtDataLonga(at.data)} · {at.hora}</div>
-            <h2 style={{ fontSize: 26, margin: '6px 0 16px' }}>{c?.nome}</h2>
+            <h2 style={{ fontSize: 26, margin: at.primeiraVez ? '6px 0 6px' : '6px 0 16px' }}>{c?.nome}</h2>
+            {/* Quem nunca veio: outra conversa, outro tempo e às vezes outro
+                preço. Antes isto só se descobria abrindo o histórico da ficha,
+                o que ninguém faz entre um atendimento e outro. */}
+            {at.primeiraVez && <p className="at-primeira">Primeira vez aqui</p>}
 
             {/* O resumo em linhas, e não numa frase corrida: quem abre isto
                 está conferindo um dado de cada vez — qual serviço, com quem,
@@ -1732,6 +1737,10 @@ function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPar
                 <span>{brl(c.gasto)}</span>
                 {c.ultima && <span style={{ color: c.diasSem > 60 ? 'var(--lacquer)' : 'inherit' }}>última visita {haQuanto(c.diasSem)}</span>}
                 {soNiver && <span className="cl-niver">aniversário {c.nasc.slice(8, 10)}/{c.nasc.slice(5, 7)}</span>}
+                {/* O site pergunta o aniversário depois do agendamento, e ela
+                    pode pular. Marcado aqui, quem atende pergunta na cadeira —
+                    que é onde essa pergunta é fácil. */}
+                {!c.nasc && <span className="cl-sem-niver">sem aniversário</span>}
               </div>
             </div>
             <button className="btn btn-g btn-s" onClick={() => setSel(c)}>Ficha</button>
@@ -1761,6 +1770,33 @@ function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPar
                 <div style={{ fontSize: 13, color: 'var(--muted)' }} className="mono">{fmtFone(sel.fone)}</div>
               </div>
             </div>
+            {/* Uma conta do Google pediu para ser ligada a esta ficha. Quem
+                decide é gente: confirmar entrega o histórico, o endereço e as
+                observações — e dali em diante ela agenda sem digitar telefone
+                nenhum. Ver ARQUITETURA.md, "Entrar com Google". */}
+            {sel.vinculoPendente && (
+              <div className="cl-vinculo">
+                <p>
+                  A conta <strong>{sel.vinculoPendente.email || 'do Google'}</strong> pediu
+                  para ser ligada a esta ficha
+                  {sel.vinculoPendente.pedidoEm ? ` em ${fmtData(sel.vinculoPendente.pedidoEm)}` : ''}.
+                </p>
+                <p className="cl-vinculo-aviso">
+                  Confirme só se você reconhece essa pessoa: a partir daí ela agenda
+                  sozinha por esta ficha, sem informar o WhatsApp.
+                </p>
+                <div className="cl-vinculo-botoes">
+                  <button className="btn btn-p btn-s" onClick={async () => {
+                    const ok = await acao(() => api.decidirVinculo(sel.id, true), 'Conta ligada à ficha');
+                    if (ok) setSel(null);
+                  }}>Confirmar</button>
+                  <button className="btn btn-g btn-s" onClick={async () => {
+                    const ok = await acao(() => api.decidirVinculo(sel.id, false), 'Pedido recusado');
+                    if (ok) setSel(null);
+                  }}>Recusar</button>
+                </div>
+              </div>
+            )}
             {irPara && (
               <button className="btn btn-p btn-s" style={{ marginBottom: 16 }}
                       onClick={() => { setSel(null); irPara('agenda', { novo: true, cliente: sel.id }); }}>
@@ -1814,13 +1850,29 @@ function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPar
 function EditarCliente({ c, acao, fechar }) {
   const [f, setF] = useState({ nome: c.nome, fone: c.fone, nasc: c.nasc || '', end: c.end || '', obs: c.obs || '' });
   const [erroNome, setErroNome] = useState('');
+  const [erroFone, setErroFone] = useState('');
+
+  // Quem decide se o telefone serve é o servidor (`lib/fone.js`): aqui aceita
+  // fixo, no site não. O que a tela sabe sozinha é só o que decide o aviso
+  // abaixo — número de 10 dígitos não recebe WhatsApp.
+  const soFixo = soDigitos(f.fone).length === 10;
+
+  // '0000' é o ano que a cliente não informou: ela respondeu só dia e mês na
+  // tela de confirmação do site. Sem esta linha, "10/05/0000" lê como defeito.
+  const semAno = String(f.nasc || '').startsWith('0000-');
+
   const salvar = async () => {
     if (f.nome.trim().length < 3) {
       setErroNome('Escreva o nome completo da cliente.');
       document.getElementById('cl-nome')?.focus();
       return;
     }
-    const ok = await acao(() => api.salvarCliente({ ...c, ...f, fone: soDigitos(f.fone) }), 'Cadastro salvo');
+    setErroFone('');
+    const ok = await acao(
+      () => api.salvarCliente({ ...c, ...f, fone: soDigitos(f.fone) }),
+      'Cadastro salvo',
+      msg => { setErroFone(msg); document.getElementById('cl-fone')?.focus(); }
+    );
     if (ok) fechar();
   };
   return (
@@ -1832,10 +1884,30 @@ function EditarCliente({ c, acao, fechar }) {
       </Campo>
       {erroNome && <p id="cl-nome-erro" className="mf-erro">{erroNome}</p>}
       <div className="mrow">
-        <Campo label="WhatsApp"><input type="tel" inputMode="tel" value={fmtFone(f.fone)} onChange={e => setF(v => ({ ...v, fone: soDigitos(e.target.value) }))} /></Campo>
-        <Campo label="Nascimento">
-          <CampoData valor={f.nasc} aoMudar={d => setF(v => ({ ...v, nasc: d }))} />
-        </Campo>
+        <div>
+          <Campo label="WhatsApp">
+            <input id="cl-fone" type="tel" inputMode="tel" value={fmtFone(f.fone)}
+                   aria-invalid={!!erroFone}
+                   aria-describedby={erroFone ? 'cl-fone-erro' : (soFixo ? 'cl-fone-aviso' : undefined)}
+                   onChange={e => { setF(v => ({ ...v, fone: soDigitos(e.target.value) })); setErroFone(''); }} />
+          </Campo>
+          {erroFone && <p id="cl-fone-erro" className="mf-erro">{erroFone}</p>}
+          {/* Fixo é aceito de propósito — cliente que só tem fixo existe. Mas
+              quem cadastra precisa saber que essa ficha não recebe nada. */}
+          {!erroFone && soFixo && (
+            <p id="cl-fone-aviso" className="mf-aviso">
+              Número fixo: ela não recebe confirmação nem lembrete por WhatsApp. Para avisá-la, ligue.
+            </p>
+          )}
+        </div>
+        <div>
+          <Campo label="Nascimento">
+            <CampoData valor={f.nasc} aoMudar={d => setF(v => ({ ...v, nasc: d }))} />
+          </Campo>
+          {semAno && (
+            <p className="mf-dica">Ano não informado: ela respondeu só o dia e o mês pelo site.</p>
+          )}
+        </div>
       </div>
       <Campo label="Endereço"><input value={f.end} onChange={e => setF(v => ({ ...v, end: e.target.value }))} /></Campo>
       <Campo label="Observações"><textarea rows={2} value={f.obs} onChange={e => setF(v => ({ ...v, obs: e.target.value }))} placeholder="Alergias, preferências, cuidados" /></Campo>

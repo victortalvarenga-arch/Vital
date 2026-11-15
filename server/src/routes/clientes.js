@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db, uid, clientOut, apptOut } from '../db.js';
 import { hoje, soDigitos, diasEntre } from '../lib/dates.js';
+import { telefoneValido } from '../lib/fone.js';
 import { rota } from '../lib/rota.js';
 import { mudancas } from '../lib/registro.js';
 import { escopoDe, exige } from '../lib/auth.js';
@@ -97,9 +98,11 @@ clientes.get('/:id/fichas', exige('fichas'), rota(async (req, res) => {
 clientes.post('/', rota(async (req, res) => {
   const b = req.body || {};
   const fone = soDigitos(b.fone);
-  if (!b.nome || fone.length < 10) {
-    return res.status(400).json({ erro: 'nome e WhatsApp com DDD são obrigatórios' });
-  }
+  if (!b.nome) return res.status(400).json({ erro: 'o nome da cliente é obrigatório' });
+  // A regra do painel aceita fixo; a do site, não. O porquê está em
+  // `lib/fone.js`.
+  const erroDoFone = telefoneValido(fone);
+  if (erroDoFone) return res.status(400).json({ erro: erroDoFone });
   const existe = await db.get('SELECT * FROM clients WHERE fone=?', fone);
   if (existe) return res.status(409).json({ erro: 'já existe cliente com esse WhatsApp', cliente: clientOut(existe) });
 
@@ -118,9 +121,19 @@ clientes.put('/:id', rota(async (req, res) => {
   const atual = await db.get('SELECT * FROM clients WHERE id=?', req.params.id);
   if (!atual) return res.status(404).json({ erro: 'cliente não encontrada' });
   const b = { ...clientOut(atual), ...req.body };
+
+  // Editar confere o telefone como criar. Sem isto, a ficha boa virava lixo
+  // com um salvar — e trocar para um número que já existe estourava o índice
+  // único, envenenava a transação e a tela via um 500 sem explicação.
+  const fone = soDigitos(b.fone);
+  const erroDoFone = telefoneValido(fone);
+  if (erroDoFone) return res.status(400).json({ erro: erroDoFone });
+  const jaTem = await db.get('SELECT id FROM clients WHERE fone=? AND id<>?', fone, req.params.id);
+  if (jaTem) return res.status(409).json({ erro: 'já existe cliente com esse WhatsApp' });
+
   await db.run(
     `UPDATE clients SET nome=?, fone=?, nascimento=?, endereco=?, obs=?, optin=? WHERE id=?`,
-    b.nome, soDigitos(b.fone), b.nascimento || null, b.endereco || '', b.obs || '',
+    b.nome, fone, b.nascimento || null, b.endereco || '', b.obs || '',
     b.optin ? 1 : 0, req.params.id
   );
   // Ligar ou desligar o consentimento é fato novo, com data e origem novas;
@@ -140,6 +153,53 @@ clientes.put('/:id', rota(async (req, res) => {
     });
   }
   res.json(await comMetricas(depois));
+}));
+
+/**
+ * Confirmar ou recusar o vínculo com uma conta Google (migration 041).
+ *
+ * **Quem efetiva é gente.** A rota pública só registra o pedido: quem entra
+ * com o Google e digita um telefone que já tem ficha pode ser a dona dela ou
+ * alguém que errou um dígito, e confirmar entrega a ficha inteira — histórico,
+ * endereço, observações, e dali em diante o agendamento sem telefone nenhum.
+ *
+ * `exige('clientes')`: dono e recepção, que é quem cuida de ficha. Funcionário
+ * atende a própria agenda e não decide isto.
+ */
+clientes.post('/:id/vinculo', exige('clientes'), rota(async (req, res) => {
+  const c = await db.get('SELECT * FROM clients WHERE id=?', req.params.id);
+  if (!c) return res.status(404).json({ erro: 'cliente não encontrada' });
+  if (!c.google_sub_pendente) return res.status(404).json({ erro: 'não há pedido de vínculo nesta ficha' });
+
+  const confirmar = req.body?.confirmar === true;
+  const limpar = `google_sub_pendente = NULL, email_pendente = '', vinculo_pedido_em = NULL`;
+
+  if (!confirmar) {
+    await db.run(`UPDATE clients SET ${limpar} WHERE id = ?`, c.id);
+    await req.registrar('vinculo.recusado', {
+      alvoTipo: 'cliente', alvoId: c.id, resumo: `recusou ligar uma conta do Google a ${c.nome}`,
+    });
+    return res.json(clientOut(await db.get('SELECT * FROM clients WHERE id=?', c.id)));
+  }
+
+  // O índice único é por empresa: sem esta conferência o UPDATE estoura,
+  // envenena a transação e a tela recebe 500 em vez de "já está ligada a
+  // outra cliente" — foi o que aconteceu com o PUT desta mesma rota.
+  const jaTem = await db.get('SELECT id FROM clients WHERE google_sub = ? AND id <> ?',
+    c.google_sub_pendente, c.id);
+  if (jaTem) return res.status(409).json({ erro: 'essa conta do Google já está ligada a outra cliente' });
+
+  // O e-mail da conta só entra se a ficha não tiver um: o que a profissional
+  // cadastrou vale mais que o que veio do Google.
+  await db.run(
+    `UPDATE clients SET google_sub = google_sub_pendente,
+            email = CASE WHEN email = '' THEN email_pendente ELSE email END, ${limpar}
+      WHERE id = ?`, c.id
+  );
+  await req.registrar('vinculo.confirmado', {
+    alvoTipo: 'cliente', alvoId: c.id, resumo: `ligou uma conta do Google a ${c.nome}`,
+  });
+  res.json(clientOut(await db.get('SELECT * FROM clients WHERE id=?', c.id)));
 }));
 
 clientes.delete('/:id', rota(async (req, res) => {

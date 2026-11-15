@@ -37,6 +37,15 @@ No `server/.env`:
 - `VITAL_BANCO_DESCARTAVEL=sim` — só no branch de desenvolvimento. Sem isso,
   `reset`, `seed` e `senha-app` se recusam a tocar em banco que não seja
   `localhost`. **Nunca no branch de produção.**
+- `CONEXOES_SEGREDO` — 32+ caracteres aleatórios (o comando para gerar está no
+  `.env.example`). Sem ela, a pergunta de aniversário que aparece depois do
+  agendamento simplesmente não existe, **sem erro nenhum**, e os botões de
+  conectar Google e Instagram ficam desligados.
+- `GOOGLE_LOGIN_CLIENT_ID` — o id do cliente OAuth do **login da cliente** no
+  site, de um projeto próprio no Google Cloud, separado do `GOOGLE_CLIENT_ID`
+  das avaliações (o porquê está no `.env.example`). Sem ela, o botão "entrar
+  com Google" não aparece e o agendamento segue só com o WhatsApp — que é o
+  caso em desenvolvimento hoje.
 
 ### Montar em outra máquina, com os mesmos dados
 
@@ -64,7 +73,7 @@ O que o cenário traz, e por que cada peça está lá:
 
 | | Para quê |
 |---|---|
-| **Laura Faust** — 12 serviços em 4 categorias, 3 pessoas, 9 clientes, agenda de 4 meses | Telas cheias, relatório com número — é a bancada de ensaio da primeira cliente real da Vital, com nome, cor e fotos dela mesma (mais uma ilustrativa, do site de referência que ela trouxe) |
+| **Laura Faust** — 12 serviços em 4 categorias, 3 pessoas, 11 clientes, agenda de 4 meses | Telas cheias, relatório com número — é a bancada de ensaio da primeira cliente real da Vital, com nome, cor e fotos dela mesma (mais uma ilustrativa, do site de referência que ela trouxe) |
 | **Barbearia do João** — outro ramo, outra cor, outro vocabulário | Ver o isolamento entre empresas funcionando |
 | **Duas unidades na Barbearia** (Centro, Zona Sul) | O passo "onde você quer ser atendida" só aparece com mais de uma, e o site passa a mostrar os endereços delas. João fica sem unidade de propósito: é o caso de quem atende nos dois endereços. Ficam na Barbearia, e não na Laura, porque ela tem um endereço só — o de verdade |
 | **Combo "Dia de cuidado"** | Preço cheio riscado, economia calculada, rateio da comissão |
@@ -103,7 +112,7 @@ O **horário de atendimento** que aparece no site não se digita em lugar nenhum
 sai da jornada da equipe, em **Cadastros → Equipe**. Mudou a jornada de alguém,
 mudou o site.
 
-**O site não tem login.** A cliente informa o WhatsApp na hora de agendar e
+**O site não tem senha.** A cliente informa o WhatsApp na hora de agendar e
 pronto — se já agendou antes, é reconhecida pelo número.
 
 **O painel tem.** Na primeira vez ele pede para criar o acesso — nome, e-mail e
@@ -150,6 +159,16 @@ define a senha dele a partir do `.env`; nada disso é manual.
 
 **`DATABASE_URL não definida`** — falta copiar `server/.env.example` para
 `server/.env`.
+
+**A pergunta de aniversário não aparece depois de agendar** — falta
+`CONEXOES_SEGREDO` no `server/.env`. É de propósito: sem segredo não há papel para dar
+e receber de volta (ele é cifrado, `lib/segredo.js`), e a pergunta é o pedaço
+mais dispensável do fluxo — ela some em vez de derrubar o agendamento.
+
+**O botão "entrar com Google" não aparece no site** — é o normal sem
+`GOOGLE_LOGIN_CLIENT_ID` no `server/.env`, e aí o script do Google nem é
+carregado. Bloqueador de script e rede que barre o Google têm o mesmo efeito,
+também de propósito: botão que não funciona é pior que botão ausente.
 
 **Primeira requisição lenta, ou `Connection terminated` uma vez** — o compute
 do tier gratuito da Neon dorme depois de uns 5 minutos parado e acorda na

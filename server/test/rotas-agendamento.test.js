@@ -96,16 +96,18 @@ describe('adicionais chegam ao painel', () => {
 describe('identificar diz o mínimo', () => {
   // Qualquer pessoa pode digitar um número aqui. O formato é conferido inteiro
   // (deepEqual) de propósito: campo novo nesta resposta é vazamento novo — já
-  // saiu o `id` interno da cliente por aqui sem ninguém usar.
-  test('número com cadastro: primeiro nome e nada mais — nem id, nem sobrenome', async () => {
+  // saiu o `id` interno da cliente por aqui sem ninguém usar, e o primeiro nome
+  // saiu até 2026-11-13. Os casos com nome e com dado de ficha estão em
+  // `publico.test.js`, junto do resto da identificação.
+  test('número com cadastro: só o "sim" — nem nome, nem id', async () => {
     const r = await api.anonimo()('POST', '/api/publico/identificar', { fone: '47900000001' });
     assert.equal(r.status, 200);
-    assert.deepEqual(r.corpo, { cadastrada: true, primeiroNome: 'Cliente' });
+    assert.deepEqual(r.corpo, { existe: true });
   });
 
   test('número desconhecido: só o "não"', async () => {
     const r = await api.anonimo()('POST', '/api/publico/identificar', { fone: '47999990000' });
-    assert.deepEqual(r.corpo, { cadastrada: false });
+    assert.deepEqual(r.corpo, { existe: false });
   });
 });
 

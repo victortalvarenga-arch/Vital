@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { fmtFone } from './Base.jsx';
 
 const soDigitos = s => (s || '').replace(/\D/g, '');
 
 /** Sem acento e sem caixa: "joao" acha "João". */
 const chave = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const fmtFone = s => {
-  const d = soDigitos(s).slice(0, 11);
-  if (d.length <= 2) return d;
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-};
 
 /** Quantas sugestões aparecem de uma vez. Rolar dentro de um modal é ruim. */
 const LIMITE = 8;

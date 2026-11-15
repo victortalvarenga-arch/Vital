@@ -160,6 +160,16 @@ devolva o nome.
 - Datas e horas são texto (`'YYYY-MM-DD'`, `'HH:MM'`), nunca `Date`. O porquê
   está em `ARQUITETURA.md`.
 - Telefone é guardado só com dígitos, sem `+55`.
+- Telefone de cliente passa por `lib/fone.js`, nunca por conta de tamanho:
+  `foneValido` no que vem do site (exige celular, porque é por ele que ela se
+  identifica e recebe) e `telefoneValido` no painel (aceita fixo, e a tela
+  avisa que aquela ficha não recebe mensagem). A regra vale na leitura **e** na
+  escrita de cada caminho; a mensagem de erro vem do servidor e aparece embaixo
+  do campo — a tela não refaz a regra. `units.fone` fica de fora: é o número
+  que a recepção atende. Ver `ARQUITETURA.md`, "O telefone da cliente".
+- `clients.nascimento` pode vir com o ano `'0000'`: quer dizer "ela informou só
+  o dia e o mês", na tela de confirmação do site. Nada no sistema lê o ano — não
+  o conserte, não o mostre para a cliente e não o valide como data de verdade.
 - O site (`web/src/site/`) importa `shared/publico.js` e **nunca** o
   `painel-api.js`: é o que mantém a credencial do painel fora do bundle público.
   Pelo mesmo motivo, `web/src/vital/` tem cliente de API próprio e não importa
@@ -223,6 +233,23 @@ devolva o nome.
   /api/config` para qualquer papel e é dela que a vitrine pública é montada.
   O que o job traz da conta (avaliações, publicações) vai para a config; o
   token, nunca.
+- São três logins Google no projeto e eles não se misturam: a **conexão** da
+  empresa (`GOOGLE_CLIENT_ID`, escopo sensível `business.manage`, para ler as
+  avaliações da ficha dela), o **login da cliente** no site
+  (`GOOGLE_LOGIN_CLIENT_ID`, só `openid/email/profile`) e o painel da equipe
+  (e-mail e senha). Reaproveitar o id da conexão no login prende o login na
+  fila de verificação do Google. O ID token da cliente nunca é guardado: é
+  conferido (`lib/google-login.js`) e descartado.
+- Rota pública nunca liga uma conta externa a uma ficha que já existe — ela
+  grava o **pedido** (`clients.google_sub_pendente`) e quem confirma é gente no
+  painel, com `exige('clientes')`. Quem entrou provou ser dono da conta, não do
+  telefone que digitou, e confirmar entrega histórico, endereço e observações
+  de outra pessoa.
+- Papel que o servidor dá e recebe de volta (`lib/segredo.js`) tem chave por
+  uso, e **se levar id interno é cifrado** (`guardarPapel`), não assinado:
+  papel assinado é legível por quem o carrega, e foi assim que o convite de
+  aniversário vazou o id da ficha em toda resposta de agendamento. Papel que
+  **escreve** só sai para quem provou ser a dona do que ele escreve.
 - Ferramenta nova do atendente por IA (`server/src/atendente/ferramentas.js`)
   confere a própria entrada, roda no contexto da empresa e nunca recebe
   empresa nem cliente como argumento: a cliente é o número da conversa

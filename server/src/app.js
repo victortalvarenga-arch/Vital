@@ -6,7 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 
-import { db, getConfig, listarServicos, listarUnidades, staffOut, clientOut, apptOut, templateOut, blockOut } from './db.js';
+import { db, getConfig, listarServicos, listarUnidades, staffOut, clientOut, apptOut, templateOut, blockOut, SELECT_AGENDA } from './db.js';
 import { hoje, addDias } from './lib/dates.js';
 import { catalogo } from './routes/catalogo.js';
 import { clientes } from './routes/clientes.js';
@@ -214,8 +214,8 @@ app.get('/api/estado', rota(async (req, res) => {
   const equipe = await db.all('SELECT * FROM staff ORDER BY nome');
   const clientela = await db.all('SELECT * FROM clients ORDER BY nome');
   const agenda = so
-    ? await db.all('SELECT * FROM appointments WHERE data >= ? AND staff_id = ? ORDER BY data, hora', desde, so)
-    : await db.all('SELECT * FROM appointments WHERE data >= ? ORDER BY data, hora', desde);
+    ? await db.all(`${SELECT_AGENDA} WHERE a.data >= ? AND a.staff_id = ? ORDER BY a.data, a.hora`, desde, so)
+    : await db.all(`${SELECT_AGENDA} WHERE a.data >= ? ORDER BY a.data, a.hora`, desde);
   const modelos = await db.all('SELECT * FROM templates ORDER BY tipo, titulo');
   const fechados = await db.all('SELECT * FROM blocks WHERE data >= ? ORDER BY data, hora_ini', desde);
   // Vencidos junto: o painel precisa achar a promoção do ano passado para

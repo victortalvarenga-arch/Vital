@@ -448,7 +448,40 @@ export const clientOut = r => r && ({
   // prova do consentimento, não só o estado.
   optinEm: r.optin_em || null, optinOrigem: r.optin_origem || '',
   email: r.email || '', temGoogle: !!r.google_sub,
+  // O pedido de vínculo com uma conta Google, para a ficha do painel mostrar
+  // e a profissional decidir. Sai só quando existe — e leva o e-mail de quem
+  // pediu, que é o que permite reconhecer a pessoa antes de entregar a ficha.
+  vinculoPendente: r.google_sub_pendente
+    ? { email: r.email_pendente || '', pedidoEm: r.vinculo_pedido_em || '' }
+    : null,
 });
+
+/**
+ * A agenda com a marca de "primeira vez" — o atendimento de quem nunca veio.
+ *
+ * Calculado na consulta, e não guardado em coluna: é uma conclusão que muda
+ * sozinha. Cancelar o primeiro atendimento muda quem é a primeira vez, e uma
+ * coluna mentiria até alguém lembrar de corrigi-la.
+ *
+ * **O dia, e não o horário:** um combo vira três agendamentos em sequência, e
+ * marcar só o primeiro deixaria a mesma cliente "nova" às 9h e "antiga" às 10h.
+ * **Cancelado não conta:** quem marcou, desmarcou e voltou nunca veio. E a
+ * conta é da empresa inteira, não da agenda de quem atende — a cliente da
+ * colega não é nova no salão.
+ *
+ * Um agregado numa passada, em vez de uma subconsulta por linha: `appointments`
+ * não tem índice por `client_id`, e a agenda do painel traz 120 dias.
+ *
+ * Quem usa precisa qualificar as colunas com `a.` — `client_id` sozinho fica
+ * ambíguo entre a tabela e o agregado.
+ */
+export const SELECT_AGENDA = `
+  WITH chegada AS (
+    SELECT client_id, MIN(data) AS primeiro_dia
+      FROM appointments WHERE status <> 'cancelado' GROUP BY client_id
+  )
+  SELECT a.*, (c.primeiro_dia = a.data) AS primeira_vez
+    FROM appointments a LEFT JOIN chegada c ON c.client_id = a.client_id`;
 
 export const apptOut = r => r && ({
   id: r.id, clienteId: r.client_id, servicoId: r.service_id, profissionalId: r.staff_id,
@@ -462,6 +495,10 @@ export const apptOut = r => r && ({
   unidadeId: r.unit_id || null,
   // `comboGrupo` amarra os irmãos da mesma venda; cancelar um cancela o grupo.
   comboId: r.combo_id || null, comboGrupo: r.combo_grupo || null,
+  // Só quando a consulta calculou (`SELECT_AGENDA`). A resposta de criar ou
+  // remarcar devolve a linha crua e não traz a marca — o campo fica ausente em
+  // vez de vir `false`, que seria uma afirmação que ninguém conferiu.
+  ...(r.primeira_vez === undefined ? {} : { primeiraVez: !!r.primeira_vez }),
 });
 
 export const templateOut = r => r && ({

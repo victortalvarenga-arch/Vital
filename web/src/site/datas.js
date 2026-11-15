@@ -9,6 +9,9 @@
 const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+/** Os meses por extenso, para listas de escolha. */
+export const mesesPorExtenso = () => MESES.map((m, i) => ({ numero: i + 1, nome: m }));
+
 const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 export const hojeISO = () => {

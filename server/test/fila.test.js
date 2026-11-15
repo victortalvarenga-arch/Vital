@@ -234,6 +234,34 @@ describe('marketing depende de consentimento', () => {
     });
   });
 
+  test('e sai para quem informou só o dia e o mês, pela tela de confirmação', async () => {
+    // O ano `0000` é o "não informado" que a etapa 5 grava (Bloco 4c). O job
+    // compara `substr(nascimento,6)`, então ele não deveria nem notar — mas
+    // "não deveria" é exatamente o que precisa de teste, porque é a mensagem
+    // que a cliente recebe ou deixa de receber.
+    await na(async () => {
+      await db.db.run(`UPDATE clients SET nascimento = ? WHERE id = 'c1'`, '0000-' + dia(7).slice(5));
+      await fila.gerarFila();
+      assert.ok((await chaves()).includes('aniversario'));
+      // E o texto fala "10/05", não "10/05/0000".
+      const m = (await pendentes()).find(x => x.template_chave === 'aniversario');
+      assert.ok(!m.texto.includes('0000'), `o ano vazou no texto: ${m.texto}`);
+    });
+  });
+
+  test('e NÃO sai para quem não tem data de nascimento', async () => {
+    // Desde 2026-11-13 o site não pergunta o aniversário (Bloco 4c, etapa 3),
+    // então ficha sem data é o caso normal, não a exceção. O job tem de
+    // ignorá-la em silêncio — não pular a empresa inteira, não escolher uma
+    // data, não entrar em erro.
+    await fazerAniversariar();
+    await na(async () => {
+      await db.db.run(`UPDATE clients SET nascimento = NULL`);
+      await fila.gerarFila();
+      assert.ok(!(await chaves()).includes('aniversario'));
+    });
+  });
+
   test('e NÃO sai para quem desligou o optin', async () => {
     // LGPD: marketing só com consentimento. Não é preferência de produto.
     await fazerAniversariar();

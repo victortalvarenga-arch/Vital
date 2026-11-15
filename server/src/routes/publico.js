@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db, uid, listarServicos, staffOut, getConfig, listarUnidades } from '../db.js';
 import { hoje, soDigitos } from '../lib/dates.js';
+import { foneValido } from '../lib/fone.js';
 import { rota } from '../lib/rota.js';
 import { criarAgendamento, criarCombo } from './agendamentos.js';
 import { horariosLivres, horariosPorServico, horariosPorEquipe, diasComVaga, diasComVagaPara, foraDoPrazoDoSite } from '../lib/availability.js';
@@ -8,12 +9,15 @@ import { adicionaisDeTodos, validarAdicionais } from '../lib/adicionais.js';
 import { horariosDeAtendimento } from '../lib/horarios.js';
 import { marcar, etapaDoNavegador, sessaoValida } from '../lib/funil.js';
 import { limite } from '../lib/limite.js';
+import { convidarAniversario, conferirAniversario, segredoConfigurado } from '../lib/segredo.js';
+import { empresaAtual } from '../lib/contexto.js';
+import { conferirIdToken, loginGoogleConfigurado } from '../lib/google-login.js';
 import { combosAtivos, comboCompleto, profissionaisDoCombo, profissionaisDosCombos, valeNoDia } from '../lib/combos.js';
 
 export const publico = Router();
 
 /**
- * Os limites das três rotas abertas que escrevem ou respondem sobre quem
+ * Os limites das cinco rotas abertas que escrevem ou respondem sobre quem
  * existe. Generosos de propósito: escritório, salão e shopping saem todos pelo
  * mesmo IP, e barrar cliente de verdade para atrapalhar robô é troca ruim.
  * O porquê de cada rota estar aqui está em `lib/limite.js`.
@@ -27,6 +31,12 @@ const LIMITES = {
   // O mais apertado dos três: aqui a resposta diz se um telefone tem cadastro,
   // e sem limite isso vira varredura de quem é cliente de quem.
   identificar: limite({ nome: 'identificar', max: 30, janelaSeg: 600 }),
+  // Escreve na ficha, ainda que só o dia e o mês: tem teto como o resto.
+  aniversario: limite({ nome: 'aniversario', max: 20, janelaSeg: 600 }),
+  // Responde se uma conta Google já é cliente aqui. Forjar token não dá, mas
+  // a regra da casa vale: rota pública que responde sobre dado que existe tem
+  // teto.
+  google: limite({ nome: 'google', max: 30, janelaSeg: 600 }),
   // Vitrine, horários e dias livres não escrevem, mas cada pedido faz várias
   // consultas: em laço, ocupam o banco e a única máquina. Um balde para as
   // três, senão alternar entre elas triplicava o teto. Uma visita de verdade
@@ -150,6 +160,14 @@ publico.get('/vitrine', LIMITES.leitura, rota(async (req, res) => {
       // `lib/horarios.js`. Vai para a página e para o schema de negócio local.
       horarios: horariosDeAtendimento(equipe.map(staffOut)),
     },
+    // O id do cliente OAuth do login da cliente. **Não é segredo** — ele vai
+    // na página de todo site que usa "entrar com Google", e o que protege a
+    // conta é o token assinado, conferido no servidor. Vazio quando a Vital
+    // não tem o login configurado: aí o botão não existe e o site funciona
+    // exatamente como antes, só com o WhatsApp. O par secreto
+    // (`GOOGLE_CLIENT_SECRET`) é de OUTRO cliente OAuth, o das avaliações, e
+    // não sai daqui nunca.
+    googleClientId: process.env.GOOGLE_LOGIN_CLIENT_ID || '',
     marca: cfg.marca,
     textos: cfg.textos,
     // Só as três chaves de cada caso, montadas a dedo como o resto desta
@@ -335,20 +353,119 @@ publico.post('/evento', LIMITES.evento, rota(async (req, res) => {
 }));
 
 /**
- * Identificação por WhatsApp. É o "primeiro acesso" do fluxo:
- * se o número já existe, a cliente não preenche nada de novo.
+ * Identificação por WhatsApp. É o "primeiro acesso" do fluxo: se o número já
+ * existe, a cliente não preenche nada de novo.
  *
- * Devolve só o primeiro nome — nunca id, endereço ou histórico, porque
- * qualquer pessoa pode digitar um número aqui. O site não precisa do id:
- * o `/agendar` resolve a cliente pelo próprio telefone.
+ * **Responde "sim" ou "não", e nada mais.** Qualquer pessoa na internet digita
+ * um número aqui, sem login e sem deixar rastro na empresa. Até 2026-11-13
+ * saía também o primeiro nome, para a cliente conferir que o número era o
+ * dela; digitando números a esmo, isso montava uma lista de quem é cliente de
+ * quem — com nome, de graça, e a empresa nunca saberia. A conferência do
+ * número volta pelo código por WhatsApp (ROADMAP, Bloco 4b), que prova o
+ * número em vez de mostrar o nome a quem o digitou.
+ *
+ * O site não precisa do id: o `/agendar` resolve a cliente pelo telefone.
  */
 publico.post('/identificar', LIMITES.identificar, rota(async (req, res) => {
   const fone = soDigitos(req.body?.fone);
-  if (fone.length < 10) return res.status(400).json({ erro: 'informe o WhatsApp com DDD' });
-  const c = await db.get('SELECT nome FROM clients WHERE fone=?', fone);
-  if (!c) return res.json({ cadastrada: false });
-  res.json({ cadastrada: true, primeiroNome: c.nome.split(' ')[0] });
+  const erro = foneValido(fone);
+  if (erro) return res.status(400).json({ erro });
+  // `SELECT 1`, e não `SELECT nome`: o que não é lido não é devolvido por
+  // descuido quando esta rota crescer.
+  const c = await db.get('SELECT 1 FROM clients WHERE fone=?', fone);
+  res.json({ existe: !!c });
 }));
+
+/**
+ * "Entrar com Google" — a cliente, não a equipe nem a dona da empresa.
+ *
+ * **Opção, nunca exigência:** o caminho só com WhatsApp continua ao lado, e o
+ * Google não substitui o telefone (ele não devolve número, e o número é a
+ * identidade da ficha).
+ *
+ * Devolve o primeiro nome quando a conta já está ligada a uma ficha — e isso
+ * **não** reabre o buraco que o `/identificar` fechou: lá bastava digitar um
+ * número qualquer, aqui é preciso um token assinado pelo Google para aquela
+ * conta. Quem recebe o nome já provou ser a dona dela.
+ *
+ * O que a tela faz com a resposta é pré-preencher, nada mais: quem resolve a
+ * ficha é o `/agendar`, que confere o token de novo.
+ */
+publico.post('/google', LIMITES.google, rota(async (req, res) => {
+  const quem = await comGoogle(req.body?.token);
+  if (!quem) return res.status(401).json({ erro: 'não consegui confirmar essa conta do Google' });
+
+  // O RLS faz esta busca ser "nesta empresa": a mesma conta pode ser cliente
+  // do salão e da clínica, e são duas fichas (migration 041).
+  const ficha = await db.get('SELECT nome FROM clients WHERE google_sub = ?', quem.sub);
+  if (ficha) return res.json({ conhecida: true, primeiroNome: ficha.nome.split(' ')[0] });
+
+  res.json({ conhecida: false, nome: quem.nome, email: quem.email });
+}));
+
+/**
+ * Confere o ID token e devolve a pessoa, ou `null` — sem derrubar a rota.
+ *
+ * `null` em vez de exceção porque as duas rotas que usam isto querem o mesmo
+ * 401 com o mesmo texto, e um `try/catch` em cada uma convida a esquecer um.
+ */
+async function comGoogle(token) {
+  if (!token || !loginGoogleConfigurado()) return null;
+  try {
+    return await conferirIdToken(token);
+  } catch (erro) {
+    // Sem o texto do token no log: ele é credencial.
+    console.warn('[login google] token recusado:', erro.message);
+    return null;
+  }
+}
+
+/**
+ * O que fazer quando quem entrou com o Google cai numa ficha que já existe.
+ *
+ * Três situações, e nenhuma delas liga a conta à ficha:
+ *
+ * - **a ficha já é dela** (mesma conta): nada a fazer;
+ * - **a ficha não tem conta**: fica o PEDIDO, e quem confirma é a profissional
+ *   no painel. Ligar aqui seria entregar a ficha de outra pessoa — com
+ *   histórico, endereço e observações — a quem errou um dígito do telefone;
+ * - **a ficha tem OUTRA conta**: não se toca em nada. Vira registro, porque é
+ *   o sinal de alguém digitando número alheio, e isso a empresa precisa poder
+ *   ver depois.
+ *
+ * Tudo em `db.opcional`: nada disto pode derrubar o agendamento, que é o que
+ * a cliente veio fazer.
+ */
+async function resolverVinculo(cliente, quem) {
+  if (cliente.google_sub === quem.sub) return;
+
+  if (!cliente.google_sub) {
+    await db.opcional(async () => {
+      await db.run(
+        `UPDATE clients SET google_sub_pendente = ?, email_pendente = ?, vinculo_pedido_em = ?
+          WHERE id = ?`,
+        quem.sub, quem.email, hoje(), cliente.id
+      );
+      // Sem registro, um pedido sobrescreve o outro e a empresa nunca fica
+      // sabendo que alguém reivindicou a ficha. O e-mail de quem pediu não vai
+      // para o resumo: ele já está na ficha, para a profissional decidir.
+      await db.run(
+        `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
+         VALUES (NULL, 'site', 'vinculo.pedido', 'cliente', ?, ?, '{}')`,
+        cliente.id, 'uma conta do Google pediu para ser ligada a esta ficha'
+      );
+    });
+    return;
+  }
+
+  // Sem o e-mail de quem pediu e sem o nome da ficha: o registro é para
+  // contar que aconteceu, não para espalhar dado de ninguém.
+  await db.opcional(() => db.run(
+    `INSERT INTO logs (user_id, usuario_nome, acao, alvo_tipo, alvo_id, resumo, detalhe)
+     VALUES (NULL, 'site', 'vinculo.conflito', 'cliente', ?, ?, '{}')`,
+    cliente.id, 'uma conta do Google diferente agendou por este telefone'
+  ));
+}
 
 /**
  * Agendamento pelo site. Cria a cliente se for primeiro acesso.
@@ -356,35 +473,70 @@ publico.post('/identificar', LIMITES.identificar, rota(async (req, res) => {
  */
 publico.post('/agendar', LIMITES.agendar, rota(async (req, res) => {
   const b = req.body || {};
-  const fone = soDigitos(b.fone);
-  if (fone.length < 10) return res.status(400).json({ erro: 'WhatsApp inválido' });
 
-  let cliente = await db.get('SELECT * FROM clients WHERE fone=?', fone);
+  // Entrou com o Google? O token é conferido aqui de novo — o que a tela
+  // mandou no `/google` não vale nada, porque a tela não é fonte confiável.
+  const quem = b.googleToken ? await comGoogle(b.googleToken) : null;
+  if (b.googleToken && !quem) {
+    return res.status(401).json({ erro: 'não consegui confirmar essa conta do Google' });
+  }
+
+  // Conta já ligada a uma ficha: é ela, e o telefone nem é pedido. É o
+  // "quem volta não digita nada" que o login promete.
+  let cliente = quem ? await db.get('SELECT * FROM clients WHERE google_sub = ?', quem.sub) : null;
+  // Ela provou ser a dona desta ficha? Pelo Google, sim — a conta está ligada
+  // a ela. Só pelo telefone, não: digitar um número não prova nada. Vira
+  // `true` também quando a ficha nasce agora, logo abaixo.
+  let provou = !!cliente;
+
+  const fone = soDigitos(b.fone);
+  if (!cliente) {
+    // A mesma conferência do `/identificar`, e não uma mais frouxa: a tela chama
+    // as duas, mas quem chamar só esta não pode ter um caminho mais fácil.
+    const erroDoFone = foneValido(fone);
+    if (erroDoFone) return res.status(400).json({ erro: erroDoFone });
+    cliente = await db.get('SELECT * FROM clients WHERE fone=?', fone);
+  }
+
+  if (cliente && quem) await resolverVinculo(cliente, quem);
 
   if (!cliente) {
     if (!b.nome || b.nome.trim().length < 3) {
       return res.status(400).json({ erro: 'primeiro acesso: informe o nome completo' });
     }
-    // Nome, WhatsApp e nascimento são o mínimo que o negócio precisa: sem nome
-    // não dá para atender, sem nascimento não existe mensagem de aniversário.
-    // A conferência vive aqui também porque validação de front se contorna.
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(b.nascimento || '')) {
-      return res.status(400).json({ erro: 'primeiro acesso: informe a data de nascimento' });
+    // Nome e WhatsApp são o mínimo que o negócio precisa: sem nome não dá para
+    // atender, sem número não dá para avisar. A conferência vive aqui também
+    // porque validação de front se contorna.
+    //
+    // **O nascimento saiu daqui em 2026-11-13** (ROADMAP, Bloco 4c): três
+    // listas no meio do agendamento custam agendamento, e a data só serve para
+    // uma mensagem por ano — ela é perguntada depois, com o horário já
+    // confirmado. Quem manda a data continua tendo ela gravada: o painel manda,
+    // e a rota do aniversário também.
+    if (b.nascimento && !/^\d{4}-\d{2}-\d{2}$/.test(b.nascimento)) {
+      return res.status(400).json({ erro: 'data de nascimento inválida' });
     }
-    if (b.nascimento > hoje()) {
+    if (b.nascimento && b.nascimento > hoje()) {
       return res.status(400).json({ erro: 'data de nascimento no futuro' });
     }
     const id = uid();
     // `optin_em`/`optin_origem`: o aceite (ou a recusa) de mensagens precisa de
     // data e de por onde veio — é a prova que a LGPD pede, e a recusa também é
     // fato com data.
+    // Número que ninguém tinha: aqui o vínculo é seguro — não há ficha de
+    // outra pessoa para invadir, porque não havia ficha.
     await db.run(
-      `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,optin_em,optin_origem,criado_em)
-       VALUES (?,?,?,?,?,?,?,?,'site',?)`,
+      `INSERT INTO clients (id,nome,fone,nascimento,endereco,obs,optin,optin_em,optin_origem,criado_em,
+                            google_sub,email)
+       VALUES (?,?,?,?,?,?,?,?,'site',?,?,?)`,
       id, b.nome.trim(), fone, b.nascimento || null, b.endereco || '', '',
-      b.aceitaMensagens === false ? 0 : 1, hoje(), hoje()
+      b.aceitaMensagens === false ? 0 : 1, hoje(), hoje(),
+      quem?.sub || null, quem?.email || ''
     );
     cliente = await db.get('SELECT * FROM clients WHERE id=?', id);
+    // Ficha que nasce neste agendamento é dela por construção: não havia nada
+    // de ninguém ali para invadir.
+    provou = true;
   }
 
   // Recado da cliente ("prefiro tons nude", "sou alérgica a acetona"). Texto
@@ -426,9 +578,96 @@ publico.post('/agendar', LIMITES.agendar, rota(async (req, res) => {
     agendamento: r.agendamento || r.agendamentos[0],
     agendamentos: r.agendamentos,
     combo: r.combo,
-    cliente: { id: cliente.id, primeiroNome: cliente.nome.split(' ')[0] },
+    // Só o primeiro nome, e só para quem provou ser a dona da ficha (decisão
+    // do dono, 2026-11-14). Para quem apenas digitou um telefone que já tem
+    // cadastro, a saudação sai sem nome: devolvê-lo seria a varredura que a
+    // etapa 2 fechou no `/identificar`, aqui ao preço de ocupar um horário.
+    // O id da ficha também saía daqui, e id vaza em link e em histórico.
+    cliente: { primeiroNome: provou ? cliente.nome.split(' ')[0] : '' },
+    // O convite para informar o aniversário, ou `null`.
+    aniversario: conviteDeAniversario(cliente, provou),
     // O pagamento online entra aqui: gere a cobrança no gateway e devolva a URL.
     // Veja server/src/routes/pagamentos.js (ainda não implementado).
     pagamento: b.formaPagamento === 'local' ? null : { pendente: true, url: null },
   });
+}));
+
+/* ------------------------------------------------------------------ *
+ * O aniversário, perguntado depois — nunca no meio do agendamento
+ * ------------------------------------------------------------------ */
+
+/**
+ * O convite que vai na tela de "horário confirmado", ou `null`.
+ *
+ * **Só para quem provou ser a dona da ficha** (decisão do dono, 2026-11-14,
+ * depois do `revisor-isolamento`): ficha que nasceu neste agendamento — não há
+ * ficha alheia para invadir — ou cliente identificada pelo Google, que provou
+ * ser dona da conta ligada à ficha. Sem isso, quem digitasse o número de outra
+ * pessoa (o buraco do Bloco 4b) ganhava um papel que ESCREVE na ficha dela: um
+ * aniversário falso, que ninguém vê acontecer, e que impede a data verdadeira
+ * de ser pedida para sempre — o convite só aparece para ficha sem data.
+ *
+ * O preço é que cliente antiga sem data não é perguntada pelo site. Quem
+ * pergunta é a profissional, com a pessoa na cadeira, e a lista de Clientes
+ * marca quem está sem (Bloco 4c, etapa 6).
+ *
+ * Perguntar de novo a quem já respondeu seria pedir duas vezes a mesma coisa.
+ * E sem `CONEXOES_SEGREDO` não há papel: a pergunta some, porque ela é o
+ * pedaço mais dispensável do fluxo e não pode derrubar o agendamento.
+ */
+function conviteDeAniversario(cliente, provou) {
+  if (!provou || cliente.nascimento || !segredoConfigurado()) return null;
+  // A empresa vai no papel e é conferida na volta: o papel é cifrado, mas o
+  // endereço por onde ele volta é escolhido por quem o tem na mão.
+  return { token: convidarAniversario({ c: cliente.id, t: empresaAtual() }) };
+}
+
+/** O ano que quer dizer "ela não informou". Ver `ARQUITETURA.md`. */
+const SEM_ANO = '0000';
+
+const diaExiste = (dia, mes) =>
+  Number.isInteger(dia) && Number.isInteger(mes) && mes >= 1 && mes <= 12 && dia >= 1
+  // Ano bissexto no teste de 29/02: quem nasceu nesse dia tem aniversário, e
+  // recusar aqui seria dizer que não.
+  && dia <= new Date(Date.UTC(2024, mes, 0)).getUTCDate();
+
+/**
+ * Dia e mês, vindos da tela de confirmação.
+ *
+ * **Sem ano, de propósito:** ninguém no sistema usa o ano do nascimento — o
+ * job compara `substr(nascimento,6)`, o template corta em `slice(0,5)` e o
+ * painel mostra `dd/mm`. Uma lista de cem anos para guardar o que nada lê é
+ * campo a mais numa tela que a pessoa já podia ter fechado.
+ *
+ * **Quem autoriza é o papel cifrado**, porque o site não tem login. Ele vale
+ * meia hora, é preso a esta cliente e a esta empresa, e tem chave própria —
+ * um `state` de autorização do Google não abre esta porta. Cifrado, e não
+ * assinado, porque papel assinado é legível por quem o carrega e este leva o
+ * id da ficha.
+ */
+publico.post('/aniversario', LIMITES.aniversario, rota(async (req, res) => {
+  const b = req.body || {};
+  // Sem segredo não há papel para conferir, e `conferirAniversario` levantaria
+  // 503 — que vira 500 com pilha no log a cada pedido de quem insistir.
+  // Papel que não vale é 401, tenha ele vindo torto ou não havendo como ler.
+  const papel = segredoConfigurado() ? conferirAniversario(b.token) : null;
+  if (!papel?.c || papel.t !== empresaAtual()) {
+    return res.status(401).json({ erro: 'este convite venceu ou não é válido' });
+  }
+  const dia = Number(b.dia);
+  const mes = Number(b.mes);
+  if (!diaExiste(dia, mes)) return res.status(400).json({ erro: 'escolha o dia e o mês' });
+
+  const p2 = n => String(n).padStart(2, '0');
+  // `AND nascimento IS NULL` é a regra, não uma conferência antes: entre ler e
+  // gravar cabe outra gravação, e o que não pode acontecer é a resposta de
+  // hoje apagar a data que a profissional conferiu com a cliente na cadeira.
+  // O RLS cuida da empresa — por isso não há `tenant_id` aqui.
+  await db.run(
+    `UPDATE clients SET nascimento = ? WHERE id = ? AND nascimento IS NULL`,
+    `${SEM_ANO}-${p2(mes)}-${p2(dia)}`, papel.c
+  );
+  // Sempre a mesma resposta: dizer "já tinha data" contaria algo da ficha a
+  // quem só tem um papel na mão.
+  res.json({ ok: true });
 }));

@@ -30,6 +30,43 @@ after(async () => {
 
 const vitrine = async () => (await api.anonimo()('GET', '/api/publico/vitrine')).corpo;
 
+describe('o login com Google aparece só quando a Vital o tem configurado', () => {
+  test('sem a variável, o site não oferece o botão', async () => {
+    const guardado = process.env.GOOGLE_LOGIN_CLIENT_ID;
+    delete process.env.GOOGLE_LOGIN_CLIENT_ID;
+    try {
+      assert.equal((await vitrine()).googleClientId, '');
+    } finally {
+      if (guardado) process.env.GOOGLE_LOGIN_CLIENT_ID = guardado;
+    }
+  });
+
+  test('com a variável, o id do cliente OAuth vai para a página', async () => {
+    // O id não é segredo: ele aparece na página de todo site que usa "entrar
+    // com Google". O que protege a conta é o token assinado, conferido no
+    // servidor. O que NÃO pode sair é o segredo do cliente OAuth das
+    // avaliações — e o caso abaixo é quem segura isso.
+    process.env.GOOGLE_LOGIN_CLIENT_ID = 'abc-login.apps.googleusercontent.com';
+    try {
+      assert.equal((await vitrine()).googleClientId, 'abc-login.apps.googleusercontent.com');
+    } finally {
+      delete process.env.GOOGLE_LOGIN_CLIENT_ID;
+    }
+  });
+
+  test('nenhum segredo de conexão atravessa a vitrine', async () => {
+    process.env.GOOGLE_LOGIN_CLIENT_ID = 'abc-login.apps.googleusercontent.com';
+    process.env.GOOGLE_CLIENT_SECRET = 'segredo-das-avaliacoes';
+    try {
+      const texto = JSON.stringify(await vitrine());
+      assert.ok(!texto.includes('segredo-das-avaliacoes'), 'o segredo do OAuth vazou na vitrine');
+    } finally {
+      delete process.env.GOOGLE_LOGIN_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+    }
+  });
+});
+
 describe('a vitrine respeita o painel', () => {
   test('"Fotos dos serviços" desligada tira a foto de todo serviço', async () => {
     await dona('PUT', '/api/config', { exibir: { fotos: true } });

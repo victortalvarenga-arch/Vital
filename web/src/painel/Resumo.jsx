@@ -386,6 +386,7 @@ function ProximaCliente({ proxima, depois, naCadeira, clientes, servicos, staff,
               <div className="rs-proxima-mt">
                 {servicos.find(s => s.id === proxima.servico)?.nome}
                 {mostrarQuem && <> · {quemAtende(proxima)}</>}
+                {proxima.primeiraVez && <> · <span className="rs-primeira">primeira vez</span></>}
                 {' · '}<span className={'rs-selo' + (proxima.status === 'confirmado' ? ' ok' : '')}>
                   {FLUXO[proxima.status].rotulo}
                 </span>

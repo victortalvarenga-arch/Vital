@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, uid, apptOut, staffOut } from '../db.js';
+import { db, uid, apptOut, staffOut, SELECT_AGENDA } from '../db.js';
 import { hoje, agora, toMin, toHora } from '../lib/dates.js';
 import { conflita, dentroDaJornada, horariosLivres, horariosPorServico, foraDoPrazoDoSite } from '../lib/availability.js';
 import { rota } from '../lib/rota.js';
@@ -144,12 +144,14 @@ agendamentos.get('/', rota(async (req, res) => {
   // Funcionário só enxerga a própria agenda — e o recorte é imposto aqui, não
   // aceito do filtro que o front mandou.
   const so = escopoDe(req.usuario);
-  if (so) { cond.push('staff_id = ?'); args.push(so); }
-  if (data) { cond.push('data = ?'); args.push(data); }
-  if (de) { cond.push('data >= ?'); args.push(de); }
-  if (ate) { cond.push('data <= ?'); args.push(ate); }
-  if (profissionalId) { cond.push('staff_id = ?'); args.push(profissionalId); }
-  if (clienteId) { cond.push('client_id = ?'); args.push(clienteId); }
+  // `a.` em tudo: a consulta junta o agregado de `SELECT_AGENDA`, e
+  // `client_id` sem prefixo fica ambíguo entre a tabela e ele.
+  if (so) { cond.push('a.staff_id = ?'); args.push(so); }
+  if (data) { cond.push('a.data = ?'); args.push(data); }
+  if (de) { cond.push('a.data >= ?'); args.push(de); }
+  if (ate) { cond.push('a.data <= ?'); args.push(ate); }
+  if (profissionalId) { cond.push('a.staff_id = ?'); args.push(profissionalId); }
+  if (clienteId) { cond.push('a.client_id = ?'); args.push(clienteId); }
   // Aceita mais de um separado por vírgula: para quem opera, "agendado" e
   // "confirmado" são o mesmo estado — alguém tem hora marcada e ainda não foi
   // atendido. A distinção existe no banco porque o WhatsApp vai usá-la; na
@@ -159,11 +161,11 @@ agendamentos.get('/', rota(async (req, res) => {
   // lista vazia como se fosse resposta legítima.
   const pedidos = String(req.query.status || '').split(',').filter(s => STATUS.includes(s));
   if (pedidos.length) {
-    cond.push(`status IN (${pedidos.map(() => '?').join(',')})`);
+    cond.push(`a.status IN (${pedidos.map(() => '?').join(',')})`);
     args.push(...pedidos);
   }
   const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
-  const rows = await db.all(`SELECT * FROM appointments ${where} ORDER BY data, hora`, ...args);
+  const rows = await db.all(`${SELECT_AGENDA} ${where} ORDER BY a.data, a.hora`, ...args);
   // Sem os extras, quem atende lê "Corte" e não sabe que a cliente também
   // comprou a sobrancelha — e a duração e o valor na tela não fecham com nada.
   res.json(await comAdicionais(rows.map(apptOut)));

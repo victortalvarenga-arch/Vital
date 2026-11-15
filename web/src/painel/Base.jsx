@@ -153,6 +153,21 @@ export function useRotulo(children) {
   return { rotulo: { id }, grupo: { role: 'group', 'aria-labelledby': id }, filhos: children };
 }
 
+/**
+ * (47) 99123-4567 e (47) 3333-4444.
+ *
+ * Celular tem 9 dígitos depois do DDD (5+4) e fixo tem 8 (4+4) — e o painel
+ * aceita os dois, porque cliente que só tem fixo existe. Enquanto a pessoa
+ * digita, o palpite é celular; com 10 dígitos exatos, é fixo.
+ */
+export const fmtFone = s => {
+  const d = (s || '').replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  const corte = d.length === 10 ? 6 : 7;
+  return `(${d.slice(0, 2)}) ${d.slice(2, corte)}-${d.slice(corte)}`;
+};
+
 export const Campo = ({ label, children }) => {
   const { rotulo, grupo, filhos } = useRotulo(children);
   return <div className="mfield" {...grupo}><label {...rotulo}>{label}</label>{filhos}</div>;

@@ -57,6 +57,19 @@ export function diasLivres({ servicoId, comboId, profissionalId, unidadeId, adic
  * Quem pergunta é a profissional, presencialmente, pelo painel.
  */
 
+/**
+ * Guarda o dia e o mês do aniversário, com o convite que veio do agendamento.
+ * Sem ano: ninguém no sistema usa o ano (ver ARQUITETURA.md).
+ */
+export const aniversario = (token, dia, mes) =>
+  req('/aniversario', { method: 'POST', body: { token, dia, mes } });
+
+/**
+ * Quem é esta conta do Google **nesta empresa**. O token vem do botão do
+ * Google e é conferido no servidor; a tela nunca decide nada sobre ele.
+ */
+export const entrarComGoogle = token => req('/google', { method: 'POST', body: { token } });
+
 /** Diz se o WhatsApp já tem cadastro — para não pedir os dados de novo. */
 export const identificar = fone => req('/identificar', { method: 'POST', body: { fone } });
 

@@ -80,6 +80,7 @@ elas fizeram, e cada arquivo explica o porquê no próprio cabeçalho.
 | `038_dedupe_por_empresa` | `dedupe_key` vira `UNIQUE (tenant_id, dedupe_key)`: a trava deixa de atravessar empresas |
 | `039_consentimento_com_data` | `optin_em` e `optin_origem` em `clients`: o aceite (ou a recusa) com quando e por onde |
 | `040_apagar_o_rastro_da_cliente` | `plataforma.apagar_rastro_da_cliente()`: a exclusão da LGPD anonimiza o histórico |
+| `041_login_google_da_cliente` | `clients.google_sub` passa a ser único **por empresa**, e o vínculo pedido e ainda não confirmado mora na ficha |
 
 ## Visão geral
 
@@ -153,7 +154,9 @@ server/            Express + PostgreSQL (driver `pg`). Fonte da verdade.
                    dates.js (datas como texto), migrate.js (migrations),
                    rota.js (erro em handler async), contexto.js (conexão da
                    requisição), tenant.js (resolve a empresa + config padrão),
-                   segredo.js (assina o retorno OAuth, cifra tokens)
+                   segredo.js (papel com chave por uso: o `state` do OAuth é
+                   assinado, o convite do aniversário é cifrado; cifra os
+                   tokens das conexões)
   src/routes/      catalogo | clientes | agendamentos | publico | mensagens |
                    relatorios | uploads (imagens da empresa) | bloqueios
                    (horário fechado) | conexoes (Google e Instagram) |
@@ -630,9 +633,10 @@ bloco pisca sem fundo no primeiro quadro.
 **A barra do topo flutua sobre a capa e se firma ao rolar.** Sobre a foto ela é
 transparente com um véu escuro por baixo do texto: não dá para saber que imagem
 a empresa vai subir, e texto branco sobre capa clara seria ilegível. Passados
-120px, vira sólida. O acesso à conta da cliente entraria aqui se o login com
-Google voltar ("Ideias guardadas", no `ROADMAP.md`) — um botão que não leva a
-lugar nenhum seria pior que a ausência dele.
+120px, vira sólida. O acesso à conta da cliente entraria aqui quando existir o
+"Meus agendamentos" (`ROADMAP.md`, Bloco 4c): o login com Google já existe, mas
+hoje ele só evita digitar o número — um botão de conta que não leva a lugar
+nenhum seria pior que a ausência dele.
 
 **Na Clínica, serviços em cartões** (`CartoesClinica`, em
 `Clinica.jsx`, decidido em 2026-09-18 a pedido da cliente, a partir do site de
@@ -872,44 +876,196 @@ personalização não precisa de migration. As chaves operacionais (`passoAgenda
 novo vem agrupado em `marca`, `textos`, `vocabulario` e `exibir`.
 
 `units` (unidades), `blocks` (bloqueio de horário), `users` (equipe da empresa)
-e o schema `plataforma` inteiro existem no esquema mas ainda não têm tela — foram
-criados cedo para não exigir migração depois.
+e o schema `plataforma` nasceram cedo para não exigir migração depois, e hoje
+todos têm tela — Cadastros → Unidades, Horários fechados, Configurações →
+Acesso ao painel, e `vital.html#equipe`.
 
 ## Autenticação e papéis
 
-**São dois logins diferentes, e é fácil confundi-los.**
+**São três logins diferentes, e é fácil confundi-los** — o terceiro é
+opcional e entrou em 2026-11-14 (ver "Três logins Google diferentes", adiante).
 
 | | Quem | Como entra | Existe hoje? |
 |---|---|---|---|
 | **Painel** | Equipe da empresa: dono, recepção e funcionário | E-mail e senha | Sim |
-| **Site** | A cliente que agenda | Não entra: informa o WhatsApp na hora de marcar | Não há login |
+| **Site** | A cliente que agenda | Informa o WhatsApp na hora de marcar; **pode** entrar com Google, que é atalho e não exigência | Sim, opcional — e desligado sem `GOOGLE_LOGIN_CLIENT_ID` |
 
-A cliente **não cria conta** — mas o primeiro agendamento **pede três dados, uma
-vez só**: nome, WhatsApp e nascimento. Sem nome não dá para atender; sem
-nascimento não existe mensagem de aniversário, que é uma das campanhas do CRM.
-Os três são exigidos no servidor também, porque validação de front se contorna.
+A cliente **não cria conta** — e o primeiro agendamento pede **dois dados, uma
+vez só**: WhatsApp e nome. Sem nome não dá para atender; sem número não dá para
+avisar. Os dois são exigidos no servidor também, porque validação de front se
+contorna.
 
-Quem já agendou antes só digita o WhatsApp e é reconhecida pelo número. É aí que
-mora o "sem burocracia": a segunda vez em diante não pede nada. Exigir conta e
-confirmação de e-mail para marcar horário perderia agendamento, e o retorno
-seria zero — a pessoa quer marcar unha, não virar usuária de um sistema.
+O nascimento saiu desse formulário em 2026-11-13 (`ROADMAP.md`, Bloco 4c): ele
+só serve para uma mensagem por ano, e três listas no meio do caminho custam
+agendamento. A coluna continua existindo e continua aceitando o que o painel
+grava; o site passa a perguntar **depois**, com o horário já confirmado. O job
+de aniversário ignora quem não tem data (`nascimento IS NOT NULL`), então ficha
+sem ela é o caso normal, não a exceção.
 
-**Número errado é o risco desse desenho.** Digitar o número de outra pessoa
-levaria a agendar no cadastro dela, e o lembrete iria para o WhatsApp dela. Por
-isso, ao reconhecer um cadastro, a tela mostra o primeiro nome e pede
-confirmação — "Encontramos um cadastro em Amanda. É você?" — em vez de seguir
-em silêncio. A resposta é só isso — `cadastrada` e o primeiro nome, nunca o id
-interno nem o sobrenome: o `/agendar` resolve a cliente pelo próprio telefone,
-e um teste confere o formato inteiro da resposta, porque campo novo ali é
-vazamento novo (`rotas-agendamento.test.js`). O nome exposto é o preço de
-conseguir conferir; a solução completa é código por WhatsApp, que custa por
-mensagem e está anotada no `ROADMAP.md`.
+### O aniversário, perguntado na tela de confirmação
 
-**O login com Google seria para a cliente, não para a equipe** — e não existe:
-saiu do roteiro em 2026-10-09 e está em "Ideias guardadas", no `ROADMAP.md`.
-Se voltar, será um atalho para ela ver histórico e remarcar, e
-não uma exigência: agendar só com o WhatsApp continua funcionando ao lado. A
-equipe nunca entra por Google; o painel é e-mail e senha.
+Quem acabou de marcar horário já leu "tudo certo" e não tem mais nada a perder:
+é o único momento do fluxo em que uma pergunta a mais não custa agendamento. Por
+isso ela mora ali, é opcional, e **promete mensagem e não brinde** — "quer
+receber um parabéns nosso?". O texto vale para qualquer empresa da Vital,
+inclusive a que não dá nada no aniversário; quem quiser prometer um mimo escreve
+isso no próprio texto da mensagem, no painel.
+
+**Dia e mês, e o ano é `'0000'`.** Ninguém no sistema usa o ano do nascimento: o
+job compara `substr(nascimento,6)`, o template corta em `slice(0,5)` e a ficha
+do painel mostra `dd/mm`. Uma lista de cem anos para guardar o que nada lê seria
+campo a mais numa tela que a pessoa já podia ter fechado. `'0000'` é o jeito de
+dizer "não informado" sem coluna nova, sem inventar data e sem quebrar o formato
+`'YYYY-MM-DD'` que o resto do sistema espera. O único lugar onde ele aparece é o
+campo de edição da ficha, e lá uma linha explica — valor estranho sem explicação
+é lido como defeito. 29 de fevereiro é aceito: recusar seria dizer a quem nasceu
+nesse dia que o aniversário dela não existe.
+
+**Quem autoriza a escrita é um papel que o servidor dá e recebe de volta**,
+porque o site não tem login. O `/agendar` devolve, junto da confirmação, um
+convite **cifrado** (`lib/segredo.js`) preso àquela cliente e àquela empresa,
+que vale meia hora — e só para quem provou ser a dona da ficha (ver "O convite
+do aniversário é cifrado", adiante); o
+`POST /api/publico/aniversario` só grava com ele, e grava com
+`AND nascimento IS NULL` na própria consulta — entre ler e gravar cabe outra
+gravação, e o que não pode acontecer é a resposta de hoje apagar a data que a
+profissional conferiu com a cliente na cadeira. A resposta é sempre a mesma,
+tenha gravado ou não: dizer "já tinha data" contaria algo da ficha a quem só tem
+um papel na mão.
+
+**Cada papel tem a sua chave.** `lib/segredo.js` deriva uma chave por uso, então
+o `state` de uma autorização do Google — que passa pela barra de endereço e fica
+no histórico de quem clicou — não é aceito onde se escreve na ficha da cliente.
+E **sem `CONEXOES_SEGREDO` a pergunta simplesmente não existe**: ela é o pedaço
+mais dispensável do fluxo e não pode derrubar o agendamento, que é o produto.
+
+Quem já agendou antes só digita o WhatsApp e é reconhecida pelo número. É aí
+que mora o "sem burocracia": a segunda vez em diante não pede nada — e o nome
+que viesse por fora não reescreve a ficha, que é da profissional, não do campo.
+Exigir conta e confirmação de e-mail para marcar horário perderia agendamento,
+e o retorno seria zero — a pessoa quer marcar unha, não virar usuária de um
+sistema.
+
+**Número errado é o risco desse desenho**, e ele tem duas faces bem diferentes.
+
+O número *impossível* — fixo, DDD que não existe, dígito a mais — é recusado
+no servidor, nas duas rotas, com a mensagem embaixo do campo. Ver "O telefone
+da cliente".
+
+O número *de outra pessoa*, digitado certo, continua aberto: agendaria no
+cadastro dela, e o lembrete iria para o WhatsApp dela. Até 2026-11-13 a tela
+tentava pegar isso mostrando o primeiro nome do cadastro encontrado —
+"Encontramos um cadastro em Amanda. É você?". **Isso saiu**: a resposta do
+`/identificar` é hoje só `{ existe: true | false }`. O motivo é que a rota é
+pública e sem login, e digitar números a esmo montava uma lista de quem é
+cliente de quem, com nome, de graça e sem rastro na empresa — um risco maior
+que o dígito errado, e que a empresa nunca saberia estar correndo. Um teste
+confere o formato inteiro da resposta (`deepEqual`), porque campo novo ali é
+vazamento novo, e outro confere que nem pedaço do nome sai no JSON cru
+(`publico.test.js`). A tela agora fala do número, não da pessoa — "esse número
+já tem cadastro aqui" —, porque o site não sabe se quem digitou é a dona dele.
+
+Fechar essa segunda face exige **provar** o número, não exibir o nome: é o
+código por WhatsApp (que custa por mensagem) ou o link de confirmação que já
+vai na mensagem enviada. Os dois estão no `ROADMAP.md`, Blocos 4b e 4c.
+
+**O login com Google seria para a cliente, não para a equipe** — e ainda não
+está no ar: saiu do roteiro em 2026-10-09 e voltou em 2026-11-13 como **opção**,
+na etapa 8 do Bloco 4c (`ROADMAP.md`). O banco, a conferência do token, as
+rotas, o botão no site e a tela do painel que confirma o vínculo já existem
+(migration 041, `lib/google-login.js`, `POST /api/publico/google`, o
+`googleToken` do `/agendar`, `site/google.js` e
+`POST /api/clientes/:id/vinculo`). **O que falta não é código:** sem
+`GOOGLE_LOGIN_CLIENT_ID` nada disso aparece e o site é o de antes — e o
+cadastro no Google Cloud tem uma decisão em aberto sobre origens, no
+`ROADMAP.md`, etapa 8.
+
+**O botão é alternativa, não porta.** Ele fica acima do campo de WhatsApp, com
+"ou use seu WhatsApp" embaixo, e o campo continua ali: quem não tem conta
+Google, ou não quer usá-la, agenda como sempre. Quem entra e já tem conta
+ligada não digita telefone nenhum; quem entra sem ficha ganha o nome preenchido
+e ainda informa o WhatsApp, porque o Google não devolve número.
+
+**O script do Google é de terceiro, e isso tem preço.** `accounts.google.com`
+só é buscado quando a empresa chega ao passo de dados **e** a Vital tem o login
+configurado — nunca na home, nunca em toda visita. Sem
+`GOOGLE_LOGIN_CLIENT_ID`, a vitrine devolve `googleClientId: ''`, nada é
+carregado e o site é o de antes. Se o script não carregar (bloqueador, rede
+corporativa, id errado), o bloco inteiro some em vez de deixar um "ou use seu
+WhatsApp" órfão: botão que não funciona é pior que botão ausente.
+
+O id do cliente OAuth sai na vitrine e **não é segredo** — ele aparece na
+página de todo site que usa "entrar com Google", e o que protege a conta é o
+token assinado, conferido no servidor. Ele vem ao lado de `negocio`, e não
+dentro: é da plataforma, igual em todos os sites, e dentro de `negocio`
+pareceria coisa que cada empresa configura.
+
+**Três logins Google diferentes, e confundi-los é fácil.** A *conexão* é da
+dona da empresa, para ler as avaliações da ficha dela (`conexoes/google.js`,
+escopo `business.manage`). O *login* é da cliente que agenda, para não digitar o
+número de novo (`lib/google-login.js`, escopos `openid/email/profile`). O
+*painel* é da equipe, com e-mail e senha (`lib/auth.js`). Conexão e login usam
+**clientes OAuth separados**, em variáveis separadas (`GOOGLE_CLIENT_ID` e
+`GOOGLE_LOGIN_CLIENT_ID`): `business.manage` é escopo sensível e prende a tela
+de consentimento em modo Teste até o app ser verificado pelo Google; juntar os
+dois faria o login da cliente herdar essa fila sem precisar.
+
+**O token é conferido aqui, não perguntado ao Google.** O navegador manda o ID
+token e o servidor não acredita em mais nada — nome, e-mail e id saem de dentro
+dele depois de conferidos; campo solto no corpo da requisição seria entrar como
+qualquer pessoa. São quatro conferências, e cada uma fecha um buraco conhecido:
+assinatura (com a chave pública do Google, buscada uma vez e guardada pelo prazo
+que eles mandam), **`aud`** — a que mais passa batida, porque um token emitido
+para OUTRO aplicativo tem assinatura e emissor bons e mesmo assim não é nosso —,
+emissor, e prazo com um minuto de folga para relógio torto. `email_verified`
+também é exigido: conta com e-mail não confirmado não prova quem é dono dele.
+Perguntar ao `tokeninfo` deles resolveria em uma chamada, mas poria uma ida à
+rede, com limite de uso, no caminho de entrar.
+
+**Vínculo pedido não é vínculo feito** (migration 041). Quando a cliente entra
+com o Google e o telefone que ela digita já tem ficha sem conta ligada, nada é
+ligado na hora: quem está do outro lado pode ter digitado o número de outra
+pessoa, e ligar seria entregar a ficha alheia a quem errou um dígito. O pedido
+(`google_sub_pendente`, `email_pendente`, `vinculo_pedido_em`) fica na própria
+ficha, fica uma linha em `logs` para a empresa saber que aconteceu, e **quem
+confirma é gente**: a ficha do painel mostra "a conta fulana@gmail.com pediu
+para ser ligada a esta ficha", com Confirmar e Recusar
+(`POST /api/clientes/:id/vinculo`).
+
+O poder é `clientes` — dono e recepção, que é quem cuida de ficha; funcionário
+atende a própria agenda e não decide isto. Confirmar entrega a ficha inteira
+(histórico, endereço, observações) e, dali em diante, deixa agendar sem
+telefone nenhum, então a tela diz isso antes dos botões. O e-mail da conta só
+entra na ficha se ela não tiver um: o que a profissional cadastrou vale mais
+que o que veio do Google. E a rota confere, **antes** de gravar, se aquela
+conta já está ligada a outra cliente da empresa: o índice único é por empresa,
+e sem a conferência o `UPDATE` estoura, envenena a transação e a tela recebe
+500 em vez de "já está ligada a outra cliente".
+
+**O convite do aniversário é cifrado, não assinado**, e é a diferença entre ele
+e o `state` do OAuth. Papel assinado é legível por quem o carrega, e o primeiro
+desenho levava o id da ficha em claro na resposta de TODO agendamento. Pior:
+somado ao buraco do Bloco 4b, ele entregava a quem digitasse um número alheio
+uma capacidade de **escrita** na ficha de outra pessoa — um aniversário falso,
+sem ninguém ver acontecer, que ainda impedia a data verdadeira de ser pedida
+depois, porque o convite só aparece para ficha sem data. Desde 2026-11-14 o
+papel é cifrado e, mais importante, **só sai para quem provou ser a dona da
+ficha**: ficha nascida naquele agendamento, ou cliente identificada pelo Google.
+A saudação com o primeiro nome na tela de confirmação segue a mesma regra. Quem
+apenas digitou um telefone que já tem cadastro agenda normalmente, e não recebe
+nem nome nem convite — o aniversário dela é perguntado pela profissional, que
+vê na lista de Clientes quem está sem.
+
+O vínculo feito
+(`google_sub`) é único **por empresa** — a mesma mulher é cliente do salão e da
+clínica, e são duas fichas. E o **pedido** não tem índice único, de propósito: a
+mesma pessoa pode pedir vínculo em duas fichas (digitou dois números seus), e
+enquanto ninguém confirma nada colide.
+
+O que o login **ainda não** dá é a área da cliente: ver histórico, remarcar e
+cancelar entrando com a conta continua fora (`ROADMAP.md`, Bloco 4c). Hoje ele
+serve a uma coisa só — não digitar o número de novo —, e agendar com o WhatsApp
+funciona ao lado. A equipe nunca entra por Google; o painel é e-mail e senha.
 
 **Ninguém da equipe se cadastra sozinho.** O primeiro acesso cria o dono, e daí
 em diante é o dono que convida os outros, em Configurações → Acesso ao painel.
@@ -1688,6 +1844,36 @@ dois nunca se cruzavam. `emFaixas()` resolve como um calendário resolve — agr
 quem se sobrepõe e divide a largura do grupo. Empilhar um sobre o outro
 esconderia atendimento, que é o pior defeito que uma agenda pode ter.
 
+### "Primeira vez": quem nunca veio, dito antes de a pessoa sentar
+
+Quem atende precisa saber disso **antes** de chamar a cliente — é outra
+conversa, outro tempo e às vezes outro preço. A informação sempre existiu no
+histórico da ficha, mas abrir ficha por ficha entre um atendimento e outro é
+trabalho que ninguém faz. Desde 2026-11-14 a marca vem pronta: na gaveta do
+atendimento, embaixo do nome, e no cartão da próxima, no Resumo.
+
+**Calculado na consulta, não guardado em coluna** (`SELECT_AGENDA`, em
+`db.js`). É uma conclusão que muda sozinha: cancelar o primeiro atendimento
+muda quem é a primeira vez, e a coluna mentiria até alguém lembrar de
+corrigi-la. Quatro decisões moram ali:
+
+- **o dia, e não o horário** — um combo vira três agendamentos em sequência, e
+  marcar só o primeiro deixaria a mesma cliente "nova" às 9h e "antiga" às 10h;
+- **cancelado não conta** (quem marcou, desmarcou e voltou nunca veio) e
+  **falta conta** (a ficha existe, o nome é conhecido, e foi ela que furou);
+- a conta é da **empresa inteira**, não da agenda de quem atende: a cliente da
+  colega não é nova no salão, e tratá-la como nova é constrangedor;
+- um agregado numa passada, e não uma subconsulta por linha — `appointments`
+  não tem índice por `client_id` e a agenda do painel traz 120 dias.
+
+O campo fica **ausente** (não `false`) nas respostas de criar e de remarcar,
+que devolvem a linha crua: `false` seria uma afirmação que ninguém conferiu, e
+a tela recarrega logo depois com o valor calculado.
+
+Na mesma linha, a lista de Clientes marca **quem está sem aniversário**: desde
+que a data saiu do formulário do site (Bloco 4c), ficha sem ela é o caso
+normal, e a pergunta é fácil com a pessoa na cadeira.
+
 A grade é de meia em meia hora e a legenda, de hora em hora, centrada na própria
 linha. A meia hora é o passo em que a agenda é vendida; sem a linha, não dá para
 ver a olho se um bloco começa às 10h ou às 10h30. A constante `TOPO` reserva a
@@ -2304,6 +2490,13 @@ procurar.
 Funcionário vê o próprio rastro; dono vê o de todos. O recorte é imposto no
 servidor, como na agenda e no financeiro.
 
+**O site também escreve aqui, e sem usuário.** O pedido de vínculo com uma
+conta Google e o conflito (conta diferente agendando por um telefone que já tem
+ficha) nascem numa rota pública, sem login: a linha vai com `user_id` nulo e
+`site` no lugar do nome. É de propósito — é o único sinal que a empresa tem de
+que alguém reivindicou uma ficha —, e o recorte do funcionário (`l.user_id = ?`)
+a esconde dele, o que também é certo: não é rastro de ninguém da equipe.
+
 ### O registro não se reescreve
 
 `logs` recebe `SELECT` e `INSERT`, e nada mais. Corrigir uma operação é inserir a
@@ -2554,7 +2747,7 @@ existe para pegar.
 
 ### O limite das rotas abertas
 
-Três rotas de `/api/publico` escrevem ou respondem sobre dado que existe, e
+Cinco rotas de `/api/publico` escrevem ou respondem sobre dado que existe, e
 nenhuma pede login — é o site, tem de ser assim. `lib/limite.js` põe um teto
 por IP **e por empresa** em cada uma, com balde próprio: abusar do funil não
 pode travar o agendamento de quem está tentando marcar horário, e uma empresa
@@ -2562,10 +2755,13 @@ não pode derrubar a medição da vizinha.
 
 O mais apertado é `/identificar` (30 por 10 min), e não é por capacidade: ela
 responde se um telefone tem cadastro, e sem limite vira varredura de quem é
-cliente de quem — o risco mais grave dos três, porque não custa nada a quem faz
-e não deixa rastro na empresa. `/agendar` são 10; `/evento`, 120, porque uma
-visita gera três chamadas e escritório, salão e shopping saem todos pelo mesmo
-IP.
+cliente de quem — o risco mais grave dos cinco, porque não custa nada a quem
+faz e não deixa rastro na empresa. `/agendar` são 10; `/aniversario`, 20 — ela
+escreve na ficha, ainda que só o dia e o mês, e o papel cifrado já limita quem
+pode chamá-la; `/google`, 30 — responde se uma conta já é cliente aqui, e
+forjar o token do Google não dá, mas a regra da casa vale para toda rota aberta
+que fala de dado que existe; `/evento`, 120, porque uma visita gera três
+chamadas e escritório, salão e shopping saem todos pelo mesmo IP.
 
 **A leitura também tem teto, e alto: 300 por minuto.** Vitrine, horários e
 dias livres não escrevem nada, mas cada pedido faz várias consultas; um script
@@ -3029,6 +3225,58 @@ foram conferidos na documentação; a primeira conexão com conta de verdade é 
 teste que falta — ver `ROADMAP.md`, Bloco 6b, que também tem o passo a passo
 dos consoles do Google e da Meta.
 
+## O telefone da cliente
+
+`clients.fone` é duas coisas ao mesmo tempo: a **identidade** (chave única por
+empresa, e o que o site pergunta para saber se a pessoa já tem ficha) e o
+**canal** (confirmação, lembrete de véspera, aviso no dia, pós-atendimento,
+aniversário, recuperação). Por isso número errado não é campo mal preenchido: é
+ficha duplicada na busca de quem atende e uma fila inteira de mensagens que
+falha calada — no modo manual, um `wa.me` que não abre.
+
+**Duas regras, e a diferença é de propósito** (`lib/fone.js`, 2026-11-13):
+
+| | Site (`foneValido`) | Painel (`telefoneValido`) |
+|---|---|---|
+| Celular (11 dígitos, 9 na frente) | aceita | aceita |
+| Fixo (10 dígitos) | **recusa** | aceita, com aviso na tela |
+| DDD fora da lista dos 67, tamanho errado, oito dígitos finais iguais | recusa | recusa |
+
+No site, quem está do outro lado está sozinha: um fixo ali vira cadastro que
+nunca recebe nada, feito por quem não tem a quem recorrer. No painel está a
+recepção, e cliente que só tem fixo existe — a de mais idade, que marca por
+telefone. Recusar o cadastro dela seria o sistema recusando uma cliente de
+verdade, então o painel aceita e **avisa** que aquela ficha não vai receber
+confirmação nem lembrete. O preço está escrito em `test/cliente-fone.test.js`:
+a ficha com fixo existe e a cliente dela não se identifica no site; quem agenda
+por ela é a recepção.
+
+A conferência vive nas duas pontas de cada caminho — `/publico/identificar` e
+`/publico/agendar` no site, `POST` e `PUT` de `/api/clientes` no painel. Validar
+só a leitura deixaria a escrita aberta a quem chamasse a rota direto, e validar
+só a criação deixava a ficha boa virar lixo num salvar. O `PUT` também confere
+duplicata antes de gravar: sem isso o `UPDATE` estoura o índice único, envenena
+a transação da requisição e a tela vê um 500 em vez de "já existe cliente com
+esse WhatsApp".
+
+A regra mora no servidor, e a tela só repete a mensagem que vier dele — o campo
+precisa dizer *o quê* está errado ("Esse DDD não existe", "Celular tem 9 logo
+depois do DDD"), porque "inválido" deixa a pessoa conferindo o número inteiro
+sem saber onde olhar. No painel, a máscara é a única coisa que o navegador decide sozinho
+(`fmtFone`, em `painel/Base.jsx`), e ela segue a mesma distinção: 4+4 para fixo,
+5+4 para celular.
+
+**Só Brasil.** `foneE164` prega `55` na frente de tudo e o número é guardado sem
+o `+55`; número de outro país viraria `55` + ele e a mensagem iria para o nada.
+A recusa de DDD estrangeiro não é restrição nova — é a arquitetura inteira
+dizendo a mesma coisa num lugar onde dá para ler.
+
+**O que isto não resolve:** o número de outra pessoa, digitado certo. O site
+recusa o impossível, não o alheio — para isso é preciso provar que o número é
+de quem o digitou, e aí entram o código por WhatsApp (`ROADMAP.md`, Bloco 4b) e
+o link de confirmação (Bloco 4c). Telefone de unidade (`units.fone`) não passa
+por nada disto: é o número que a recepção atende, e fixo ali é o normal.
+
 ## WhatsApp
 
 **O número é de cada empresa, e o modo também** (migration 035, decisão de
@@ -3239,6 +3487,32 @@ fica sem data de propósito: inventar prova seria pior do que não ter. O que
 ainda falta (versão do texto aceito, consentimento para dado de saúde) está em
 "Importante para produção".
 
+**O aparelho lembra o número, e só ele** (2026-11-13, `site/aparelho.js`).
+Depois de um agendamento que deu certo, o site guarda o WhatsApp digitado em
+`localStorage`, sob a chave `vital_fone`. Na volta, o passo de dados mostra
+"Agendar com (47) ••••-7766" com um "Não sou eu · trocar número" embaixo — o
+ganho que um login traria, sem conta e sem senha.
+
+Três coisas que isso **não** é. Não é login: o servidor não acredita nele, e
+quem decide se existe ficha continua sendo o `/identificar`. Não é a sessão do
+funil: aquela é sorteada, vive em `sessionStorage`, morre ao fechar a aba e
+nunca se liga a pessoa nenhuma — juntar as duas transformaria medição em
+rastreamento, e é por isso que são arquivos, depósitos e chaves diferentes. E
+não atravessa empresas: `localStorage` é por origem, e cada empresa tem o seu
+endereço, então o isolamento aqui é do navegador, como no banco é do Postgres
+(conferido abrindo a Barbearia depois de gravar na Laura).
+
+O número aparece encoberto — DDD e quatro últimos dígitos — porque quem precisa
+ver o botão de trocar é justamente quem pegou o celular emprestado. **Depois do
+"Continuar" ele aparece inteiro no campo, e isso é de propósito:** a pessoa
+acabou de escolher usá-lo, e precisa poder conferir e corrigir um dígito antes
+de confirmar o horário. Encobrir ali também esconderia o erro de quem digitou
+errado da última vez. Toda
+leitura e escrita vai em `try/catch`: em aba anônima, com dados de site
+bloqueados ou dentro do webview do Instagram, o acesso levanta exceção, e
+falhar aí não pode custar um agendamento — sem memória, a tela é a de sempre,
+com o campo vazio.
+
 **Apagar a cliente apaga o rastro** (migration 040). O DELETE da ficha no
 painel é o pedido de exclusão: as mensagens dela (carregam nome e telefone no
 texto) e as conversas do WhatsApp (pelo número) saem junto, e os eventos de
@@ -3257,8 +3531,21 @@ aviso no botão de confirmar o horário. A página da Vital tem os termos de uso
 (`#termos`) e a política da própria Vital (`#privacidade`), em
 `vital/Legal.jsx`, com aviso no formulário de cadastro. Os textos descrevem o
 que o sistema faz hoje: funcionalidade que mude uma frase deles (o atendente
-por IA, pagamento online, apagar empresa) muda o texto junto. Revisão jurídica
-e a identificação formal da Vital estão em "Importante para produção".
+por IA, pagamento online, apagar empresa) muda o texto junto — **e a data de
+"atualizada em"**, que é o que diz à cliente que o texto acompanhou o produto.
+Em 2026-11-14 isso aconteceu quatro vezes: o nascimento saiu da lista de dados
+pedidos para agendar e virou pergunta opcional depois do horário confirmado,
+nasceu a seção "O que fica no seu aparelho" (o WhatsApp guardado no navegador)
+e a seção "Entrar com Google, se você quiser" — o que vem da conta (nome,
+e-mail e identificador, e nada além), que o WhatsApp continua sendo pedido, que
+o vínculo com ficha que já existe não é feito na hora, e que o Google só é
+acionado quando a cliente toca no botão. Sobre o e-mail, a política diz o que
+o sistema faz hoje e só isso: **guardamos para reconhecer, e não enviamos
+e-mail para a cliente** — tudo vai pelo WhatsApp (decisão do dono, 2026-11-14).
+Anunciar uma finalidade que ainda não existe é o oposto do que a LGPD chama de
+finalidade específica; se um dia a Vital enviar e-mail, o texto e a data mudam
+junto. Revisão jurídica e a identificação formal da Vital estão
+em "Importante para produção".
 
 O atendente por IA manda à Anthropic o que a cliente escreve e o que as
 ferramentas devolvem (serviços, horários, os agendamentos dela). Por isso as

@@ -320,6 +320,18 @@ async function primeiraClienteReal() {
       ['c7', 'Letícia Moraes', '47997890123', '1993-04-14', 'Rua Otto Boehm, 512 — América', '', -300],
       ['c8', 'Fernanda Dias', '47998901234', '1987-10-22', 'Rua Max Colin, 88 — Centro', '', -260],
       ['c9', 'Sônia Prado', '47999012345', '1979-02-08', 'Rua Inácio Bastos, 340 — Bucarein', '', -450],
+      // Sem nascimento e sem endereço, de propósito: desde 2026-11-13 o site
+      // não pergunta o aniversário (ROADMAP, Bloco 4c), então ficha assim é o
+      // caso normal de quem agendou sozinha, não um cadastro pela metade. Sem
+      // uma no cenário, quem abre o painel numa máquina nova acha que toda
+      // cliente tem data — e a tela que aponta quem está sem ela nasce vazia.
+      ['c10', 'Bruna Tavares', '47990123456', null, '', '', -12],
+      // Respondeu o aniversário na tela de confirmação, que pergunta dia e mês
+      // e não o ano (Bloco 4c, etapa 5). O `0000` é o "não informado" — e é o
+      // único jeito de a dica do painel ("Ano não informado…") ser vista numa
+      // máquina nova. Agendou agora: o atendimento de hoje é a primeira vez
+      // dela, e é onde o selo "Primeira vez aqui" aparece.
+      ['c11', 'Teresa Bianchi', '47990234567', '0000-03-22', '', '', 0],
     ];
     for (const [id, nome, fone, nasc, end, obs, d] of clientes) {
       // O aceite tem data e origem (migration 039): aqui, o dia em que a
@@ -330,6 +342,17 @@ async function primeiraClienteReal() {
         id, nome, fone, nasc, end, obs, addDias(h, d), addDias(h, d)
       );
     }
+
+    // Uma conta do Google pediu para ser ligada à ficha da Camila e ninguém
+    // decidiu ainda: é o que faz a tela de Confirmar/Recusar existir numa
+    // máquina nova (Bloco 4c, etapa 8d). O pedido nasce quando alguém entra
+    // com o Google e digita um telefone que já tem ficha — pode ser ela mesma,
+    // pode ser quem errou um dígito, e é por isso que quem decide é gente.
+    await db.run(
+      `UPDATE clients SET google_sub_pendente = ?, email_pendente = ?, vinculo_pedido_em = ?
+        WHERE id = 'c4'`,
+      '117000000000000000004', 'camila.fontes@gmail.com', addDias(h, -1)
+    );
 
     // Devolve o id porque as fichas de exemplo, mais abaixo, precisam se
     // pendurar num atendimento — resposta de anamnese existe presa a um
@@ -362,6 +385,10 @@ async function primeiraClienteReal() {
     // caso que `pag_status` sozinho não sabia contar, e é o que a gaveta mostra
     // como "Pago R$ 20,00 · Falta receber R$ 25,00".
     await mk('c6', 'v8', 's2', 0, '16:00', 'agendado', 'parcial', 'pix', 20);
+    // A estreante do dia, com a Karen. Fica cedo de propósito: quem abre o
+    // painel de manhã vê o selo "primeira vez" no cartão da próxima, que é o
+    // lugar onde ele mais importa — antes de a pessoa chegar.
+    await mk('c11', 'v11', 's3', 0, '09:30', 'agendado', 'aberto', 'local');
     const remarcadaHoje = await mk('c1', 'v8', 's2', 1, '10:00', 'agendado', 'aberto', 'local');
     await mk('c3', 'v1', 's1', 1, '15:00', 'agendado', 'pago', 'pix');
     await mk('c2', 'v11', 's3', 1, '13:30', 'agendado', 'aberto', 'local');
@@ -402,6 +429,10 @@ async function primeiraClienteReal() {
     await mk('c7', 'v8', 's2', -130, '09:30', 'concluido', 'pago', 'pix');
     await mk('c8', 'v6', 's2', -105, '15:00', 'concluido', 'pago', 'cartao');
     await mk('c9', 'v2', 's1', -210, '10:00', 'concluido', 'pago', 'dinheiro');
+    // A Bruna chegou pelo site depois que o aniversário saiu do formulário:
+    // uma visita, ficha sem data. Sem um atendimento ela seria uma ficha
+    // solta, que só o painel sabe criar — e o caso que ela ilustra é o do site.
+    await mk('c10', 'v4', 's1', -11, '16:00', 'concluido', 'pago', 'pix');
     // A Sônia pediu para não receber mais: a recusa também fica com data e
     // origem — é o que a aba Recuperação mostra como "sem opt-in".
     await db.run(

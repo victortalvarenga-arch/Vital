@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, MessageCircle, User, X } from 'lucide-react';
 import * as api from '../shared/publico.js';
-import { brl, duracaoTexto, hojeISO, mesDe, nomeDoMes, porExtenso, somarDias, soDigitos, mascaraFone } from './datas.js';
+import { brl, duracaoTexto, hojeISO, mesDe, mesesPorExtenso, nomeDoMes, porExtenso, somarDias, soDigitos, mascaraFone } from './datas.js';
+import { esquecerFone, foneEncoberto, foneLembrado, lembrarFone } from './aparelho.js';
+import { botaoDoGoogle, esquecerGoogle } from './google.js';
 import { lugares, lugarDaUnidade } from './enderecos.js';
 // `passo` aqui já é o estado do passo atual da janela — o do funil entra com
 // outro nome para os dois não se confundirem.
@@ -49,6 +51,10 @@ const PASSOS = [
 
 export default function Agendar({ dados, servicoInicial, categoriaInicial, comboInicial, aoFechar }) {
   const { negocio, textos, exibir, profissionais } = dados;
+  // Da Vital, não da empresa: é o cliente OAuth da plataforma, igual em todo
+  // site. Por isso vem ao lado de `negocio` na vitrine, e não dentro dele —
+  // dentro, pareceria coisa que cada empresa configura.
+  const googleClientId = dados.googleClientId || '';
   const combo = (dados.combos || []).find(c => c.id === comboInicial) || null;
   const unidades = dados.unidades || [];
 
@@ -296,7 +302,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
             {passo === 'data' && (
               <PassoData
-                escolha={escolha} negocio={negocio} aviso={setAviso}
+                escolha={escolha} negocio={negocio} googleClientId={googleClientId} aviso={setAviso}
                 equipe={exibir?.escolherProfissional && equipe.length > 1 ? equipe : []}
                 ofertados={ofertados}
                 aoMudarProfissional={id => setEscolha(e => ({ ...e, profissionalId: id, data: null, hora: null }))}
@@ -324,7 +330,7 @@ export default function Agendar({ dados, servicoInicial, categoriaInicial, combo
 
             {passo === 'dados' && (
               <PassoDados
-                escolha={escolha} negocio={negocio} aviso={setAviso}
+                escolha={escolha} negocio={negocio} googleClientId={googleClientId} aviso={setAviso}
                 aoConfirmar={r => { setConfirmado(r); setPasso('pronto'); }}
               />
             )}
@@ -761,14 +767,13 @@ function VazioAgenda({ titulo, texto, zap, acao }) {
   );
 }
 
-function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
+function PassoDados({ escolha, negocio, googleClientId, aoConfirmar, aviso }) {
   const [fone, setFone] = useState('');
   const [conhecida, setConhecida] = useState(null);
-  // Digitou o número de outra pessoa? O agendamento cairia no cadastro dela, e
-  // o lembrete iria para o WhatsApp dela. Confirmar quem é evita isso.
-  const [souEu, setSouEu] = useState(false);
+  // O número que este aparelho guardou do último agendamento. Lido uma vez, na
+  // montagem: durante o passo, quem manda é o que está na tela.
+  const [lembrado, setLembrado] = useState(foneLembrado);
   const [form, setForm] = useState({ nome: '', aceitaMensagens: true });
-  const [nasc, setNasc] = useState({ dia: '', mes: '', ano: '' });
   const [obs, setObs] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('local');
   const [ocupado, setOcupado] = useState(false);
@@ -777,42 +782,105 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
   // acontece.
   const [erros, setErros] = useState({});
   const campoFone = useRef(null);
+  // Quem entrou com o Google: o token (que o `/agendar` confere de novo) e o
+  // que o servidor respondeu sobre essa conta nesta empresa.
+  const [google, setGoogle] = useState(null);
+  // O botão só conta como oferecido depois de desenhado. Bloqueador de script,
+  // rede que barra o Google, id errado: nada aparece, e o "ou use seu
+  // WhatsApp" não fica sobrando sozinho na tela.
+  const [temBotaoGoogle, setTemBotaoGoogle] = useState(false);
+  const caixaDoGoogle = useRef(null);
 
   const digitos = soDigitos(fone);
-  const valido = digitos.length >= 10;
-  const nascimento = dataDeNascimento(nasc);
 
-  const checar = async () => {
-    if (!valido) return;
+  /**
+   * Quem diz se o número serve é o servidor (`lib/fone.js`), e a mensagem dele
+   * é a que a cliente lê — embaixo do campo, não num aviso que some. A regra
+   * repetida aqui seria a mesma regra em dois lugares, divergindo na primeira
+   * vez que uma das duas mudasse.
+   */
+  const checar = async (numero = digitos) => {
     setOcupado(true);
-    try { setConhecida(await api.identificar(digitos)); }
-    catch (e) { aviso(e.message); }
-    finally { setOcupado(false); }
+    setErros({});
+    try { setConhecida(await api.identificar(numero)); }
+    catch (e) {
+      setErros({ fone: e.message });
+      campoFone.current?.focus();
+    } finally { setOcupado(false); }
   };
 
-  const continuar = () => {
-    if (!valido) {
-      setErros({ fone: 'Digite o WhatsApp com DDD, só os números.' });
-      campoFone.current?.focus();
-      return;
-    }
-    checar();
+  // Sair de um campo vazio não é erro: ninguém errou nada ainda. Quem cobra é
+  // o toque no botão, e aí a mensagem vem do servidor como qualquer outra.
+  const aoSair = () => { if (digitos) checar(); };
+
+  /**
+   * O que fazer quando o Google devolve o token.
+   *
+   * Conta já ligada a uma ficha: não há mais nada a perguntar — nem telefone.
+   * Conta nova por aqui: o nome vem preenchido e o WhatsApp continua sendo
+   * pedido, porque o Google não devolve número e é ele que identifica a ficha.
+   */
+  const entrouComGoogle = async credential => {
+    if (!credential) return;
+    setOcupado(true);
+    setErros({});
+    try {
+      const r = await api.entrarComGoogle(credential);
+      setGoogle({ token: credential, ...r });
+      if (r.conhecida) setConhecida({ existe: true });
+      else setForm(f => ({ ...f, nome: f.nome || r.nome || '' }));
+    } catch (e) {
+      setErros({ google: e.message });
+    } finally { setOcupado(false); }
+  };
+
+  /** "Não sou eu": o login é descartado e a tela volta ao começo. */
+  const descartarGoogle = () => {
+    esquecerGoogle();
+    setGoogle(null);
+    setConhecida(null);
+    setForm(f => ({ ...f, nome: '' }));
+  };
+
+  // O script do Google só é buscado aqui, no passo de dados, e só se a Vital
+  // tiver o login configurado — nunca na home, nunca em toda visita.
+  useEffect(() => {
+    if (google || conhecida !== null || !googleClientId) return;
+    botaoDoGoogle({
+      alvo: caixaDoGoogle.current,
+      clientId: googleClientId,
+      aoEntrar: entrouComGoogle,
+    }).then(setTemBotaoGoogle);
+    // Fora da lista de propósito: `entrouComGoogle` é recriada a cada render e
+    // viraria um script novo por tecla digitada. O que decide desenhar o botão
+    // é o trio abaixo.
+  }, [google, conhecida, googleClientId]);
+
+  /** "Continuar" no número que o aparelho lembra: ele vai para o campo e segue. */
+  const usarLembrado = () => { setFone(lembrado); checar(lembrado); };
+
+  /**
+   * "Trocar": o aparelho esquece agora, e não só depois do próximo
+   * agendamento. Quem toca aqui é quem pegou o celular emprestado.
+   */
+  const trocar = () => {
+    esquecerFone();
+    setLembrado('');
+    setFone('');
+    setErros({});
+    // O campo só existe depois deste render; focar agora acharia `null`.
+    setTimeout(() => campoFone.current?.focus(), 0);
   };
 
   const confirmar = async () => {
-    if (!conhecida.cadastrada) {
-      const faltando = {};
-      if (form.nome.trim().length < 3) faltando.nome = 'Escreva seu nome completo.';
-      if (!nascimento.iso) faltando.nasc = nascimento.erro;
-      if (Object.keys(faltando).length) {
-        setErros(faltando);
-        document.getElementById(faltando.nome ? 'jn-nome' : 'jn-nasc-dia')?.focus();
-        return;
-      }
+    if (!google?.conhecida && !conhecida?.existe && form.nome.trim().length < 3) {
+      setErros({ nome: 'Escreva seu nome completo.' });
+      document.getElementById('jn-nome')?.focus();
+      return;
     }
     setOcupado(true);
     try {
-      aoConfirmar(await api.agendar({
+      const feito = await api.agendar({
         fone: digitos,
         // Quem é esta visita, para o servidor fechar o funil e ligar o
         // agendamento ao comparecimento. Não identifica ninguém: é um número
@@ -827,8 +895,18 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
         formaPagamento,
         obs,
         adicionaisIds: escolha.adicionaisIds,
-        ...(conhecida?.cadastrada ? {} : { ...form, nascimento: nascimento.iso }),
-      }));
+        // Quem já tem ficha manda só o número: nome e consentimento são da
+        // ficha que a profissional mantém, e não de um campo da tela.
+        ...(conhecida?.existe ? {} : form),
+        // O servidor confere este token de novo: o que a tela concluiu no
+        // `/google` não vale nada do lado de lá.
+        ...(google ? { googleToken: google.token } : {}),
+      });
+      // Só agora: número que não chegou a agendar não vale a pena lembrar.
+      // Quem entrou com a conta ligada não digitou número nenhum — e não há o
+      // que guardar no aparelho.
+      if (digitos) lembrarFone(digitos);
+      aoConfirmar(feito);
     } catch (e) { aviso(e.message); setOcupado(false); }
   };
 
@@ -837,44 +915,79 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
 
   return (
     <div className="jn-form">
-      <div className="campo">
-        <label htmlFor="jn-fone">Seu WhatsApp</label>
-        {/* `tel-national`: o número é guardado sem o +55, e `tel` faz o
-            navegador preencher com ele. */}
-        <input id="jn-fone" name="whatsapp" type="tel" inputMode="numeric" autoComplete="tel-national"
-               ref={campoFone} placeholder="(47) 99999-9999" value={mascaraFone(fone)}
-               aria-invalid={!!erros.fone} aria-describedby={erros.fone ? 'jn-fone-erro' : undefined}
-               onChange={e => { setFone(e.target.value); setConhecida(null); setSouEu(false); setErros({}); }}
-               onBlur={checar} />
-        <Erro id="jn-fone-erro" texto={erros.fone} />
-      </div>
-
-      {conhecida === null && (
-        <>
-          <p className="ajuda">É por ele que você recebe a confirmação e o lembrete.</p>
-          <button className="b b-p b-larg" disabled={ocupado} onClick={continuar}>Continuar</button>
-        </>
-      )}
-
-      {conhecida?.cadastrada && !souEu && (
-        <div className="jn-confere">
-          <p>Encontramos um cadastro em <strong>{conhecida.primeiroNome}</strong>.</p>
-          <div className="jn-confere-btns">
-            <button className="b b-p b-peq" onClick={() => setSouEu(true)}>Sou eu</button>
-            <button className="b b-c b-peq" onClick={() => { setConhecida(null); setFone(''); campoFone.current?.focus(); }}>
-              Não · corrigir número
-            </button>
-          </div>
+      {/* O aparelho lembra o número do último agendamento — encoberto, e com
+          saída. Não é login: o servidor não acredita nisto, só o campo é que
+          vem preenchido. Ver `aparelho.js`. */}
+      {/* Quem entrou e já tem ficha: não há mais nada a perguntar. A saída
+          fica ao lado, porque o celular pode não ser dela. */}
+      {google?.conhecida && (
+        <div className="jn-google-ok">
+          <p>Oi, <strong>{google.primeiroNome}</strong>!</p>
+          <button className="b b-c b-peq" disabled={ocupado} onClick={descartarGoogle}>Não sou eu</button>
         </div>
       )}
 
-      {conhecida?.cadastrada && souEu && (
-        <p className="ajuda">Oi de novo, {conhecida.primeiroNome}!</p>
+      {/* O botão do Google é alternativa, não porta: o campo de WhatsApp
+          continua logo abaixo, e some só depois que ela entra. */}
+      {!google && conhecida === null && googleClientId && (
+        <div className="jn-google">
+          <div ref={caixaDoGoogle} />
+          <Erro id="jn-google-erro" texto={erros.google} />
+          {temBotaoGoogle && <p className="jn-google-ou">ou use seu WhatsApp</p>}
+        </div>
       )}
 
-      {conhecida && !conhecida.cadastrada && (
+      {google && !google.conhecida && (
+        <p className="ajuda">Falta só o seu WhatsApp — é por ele que a confirmação chega.</p>
+      )}
+
+      {/* Quem entrou com a conta já ligada a uma ficha não vê campo de
+          telefone nenhum: o servidor resolve a cliente pelo `google_sub`, e
+          pedir o número aqui seria pedir o que a conta já respondeu. */}
+      {google?.conhecida ? null : lembrado && !google && conhecida === null ? (
+        <div className="jn-lembrado">
+          <p>Agendar com <strong>{foneEncoberto(lembrado)}</strong></p>
+          <button className="b b-p b-larg" disabled={ocupado} onClick={usarLembrado}>Continuar</button>
+          <button className="b b-c b-larg" disabled={ocupado} onClick={trocar}>Não sou eu · trocar número</button>
+          <Erro id="jn-fone-erro" texto={erros.fone} />
+        </div>
+      ) : (
         <>
-          <p className="ajuda">Primeira vez por aqui — só precisamos destes dados, uma vez só.</p>
+          <div className="campo">
+            <label htmlFor="jn-fone">Seu WhatsApp</label>
+            {/* `tel-national`: o número é guardado sem o +55, e `tel` faz o
+                navegador preencher com ele. */}
+            <input id="jn-fone" name="whatsapp" type="tel" inputMode="numeric" autoComplete="tel-national"
+                   ref={campoFone} placeholder="(47) 99999-9999" value={mascaraFone(fone)}
+                   aria-invalid={!!erros.fone} aria-describedby={erros.fone ? 'jn-fone-erro' : undefined}
+                   onChange={e => { setFone(e.target.value); setConhecida(null); setErros({}); }}
+                   onBlur={aoSair} />
+            <Erro id="jn-fone-erro" texto={erros.fone} />
+          </div>
+
+          {conhecida === null && (
+            <>
+              <p className="ajuda">É por ele que você recebe a confirmação e o lembrete.</p>
+              {/* `() => checar()`, e não `checar`: o evento do clique viraria o
+                  número a conferir. */}
+              <button className="b b-p b-larg" disabled={ocupado} onClick={() => checar()}>Continuar</button>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Fala do NÚMERO, não da pessoa: o site não sabe se quem digitou é a
+          dona dele. "Já temos seu cadastro" confirmaria a identidade de quem
+          errou um dígito e caiu na ficha de outra cliente. Quem entrou pelo
+          Google não vê esta frase: ela falaria de um número que a cliente não
+          digitou, e o "Oi, Teresa" logo acima já diz o que precisa. */}
+      {conhecida?.existe && !google?.conhecida && (
+        <p className="ajuda">Esse número já tem cadastro aqui — é só confirmar o horário.</p>
+      )}
+
+      {conhecida && !conhecida.existe && (
+        <>
+          <p className="ajuda">Primeira vez por aqui — só precisamos do seu nome, uma vez só.</p>
           <div className="campo">
             <label htmlFor="jn-nome">Nome completo</label>
             <input id="jn-nome" name="nome" autoComplete="name" value={form.nome}
@@ -882,12 +995,10 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
                    onChange={e => { setForm(f => ({ ...f, nome: e.target.value })); setErros(x => ({ ...x, nome: undefined })); }} />
             <Erro id="jn-nome-erro" texto={erros.nome} />
           </div>
-          <Nascimento valor={nasc} erro={erros.nasc}
-                      aoMudar={v => { setNasc(v); setErros(x => ({ ...x, nasc: undefined })); }} />
         </>
       )}
 
-      {conhecida && (conhecida.cadastrada ? souEu : true) && (
+      {conhecida && (
         <>
           <div className="campo">
             <label htmlFor="jn-obs">
@@ -912,7 +1023,7 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
               <span className="ajuda">O pagamento é feito no atendimento.</span>
             </div>
           )}
-          {!conhecida.cadastrada && (
+          {!conhecida.existe && (
             <label className="jn-check">
               <input type="checkbox" checked={form.aceitaMensagens}
                      onChange={e => setForm(f => ({ ...f, aceitaMensagens: e.target.checked }))} />
@@ -937,59 +1048,6 @@ function PassoDados({ escolha, negocio, aoConfirmar, aviso }) {
 
 const Erro = ({ id, texto }) => texto ? <span id={id} className="jn-erro">{texto}</span> : null;
 
-const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
-  'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-
-/**
- * Nascimento em três listas: dia, mês e ano.
- *
- * Era um `<input type="date">`, e no celular o calendário nativo abre no ano
- * corrente — para chegar em 1990 a cliente rolava ano a ano, no último campo
- * antes de confirmar. Lista abre a roleta do sistema, não deixa digitar data
- * que não existe e não depende do formato de data do aparelho.
- */
-function Nascimento({ valor, aoMudar, erro }) {
-  const anoAtual = Number(hojeISO().slice(0, 4));
-  const anos = Array.from({ length: 101 }, (_, i) => anoAtual - i);
-  const mudar = (k, v) => aoMudar({ ...valor, [k]: v });
-  const descrito = erro ? 'jn-nasc-erro jn-nasc-porque' : 'jn-nasc-porque';
-  return (
-    <fieldset className="campo jn-nasc" aria-describedby={descrito}>
-      <legend>Nascimento</legend>
-      <div className="jn-nasc-listas">
-        <select id="jn-nasc-dia" aria-label="Dia" value={valor.dia} aria-invalid={!!erro}
-                onChange={e => mudar('dia', e.target.value)}>
-          <option value="">Dia</option>
-          {Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
-        </select>
-        <select aria-label="Mês" value={valor.mes} aria-invalid={!!erro}
-                onChange={e => mudar('mes', e.target.value)}>
-          <option value="">Mês</option>
-          {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-        </select>
-        <select aria-label="Ano" value={valor.ano} aria-invalid={!!erro}
-                onChange={e => mudar('ano', e.target.value)}>
-          <option value="">Ano</option>
-          {anos.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
-      </div>
-      <Erro id="jn-nasc-erro" texto={erro} />
-      <span id="jn-nasc-porque" className="jn-porque">Para te mandar um mimo no seu aniversário.</span>
-    </fieldset>
-  );
-}
-
-/** As três listas viram `'YYYY-MM-DD'`, ou o motivo de ainda não virarem. */
-function dataDeNascimento({ dia, mes, ano }) {
-  if (!dia || !mes || !ano) return { erro: 'Escolha o dia, o mês e o ano.' };
-  const [d, m, a] = [Number(dia), Number(mes), Number(ano)];
-  if (d > new Date(Date.UTC(a, m, 0)).getUTCDate()) {
-    return { erro: `${MESES[m - 1][0].toUpperCase()}${MESES[m - 1].slice(1)} de ${a} não tem dia ${d}.` };
-  }
-  const iso = `${a}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  if (iso > hojeISO()) return { erro: 'Essa data ainda não chegou.' };
-  return { iso };
-}
 
 function Pronto({ resultado, escolha, servico, profissional, extras, dados, unidade, textos, aoFechar }) {
   // O endereço da unidade onde vai ser, quando há mais de uma; senão o único
@@ -1013,8 +1071,82 @@ function Pronto({ resultado, escolha, servico, profissional, extras, dados, unid
         <ItemResumo rotulo="Quando" valor={`${porExtenso(escolha.data)} · ${escolha.hora}`} />
         {onde && <ItemResumo rotulo="Onde" valor={onde} />}
       </dl>
+      {/* O aniversário é perguntado AQUI, e não no formulário: o horário já
+          está garantido, então uma pergunta a mais não custa agendamento. Só
+          aparece para quem ainda não tem data na ficha — quem decide isso é o
+          servidor, que manda o convite cifrado junto da confirmação. */}
+      {resultado?.aniversario?.token && <Aniversario token={resultado.aniversario.token} />}
       <button className="b b-p b-larg" onClick={aoFechar}>Fechar</button>
     </div>
+  );
+}
+
+/**
+ * "Quer receber um parabéns nosso?"
+ *
+ * **Promete mensagem, não brinde.** O texto vale para qualquer empresa da
+ * Vital, inclusive a que não dá nada no aniversário — e a Vital não controla o
+ * que cada uma faz. Quem quiser prometer um mimo escreve isso no próprio texto
+ * da mensagem, no painel.
+ *
+ * Dia e mês, sem ano: ninguém no sistema usa o ano, e uma lista de cem opções
+ * numa tela que a pessoa já podia ter fechado não se justifica.
+ */
+function Aniversario({ token }) {
+  const [v, setV] = useState({ dia: '', mes: '' });
+  // perguntando · guardando · pronto · dispensado
+  const [estado, setEstado] = useState('perguntando');
+  const [erro, setErro] = useState('');
+
+  if (estado === 'dispensado') return null;
+  if (estado === 'pronto') {
+    return <p className="jn-niver-ok">Anotado! No seu dia, você recebe o nosso parabéns.</p>;
+  }
+
+  const guardar = async () => {
+    if (!v.dia || !v.mes) {
+      setErro('Escolha o dia e o mês.');
+      document.getElementById('jn-niver-dia')?.focus();
+      return;
+    }
+    setEstado('guardando');
+    try {
+      await api.aniversario(token, Number(v.dia), Number(v.mes));
+      setEstado('pronto');
+    } catch (e) {
+      // Falhar aqui não desfaz nada: o horário está marcado. A pessoa lê o
+      // motivo e segue — ou fecha a janela, que é o fim normal desta tela.
+      setErro(e.message);
+      setEstado('perguntando');
+    }
+  };
+
+  return (
+    <fieldset className="campo jn-niver" aria-describedby="jn-niver-ajuda">
+      <legend>Quer receber um parabéns nosso?</legend>
+      <span id="jn-niver-ajuda" className="jn-niver-ajuda">
+        Só o dia e o mês, se você quiser. Seu horário já está garantido.
+      </span>
+      <div className="jn-niver-listas">
+        <select id="jn-niver-dia" aria-label="Dia" value={v.dia} aria-invalid={!!erro}
+                onChange={e => { setV(x => ({ ...x, dia: e.target.value })); setErro(''); }}>
+          <option value="">Dia</option>
+          {Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
+        </select>
+        <select aria-label="Mês" value={v.mes} aria-invalid={!!erro}
+                onChange={e => { setV(x => ({ ...x, mes: e.target.value })); setErro(''); }}>
+          <option value="">Mês</option>
+          {mesesPorExtenso().map(m => <option key={m.numero} value={m.numero}>{m.nome}</option>)}
+        </select>
+      </div>
+      <Erro id="jn-niver-erro" texto={erro} />
+      <div className="jn-niver-acoes">
+        <button className="b b-p b-peq" disabled={estado === 'guardando'} onClick={guardar}>
+          {estado === 'guardando' ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button className="b b-c b-peq" onClick={() => setEstado('dispensado')}>Agora não</button>
+      </div>
+    </fieldset>
   );
 }
 
