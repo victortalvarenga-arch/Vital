@@ -1780,6 +1780,23 @@ alterna entre serviço e promoção, oferece os extras daquele serviço, e mostr
 duração e total calculados. O botão do Calendário e o atalho do Resumo abrem a
 mesma janela (`NovoAgendamento`).
 
+**A cliente que ainda não existe se cadastra ali mesmo.** Quem liga para marcar
+quase nunca está na lista, e mandar quem atende até Clientes para voltar depois
+é perder o horário que se estava combinando no telefone. O botão "Nova cliente"
+abre o cadastro no lugar da cliente que falta — dentro da gaveta, e não numa
+janela por cima dela, pelo mesmo motivo da pergunta de data passada, logo
+abaixo. Salvar escolhe a ficha recém-criada e devolve o formulário do
+agendamento, de onde ele parou. São os mesmos campos da tela de Clientes
+(`FormCliente`, usado pelos dois), e não uma cópia: a regra do telefone é uma
+só, e quem decide se ele serve continua sendo o servidor (`lib/fone.js`) — a
+tela só mostra o que ele responde, embaixo do campo.
+
+Quem vê o botão é quem pode cuidar de ficha (poder `clientes`: dono e
+recepção), como na tela de Clientes e no atalho do Resumo — é o mesmo cadastro,
+e ninguém passa a cuidar de ficha por estar dentro de uma gaveta. Isso é a
+tela; a rota ainda não confere esse poder, e enquanto não conferir é cortesia e
+não controle: está em "Achados" do `ROADMAP.md`.
+
 O que continua diferente de propósito é o `forcar: true`: a marcação pelo balcão
 pode furar a jornada, porque é manual e quem está ali sabe o que faz. O que ela
 **não** fura é conflito — outro atendimento da mesma pessoa, ou um horário
@@ -1843,6 +1860,81 @@ O preço dessa troca é que atendimentos passam a colidir: com pessoas nas colun
 dois nunca se cruzavam. `emFaixas()` resolve como um calendário resolve — agrupa
 quem se sobrepõe e divide a largura do grupo. Empilhar um sobre o outro
 esconderia atendimento, que é o pior defeito que uma agenda pode ter.
+
+### O bloco mostra o que cabe, e a hora tem altura para caber
+
+A grade do dia nasceu no Resumo "para ver de relance" e por isso valia metade
+da semana: 34px por hora. Num dia de serviço curto isso não dá para ler. Um
+atendimento de 45 minutos virava um bloco de 23px, e as duas linhas que ele
+precisa dizer — *quando e quem*, *o quê* — não cabiam: a segunda saía cortada
+ao meio, encostada na borda. Meia letra na borda lê como texto por cima de
+texto, e era isso que fazia a agenda cheia parecer quebrada sem nada estar
+errado. Desde 2026-11-16 as três grades usam a mesma régua, 56px por hora, e o
+serviço mais curto do catálogo cabe inteiro. O preço é rolar mais, que é o
+preço certo: a pergunta "quem é a próxima" não se responde com um bloco
+ilegível.
+
+O que ainda não couber, o bloco não desenha (`cabeNoBloco`): abaixo de duas
+linhas sai o nome do serviço, e na faixa muito estreita — dois ou três
+atendimentos na mesma hora, no celular — sai também a hora, que a régua ao lado
+já diz. Sempre o detalhe; nunca quem e quando, que é a pergunta da grade. O
+resto está a um toque, na gaveta. Onde o nome do serviço é cortado, ele avisa
+com "…": "Design de" sem reticências se lê como nome inteiro.
+
+**O que está em cima tapa o que está embaixo, de verdade.** Bloco de
+atendimento e bloqueio eram desenhados com alfa sobre a faixa listrada de "fora
+da jornada" — então o rótulo da faixa ("ANTES DAS 10:00", "FECHADO")
+atravessava o nome da cliente, e dois textos ocupavam o mesmo lugar sem que
+nenhum deles estivesse errado. Hoje os dois são opacos (`color-mix` com o papel,
+mesmo tom de antes) e o atendimento fica acima do bloqueio: marcar por cima de
+um horário fechado é legítimo, e quem manda na leitura é o compromisso, não o
+que ele furou. O rótulo da faixa, por sua vez, encosta na beira que descreve —
+"antes das 10:00" junto das 10:00 —, e não no alto, onde dividia espaço com o
+primeiro atendimento do dia e com o bloqueio da manhã.
+
+### A semana é de uma pessoa; a equipe toda é ocupação
+
+A grade da semana gasta os dois eixos que tem: hora na vertical, dia na
+horizontal. Quem atende é uma **terceira** dimensão, e ela não cabe. Até
+2026-11-16 a tela tentava enfiá-la dentro da célula, dividindo a largura entre
+quem se cruzava no horário — e três atendimentos na mesma hora viravam três
+faixas de 40px com "P…" dentro: nem o nome da cliente, nem de quem era o
+horário. Não era acabamento; era dimensão demais para o espaço.
+
+Nenhum calendário grande entrega isso. No Google, a coluna por pessoa existe
+**só na visão Dia** (a opção se chama "lado a lado"); na semana as agendas se
+sobrepõem na mesma grade e a orientação é esconder as que não interessam. No
+Square Appointments, período e pessoas são **dois controles separados** — Dia /
+semana / 5 dias / mês de um lado, "só eu / combinado / lado a lado" do outro —
+e a coluna por profissional só existe no lado a lado. Na agenda de salão em
+geral, a tela principal é o dia com uma coluna por pessoa.
+
+Então a Vital faz as duas coisas, em vez de uma mal feita:
+
+- **Com uma profissional escolhida no filtro**, a semana é a grade de sempre,
+  hora a hora, e cada bloco fica com a coluna inteira — nome, serviço,
+  pagamento e adicionais legíveis. A jornada dela aparece pintada, o que com a
+  equipe inteira não dá para fazer (seria a interseção de jornadas diferentes).
+  O nome de quem atende sai do bloco: o filtro no topo já está dizendo, e a
+  linha faz falta para o serviço. Quem só enxerga a própria agenda
+  (funcionário) não escolhe nada — é sempre ela, sempre a grade.
+- **Com a equipe toda**, a semana vira `SemanaResumo`: um dia por linha, com
+  quantos atendimentos, quanto se espera receber e uma barra repartida pelas
+  cores de quem atende. A barra compara os dias **entre si** — a mais larga é o
+  dia mais cheio — e mede **minutos**, não cabeças: um alongamento de 150
+  minutos enche a agenda de um jeito que três designs de 45 não enchem. Tocar
+  num dia abre a aba Dia dele.
+
+  **Lista, e não sete colunas.** Chegou a ser desenhada em colunas, para
+  parecer um calendário, e foi desfeita no mesmo dia: em colunas de 112px os
+  sete dias não cabem num celular — vira rolagem horizontal com três dias à
+  vista, que é o contrário de "a semana de relance". Em lista, os sete dias
+  cabem na tela de uma vez e cada linha ainda tem largura para dizer quem
+  atendeu quantos.
+
+É a pergunta que se faz olhando uma semana adiante ("como está a semana que
+vem?") respondida por inteiro, e a pergunta "de quem é quem" devolvida para
+onde ela tem resposta: o Dia, com uma coluna por pessoa.
 
 ### "Primeira vez": quem nunca veio, dito antes de a pessoa sentar
 
@@ -1912,7 +2004,8 @@ vertical e qualquer largura de coluna — nada disso precisa ser previsto.
 **Três grades arrastam, com um motor só** (`painel/useArrastar.js`). A da semana
 (coluna é dia), a do Dia na Agenda e a do Dia no Resumo (coluna é profissional).
 A mecânica é a mesma e a geometria não: cada grade diz a sua faixa de horas e a
-sua régua (56px por hora na semana, 34 no dia), e a coluna se identifica sozinha
+sua régua — hoje 56px por hora nas três, lida de `REGUA_DIA`
+(`GradeDoDia.jsx`) em vez de repetida à mão —, e a coluna se identifica sozinha
 nos `data-dia` / `data-prof` do próprio elemento — é o que deixa
 `elementsFromPoint` servir às duas sem saber qual está desenhada. O motor ficou
 fora das telas porque três cópias dele seriam três cópias de um código que já
@@ -3164,6 +3257,18 @@ seção não sai nem na vitrine (`secaoLigada` em `routes/publico.js`) — escon
 só no site deixaria o conteúdo na resposta pública; Instagram e mapa, que
 aparecem mesmo sem conteúdo próprio, são conferidos também no site.
 
+**Ligada não quer dizer no ar, e a chave diz qual dos dois** (2026-11-16).
+Ligar a chave é a empresa dizer "quero isto no site"; não é promessa de que há
+o que mostrar. A vitrine monta cada seção a dedo e devolve vazio quando falta
+conteúdo — sem conta do Google conectada não há nota nem avaliação, sem caso
+autorizado não há antes e depois, sem pergunta respondida não há FAQ —, e aí o
+modelo não desenha a seção. A chave, porém, dizia "No site" nos três casos:
+a tela afirmando, em verde, o contrário do que a cliente vê. Agora a seção
+ligada e sem conteúdo diz **"Ainda não aparece"**, em âmbar, com uma linha
+embaixo explicando o que falta. A condição de cada uma é a mesma do servidor,
+repetida em `faltas` (`painel/ConfigSite.jsx`) — repetir é o preço de a tela
+responder sem perguntar, e quando a regra mudar lá, muda aqui.
+
 **A seção Equipe é apresentação, separada de quem se agenda.**
 `config.equipeSite` guarda, por id, `{ oculto, foto, descricao }`; a vitrine
 devolve `equipe` (a seção) à parte de `profissionais` (o agendamento), então
@@ -3499,9 +3604,15 @@ novo, decida em qual das duas categorias ele cai.
 quando e por onde a cliente ligou — ou desligou — as mensagens: `site`,
 `painel` ou `whatsapp`. Todo caminho que escreve `optin` escreve os dois junto,
 e a exportação de clientes leva as colunas. Quem existia antes da migration
-fica sem data de propósito: inventar prova seria pior do que não ter. O que
-ainda falta (versão do texto aceito, consentimento para dado de saúde) está em
-"Importante para produção".
+fica sem data de propósito: inventar prova seria pior do que não ter.
+
+**Menos no painel, e isso é dívida.** O formulário de cliente não tem campo de
+opt-in, e `POST /api/clientes` assume `optin = 1`: a ficha cadastrada pela
+equipe nasce com as mensagens ligadas, com data de hoje e
+`optin_origem = 'painel'`. Essa origem registra **por onde a ficha entrou**, e
+não um aceite que a cliente tenha dado — chamá-la de prova seria mentir para
+nós mesmos. O que ainda falta aqui, e também a versão do texto aceito e o
+consentimento para dado de saúde, está em "Importante para produção".
 
 **O aparelho lembra o número, e só ele** (2026-11-13, `site/aparelho.js`).
 Depois de um agendamento que deu certo, o site guarda o WhatsApp digitado em

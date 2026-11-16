@@ -1327,6 +1327,46 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       visita quanto para quem está depurando. Um `onError` que volte ao rótulo
       resolveria os dois casos.
 
+- [ ] **O cadastro de cliente não tem guarda de papel na rota.** `POST` e
+      `PUT` de `/api/clientes` não exigem o poder `clientes` — só
+      `/:id/fichas` e `/:id/vinculo` exigem. A tabela de Papéis
+      (`ARQUITETURA.md`) diz que Clientes é de dono e recepção, e hoje quem
+      recusa é só a tela: o funcionário que souber chamar a rota cadastra e
+      edita ficha. As três portas da tela estão fechadas (a tela de Clientes, o
+      atalho do Resumo e, desde 2026-11-16, o botão dentro da gaveta de Novo
+      agendamento), o que é cortesia, não controle. Conserto de uma linha em
+      cada rota — mas é decisão de produto antes de ser de código: pode ser que
+      quem atende **deva** cadastrar quem liga para marcar, e então o que muda
+      é a tabela de Papéis, não a rota. Notado em 2026-11-16, pelo
+      `auditor-docs`.
+
+- [ ] **O 409 de telefone repetido não oferece a ficha que já existe.** No
+      cadastro dentro da gaveta de Novo agendamento, digitar o número de quem
+      já tem ficha devolve "já existe cliente com esse WhatsApp" embaixo do
+      campo e acaba num beco: quem cadastrava queria justamente aquela cliente,
+      e tem de cancelar e procurar à mão. A rota já devolve a ficha no corpo do
+      erro (`routes/clientes.js`, `{ erro, cliente }`), então aproveitá-la
+      seria trocar o beco por "é esta aqui?". Notado em 2026-11-16.
+
+- [x] ~~A semana com muito atendimento no mesmo dia não cabe em si.~~
+      Resolvido em 2026-11-16: a grade da semana passou a ser de **uma pessoa
+      de cada vez**, e com a equipe toda a semana vira ocupação por dia
+      (`SemanaResumo.jsx`). Hora e dia já gastavam os dois eixos; quem atende
+      era uma terceira dimensão enfiada na largura da célula. É o que Google e
+      Square fazem — coluna por pessoa só na visão Dia. Ver `ARQUITETURA.md`,
+      "A semana é de uma pessoa; a equipe toda é ocupação".
+
+- [ ] **Bloqueio não disputa largura com atendimento.** O bloqueio é desenhado
+      na largura inteira da coluna, numa camada só dele, enquanto os
+      atendimentos se dividem por `emFaixas` (`shared/tempo.js`). Quando os
+      dois se cruzam — o almoço de alguém e um atendimento marcado por cima
+      dele, que o balcão pode forçar —, o atendimento cobre o bloqueio e sobra
+      um pedaço do motivo saindo pela borda. Ficou bem menor depois que a
+      semana virou de uma pessoa (antes era o almoço de uma passando por baixo
+      do atendimento de outra), mas continua. A saída é o bloqueio entrar na
+      mesma divisão de largura dos atendimentos — é como um calendário resolve.
+      Notado em 2026-11-16.
+
 ### Cobertura de teste
 
 - [ ] **Teste instável identificado: "o papel não conta nada a quem o tem na
@@ -1446,11 +1486,15 @@ Sai daqui quando é resolvido, ou quando vira item de um bloco.
       lido antes de mexer: completar a lista no automático faz efeito virar
       loop. O de `Combos.jsx` (`combos` recriado a cada render dentro de um
       `useMemo`) é o único que parece desperdício de verdade.
-- [ ] `web/src/painel/App.jsx` passou de 1300 linhas e junta agenda, clientes,
+- [ ] `web/src/painel/App.jsx` passa de 2.000 linhas e junta agenda, clientes,
       serviços, equipe, CRM e financeiro. Cada tela nova que nasce ali aumenta o
-      risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e ConfigSite
-      já saíram; falta separar o resto — e o obstáculo é que os ajudantes
-      (`Modal`, `Campo`, formatadores) moram lá dentro.
+      risco de mexer numa e quebrar outra. Combos, Unidades, Usuários e
+      ConfigSite já saíram, e os ajudantes (`Modal`, `Campo`, `Gaveta`,
+      `fmtFone`) já moram em `Base.jsx` — o obstáculo deixou de ser o import
+      circular e passou a ser só o tamanho. O candidato seguinte é `Clientes` +
+      `EditarCliente` + `FormCliente`; desde 2026-11-16 `FormCliente` é usado
+      também pela gaveta de Novo agendamento, então extrair a tela significa dar
+      a ele arquivo próprio (ou `Base.jsx`), e não levá-lo junto.
 - [ ] **`npm run seed -- --forcar` provavelmente quebra hoje.** Reinsere tudo
       com os mesmos ids fixos (`v1`, `s1`, o tenant `laurafaust`...) sem
       limpar antes — a segunda passada esbarra em PK duplicada. Não notado
@@ -1724,6 +1768,14 @@ qualquer bloco, pergunte se surgiu item novo para cá.
       (`optin`, transacional vs. marketing) passam a valer de fato — ver
       `ARQUITETURA.md`.
 - [ ] Definir por quanto tempo guardar histórico de quem não é mais cliente.
+- [ ] **Ficha cadastrada pelo painel nasce com marketing ligado.** O formulário
+      de cliente não tem campo de opt-in, e `POST /api/clientes` assume
+      `optin = 1`, gravando `optin_em = hoje()` e `optin_origem = 'painel'` —
+      prova de um aceite que ninguém deu. Com cliente real, aniversário e
+      campanha saem para quem nunca autorizou, e o registro diz que autorizou.
+      Decidir antes do lançamento: campo na ficha com o padrão desligado, ou um
+      texto no balcão que a equipe confirme. Notado em 2026-11-16, pelo
+      `auditor-docs`.
 - [x] ~~O histórico do agendamento não se apaga de dentro.~~ Resolvido em
       2026-11-10 (migration 040): apagar a cliente anonimiza os eventos dela
       (`plataforma.apagar_rastro_da_cliente`, `SECURITY DEFINER`), apaga as

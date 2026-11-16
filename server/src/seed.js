@@ -501,8 +501,15 @@ async function oResto() {
      VALUES (?,?,?,?,?,?,?,?,?)`,
     uid(), staffId, data, ini, fim, motivo, obs, serie, h
   );
+  // Todo bloqueio daqui nasce **dentro** da jornada de quem ele fecha. Parece
+  // detalhe e não é: fora dela, o bloqueio não fecha nada (aquele horário já
+  // estava fechado) e, na grade, vira um retângulo com motivo por cima da
+  // faixa de "fora da jornada" — alguém abre a Agenda, lê "Planejamento da
+  // semana" às 08:00 e pergunta por que a hora que devia estar fechada tem
+  // compromisso. Era o que acontecia até 2026-11-16: os dois bloqueios abaixo
+  // viviam às 08:00, e a empresa só abre às 09:00.
   await bloqueio('s2', addDias(h, 1), '12:00', '13:30', 'Almoço');
-  await bloqueio(null, addDias(h, 5), '08:00', '09:00', 'Reunião de equipe');
+  await bloqueio(null, addDias(h, 5), '09:00', '10:00', 'Reunião de equipe');
 
   const ferias = uid();
   for (let i = 0; i < 7; i++) {
@@ -518,19 +525,27 @@ async function oResto() {
     if (dia >= 1 && dia <= 5) await bloqueio('s1', d, '12:00', '13:00', 'Almoço', almoco);
   }
 
-  // Toda segunda, das 8 às 9, sem data para acabar (migration 028): um ano de
-  // datas e a regra guardada, que o job da madrugada vai estendendo. Gerada
-  // pela mesma função do job, para o seed não ter uma terceira versão da conta.
+  // Toda terça às 14h, sem data para acabar (migration 028): um ano de datas e
+  // a regra guardada, que o job da madrugada vai estendendo. Gerada pela mesma
+  // função do job, para o seed não ter uma terceira versão da conta.
+  //
+  // Terça, e não segunda, porque a semana da Bia começa na terça — ela não
+  // atende segunda, e bloqueio em dia que a pessoa não trabalha não fecha
+  // horário nenhum. 14h porque é a hora que o cenário deixa livre na agenda
+  // dela em qualquer dia da semana em que o `reset` seja rodado: nas horas
+  // cheias da manhã (10:00, 10:30, 11:00) o bloqueio nasceria embaixo de um
+  // atendimento, e quem abrisse a Agenda veria o atendimento e nenhum
+  // bloqueio — exemplo que não exemplifica.
   const semFim = uid();
-  const regra = { repetir: 'semanal', diasSemana: [1], inicio: h };
+  const regra = { repetir: 'semanal', diasSemana: [2], inicio: h };
   const limite = addDias(h, HORIZONTE_DIAS);
   for (const d of proximasDatas(regra, addDias(h, -1), limite)) {
-    await bloqueio('s2', d, '08:00', '09:00', 'Planejamento da semana', semFim);
+    await bloqueio('s2', d, '14:00', '15:00', 'Planejamento da semana', semFim);
   }
   await db.run(
     `INSERT INTO bloqueio_series (serie, staff_id, hora_ini, hora_fim, motivo, obs, repetir, dias_semana, inicio, ate)
      VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    semFim, 's2', '08:00', '09:00', 'Planejamento da semana', '', regra.repetir, regra.diasSemana, h, limite
+    semFim, 's2', '14:00', '15:00', 'Planejamento da semana', '', regra.repetir, regra.diasSemana, h, limite
   );
 
   /* ── serviços adicionais ──────────────────────────────────────────────── */

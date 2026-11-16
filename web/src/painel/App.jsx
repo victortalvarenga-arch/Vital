@@ -9,11 +9,12 @@ import Registro from './Registro.jsx';
 import Agendamentos from './Agendamentos.jsx';
 import Bloqueios from './Bloqueios.jsx';
 import SeletorPessoas from './SeletorPessoas.jsx';
-import GradeDoDia, { FaixasFechadas, LinhaDoAgora, SeloDoBloco, classeDoBloco, useMinutoAgora } from './GradeDoDia.jsx';
+import GradeDoDia, { FaixasFechadas, LinhaDoAgora, REGUA_DIA, SeloDoBloco, cabeNoBloco, classeDoBloco, useMinutoAgora } from './GradeDoDia.jsx';
 import Remarcar from './Remarcar.jsx';
 import { useArrastar } from './useArrastar.js';
 import { fechadoDaEmpresa, fechadoNoDia, semAs } from '../shared/jornada.js';
 import GradeDoMes from './GradeDoMes.jsx';
+import SemanaResumo from './SemanaResumo.jsx';
 import Recepcao from './Recepcao.jsx';
 import SeletorCliente from './SeletorCliente.jsx';
 import CampoData from './CampoData.jsx';
@@ -36,7 +37,7 @@ import NumeroWhatsapp from './NumeroWhatsapp.jsx';
 import Recuperacao from './Recuperacao.jsx';
 import { prazoDaMensagem } from './prazo.js';
 import {
-  Calendar, Users, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
+  Calendar, Users, UserPlus, Sparkles, MessageCircle, Wallet, Plus, X, Check, ChevronDown, ChevronLeft,
   ChevronRight, Search, Phone, MapPin, Clock, Pencil, Send,
   Store, Bell, Megaphone, TriangleAlert, ExternalLink, Menu, Globe,
   LogOut, KeyRound, Ban, Tag, StickyNote, RotateCcw, Cake, MapPin as MapPinIcon, ScrollText,
@@ -538,6 +539,15 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // A pessoa escolhida, quando é uma só — é o que destrava pintar a agenda
   // fechada. Com duas ou mais, não há "a jornada" da grade.
   const umaPessoa = pessoas.length === 1 ? staff.find(p => p.id === pessoas[0]) : null;
+  // **A grade da semana é de uma pessoa de cada vez.** Hora na vertical e dia
+  // na horizontal já gastam os dois eixos; quem atende é uma terceira
+  // dimensão, e dividir a largura da célula entre três pessoas dava faixas de
+  // 40px com "P…" dentro. Com a equipe toda, a semana vira ocupação por dia
+  // (`SemanaResumo`) e o detalhe fica na aba Dia, que tem uma coluna por
+  // pessoa. Quem só enxerga a própria agenda não escolhe nada: é sempre ela.
+  const pessoaDaSemana = poderes.verDeTodos
+    ? umaPessoa
+    : staff.find(p => p.id === dados.eu?.profissionalId) || null;
   // Na semana, a próxima de cada profissional hoje ganha o mesmo selo da grade
   // do dia (`proximasDoDia`), e a linha vermelha marca a hora de agora.
   const minAgora = useMinutoAgora();
@@ -657,7 +667,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
   // Cada grade tem a sua altura de hora, e a do dia ainda se estica para caber
   // um atendimento das 7h — a mesma `faixaDeHoras` que ela usa para desenhar.
   const naSemana = useArrastar({ ...motor, grade: '.agenda', faixa: [H_INI, H_FIM], regua: [PX_H, TOPO] });
-  const noDia = useArrastar({ ...motor, grade: '.eq-timeline', faixa: faixaDeHoras(doPeriodo), regua: [34, 8] });
+  const noDia = useArrastar({ ...motor, grade: '.eq-timeline', faixa: faixaDeHoras(doPeriodo), regua: REGUA_DIA });
   // O rótulo flutuante ("onde vai cair, e por que não dá") é um só para a tela:
   // só uma grade está desenhada por vez, e só um dedo arrasta por vez.
   const arrasto = naSemana.arrasto || noDia.arrasto;
@@ -744,7 +754,13 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     aoEscolherDia={d => { setAncora(d); setEscala('dia'); }} />
       )}
 
-      {aba === 'calendario' && escala === 'semana' && (
+      {aba === 'calendario' && escala === 'semana' && !pessoaDaSemana && (
+        <SemanaResumo semana={semana} agendamentos={doPeriodo} hoje={hoje}
+                      staff={staff.filter(p => p.ativo)}
+                      aoAbrirDia={d => { setAncora(d); setEscala('dia'); }} />
+      )}
+
+      {aba === 'calendario' && escala === 'semana' && pessoaDaSemana && (
       <div className="agenda">
         {/* Legendas de hora em hora, centradas na própria linha. A grade é de
             meia em meia hora: é o passo em que a agenda é vendida, e sem ela
@@ -804,9 +820,9 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     return (
                       <>
                         <FaixasFechadas faixas={daEmpresa} empresa {...janela} />
-                        {umaPessoa && (
+                        {pessoaDaSemana && (
                           <FaixasFechadas {...janela} faixas={semAs(fechadoNoDia({
-                            profissional: umaPessoa, data: dia, deMin: janela.deMin, ateMin: janela.ateMin,
+                            profissional: pessoaDaSemana, data: dia, deMin: janela.deMin, ateMin: janela.ateMin,
                           }), daEmpresa)} />
                         )}
                         {dia === hoje && <LinhaDoAgora minAgora={minAgora} {...janela} />}
@@ -849,17 +865,18 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     const c = clientes.find(x => x.id === a.cliente);
                     const s = servicos.find(x => x.id === a.servico);
                     const p = staff.find(x => x.id === a.prof);
+                    const alturaSombra = Math.max(naSemana.arrasto.dur / MIN_POR_PX - 2, 26);
                     return (
-                      <div className={'appt sombra' + (naSemana.arrasto.ok ? '' : ' nao')}
+                      <div className={'appt sombra' + cabeNoBloco(alturaSombra) + (naSemana.arrasto.ok ? '' : ' nao')}
                            style={{
                              top: TOPO + (toMin(naSemana.arrasto.hora) - H_INI * 60) / MIN_POR_PX,
-                             height: Math.max(naSemana.arrasto.dur / MIN_POR_PX - 2, 26),
+                             height: alturaSombra,
                              left: 3, right: 3,
-                             background: (p?.cor || '#999') + '1f',
+                             '--appt-cor': p?.cor || '#999',
                              borderLeftColor: p?.cor || '#999',
                            }}>
                         <b><span className="t">{naSemana.arrasto.hora}</span> {c?.nome.split(' ')[0]}</b>
-                        {s?.nome}
+                        <span className="appt-svc">{s?.nome}</span>
                         <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
                       </div>
                     );
@@ -871,24 +888,31 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
                     const p = staff.find(x => x.id === a.prof);
                     const puxando = naSemana.arrasto?.id === a.id;
                     const larg = 100 / faixas;
+                    const altura = Math.max((fim - ini) / MIN_POR_PX - 2, 26);
                     return (
                       <button key={a.id}
-                        className={classeDoBloco(a.status, proximas.has(a.id)) + (puxando ? ' puxando' : '')}
+                        className={classeDoBloco(a.status, proximas.has(a.id)) + cabeNoBloco(altura) + (puxando ? ' puxando' : '')}
                         style={{
                           top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
-                          height: Math.max((fim - ini) / MIN_POR_PX - 2, 26),
+                          height: altura,
                           left: `calc(${faixa * larg}% + 3px)`,
                           width: `calc(${larg}% - 6px)`,
-                          background: (p?.cor || '#999') + '1f',
+                          '--appt-cor': p?.cor || '#999',
                           borderLeftColor: p?.cor || '#999',
                         }}
                         onPointerDown={e => naSemana.aoPegar(e, a)}>
                         <SeloDoBloco status={a.status} proxima={proximas.has(a.id)} />
                         <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
-                        {s?.nome}
+                        <span className="appt-svc">{s?.nome}</span>
                         {a.status === 'agendado' && <span className="so-leitor"> · a confirmar</span>}
-                        {/* Quem atende é dito aqui, já que a coluna virou o dia. */}
-                        <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
+                        {/* Quem atende é dito aqui, já que a coluna virou o dia
+                            — menos quando a semana inteira é de uma pessoa só,
+                            que é o que o filtro no topo já está dizendo. Repetir
+                            o nome dela em todo bloco gastava a linha que o
+                            serviço precisava. */}
+                        {!pessoaDaSemana && (
+                          <span className="appt-quem" style={{ color: p?.cor }}>{p?.nome.split(' ')[0]}</span>
+                        )}
                         {a.pagamento.status === 'pago' && <span className="appt-pago">✓ pago</span>}
                         {a.adicionais.length > 0 && (
                           <span className="appt-mais">
@@ -1190,6 +1214,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
           sem erro visível. */}
       {novo && (
         <NovoAgendamento dados={dados} acao={acao} data={diaParaAcao} clienteInicial={novoCliente}
+                         poderes={poderes}
                          fechar={() => { setNovo(false); setNovoCliente(''); }} aviso={aviso} />
       )}
 
@@ -1266,7 +1291,7 @@ function Agenda({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara 
  * O que ela **não** fura é conflito com outro atendimento — isso o servidor
  * recusa dos dois lados. Por que não é a tela do site: ver `ARQUITETURA.md`.
  */
-function NovoAgendamento({ dados, acao, data, fechar, clienteInicial = '' }) {
+function NovoAgendamento({ dados, acao, data, fechar, poderes, clienteInicial = '' }) {
   const { staff, clientes, agendamentos } = dados;
   // Só a que está no ar vende, no balcão como no site; o dia o servidor confere.
   const combos = (dados.combos || []).filter(c => c.situacao === 'ativa');
@@ -1280,6 +1305,7 @@ function NovoAgendamento({ dados, acao, data, fechar, clienteInicial = '' }) {
     prof: '', data, hora: '', extras: [],
   });
   const [ofertados, setOfertados] = useState([]);
+  const [cadastrando, setCadastrando] = useState(false);
   const [respostas, setRespostas] = useState({});
   const [ocupado, setOcupado] = useState(false);
   // Marcar numa data que já passou é legítimo — atendeu sem agendar e quer
@@ -1380,6 +1406,35 @@ function NovoAgendamento({ dados, acao, data, fechar, clienteInicial = '' }) {
         <SeletorCliente clientes={clientes} valor={f.cliente}
                         aoMudar={id => setF(v => ({ ...v, cliente: id }))} />
       </Campo>
+
+      {/* Quem liga para marcar quase nunca está na lista ainda, e mandar a
+          pessoa até Clientes para voltar depois é perder o horário combinado
+          no telefone. O cadastro acontece aqui, no lugar da cliente que falta
+          — e não numa janela sobre a gaveta, que no celular tapa justamente o
+          que se estava conferindo.
+
+          Atrás do poder `clientes`, como o atalho do Resumo e a tela: é o mesmo
+          cadastro, e quem não cuida de ficha não passa a cuidar por estar numa
+          gaveta. */}
+      {poderes?.clientes && !f.cliente && (cadastrando ? (
+        <div className="nc">
+          <span className="eyebrow">Nova cliente</span>
+          {/* O foco segue o formulário: ele nasce onde o botão estava, e sem
+              isso o leitor de tela não anuncia nada e o dedo toca duas vezes.
+              Cancelar devolve o foco ao botão, que é de onde ele veio. */}
+          <FormCliente c={CLIENTE_NOVA} acao={acao} rotulo="Cadastrar e continuar" autoFoco
+                       aoCancelar={() => {
+                         setCadastrando(false);
+                         setTimeout(() => document.getElementById('nc-abrir')?.focus(), 0);
+                       }}
+                       aoSalvar={id => { setCadastrando(false); setF(v => ({ ...v, cliente: id })); }} />
+        </div>
+      ) : (
+        <button type="button" id="nc-abrir" className="btn btn-g btn-s nc-abrir"
+                onClick={() => setCadastrando(true)}>
+          <UserPlus size={15} aria-hidden="true" /> Nova cliente
+        </button>
+      ))}
 
       {ehCombo ? (
         <Campo label="Promoção">
@@ -1686,6 +1741,10 @@ const formatarResposta = v =>
   v === true ? 'sim' : v === false ? 'não' : Array.isArray(v) ? v.join(', ') : String(v);
 
 /* ── Clientes ── */
+
+/** Ficha em branco — o que "Nova cliente" abre, na tela e dentro da gaveta. */
+const CLIENTE_NOVA = { nome: '', fone: '', nasc: '', end: '', obs: '' };
+
 function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPara }) {
   const { clientes, agendamentos, servicos } = dados;
   const [q, setQ] = useState('');
@@ -1713,7 +1772,7 @@ function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPar
     <>
       <div className="head">
         <div><h2>Clientes</h2><div className="sub">{clientes.length} {clientes.length === 1 ? 'cadastrada' : 'cadastradas'} · o cadastro é feito uma vez, no primeiro agendamento</div></div>
-        <button className="btn btn-p btn-s" onClick={() => setEdit({ nome: '', fone: '', nasc: '', end: '', obs: '' })}><Plus size={16} /> Nova cliente</button>
+        <button className="btn btn-p btn-s" onClick={() => setEdit(CLIENTE_NOVA)}><Plus size={16} /> Nova cliente</button>
       </div>
       <div style={{ position: 'relative', marginBottom: 14, maxWidth: 380 }}>
         <Search size={16} style={{ position: 'absolute', left: 12, top: 13, color: 'var(--muted)' }} />
@@ -1848,9 +1907,31 @@ function Clientes({ dados, acao, aviso, poderes, pedido, aoConsumirPedido, irPar
 }
 
 function EditarCliente({ c, acao, fechar }) {
+  return (
+    <Modal onClose={fechar}>
+      <h2 style={{ fontSize: 24, marginBottom: 18 }}>{c.id ? 'Editar cadastro' : 'Nova cliente'}</h2>
+      <FormCliente c={c} acao={acao} aoSalvar={fechar} />
+    </Modal>
+  );
+}
+
+/**
+ * Os campos do cadastro da cliente, sem a janela em volta.
+ *
+ * Fica fora de `EditarCliente` porque o mesmo cadastro acontece em dois
+ * lugares: na tela de Clientes, numa janela, e dentro da gaveta de Novo
+ * agendamento, onde quem ligou para marcar ainda não está na lista. Duas
+ * cópias dos campos seriam duas versões da regra do telefone, para divergir
+ * na primeira correção.
+ *
+ * `aoSalvar` recebe o id da ficha gravada — é com ele que a gaveta continua o
+ * agendamento já com a cliente que acabou de ser cadastrada.
+ */
+function FormCliente({ c, acao, aoSalvar, aoCancelar, rotulo = 'Salvar', autoFoco = false }) {
   const [f, setF] = useState({ nome: c.nome, fone: c.fone, nasc: c.nasc || '', end: c.end || '', obs: c.obs || '' });
   const [erroNome, setErroNome] = useState('');
   const [erroFone, setErroFone] = useState('');
+  const [ocupado, setOcupado] = useState(false);
 
   // Quem decide se o telefone serve é o servidor (`lib/fone.js`): aqui aceita
   // fixo, no site não. O que a tela sabe sozinha é só o que decide o aviso
@@ -1868,18 +1949,25 @@ function EditarCliente({ c, acao, fechar }) {
       return;
     }
     setErroFone('');
+    // Desligado enquanto grava, e só enquanto grava: dois toques no mesmo
+    // cadastro batem no índice do telefone e o segundo volta como "já existe
+    // cliente com esse WhatsApp", culpando quem não errou nada.
+    setOcupado(true);
+    // O id da ficha nova só existe na resposta, e `acao` devolve apenas se deu
+    // certo — por isso a cliente gravada fica nesta variável, fora da chamada.
+    let salva = null;
     const ok = await acao(
-      () => api.salvarCliente({ ...c, ...f, fone: soDigitos(f.fone) }),
+      async () => { salva = await api.salvarCliente({ ...c, ...f, fone: soDigitos(f.fone) }); },
       'Cadastro salvo',
       msg => { setErroFone(msg); document.getElementById('cl-fone')?.focus(); }
     );
-    if (ok) fechar();
+    if (ok) aoSalvar(salva?.id || c.id); else setOcupado(false);
   };
   return (
-    <Modal onClose={fechar}>
-      <h2 style={{ fontSize: 24, marginBottom: 18 }}>{c.id ? 'Editar cadastro' : 'Nova cliente'}</h2>
+    <>
       <Campo label="Nome completo">
-        <input id="cl-nome" value={f.nome} aria-invalid={!!erroNome} aria-describedby={erroNome ? 'cl-nome-erro' : undefined}
+        <input id="cl-nome" value={f.nome} autoFocus={autoFoco}
+               aria-invalid={!!erroNome} aria-describedby={erroNome ? 'cl-nome-erro' : undefined}
                onChange={e => { setF(v => ({ ...v, nome: e.target.value })); setErroNome(''); }} />
       </Campo>
       {erroNome && <p id="cl-nome-erro" className="mf-erro">{erroNome}</p>}
@@ -1911,8 +1999,15 @@ function EditarCliente({ c, acao, fechar }) {
       </div>
       <Campo label="Endereço"><input value={f.end} onChange={e => setF(v => ({ ...v, end: e.target.value }))} /></Campo>
       <Campo label="Observações"><textarea rows={2} value={f.obs} onChange={e => setF(v => ({ ...v, obs: e.target.value }))} placeholder="Alergias, preferências, cuidados" /></Campo>
-      <button className="btn btn-p" style={{ width: '100%' }} onClick={salvar}>Salvar</button>
-    </Modal>
+      <div className="chips">
+        <button className="btn btn-p" style={{ flex: 1 }} disabled={ocupado} onClick={salvar}>
+          {ocupado ? 'Salvando…' : rotulo}
+        </button>
+        {aoCancelar && (
+          <button type="button" className="btn btn-g" onClick={aoCancelar}>Cancelar</button>
+        )}
+      </div>
+    </>
   );
 }
 

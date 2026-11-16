@@ -4,8 +4,36 @@ import { emFaixas, faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/temp
 import { fechadoDaEmpresa, fechadoNoDia, semAs } from '../shared/jornada.js';
 import { proximasDoDia } from './fluxo.js';
 
-const PX_H = 34, TOPO = 8;
+/**
+ * A régua da grade do dia: pixels por hora e a folga acima da primeira linha.
+ *
+ * Era 34px/hora, metade da semana, porque esta grade nasceu no Resumo "para
+ * ver de relance". Mas ela é a mesma grade da Agenda, e num dia cheio de
+ * serviço curto não dava para ver nada: um atendimento de 45 minutos virava um
+ * bloco de 23px, onde a segunda linha saía cortada ao meio na borda — o que a
+ * tela mostrava era meia letra por cima do bloco de baixo. Hoje é a mesma
+ * régua da semana (56), e o serviço mais curto do catálogo cabe inteiro, com
+ * nome e hora legíveis. O preço é rolar mais, que é o preço certo.
+ *
+ * Quem arrasta lê daqui (`REGUA_DIA`) em vez de repetir os números: a conta de
+ * onde o dedo caiu tem de ser a mesma que desenhou o bloco, senão o
+ * atendimento pousa numa hora e aparece em outra.
+ */
+const PX_H = 56, TOPO = 8;
 const MIN_POR_PX = 60 / PX_H;
+export const REGUA_DIA = [PX_H, TOPO];
+
+/**
+ * O que cabe no bloco, pela altura que ele tem.
+ *
+ * Bloco desenha o que couber. Abaixo de duas linhas, o nome do serviço só
+ * conseguia aparecer pela metade, encostado na borda — e meia letra cortada
+ * lida como texto sobre texto, que era a bagunça da grade cheia. O que sai é
+ * sempre o detalhe; o que fica é quem e quando, que é a pergunta da grade. O
+ * resto está a um toque, na gaveta do atendimento.
+ */
+export const cabeNoBloco = altura =>
+  altura < 38 ? ' so-uma-linha' : altura < 58 ? ' so-duas-linhas' : '';
 
 /**
  * Os minutos do dia agora, atualizados a cada minuto. É o que move a linha do
@@ -36,10 +64,15 @@ export function FaixasFechadas({ faixas, empresa = false, deMin, ateMin, topo, m
   return faixas.map(f => {
     const corte = f.ini > deMin && f.fim >= ateMin ? ' corte-cima'
       : f.ini <= deMin && f.fim < ateMin ? ' corte-baixo' : '';
+    // O rótulo encosta na beira que ele descreve: "antes das 10:00" junto das
+    // 10:00, "depois das 19:00" junto das 19:00. Sempre no alto, ele caía em
+    // cima do primeiro atendimento do dia e do bloqueio da manhã — três textos
+    // no mesmo lugar, que era metade da bagunça da grade cheia.
+    const rotuloNoFim = f.fim < ateMin ? ' rotulo-fim' : '';
     const altura = (f.fim - f.ini) / minPorPx;
     return (
       <div key={(empresa ? 'e' : 'p') + f.ini} aria-hidden="true" title={f.motivo}
-           className={'fechado' + (empresa ? ' empresa' : '') + corte}
+           className={'fechado' + (empresa ? ' empresa' : '') + corte + rotuloNoFim}
            style={{ top: topo + (f.ini - deMin) / minPorPx, height: altura }}>
         {altura >= 30 && <span className="fechado-rotulo">{f.motivo}</span>}
       </div>
@@ -198,17 +231,18 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                   const c = clientes.find(x => x.id === a.cliente);
                   const s = servicos.find(x => x.id === a.servico);
                   const dono = staff.find(x => x.id === a.prof);
+                  const alturaSombra = Math.max(arrasto.dur / MIN_POR_PX - 2, 22);
                   return (
-                    <div className={'appt sombra' + (arrasto.ok ? '' : ' nao')}
+                    <div className={'appt sombra' + cabeNoBloco(alturaSombra) + (arrasto.ok ? '' : ' nao')}
                          style={{
                            top: TOPO + (toMin(arrasto.hora) - H_INI * 60) / MIN_POR_PX,
-                           height: Math.max(arrasto.dur / MIN_POR_PX - 2, 22),
+                           height: alturaSombra,
                            left: 3, right: 3,
-                           background: (dono?.cor || '#999') + '1f',
+                           '--appt-cor': dono?.cor || '#999',
                            borderLeftColor: dono?.cor || '#999',
                          }}>
                       <b><span className="t">{arrasto.hora}</span> {c?.nome.split(' ')[0]}</b>
-                      {s?.nome}
+                      <span className="appt-svc">{s?.nome}</span>
                     </div>
                   );
                 })()}
@@ -219,25 +253,26 @@ export default function GradeDoDia({ colunas, agendamentos, clientes, servicos, 
                   const largura = 100 / faixas;
                   const Bloco = (aoTocar || aoPegar) ? 'button' : 'div';
                   const puxando = arrasto?.id === a.id;
+                  const alturaBloco = Math.max((fim - ini) / MIN_POR_PX - 2, 22);
                   return (
                     <Bloco key={a.id}
                          {...(aoPegar ? { type: 'button', onPointerDown: e => aoPegar(e, a) }
                            : aoTocar ? { type: 'button', onClick: () => aoTocar(a) } : {})}
-                         className={classeDoBloco(a.status, proximas.has(a.id)) + (puxando ? ' puxando' : '')}
+                         className={classeDoBloco(a.status, proximas.has(a.id)) + cabeNoBloco(alturaBloco) + (puxando ? ' puxando' : '')}
                          style={{
                            top: TOPO + (ini - H_INI * 60) / MIN_POR_PX,
-                           height: Math.max((fim - ini) / MIN_POR_PX - 2, 22),
+                           height: alturaBloco,
                            left: `calc(${faixa * largura}% + 3px)`,
                            width: `calc(${largura}% - 6px)`,
                            right: 'auto',
-                           background: (p.cor || '#999') + '1f',
+                           '--appt-cor': p.cor || '#999',
                            borderLeftColor: p.cor || '#999',
                          }}>
                       {/* Hora e nome na mesma linha: o bloco de 30 min só tem
                           altura para uma, e ela precisa dizer quando e quem. */}
                       <SeloDoBloco status={a.status} proxima={proximas.has(a.id)} />
                       <b><span className="t">{a.hora}</span> {c?.nome.split(' ')[0]}</b>
-                      {s?.nome}
+                      <span className="appt-svc">{s?.nome}</span>
                       {a.status === 'agendado' && <span className="so-leitor"> · a confirmar</span>}
                     </Bloco>
                   );

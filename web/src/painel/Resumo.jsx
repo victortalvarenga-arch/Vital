@@ -10,7 +10,7 @@ import { brl } from '../shared/formato.js';
 import { DICA_ESTIMADO, Dica, Numero } from './Cartoes.jsx';
 import { compacto, rotuloDeValor, tetoDoEixo } from '../shared/graficos.js';
 import { faixaDeHoras, hojeISO, iniciais, toMin } from '../shared/tempo.js';
-import GradeDoDia from './GradeDoDia.jsx';
+import GradeDoDia, { REGUA_DIA } from './GradeDoDia.jsx';
 import Remarcar from './Remarcar.jsx';
 import { useArrastar } from './useArrastar.js';
 
@@ -123,7 +123,7 @@ export default function Resumo({ dados, acao, aviso, poderes, irPara, fila }) {
   const arrastar = useArrastar({
     agendamentos, bloqueios: dados.bloqueios || [], servicos, staff,
     agora: { data: hoje, hora: `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}` },
-    faixa: faixaDeHoras(doDia), regua: [34, 8], grade: '.eq-timeline',
+    faixa: faixaDeHoras(doDia), regua: REGUA_DIA, grade: '.eq-timeline',
     aoSoltar: setRemarcando, aviso,
     // Tocar sem arrastar leva para a Agenda: aqui não há gaveta de atendimento,
     // e bloco que não faz nada ao ser clicado parece defeito.

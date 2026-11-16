@@ -225,6 +225,16 @@ a.btn{text-decoration:none}
 /* A de meia hora é mais fraca: divide sem competir com a da hora cheia. */
 .linha.meia{opacity:.4}
 
+/* Opaco, e não a cor da pessoa com 12% de alfa como era: por baixo do bloco
+   passam a faixa listrada de "fora da jornada" e o rótulo dela, e translúcido
+   fazia esse texto aparecer no meio do nome da cliente. A mistura dá o mesmo
+   tom de antes, só que sem deixar nada atravessar. */
+.appt{background:color-mix(in srgb, var(--appt-cor, #999) 12%, var(--paper))}
+/* Acima do bloqueio (z-index 1) e da faixa fechada (0): marcar por cima de um
+   horário fechado é legítimo — o balcão força quando a cliente já está ali —, e
+   quando acontecia, "Almoço · Laura" era desenhado em cima de "12:15 Bruna".
+   Quem manda na leitura é o compromisso, não o que ele furou. */
+.appt{z-index:2}
 .appt{position:absolute; border-radius:7px; padding:4px 8px; font-size:11px; line-height:1.32;
   overflow:hidden; border:none; border-left:4px solid; color:var(--ink); text-align:left; /* impeccable-disable-line side-tab -- a cor é o dado (de quem é o atendimento), não enfeite; ver ARQUITETURA.md "A agenda do painel" */
   touch-action:none; cursor:grab; transition:box-shadow .12s, transform .12s}
@@ -237,6 +247,30 @@ a.btn{text-decoration:none}
    que a hora, que a régua da grade já mostra. */
 .appt{container-type:inline-size}
 @container (max-width: 78px){ .appt b .t{display:none} }
+/* Mais estreito ainda (dois ou três atendimentos na mesma hora, no celular):
+   o serviço sai e o nome fica com a largura inteira. Duas palavras cortadas na
+   terceira letra não dizem nem quem é nem o que é. */
+@container (max-width: 64px){ .appt .appt-svc{display:none} }
+/* O bloco mostra o que couber na altura que tem (`cabeNoBloco`, GradeDoDia.jsx).
+   Sem isto, o nome do serviço aparecia pela metade, encostado na borda de
+   baixo — e meia letra cortada lê como texto sobre texto, que era a bagunça da
+   grade num dia cheio. Some sempre o detalhe; ficam quem e quando. */
+/* O nome do serviço diz até onde cabe e avisa com "…" onde parou. Cortado seco,
+   "Design de sobrancelha" virava "Design de" — que se lê como nome inteiro. */
+.appt-svc{display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden;
+  -webkit-line-clamp:2; line-clamp:2}
+.appt.so-duas-linhas .appt-svc{-webkit-line-clamp:1; line-clamp:1}
+.appt.so-duas-linhas .appt-quem,
+.appt.so-duas-linhas .appt-pago,
+.appt.so-duas-linhas .appt-mais,
+.appt.so-uma-linha .appt-svc,
+.appt.so-uma-linha .appt-quem,
+.appt.so-uma-linha .appt-pago,
+.appt.so-uma-linha .appt-mais{display:none}
+/* Uma linha só: a folga de cima e de baixo vira altura de letra. */
+.appt.so-uma-linha{padding-top:2px; padding-bottom:2px; display:flex; align-items:center}
+.appt.so-uma-linha b{flex:1; min-width:0}
+
 .appt-quem{display:block; font-size:10.5px; font-weight:700; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis}
 .appt-pago{color:var(--ok); font-weight:700; font-size:10.5px}
@@ -261,10 +295,13 @@ a.btn{text-decoration:none}
   text-decoration:line-through; cursor:default}
 .appt-mais{display:block; font-size:10.5px; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 
-/* ── Resumo: timeline do dia, uma coluna por profissional ──
-   Mesma linguagem visual da grade semanal da Agenda (.horas/.linha/.appt),
-   só com profissional no eixo das colunas em vez de dia — e mais compacta
-   (34px/hora contra 56px), porque aqui é pra ver de relance, não editar. */
+/* ── Timeline do dia, uma coluna por profissional ──
+   Mesma linguagem visual da grade semanal da Agenda (.horas/.linha/.appt), só
+   com profissional no eixo das colunas em vez de dia, e a mesma régua de
+   56px/hora. Serve o Resumo e a aba Dia da Agenda: era metade da altura
+   enquanto se achava que o Resumo era só "de relance", e num dia cheio de
+   serviço curto virava um amontoado de blocos de 23px. A régua está em
+   GradeDoDia.jsx. */
 .eq-timeline{display:flex; border:1px solid var(--line); border-radius:16px; overflow:hidden;
   background:var(--paper); position:relative}   /* a faixa da beirada se posiciona por aqui */
 .eq-horas{border-right:1px solid var(--line); flex:none; width:42px}
@@ -387,6 +424,12 @@ a.btn{text-decoration:none}
 .cs-sec-chave { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px;
   font-size: 12.5px; font-weight: 600; color: var(--ok); }
 .cs-sec-fora .cs-sec-chave { color: var(--muted); }
+/* Ligada e sem o que mostrar: nem verde de "está no ar", nem cinza de
+   "desligada" — é o âmbar de "falta uma coisa". `--warn-texto` e não
+   `--warn`: o tom cheio tem 3,5:1 sobre o papel, e aqui é texto de 12,5px. */
+.cs-sec-chave.falta { color: var(--warn-texto); }
+.cs-sec-falta { font-size: 12.5px; color: var(--warn-texto); font-weight: 600;
+  line-height: 1.5; margin: 6px 0 0; }
 .cs-sec-fora { padding-bottom: 12px; }
 .cs-sec-fora .cs-sec-cab { margin-bottom: 0; }
 .cs-sec-fora h2 { color: var(--muted); }
@@ -695,9 +738,13 @@ a.btn{text-decoration:none}
   border-radius: 7px; padding: 4px 8px; text-align: left; overflow: hidden;
   /* Vermelho e listrado. A listra separa de um atendimento (o painel já usa
      uma cor por profissional, então cor sozinha diria pouco); o vermelho diz
-     "aqui não entra ninguém" na única leitura que não precisa de legenda. */
+     "aqui não entra ninguém" na única leitura que não precisa de legenda.
+     Opaco, e não as mesmas listras com alfa: o bloqueio cai em cima da faixa
+     de "fora da jornada", e translúcido o rótulo dela aparecia no meio do
+     motivo do bloqueio — "FECHADO" atravessando "Planejamento da semana". */
   background: repeating-linear-gradient(45deg,
-    rgba(138,43,43,.20) 0 6px, rgba(138,43,43,.08) 6px 12px);
+    color-mix(in srgb, rgb(138,43,43) 20%, var(--paper)) 0 6px,
+    color-mix(in srgb, rgb(138,43,43) 8%, var(--paper)) 6px 12px);
   border: 1px dashed rgba(138,43,43,.55);
   color: var(--erro); font-size: 11.5px; font-weight: 600;
 }
@@ -1543,6 +1590,47 @@ a.btn{text-decoration:none}
 .ag-passado p{margin:6px 0 12px; font-size:13px; line-height:1.5; color:var(--ink2)}
 .ag-passado-botoes{display:flex; gap:8px; justify-content:flex-end}
 
+/* Cadastro da cliente dentro da gaveta de Novo agendamento, no lugar da que
+   falta na lista. Recuado como ficha à parte: são os campos de outra coisa no
+   meio do formulário do agendamento. */
+.nc{margin:-4px 0 14px; padding:14px; border-radius:12px;
+  background:var(--paper); border:1px solid var(--line)}
+.nc > .eyebrow{display:block; margin-bottom:10px}
+.nc .mfield:last-of-type{margin-bottom:12px}
+.nc-abrir{margin:-4px 0 14px}
+
+/* ── Semana da equipe: ocupação por dia, não agenda ───────────────────────
+   Lista, e não sete colunas: a grade já gastou hora e dia nos dois eixos, e a
+   terceira dimensão (quem atende) não cabe lá dentro. Em colunas de 112px os
+   sete dias não cabem num celular — vira rolagem horizontal com três dias à
+   vista, que é o contrário de "a semana de relance". Ver SemanaResumo.jsx. */
+.sm-dica{font-size:13px; color:var(--muted); line-height:1.5; margin:0 0 12px}
+.sm-dia{width:100%; text-align:left; gap:14px; align-items:flex-start;
+  background:none; color:inherit; min-height:64px}
+.sm-dia:hover{background:#FDF9F8}
+/* Hoje tem a marca na beirada, como a linha da Recepção: a lista é longa e o
+   dia de hoje é de onde se lê para a frente. */
+.sm-dia.hoje{box-shadow:inset 4px 0 0 var(--lacquer)} /* impeccable-disable-line side-tab -- marca de "hoje" na lista, mesma linguagem da Recepção */
+.sm-dia.hoje .sm-num{color:var(--lacquer-d)}
+.sm-data{flex:none; width:42px; display:flex; flex-direction:column; align-items:center; gap:1px}
+.sm-nome{font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.sm-num{font-size:19px; font-weight:600; line-height:1.1}
+/* Com largura de computador a barra atravessava a tela inteira e lia como
+   barra de carregamento. Limitada, ela volta a ser gráfico. */
+.sm-corpo{flex:1; min-width:0; max-width:520px; display:flex; flex-direction:column; gap:7px}
+.sm-numeros{display:flex; align-items:baseline; gap:10px; font-size:13.5px; flex-wrap:wrap}
+.sm-valor{font-size:13.5px; color:var(--muted)}
+.sm-vazio{font-size:13.5px; color:var(--muted)}
+/* A barra compara os dias entre si: a mais larga é o dia mais cheio da semana,
+   e cada pedaço é o tempo de uma profissional, na cor dela. */
+.sm-barra{display:flex; height:9px; border-radius:999px; overflow:hidden;
+  background:var(--line); min-width:14px}
+.sm-barra > span{min-width:3px}
+.sm-quem{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--muted)}
+.sm-quem-um{display:inline-flex; align-items:center; gap:5px; white-space:nowrap}
+.sm-quem-um i{width:8px; height:8px; border-radius:50%; flex:none}
+.sm-seta{flex:none; color:var(--muted); align-self:center}
+
 /* ── Seletor de profissionais: foto, nome e (na Agenda) vários marcados ── */
 .sp{position:relative}
 .sp-botao{display:inline-flex; align-items:center; gap:9px; min-height:42px; padding:6px 13px;
@@ -1821,7 +1909,7 @@ a.btn{text-decoration:none}
    cor de quem atende. Anel e selo, e não fundo, porque o fundo é de quem
    atende. Ganha do tracejado de "a confirmar" — o selo e o texto para leitor
    de tela continuam dizendo que falta confirmar. */
-.appt.proxima{box-shadow:inset 0 0 0 2.5px var(--lacquer), 0 2px 8px rgba(163,42,78,.25); outline:none; z-index:2}
+.appt.proxima{box-shadow:inset 0 0 0 2.5px var(--lacquer), 0 2px 8px rgba(163,42,78,.25); outline:none; z-index:3}
 .appt-selo{position:absolute; top:3px; right:4px; font-size:10.5px; font-weight:700; letter-spacing:.05em;
   text-transform:uppercase; padding:1px 6px; border-radius:999px; color:#fff; line-height:1.5}
 .appt-selo.agora{background:#1F5C96}
@@ -1845,19 +1933,26 @@ a.btn{text-decoration:none}
    o bloqueio é alguém que fechou de propósito; isto é a jornada. Sem eventos
    de ponteiro: passar por cima arrastando continua valendo o que a regra
    decide. */
+/* O rótulo mora na beira que ele descreve: "ANTES DAS 10:00" encosta nas
+   10:00, "DEPOIS DAS 19:00" encosta nas 19:00. Antes era sempre no alto, e no
+   alto da faixa da manhã é onde também ficam o bloqueio da empresa e o
+   primeiro atendimento do dia — três textos no mesmo lugar. */
 .fechado{position:absolute; left:0; right:0; z-index:0; pointer-events:none; overflow:hidden;
+  display:flex; flex-direction:column; justify-content:flex-start;
   background:repeating-linear-gradient(-45deg,
     rgba(138,43,43,.15) 0 6px, rgba(138,43,43,.05) 6px 12px)}
 .fechado.empresa{background:repeating-linear-gradient(-45deg,
     rgba(138,43,43,.32) 0 7px, rgba(138,43,43,.16) 7px 14px)}
 .fechado.corte-cima{border-top:2px solid var(--erro)}
 .fechado.corte-baixo{border-bottom:2px solid var(--erro)}
+.fechado.rotulo-fim{justify-content:flex-end}
 .fechado-rotulo{display:block; padding:4px 6px; font-size:10.5px; font-weight:700; letter-spacing:.04em;
   text-transform:uppercase; color:var(--erro); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .fechado.empresa .fechado-rotulo{display:inline-block; margin:4px; padding:1px 7px; border-radius:999px; background:var(--erro); color:#fff}
 /* Bloqueio da empresa toda (feriado): o mesmo peso da empresa fechada. */
 .bloqueio.empresa{background:repeating-linear-gradient(45deg,
-    rgba(138,43,43,.34) 0 6px, rgba(138,43,43,.16) 6px 12px);
+    color-mix(in srgb, rgb(138,43,43) 34%, var(--paper)) 0 6px,
+    color-mix(in srgb, rgb(138,43,43) 16%, var(--paper)) 6px 12px);
   border:1.5px solid var(--erro)}
 
 /* Recepção: a linha de quem está na cadeira e a da próxima, com fundo. */

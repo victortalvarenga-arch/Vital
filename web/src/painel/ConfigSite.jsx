@@ -39,9 +39,18 @@ export default function ConfigSite({ dados, acao, aviso }) {
 
   // A chave "No site" de uma seção. Mora em `exibir` como as outras, e o
   // servidor respeita a mesma (`secaoLigada` em routes/publico.js).
-  const noSite = chave => ({
+  //
+  // `falta` é o que impede a seção de existir no site **mesmo ligada**. Ligar
+  // a chave diz "eu quero isto no site"; não diz que há o que mostrar. A
+  // vitrine monta cada seção a dedo e devolve nada quando não há conteúdo
+  // (ver `routes/publico.js`), e aí o modelo não desenha a seção — mas a tela
+  // continuava escrevendo "No site" em cima, afirmando o contrário do que a
+  // cliente vê. Era o caso das avaliações sem conta do Google conectada:
+  // chave ligada, site sem avaliação nenhuma.
+  const noSite = (chave, falta = null) => ({
     ligado: cfg.exibir?.[chave] !== false,
     aoMudar: v => mudar(`exibir.${chave}`, v),
+    falta,
   });
 
   // O título de uma seção do site (`textos.titulos`). Vazio, o modelo usa o
@@ -58,6 +67,32 @@ export default function ConfigSite({ dados, acao, aviso }) {
   const { contas, recarregarContas, retorno } = useConexoes();
   const insta = contas.find(c => c.provedor === 'instagram');
   const google = contas.find(c => c.provedor === 'google');
+
+  /**
+   * O que falta para cada seção aparecer de verdade no site.
+   *
+   * Cada linha repete a regra que a vitrine aplica (`routes/publico.js`) — e
+   * repetir é o preço de a tela saber responder antes de perguntar ao
+   * servidor. Quando uma dessas regras mudar lá, muda aqui: o teste de
+   * `vitrine` cobre o servidor, e quem cobre esta tela é a frase ficar falsa
+   * na cara de quem abrir o painel.
+   */
+  const faltas = {
+    sobre: cfg.sobre?.trim() ? null
+      : 'Sem texto, a seção não aparece no site.',
+    equipe: dados.staff.some(p => p.ativo && !cfg.equipeSite?.[p.id]?.oculto) ? null
+      : 'Ninguém marcado para aparecer — a seção não existe no site.',
+    antesDepois: (cfg.antesDepois || []).some(c => c?.antes && c?.depois && c?.autorizacao?.nome && c?.autorizacao?.data) ? null
+      : 'Nenhum caso com autorização registrada — a seção não aparece no site.',
+    avaliacoes: cfg.avaliacoesGoogle?.total && cfg.avaliacoesGoogle?.nota ? null
+      : google?.conectado
+        ? 'Conta conectada, e as avaliações ainda não chegaram. Elas entram sozinhas na próxima atualização, de hora em hora.'
+        : 'Sem a conta do Google conectada não há nota nem avaliação para mostrar — a seção não aparece no site.',
+    instagram: (cfg.instagramPosts || []).some(x => x?.imagem) ? null
+      : 'Sem publicação vinda da conta conectada, a seção não aparece. O perfil continua no rodapé.',
+    perguntas: (cfg.faq || []).some(x => x?.pergunta?.trim() && x?.resposta?.trim()) ? null
+      : 'Nenhuma pergunta com resposta — a seção não aparece no site.',
+  };
   // Uma ação de conexão muda a config no servidor (o job escreve nela); o
   // `acao` recarrega o painel, e aqui recarrega a situação das contas.
   const agirNaConta = async (fn, mensagem) => {
@@ -145,27 +180,27 @@ export default function ConfigSite({ dados, acao, aviso }) {
       {/* Daqui para baixo, na ordem em que aparecem no site: cada seção com a
           chave "No site" ao lado do título. Desligar não apaga o conteúdo —
           a seção só sai do site até ser ligada de novo. */}
-      <Secao titulo="Sobre" noSite={noSite('sobre')}
+      <Secao titulo="Sobre" noSite={noSite('sobre', faltas.sobre)}
              ajuda="Um parágrafo sobre o negócio, logo abaixo do topo. Também vira a descrição do link quando ele é compartilhado.">
         {titulo('sobre')}
         <Area rotulo="Texto" valor={cfg.sobre} aoMudar={v => mudar('sobre', v)}
               dica="Vazio, a seção não aparece." />
       </Secao>
 
-      <Secao titulo="Equipe" noSite={noSite('equipe')}
+      <Secao titulo="Equipe" noSite={noSite('equipe', faltas.equipe)}
              ajuda="Quem atende aparece no site com foto, nome e uma linha sobre a pessoa. Quem você tira daqui continua podendo ser escolhido no agendamento.">
         {titulo('equipe')}
         <EquipeDoSite staff={dados.staff} valor={cfg.equipeSite || {}}
                       aoMudar={v => mudar('equipeSite', v)} aviso={aviso} />
       </Secao>
 
-      <Secao titulo="Antes e depois" noSite={noSite('antesDepois')}
+      <Secao titulo="Antes e depois" noSite={noSite('antesDepois', faltas.antesDepois)}
              ajuda="Viram uma seção de resultados no site, com as duas fotos lado a lado. A seção só aparece com pelo menos um caso autorizado.">
         {titulo('antesDepois')}
         <AntesDepois lista={cfg.antesDepois || []} aoMudar={v => mudar('antesDepois', v)} aviso={aviso} />
       </Secao>
 
-      <Secao titulo="Avaliações do Google" noSite={noSite('avaliacoes')}
+      <Secao titulo="Avaliações do Google" noSite={noSite('avaliacoes', faltas.avaliacoes)}
              ajuda="As avaliações da sua ficha no Google aparecem no site e se atualizam sozinhas, de hora em hora. A seção só aparece com a conta conectada.">
         {titulo('avaliacoes')}
         <Conexao info={google} nome="Google" agir={agirNaConta}
@@ -175,7 +210,7 @@ export default function ConfigSite({ dados, acao, aviso }) {
       {/* As publicações não se escolhem à mão: vêm da conta conectada. Até a
           conexão existir, o que está no site é exemplo — e a tela diz isso,
           para ninguém achar que precisa montar a grade foto por foto. */}
-      <Secao titulo="Instagram" noSite={noSite('instagram')}
+      <Secao titulo="Instagram" noSite={noSite('instagram', faltas.instagram)}
              ajuda="Uma seção com o perfil e as publicações. Desligada, o perfil continua no rodapé.">
         {titulo('instagram')}
         <Conexao info={insta} nome="Instagram" agir={agirNaConta}
@@ -187,7 +222,7 @@ export default function ConfigSite({ dados, acao, aviso }) {
         <PreviaPublicacoes lista={cfg.instagramPosts || []} conectado={!!insta?.conectado} />
       </Secao>
 
-      <Secao titulo="Perguntas frequentes" noSite={noSite('perguntas')}
+      <Secao titulo="Perguntas frequentes" noSite={noSite('perguntas', faltas.perguntas)}
              ajuda="Viram uma seção no site, e o Google as usa para mostrar as respostas direto na busca.">
         {titulo('perguntas')}
         <Perguntas lista={cfg.faq || []} aoMudar={v => mudar('faq', v)} />
@@ -259,14 +294,18 @@ const ancora = titulo => 'cs-' + titulo.toLowerCase().normalize('NFD').replace(/
  */
 const Secao = ({ titulo, ajuda, noSite, children }) => {
   const fechada = noSite && !noSite.ligado;
+  // Ligada e sem o que mostrar. A chave continua ligada — é o que a pessoa
+  // escolheu —, mas quem lê a tela precisa saber que o site não tem essa
+  // seção, e por quê.
+  const naoAparece = Boolean(noSite?.ligado && noSite.falta);
   return (
     <section id={ancora(titulo)} className={'cs-sec' + (fechada ? ' cs-sec-fora' : '')}>
       <div className="cs-sec-cab">
         <div className="cs-sec-titulo">
           <h2>{titulo}</h2>
           {noSite && (
-            <label className="cs-sec-chave">
-              <span>{noSite.ligado ? 'No site' : 'Fora do site'}</span>
+            <label className={'cs-sec-chave' + (naoAparece ? ' falta' : '')}>
+              <span>{!noSite.ligado ? 'Fora do site' : naoAparece ? 'Ainda não aparece' : 'No site'}</span>
               <button type="button" className={'sw' + (noSite.ligado ? ' on' : '')}
                       role="switch" aria-checked={noSite.ligado} aria-label={`Mostrar ${titulo} no site`}
                       onClick={() => noSite.aoMudar(!noSite.ligado)}>
@@ -276,6 +315,7 @@ const Secao = ({ titulo, ajuda, noSite, children }) => {
           )}
         </div>
         {ajuda && !fechada && <p>{ajuda}</p>}
+        {naoAparece && <p className="cs-sec-falta">{noSite.falta}</p>}
       </div>
       {!fechada && <div className="cs-campos">{children}</div>}
     </section>
